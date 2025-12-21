@@ -11,9 +11,9 @@ class CallHammerPortal {
         
         // n8n Webhook URLs (Replace with actual production URLs)
         this.webhooks = {
-            fetchData: 'https://your-n8n-instance.com/webhook/fetch-data',
-            addEmployee: 'https://your-n8n-instance.com/webhook/add-employee',
-            timeOffRequest: 'https://your-n8n-instance.com/webhook/timeoff-request',
+            fetchData: 'http://localhost:5678/webhook/f8588932-bb8f-4f81-8da5-2bd205b9169f',
+            addEmployee: 'http://localhost:5678/webhook/f8588932-bb8f-4f81-8da5-2bd205b9169f',
+            timeOffRequest: 'http://localhost:5678/webhook/f8588932-bb8f-4f81-8da5-2bd205b9169f',
             updatePerformance: 'https://your-n8n-instance.com/webhook/update-performance'
         };
 
