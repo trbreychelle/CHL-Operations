@@ -47,7 +47,7 @@ class CallHammerPortal {
             if (result.status === "success") {
                 this.leadsData = result.leads || [];
                 
-                // --- NEW: UPDATE THE UI WITH REAL DATA ---
+                // Update the Dashboard UI with the real data
                 this.updateDashboardUI(this.leadsData);
                 return result;
             }
@@ -59,55 +59,70 @@ class CallHammerPortal {
         }
     }
 
-    // --- NEW: UI RENDERING ENGINE ---
+    // --- UI RENDERING ENGINE ---
     updateDashboardUI(leads) {
         if (!this.currentUser) return;
 
-        // 1. Update Header Name
-        const headerName = document.querySelector('.text-sm.font-medium.text-gray-900');
-        if (headerName) headerName.textContent = this.currentUser.name;
+        // 1. Update Header Name & Role using the new IDs from your HTML
+        const nameHeader = document.getElementById('nav-user-name');
+        const roleHeader = document.getElementById('nav-user-role');
+        
+        if (nameHeader) nameHeader.textContent = this.currentUser.name;
+        if (roleHeader) roleHeader.textContent = this.currentUser.role || 'Sales Agent';
 
-        // 2. Calculate Stats from Leads
+        // 2. Calculate Stats from Real Sheet Data
         const totalAppointments = leads.length;
         
-        // Calculate Cancel Rate (Status contains 'Cancel' or 'Reject')
+        // Find leads marked as "Cancelled" or "Rejected" in the sheet
         const cancelledCount = leads.filter(l => 
             l.Status?.toLowerCase().includes('cancel') || 
             l.Status?.toLowerCase().includes('reject')
         ).length;
         
         const cancelRate = totalAppointments > 0 ? ((cancelledCount / totalAppointments) * 100).toFixed(1) : 0;
-        
-        // Use your existing Incentive Engine
         const incentiveStats = this.calculateIncentives(totalAppointments, cancelRate);
 
-        // 3. Inject Values into Dashboard Cards
-        // Card order: 0=Appointments, 1=Cancel Rate, 2=Incentives, 3=Hours
-        const cards = document.querySelectorAll('.text-2xl.font-bold.text-gray-900');
-        if (cards.length >= 3) {
-            cards[0].textContent = totalAppointments;
-            cards[1].textContent = `${cancelRate}%`;
-            cards[2].textContent = `$${incentiveStats.totalIncentives.toLocaleString()}`;
-        }
+        // 3. Inject Values into the Metric Cards
+        const apptCount = document.getElementById('stat-appointments');
+        const cancelRateDisp = document.getElementById('stat-cancel-rate');
+        const incentiveDisp = document.getElementById('stat-incentives');
+        
+        if (apptCount) apptCount.textContent = totalAppointments;
+        if (cancelRateDisp) cancelRateDisp.textContent = `${cancelRate}%`;
+        if (incentiveDisp) incentiveDisp.textContent = `$${incentiveStats.totalIncentives.toLocaleString()}`;
 
-        // 4. Update the Progress Bar
-        const progressBar = document.querySelector('.h-2.bg-orange-500');
-        const progressText = document.querySelector('.text-sm.font-medium.text-orange-600');
-        const countDisplay = document.querySelector('.text-sm.text-gray-500.ml-auto');
+        // 4. Update the Progress Bar and Tier Text
+        const progressBar = document.getElementById('tier-progress-bar');
+        const tierStatusText = document.getElementById('tier-status-text');
+        const tierCountDisp = document.getElementById('tier-count-display');
         
         if (progressBar) {
-            const nextGoal = totalAppointments < 8 ? 8 : totalAppointments < 12 ? 12 : 15;
+            // Logic to determine the current tier based on appointments
+            let currentTier = "Tier 1 (1-6 leads)";
+            let nextGoal = 8;
+
+            if (totalAppointments >= 12) {
+                currentTier = "Tier 4 (13+ leads)";
+                nextGoal = 20; // Cap for the bar
+            } else if (totalAppointments >= 8) {
+                currentTier = "Tier 3 (9-12 leads)";
+                nextGoal = 12;
+            } else if (totalAppointments >= 6) {
+                currentTier = "Tier 2 (8th lead)";
+                nextGoal = 8;
+            }
+
             const percentage = Math.min((totalAppointments / nextGoal) * 100, 100);
             progressBar.style.width = `${percentage}%`;
             
-            if (progressText) progressText.textContent = `Current: Tier ${totalAppointments < 8 ? '2' : totalAppointments < 12 ? '3' : '4'}`;
-            if (countDisplay) countDisplay.textContent = `${totalAppointments} / ${nextGoal} appointments`;
+            if (tierStatusText) tierStatusText.textContent = `Current: ${currentTier}`;
+            if (tierCountDisp) tierCountDisp.textContent = `${totalAppointments} / ${nextGoal} appointments`;
         }
         
-        console.log(`UI Updated: ${totalAppointments} real leads found for ${this.currentUser.name}`);
+        console.log(`UI Sync Complete: ${totalAppointments} leads for ${this.currentUser.name}`);
     }
 
-    // --- EXISTING AUTH & SESSION LOGIC ---
+    // --- AUTHENTICATION & SESSION LOGIC ---
     async login(email, password) {
         if (this.isLoading) return;
         this.setLoadingState(true, 'Connecting...');
@@ -119,6 +134,7 @@ class CallHammerPortal {
             });
             if (!response.ok) throw new Error('Ensure n8n workflow is ACTIVE.');
             const result = await response.json();
+            
             if (result.status === "success") {
                 this.currentUser = { ...result.user, email: email }; 
                 this.createSession(this.currentUser);
@@ -167,6 +183,7 @@ class CallHammerPortal {
         window.location.href = 'index.html';
     }
 
+    // --- MATH & UTILITIES ---
     calculateIncentives(n, c) {
         let total = 0;
         const t1 = Math.min(n, 6);
