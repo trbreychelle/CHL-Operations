@@ -11,7 +11,6 @@ class CallHammerPortal {
         
         // n8n Webhook URLs 
         this.webhooks = {
-            // Production URLs (Workflow must be set to ACTIVE in n8n)
             login: 'http://localhost:5678/webhook/agent-login', 
             fetchData: 'http://localhost:5678/webhook/fetch-agent-data', 
             addEmployee: 'http://localhost:5678/webhook/add-employee',
@@ -26,7 +25,7 @@ class CallHammerPortal {
         this.bindEvents();
         this.initializeAnimations();
 
-        // Automatically fetch data if user is already logged in on a dashboard page
+        // If logged in on a dashboard, fetch real data immediately
         if (this.currentUser && (window.location.pathname.includes('dashboard'))) {
             this.fetchAllData();
         }
@@ -49,8 +48,10 @@ class CallHammerPortal {
             const result = await response.json();
             if (result.status === "success") {
                 this.leadsData = result.leads || [];
-                console.log('Leads loaded:', this.leadsData);
-                // Trigger UI update here if necessary
+                console.log('Leads loaded from sheet:', this.leadsData);
+                
+                // UPDATE UI WITH REAL DATA
+                this.updateAgentDashboard(this.leadsData);
                 return result;
             }
         } catch (error) {
@@ -58,6 +59,47 @@ class CallHammerPortal {
             this.showError('Could not sync with Google Sheets.');
         } finally {
             this.setLoadingState(false);
+        }
+    }
+
+    // --- UI RENDERING ENGINE ---
+    updateAgentDashboard(leads) {
+        if (!this.currentUser) return;
+
+        // 1. Update Agent Name and Role in Header
+        const nameHeader = document.querySelector('.text-sm.font-medium.text-gray-900');
+        const roleHeader = document.querySelector('.text-xs.text-gray-500');
+        if (nameHeader) nameHeader.textContent = this.currentUser.name;
+        if (roleHeader) roleHeader.textContent = this.currentUser.role.charAt(0).toUpperCase() + this.currentUser.role.slice(1);
+
+        // 2. Calculate Real Stats
+        const totalAppointments = leads.length;
+        
+        // Simple cancellation calculation: find leads with "Cancelled" or "Rejected" status
+        const cancelledLeads = leads.filter(l => 
+            l.Status?.toLowerCase().includes('cancel') || 
+            l.Status?.toLowerCase().includes('reject')
+        ).length;
+        
+        const cancelRate = totalAppointments > 0 ? ((cancelledLeads / totalAppointments) * 100).toFixed(1) : 0;
+        const incentiveStats = this.calculateIncentives(totalAppointments, cancelRate);
+
+        // 3. Inject Values into Dashboard Cards
+        const cards = document.querySelectorAll('.text-2xl.font-bold.text-gray-900');
+        if (cards.length >= 3) {
+            cards[0].textContent = totalAppointments; // Total Appointments Card
+            cards[1].textContent = `${cancelRate}%`; // Cancellation Rate Card
+            cards[2].textContent = `$${incentiveStats.totalIncentives.toLocaleString()}`; // Total Incentives Card
+        }
+
+        // 4. Update Progress Bar
+        const progressBar = document.querySelector('.h-2.bg-orange-500');
+        const progressText = document.querySelector('.text-sm.font-medium.text-orange-600');
+        if (progressBar) {
+            const nextGoal = totalAppointments < 8 ? 8 : totalAppointments < 12 ? 12 : 15;
+            const percentage = Math.min((totalAppointments / nextGoal) * 100, 100);
+            progressBar.style.width = `${percentage}%`;
+            if (progressText) progressText.textContent = `${totalAppointments} / ${nextGoal} appointments`;
         }
     }
 
@@ -73,16 +115,14 @@ class CallHammerPortal {
                 body: JSON.stringify({ email, password })
             });
 
-            // Handle potential server issues or inactive workflows
-            if (!response.ok) throw new Error('Unable to connect to login server. Ensure n8n workflow is ACTIVE.');
+            if (!response.ok) throw new Error('Login server error. Ensure n8n is ACTIVE.');
 
             const result = await response.json();
 
             if (result.status === "success") {
-                // Ensure email is preserved for data fetching
                 this.currentUser = { ...result.user, email: email }; 
                 this.createSession(this.currentUser);
-                this.showSuccess('Login successful!');
+                this.showSuccess(`Welcome back, ${this.currentUser.name}!`);
                 
                 setTimeout(() => this.redirectToDashboard(), 800);
             } else {
