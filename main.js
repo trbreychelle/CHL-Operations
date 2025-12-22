@@ -13,7 +13,7 @@ class CallHammerPortal {
             login: 'http://localhost:5678/webhook/agent-login', 
             fetchData: 'http://localhost:5678/webhook/fetch-agent-data', 
             addEmployee: 'http://localhost:5678/webhook/add-employee',
-            timeOffRequest: 'http://localhost:5678/webhook/timeoff-request'
+            timeOffRequest: 'http://localhost:5678/webhook-test/timeoff-request'
         };
 
         this.init();
@@ -26,6 +26,8 @@ class CallHammerPortal {
 
         if (this.currentUser && (window.location.pathname.includes('dashboard'))) {
             this.fetchAllData();
+            // Automatically update profile fields from session data
+            this.updateProfileUI();
         }
     }
 
@@ -46,8 +48,6 @@ class CallHammerPortal {
             const result = await response.json();
             if (result.status === "success") {
                 this.leadsData = result.leads || [];
-                
-                // Update the Dashboard UI with the real data
                 this.updateDashboardUI(this.leadsData);
                 return result;
             }
@@ -63,17 +63,12 @@ class CallHammerPortal {
     updateDashboardUI(leads) {
         if (!this.currentUser) return;
 
-        // 1. Update Header Name & Role using the new IDs from your HTML
         const nameHeader = document.getElementById('nav-user-name');
         const roleHeader = document.getElementById('nav-user-role');
-        
         if (nameHeader) nameHeader.textContent = this.currentUser.name;
         if (roleHeader) roleHeader.textContent = this.currentUser.role || 'Sales Agent';
 
-        // 2. Calculate Stats from Real Sheet Data
         const totalAppointments = leads.length;
-        
-        // Find leads marked as "Cancelled" or "Rejected" in the sheet
         const cancelledCount = leads.filter(l => 
             l.Status?.toLowerCase().includes('cancel') || 
             l.Status?.toLowerCase().includes('reject')
@@ -82,7 +77,6 @@ class CallHammerPortal {
         const cancelRate = totalAppointments > 0 ? ((cancelledCount / totalAppointments) * 100).toFixed(1) : 0;
         const incentiveStats = this.calculateIncentives(totalAppointments, cancelRate);
 
-        // 3. Inject Values into the Metric Cards
         const apptCount = document.getElementById('stat-appointments');
         const cancelRateDisp = document.getElementById('stat-cancel-rate');
         const incentiveDisp = document.getElementById('stat-incentives');
@@ -91,35 +85,62 @@ class CallHammerPortal {
         if (cancelRateDisp) cancelRateDisp.textContent = `${cancelRate}%`;
         if (incentiveDisp) incentiveDisp.textContent = `$${incentiveStats.totalIncentives.toLocaleString()}`;
 
-        // 4. Update the Progress Bar and Tier Text
         const progressBar = document.getElementById('tier-progress-bar');
         const tierStatusText = document.getElementById('tier-status-text');
         const tierCountDisp = document.getElementById('tier-count-display');
         
         if (progressBar) {
-            // Logic to determine the current tier based on appointments
-            let currentTier = "Tier 1 (1-6 leads)";
-            let nextGoal = 8;
-
-            if (totalAppointments >= 12) {
-                currentTier = "Tier 4 (13+ leads)";
-                nextGoal = 20; // Cap for the bar
-            } else if (totalAppointments >= 8) {
-                currentTier = "Tier 3 (9-12 leads)";
-                nextGoal = 12;
-            } else if (totalAppointments >= 6) {
-                currentTier = "Tier 2 (8th lead)";
-                nextGoal = 8;
-            }
-
+            let nextGoal = totalAppointments < 8 ? 8 : totalAppointments < 12 ? 12 : 15;
             const percentage = Math.min((totalAppointments / nextGoal) * 100, 100);
             progressBar.style.width = `${percentage}%`;
-            
-            if (tierStatusText) tierStatusText.textContent = `Current: ${currentTier}`;
             if (tierCountDisp) tierCountDisp.textContent = `${totalAppointments} / ${nextGoal} appointments`;
         }
+    }
+
+    // --- NEW: PROFILE TAB UPDATE ---
+    updateProfileUI() {
+        if (!this.currentUser) return;
         
-        console.log(`UI Sync Complete: ${totalAppointments} leads for ${this.currentUser.name}`);
+        // Map the IDs in your HTML to the data from AGENT_MASTER sheet
+        const profileFields = {
+            'profileName': this.currentUser.name,
+            'profilePosition': this.currentUser.position || 'Sales Agent',
+            'profileRate': `$${this.currentUser.baseRate || '15.00'}/hour`,
+            'profileHours': `${this.currentUser.weeklyHours || '40'} hours`,
+            'profileStartDate': this.currentUser.startDate || 'January 1, 2024',
+            'profileEmail': this.currentUser.email
+        };
+
+        for (const [id, value] of Object.entries(profileFields)) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        }
+    }
+
+    // --- NEW: TIME OFF SUBMISSION ---
+    async submitTimeOffRequest(data) {
+        this.setLoadingState(true, 'Submitting request...');
+        try {
+            const response = await fetch(this.webhooks.timeOffRequest, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: this.currentUser.email,
+                    name: this.currentUser.name,
+                    ...data
+                })
+            });
+
+            if (!response.ok) throw new Error('Time-off service unavailable.');
+            
+            this.showSuccess('Time-off request sent to management!');
+            return true;
+        } catch (error) {
+            this.showError(error.message);
+            return false;
+        } finally {
+            this.setLoadingState(false);
+        }
     }
 
     // --- AUTHENTICATION & SESSION LOGIC ---
@@ -183,7 +204,6 @@ class CallHammerPortal {
         window.location.href = 'index.html';
     }
 
-    // --- MATH & UTILITIES ---
     calculateIncentives(n, c) {
         let total = 0;
         const t1 = Math.min(n, 6);
