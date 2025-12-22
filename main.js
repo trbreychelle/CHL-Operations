@@ -10,7 +10,6 @@ class CallHammerPortal {
         this.isLoading = false;
         
         this.webhooks = {
-            // FIXED: Removed the extra "login:" word inside the string
             login: 'http://localhost:5678/webhook/agent-login', 
             fetchData: 'http://localhost:5678/webhook/fetch-agent-data', 
             addEmployee: 'http://localhost:5678/webhook/add-employee',
@@ -63,11 +62,13 @@ class CallHammerPortal {
     updateDashboardUI(leads) {
         if (!this.currentUser) return;
 
+        // 1. Update Header
         const nameHeader = document.getElementById('nav-user-name');
         const roleHeader = document.getElementById('nav-user-role');
         if (nameHeader) nameHeader.textContent = this.currentUser.name;
         if (roleHeader) roleHeader.textContent = this.currentUser.role || 'Sales Agent';
 
+        // 2. Calculate Stats
         const totalAppointments = leads.length;
         const cancelledCount = leads.filter(l => 
             l.Status?.toLowerCase().includes('cancel') || 
@@ -77,6 +78,7 @@ class CallHammerPortal {
         const cancelRate = totalAppointments > 0 ? ((cancelledCount / totalAppointments) * 100).toFixed(1) : 0;
         const incentiveStats = this.calculateIncentives(totalAppointments, cancelRate);
 
+        // 3. Update Stat Cards
         const apptCount = document.getElementById('stat-appointments');
         const cancelRateDisp = document.getElementById('stat-cancel-rate');
         const incentiveDisp = document.getElementById('stat-incentives');
@@ -85,8 +87,8 @@ class CallHammerPortal {
         if (cancelRateDisp) cancelRateDisp.textContent = `${cancelRate}%`;
         if (incentiveDisp) incentiveDisp.textContent = `$${incentiveStats.totalIncentives.toLocaleString()}`;
 
+        // 4. Update Progress Bar
         const progressBar = document.getElementById('tier-progress-bar');
-        const tierStatusText = document.getElementById('tier-status-text');
         const tierCountDisp = document.getElementById('tier-count-display');
         
         if (progressBar) {
@@ -95,6 +97,77 @@ class CallHammerPortal {
             progressBar.style.width = `${percentage}%`;
             if (tierCountDisp) tierCountDisp.textContent = `${totalAppointments} / ${nextGoal} appointments`;
         }
+
+        // 5. NEW: Render Real Trends & Leads Table
+        this.renderCharts(leads);
+        this.renderLeadsTable(leads);
+    }
+
+    // --- NEW: RENDER PERFORMANCE TRENDS ---
+    renderCharts(leads) {
+        const chartDom = document.getElementById('appointmentsChart');
+        if (!chartDom || typeof echarts === 'undefined') return;
+
+        const myChart = echarts.init(chartDom);
+        
+        // Group appointments by day of week (0=Sun, 1=Mon, etc.)
+        const dataCounts = [0, 0, 0, 0, 0, 0, 0];
+        leads.forEach(lead => {
+            const dateStr = lead['Appointment Date /Time'];
+            if (dateStr) {
+                const dayIndex = new Date(dateStr).getDay();
+                dataCounts[dayIndex]++;
+            }
+        });
+
+        // Filter for Mon-Fri only for the chart display
+        const weekData = dataCounts.slice(1, 6);
+
+        myChart.setOption({
+            tooltip: { trigger: 'axis' },
+            xAxis: { type: 'category', data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
+            yAxis: { type: 'value', minInterval: 1 },
+            series: [{
+                data: weekData,
+                type: 'line',
+                smooth: true,
+                color: '#FF6B35',
+                areaStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: 'rgba(255, 107, 53, 0.3)' },
+                        { offset: 1, color: 'rgba(255, 107, 53, 0)' }
+                    ])
+                }
+            }]
+        });
+    }
+
+    // --- NEW: RENDER RECENT LEADS TABLE ---
+    renderLeadsTable(leads) {
+        const tableBody = document.getElementById('leads-table-body');
+        if (!tableBody) return;
+
+        if (leads.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="4" class="px-6 py-10 text-center text-gray-400">No appointments found for the current period.</td></tr>';
+            return;
+        }
+
+        tableBody.innerHTML = leads.map(lead => `
+            <tr>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${lead['Homeowner Name(s)'] || 'N/A'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead['Appointment Date /Time'] || 'N/A'}</td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        lead.Status?.toLowerCase() === 'approved' ? 'bg-green-100 text-green-800' : 
+                        lead.Status?.toLowerCase().includes('cancel') ? 'bg-red-100 text-red-800' : 
+                        'bg-yellow-100 text-yellow-800'
+                    }">
+                        ${lead.Status || 'Pending'}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead['Address'] || 'N/A'}</td>
+            </tr>
+        `).join('');
     }
 
     updateProfileUI() {
