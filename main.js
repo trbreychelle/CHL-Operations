@@ -1,4 +1,6 @@
 // Call Hammer Leads - Main Application Logic
+// Integrated with n8n Localhost Production Webhook
+
 class CallHammerPortal {
     constructor() {
         this.currentUser = null;
@@ -19,7 +21,7 @@ class CallHammerPortal {
         this.bindEvents();
         if (this.currentUser && (window.location.pathname.includes('dashboard'))) {
             this.fetchAllData();
-            this.updateProfileUI(); // FIXED: Now handles all fields from Google Sheet
+            this.updateProfileUI();
         }
     }
 
@@ -38,6 +40,7 @@ class CallHammerPortal {
             if (result.status === "success") {
                 this.leadsData = result.leads || [];
                 this.updateDashboardUI(this.leadsData);
+                return result;
             }
         } catch (error) {
             console.error('Fetch error:', error);
@@ -50,16 +53,22 @@ class CallHammerPortal {
     updateDashboardUI(leads) {
         if (!this.currentUser) return;
 
+        // 1. Calculations
         const total = leads.length;
-        const cancelled = leads.filter(l => l.Status?.toLowerCase().includes('cancel') || l.Status?.toLowerCase().includes('reject')).length;
+        const cancelled = leads.filter(l => 
+            l.Status?.toLowerCase().includes('cancel') || 
+            l.Status?.toLowerCase().includes('reject')
+        ).length;
         const rate = total > 0 ? ((cancelled / total) * 100).toFixed(1) : 0;
         
         const incentiveStats = this.calculateIncentives(total, parseFloat(rate));
 
+        // 2. Update Stat Cards
         if (document.getElementById('stat-appointments')) document.getElementById('stat-appointments').textContent = total;
         if (document.getElementById('stat-cancel-rate')) document.getElementById('stat-cancel-rate').textContent = `${rate}%`;
         if (document.getElementById('stat-incentives')) document.getElementById('stat-incentives').textContent = `$${incentiveStats.totalIncentives}`;
 
+        // 3. Progress Bar & Tier Logic
         const progressBar = document.getElementById('tier-progress-bar');
         const tierStatusText = document.getElementById('tier-status-text');
         if (progressBar) {
@@ -68,40 +77,73 @@ class CallHammerPortal {
             document.getElementById('tier-count-display').textContent = `${total} / ${nextGoal} appointments`;
 
             if (tierStatusText) {
-                let tier = total >= 13 ? "Tier 4 (High Performance)" : total >= 9 ? "Tier 3" : total >= 8 ? "Tier 2" : total >= 1 ? "Tier 1" : "Base Only";
+                let tier = "Base Only";
+                if (total >= 13) tier = "Tier 4 (High Performance)";
+                else if (total >= 9) tier = "Tier 3";
+                else if (total >= 8) tier = "Tier 2";
+                else if (total >= 1) tier = "Tier 1";
                 tierStatusText.textContent = `Current: ${tier}`;
             }
         }
 
-        this.renderCharts(leads);
+        this.renderCharts(leads, parseFloat(rate));
         this.renderLeadsTable(leads);
     }
 
+    // --- REVISED INCENTIVE ENGINE ---
     calculateIncentives(n, c) {
         let total = 0;
-        const highPerf = c < 25;
-        if (n >= 1) total += 50;
-        if (n >= 8) total += (highPerf ? 50 : 30);
-        const t3Count = Math.max(0, Math.min(n, 12) - 8);
+        const highPerf = c < 25; // Bonus logic for < 25% cancellation
+
+        if (n >= 1) total += 50; // Rule 1: 1st-6th flat $50
+        if (n >= 8) total += (highPerf ? 50 : 30); // Rule 2: 8th flat $30 or $50
+        
+        const t3Count = Math.max(0, Math.min(n, 12) - 8); // Rule 3: 9th-12th each
         if (t3Count > 0) total += t3Count * (highPerf ? 17 : 15);
-        const t4Count = Math.max(0, n - 12);
+
+        const t4Count = Math.max(0, n - 12); // Rule 4: 13th+ each
         if (t4Count > 0) total += t4Count * (highPerf ? 27 : 25);
+
         return { totalIncentives: total };
     }
 
-    renderCharts(leads) {
+    // --- CHART RENDERER (Appointments & Earnings) ---
+    renderCharts(leads, cancelRate) {
         const apptDom = document.getElementById('appointmentsChart');
-        if (!apptDom || typeof echarts === 'undefined') return;
+        const incDom = document.getElementById('incentivesChart');
+        if (!apptDom || !incDom || typeof echarts === 'undefined') return;
+
+        const apptChart = echarts.init(apptDom);
+        const incChart = echarts.init(incDom);
+        
         const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
         const counts = [0, 0, 0, 0, 0];
+        const earnings = [0, 0, 0, 0, 0];
+
         leads.forEach(l => {
             const d = new Date(l['Appointment Date /Time']).getDay() - 1;
-            if (d >= 0 && d <= 4) counts[d]++;
+            if (d >= 0 && d <= 4) {
+                counts[d]++;
+                // Visualization logic: show the "each" bonus amount in chart bars
+                const status = l.Status?.toLowerCase() || '';
+                if (!status.includes('cancel')) {
+                    earnings[d] += (cancelRate < 25 ? 17 : 15); 
+                }
+            }
         });
-        echarts.init(apptDom).setOption({
+
+        apptChart.setOption({
+            tooltip: { trigger: 'axis' },
             xAxis: { type: 'category', data: days },
             yAxis: { type: 'value', minInterval: 1 },
-            series: [{ data: counts, type: 'line', smooth: true, color: '#FF6B35' }]
+            series: [{ data: counts, type: 'line', smooth: true, color: '#FF6B35', areaStyle: { opacity: 0.1 } }]
+        });
+
+        incChart.setOption({
+            tooltip: { trigger: 'axis', formatter: '{b}: ${c}' },
+            xAxis: { type: 'category', data: days },
+            yAxis: { type: 'value' },
+            series: [{ data: earnings, type: 'bar', color: '#FF6B35', itemStyle: { borderRadius: [4,4,0,0] } }]
         });
     }
 
@@ -117,11 +159,9 @@ class CallHammerPortal {
         `).join('');
     }
 
-    // --- UPDATED PROFILE UI SYSTEM ---
+    // --- PROFILE MAPPING SYSTEM ---
     updateProfileUI() {
         if (!this.currentUser) return;
-        
-        // This mapping connects your Google Sheet columns (from result.user) to your HTML IDs
         const fields = { 
             'profileName': this.currentUser.name, 
             'profileEmail': this.currentUser.email,
@@ -132,13 +172,13 @@ class CallHammerPortal {
             'nav-user-name': this.currentUser.name,
             'nav-user-role': this.currentUser.position || 'Agent'
         };
-
         for (const [id, val] of Object.entries(fields)) {
             const el = document.getElementById(id);
             if (el) el.textContent = val;
         }
     }
 
+    // --- AUTH & SESSION ---
     async login(email, password) {
         if (this.isLoading) return;
         this.setLoadingState(true, 'Connecting...');
