@@ -5,69 +5,270 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agent Dashboard - Call Hammer Leads</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <style> * { font-family: 'Inter', sans-serif; } .progress-bar { background: linear-gradient(90deg, #FF6B35 0%, #FF8C61 100%); transition: width 1s ease-in-out; } .metric-card { background: linear-gradient(135deg, rgba(255, 107, 53, 0.05) 0%, rgba(255, 140, 97, 0.02) 100%); transition: all 0.3s ease; } .sidebar { background: linear-gradient(180deg, #2D3748 0%, #1A202C 100%); } .nav-item:hover, .nav-item.active { background: rgba(255, 107, 53, 0.1); border-left: 4px solid #FF6B35; } .chart-container { min-height: 300px; } </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        .progress-bar {
+            background: linear-gradient(90deg, #FF6B35 0%, #FF8C61 100%);
+            transition: width 1s ease-in-out;
+        }
+        .metric-card {
+            background: linear-gradient(135deg, rgba(255, 107, 53, 0.05) 0%, rgba(255, 140, 97, 0.02) 100%);
+            transition: all 0.3s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(255, 107, 53, 0.1);
+        }
+        .sidebar {
+            background: linear-gradient(180deg, #2D3748 0%, #1A202C 100%);
+        }
+        .nav-item { transition: all 0.3s ease; }
+        .nav-item:hover, .nav-item.active {
+            background: rgba(255, 107, 53, 0.1);
+            border-left: 4px solid #FF6B35;
+        }
+        .chart-container { min-height: 300px; }
+        .modal { backdrop-filter: blur(10px); }
+    </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
-    <nav class="bg-white shadow-sm border-b sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 flex justify-between items-center h-16">
-            <span class="text-xl font-bold text-gray-900">Agent Dashboard</span>
-            <div class="flex items-center space-x-4">
-                <div class="text-right"><p class="text-sm font-medium" id="nav-user-name">Loading...</p><p class="text-xs text-gray-500">Agent</p></div>
-                <button onclick="portal.logout()" class="text-gray-600 hover:text-orange-600">Logout</button>
+    <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
+                            <span class="text-white font-bold text-sm">CH</span>
+                        </div>
+                        <span class="text-xl font-bold text-gray-900">Agent Dashboard</span>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-right">
+                        <p class="text-sm font-medium text-gray-900" id="nav-user-name">Loading...</p>
+                        <p class="text-xs text-gray-500" id="nav-user-role">Agent</p>
+                    </div>
+                    <button onclick="portal.logout()" class="text-gray-600 hover:text-orange-600 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </div>
     </nav>
+
     <div class="flex">
         <div class="sidebar w-64 min-h-screen text-white p-6 hidden lg:block">
-            <nav class="space-y-2"><a href="#overview" class="nav-item active flex px-4 py-3 rounded-lg">Overview</a><a href="#performance" class="nav-item flex px-4 py-3 rounded-lg">Performance</a><a href="#profile" class="nav-item flex px-4 py-3 rounded-lg">Profile</a></nav>
+            <nav class="space-y-2">
+                <a href="#overview" class="nav-item active flex items-center space-x-3 px-4 py-3 rounded-lg">
+                    <span>Overview</span>
+                </a>
+                <a href="#performance" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg">
+                    <span>Performance</span>
+                </a>
+                <a href="#profile" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg">
+                    <span>Profile</span>
+                </a>
+                <button onclick="openTimeOffModal()" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                    <span>Request Time Off</span>
+                </button>
+            </nav>
         </div>
+
         <div class="flex-1 p-6">
             <div id="overview" class="mb-8">
-                <h1 class="text-3xl font-bold text-gray-900 mb-6">Overview</h1>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border"><h3>Total Appointments</h3><p class="text-2xl font-bold" id="stat-appointments">0</p></div>
-                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border"><h3>Cancellation Rate</h3><p class="text-2xl font-bold" id="stat-cancel-rate">0%</p></div>
-                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border"><h3>Total Incentives</h3><p class="text-2xl font-bold" id="stat-incentives">$0</p></div>
+                <h1 class="text-3xl font-bold text-gray-900 mb-6">Performance Overview</h1>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                        <h3 class="text-sm font-medium text-gray-600 mb-1">Total Appointments</h3>
+                        <p class="text-2xl font-bold text-gray-900" id="stat-appointments">0</p>
+                    </div>
+
+                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                        <h3 class="text-sm font-medium text-gray-600 mb-1">Cancellation Rate</h3>
+                        <p class="text-2xl font-bold text-gray-900" id="stat-cancel-rate">0%</p>
+                    </div>
+
+                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                        <h3 class="text-sm font-medium text-gray-600 mb-1">Total Incentives</h3>
+                        <p class="text-2xl font-bold text-gray-900" id="stat-incentives">$0</p>
+                    </div>
+
+                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                        <h3 class="text-sm font-medium text-gray-600 mb-1">Weekly Hours</h3>
+                        <p class="text-2xl font-bold text-gray-900" id="stat-hours">0</p>
+                    </div>
                 </div>
-                <div class="bg-white rounded-xl shadow-lg border p-6">
-                    <div class="flex justify-between mb-2"><span id="tier-status-text" class="text-sm text-gray-600">Tier 1 (Loading...)</span><span id="tier-count-display" class="text-sm font-medium">0 / 8 apts</span></div>
-                    <div class="w-full bg-gray-200 rounded-full h-3"><div id="tier-progress-bar" class="progress-bar h-3 rounded-full" style="width: 0%"></div></div>
+
+                <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-8">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Incentive Tier Progress</h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-600" id="tier-status-text">Tier 1 (Loading...)</span>
+                            <span class="text-sm font-medium text-gray-900" id="tier-count-display">0 / 8 appointments</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div id="tier-progress-bar" class="progress-bar h-3 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div id="leads-list" class="mb-12">
-                <h2 class="text-2xl font-bold mb-6">Recent Appointments</h2>
-                <div class="bg-white rounded-xl shadow border overflow-hidden">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Homeowner</th><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Date</th><th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Status</th></tr></thead>
-                        <tbody id="leads-table-body" class="bg-white divide-y divide-gray-200"></tbody>
-                    </table>
-                </div>
-            </div>
+
             <div id="performance" class="mb-12">
-                <h2 class="text-2xl font-bold mb-6">Trends</h2>
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white rounded-xl shadow p-6"><div id="appointmentsChart" class="chart-container"></div></div><div class="bg-white rounded-xl shadow p-6"><div id="incentivesChart" class="chart-container"></div></div></div>
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Performance Trends</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <h3 class="text-lg font-semibold mb-4">Weekly Appointments</h3>
+                        <div id="appointmentsChart" class="chart-container"></div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <h3 class="text-lg font-semibold mb-4">Incentive Earnings</h3>
+                        <div id="incentivesChart" class="chart-container"></div>
+                    </div>
+                </div>
             </div>
+
             <div id="profile" class="mb-8">
-                <h2 class="text-2xl font-bold mb-6">Profile & Incentive Reference</h2>
-                <div class="bg-white rounded-xl shadow p-6">
-                    <div class="grid grid-cols-2 gap-8 mb-10"><div><p class="text-xs font-bold text-gray-400">NAME</p><p id="profileName" class="text-lg">Loading...</p></div><div><p class="text-xs font-bold text-gray-400">EMAIL</p><p id="profileEmail" class="text-lg">Loading...</p></div></div>
-                    <div class="overflow-x-auto rounded-xl border">
-                        <table class="min-w-full divide-y divide-gray-200 text-sm">
-                            <thead class="bg-gray-50"><tr><th class="px-6 py-4 text-left font-bold text-gray-500">Apts Count</th><th class="px-6 py-4 text-left font-bold text-gray-500">Standard</th><th class="px-6 py-4 text-left font-bold text-orange-600">High Perf (<25% Cancel)</th></tr></thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                <tr><td class="px-6 py-4">1st - 6th Apt</td><td class="px-6 py-4">$50 (One-time)</td><td class="px-6 py-4 font-semibold text-orange-600">$50 (One-time)</td></tr>
-                                <tr><td class="px-6 py-4">8th Apt</td><td class="px-6 py-4">$30 (One-time)</td><td class="px-6 py-4 font-semibold text-orange-600">$50 (One-time)</td></tr>
-                                <tr><td class="px-6 py-4">9th - 12th Apt</td><td class="px-6 py-4">$15 (Each)</td><td class="px-6 py-4 font-semibold text-orange-600">$17 (Each)</td></tr>
-                                <tr><td class="px-6 py-4">13th & Above</td><td class="px-6 py-4">$25 (Each)</td><td class="px-6 py-4 font-semibold text-orange-600">$27 (Each)</td></tr>
-                            </tbody>
-                        </table>
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Profile Information</h2>
+                <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Full Name</h3>
+                            <p class="text-lg font-semibold text-gray-900" id="profileName">Loading...</p>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Position</h3>
+                            <p class="text-lg font-semibold text-gray-900" id="profilePosition">Loading...</p>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Email Address</h3>
+                            <p class="text-lg font-semibold text-gray-900" id="profileEmail">Loading...</p>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Base Rate</h3>
+                            <p class="text-lg font-semibold text-gray-900" id="profileRate">Loading...</p>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Weekly Hours</h3>
+                            <p class="text-lg font-semibold text-gray-900" id="profileHours">Loading...</p>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Start Date</h3>
+                            <p class="text-lg font-semibold text-gray-900" id="profileStartDate">Loading...</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-12 border-t border-gray-100 pt-8">
+                        <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                            <svg class="w-6 h-6 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                            </svg>
+                            Incentive Structure Reference
+                        </h3>
+                        <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Appointment Range</th>
+                                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Standard Bonus</th>
+                                        <th class="px-6 py-4 text-left text-xs font-bold text-orange-600 uppercase tracking-wider bg-orange-50">High Perf. (&lt;25% Cancel)</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="px-6 py-4 text-sm font-semibold text-gray-900">1st - 6th Apt</td>
+                                        <td class="px-6 py-4 text-sm text-gray-600">$50 (Flat)</td>
+                                        <td class="px-6 py-4 text-sm font-bold text-orange-600 bg-orange-50/30">$50 (Flat)</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="px-6 py-4 text-sm font-semibold text-gray-900">8th Apt</td>
+                                        <td class="px-6 py-4 text-sm text-gray-600">$30 (Flat)</td>
+                                        <td class="px-6 py-4 text-sm font-bold text-orange-600 bg-orange-50/30">$50 (Flat)</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="px-6 py-4 text-sm font-semibold text-gray-900">9th - 12th Apt</td>
+                                        <td class="px-6 py-4 text-sm text-gray-600">$15 (Per Apt)</td>
+                                        <td class="px-6 py-4 text-sm font-bold text-orange-600 bg-orange-50/30">$17 (Per Apt)</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="px-6 py-4 text-sm font-semibold text-gray-900">13th & Above</td>
+                                        <td class="px-6 py-4 text-sm text-gray-600">$25 (Per Apt)</td>
+                                        <td class="px-6 py-4 text-sm font-bold text-orange-600 bg-orange-50/30">$27 (Per Apt)</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-4 italic">* Cancellation rates are calculated live based on current lead sheet data. No additional base incentive for the 7th appointment.</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <div id="timeOffModal" class="modal fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6">
+            <h3 class="text-lg font-semibold mb-4">Request Time Off</h3>
+            <form id="timeOffForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Start Date</label>
+                    <input type="date" name="startDate" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">End Date</label>
+                    <input type="date" name="endDate" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Reason</label>
+                    <select name="reason" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500">
+                        <option value="vacation">Vacation</option>
+                        <option value="sick">Sick Leave</option>
+                        <option value="personal">Personal</option>
+                    </select>
+                </div>
+                <div class="flex space-x-3 pt-2">
+                    <button type="button" onclick="closeTimeOffModal()" class="flex-1 p-3 border rounded-lg hover:bg-gray-50">Cancel</button>
+                    <button type="submit" class="flex-1 bg-orange-500 text-white p-3 rounded-lg hover:bg-orange-600 transition-colors">Submit Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="main.js"></script>
+    <script>
+        function openTimeOffModal() { document.getElementById('timeOffModal').classList.remove('hidden'); }
+        function closeTimeOffModal() { document.getElementById('timeOffModal').classList.add('hidden'); }
+        
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const targetId = item.getAttribute('href').substring(1);
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    e.preventDefault();
+                    targetElement.scrollIntoView({ behavior: 'smooth' });
+                    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+                }
+            });
+        });
+
+        document.getElementById('timeOffForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const success = await portal.submitTimeOffRequest({
+                startDate: formData.get('startDate'),
+                endDate: formData.get('endDate'),
+                reason: formData.get('reason')
+            });
+            if (success) {
+                closeTimeOffModal();
+                e.target.reset();
+            }
+        });
+    </script>
 </body>
 </html>
