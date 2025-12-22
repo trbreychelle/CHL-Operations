@@ -5,35 +5,56 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agent Dashboard - Call Hammer Leads</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { font-family: 'Inter', sans-serif; }
-        .progress-bar { background: linear-gradient(90deg, #FF6B35 0%, #FF8C61 100%); transition: width 1s ease-in-out; }
-        .metric-card { transition: all 0.3s ease; border: 1px solid #f3f4f6; }
-        .metric-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(255, 107, 53, 0.1); }
-        .sidebar { background: linear-gradient(180deg, #2D3748 0%, #1A202C 100%); }
-        .nav-item { transition: all 0.3s ease; border-left: 4px solid transparent; }
-        .nav-item:hover, .nav-item.active { background: rgba(255, 107, 53, 0.1); border-left-color: #FF6B35; }
-        .chart-container { min-height: 350px; width: 100%; }
-        .modal { backdrop-filter: blur(10px); z-index: 100; }
+        .progress-bar {
+            background: linear-gradient(90deg, #FF6B35 0%, #FF8C61 100%);
+            transition: width 1s ease-in-out;
+        }
+        .metric-card {
+            background: linear-gradient(135deg, rgba(255, 107, 53, 0.05) 0%, rgba(255, 140, 97, 0.02) 100%);
+            transition: all 0.3s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(255, 107, 53, 0.1);
+        }
+        .sidebar {
+            background: linear-gradient(180deg, #2D3748 0%, #1A202C 100%);
+        }
+        .nav-item { transition: all 0.3s ease; }
+        .nav-item:hover, .nav-item.active {
+            background: rgba(255, 107, 53, 0.1);
+            border-left: 4px solid #FF6B35;
+        }
+        .chart-container { min-height: 300px; }
+        .modal { backdrop-filter: blur(10px); }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
-    <nav class="bg-white shadow-sm border-b sticky top-0 z-40">
+    <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
-                <div class="flex items-center space-x-2">
-                    <div class="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">CH</div>
-                    <span class="text-xl font-bold text-gray-900">Agent Portal</span>
-                </div>
-                <div class="flex items-center space-x-4 text-right">
-                    <div>
-                        <p class="text-sm font-bold text-gray-900 leading-tight" id="nav-user-name">Loading...</p>
-                        <p class="text-xs text-gray-500 uppercase tracking-tighter" id="nav-user-role">Agent</p>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
+                            <span class="text-white font-bold text-sm">CH</span>
+                        </div>
+                        <span class="text-xl font-bold text-gray-900">Agent Dashboard</span>
                     </div>
-                    <button onclick="portal.logout()" class="text-gray-400 hover:text-orange-600 transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-right">
+                        <p class="text-sm font-medium text-gray-900" id="nav-user-name">Loading...</p>
+                        <p class="text-xs text-gray-500" id="nav-user-role">Agent</p>
+                    </div>
+                    <button onclick="portal.logout()" class="text-gray-600 hover:text-orange-600 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                        </svg>
                     </button>
                 </div>
             </div>
@@ -41,144 +62,135 @@
     </nav>
 
     <div class="flex">
-        <div class="sidebar w-64 min-h-screen text-white p-6 hidden lg:block fixed h-full">
+        <div class="sidebar w-64 min-h-screen text-white p-6 hidden lg:block">
             <nav class="space-y-2">
-                <a href="#overview" class="nav-item active flex items-center px-4 py-3 rounded-lg"><span>Overview</span></a>
-                <a href="#leads-list" class="nav-item flex items-center px-4 py-3 rounded-lg"><span>Recent Leads</span></a>
-                <a href="#performance" class="nav-item flex items-center px-4 py-3 rounded-lg"><span>Trends</span></a>
-                <a href="#profile" class="nav-item flex items-center px-4 py-3 rounded-lg"><span>Profile</span></a>
-                <button onclick="openTimeOffModal()" class="nav-item w-full flex items-center px-4 py-3 rounded-lg text-left mt-10"><span>Request Time Off</span></button>
+                <a href="#overview" class="nav-item active flex items-center space-x-3 px-4 py-3 rounded-lg">
+                    <span>Overview</span>
+                </a>
+                <a href="#performance" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg">
+                    <span>Performance</span>
+                </a>
+                <a href="#profile" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg">
+                    <span>Profile</span>
+                </a>
+                <button onclick="openTimeOffModal()" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                    <span>Request Time Off</span>
+                </button>
             </nav>
         </div>
 
-        <div class="flex-1 lg:ml-64 p-8">
-            <div id="overview" class="mb-10 scroll-mt-24">
-                <div class="flex justify-between items-center mb-8">
-                    <h1 class="text-3xl font-bold text-gray-900">Dashboard Overview</h1>
-                    <select id="performanceFilter" onchange="portal.handleFilterChange(this.value)" class="bg-white border rounded-lg px-4 py-2 text-sm font-medium shadow-sm focus:ring-2 focus:ring-orange-500">
-                        <option value="this-week">This Current Week</option>
-                        <option value="last-30-days">Last 30 Days</option>
-                        <option value="last-4-weeks">Last 4 Weeks</option>
-                        <option value="last-6-weeks">Last 6 Weeks</option>
-                    </select>
-                </div>
+        <div class="flex-1 p-6">
+            <div id="overview" class="mb-8">
+                <h1 class="text-3xl font-bold text-gray-900 mb-6">Performance Overview</h1>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                        <h3 class="text-sm font-medium text-gray-600 mb-1">Total Appointments</h3>
+                        <p class="text-2xl font-bold text-gray-900" id="stat-appointments">0</p>
+                    </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10 text-center">
-                    <div class="metric-card bg-white p-6 rounded-2xl">
-                        <h3 class="text-xs font-bold text-gray-400 uppercase mb-1 tracking-widest">Total Appointments</h3>
-                        <p class="text-3xl font-black text-gray-900" id="stat-appointments">0</p>
+                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                        <h3 class="text-sm font-medium text-gray-600 mb-1">Cancellation Rate</h3>
+                        <p class="text-2xl font-bold text-gray-900" id="stat-cancel-rate">0%</p>
                     </div>
-                    <div class="metric-card bg-white p-6 rounded-2xl text-center">
-                        <h3 class="text-xs font-bold text-gray-400 uppercase mb-1 tracking-widest">Cancellation Rate</h3>
-                        <p class="text-3xl font-black text-gray-900" id="stat-cancel-rate">0%</p>
+
+                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                        <h3 class="text-sm font-medium text-gray-600 mb-1">Total Incentives</h3>
+                        <p class="text-2xl font-bold text-gray-900" id="stat-incentives">$0</p>
                     </div>
-                    <div class="metric-card bg-white p-6 rounded-2xl text-center">
-                        <h3 class="text-xs font-bold text-gray-400 uppercase mb-1 tracking-widest">Total Incentives</h3>
-                        <p class="text-3xl font-black text-orange-600" id="stat-incentives">$0</p>
-                    </div>
-                    <div class="metric-card bg-white p-6 rounded-2xl text-center">
-                        <h3 class="text-xs font-bold text-gray-400 uppercase mb-1 tracking-widest">Weekly Hours</h3>
-                        <p class="text-3xl font-black text-gray-900" id="stat-hours">0</p>
+
+                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                        <h3 class="text-sm font-medium text-gray-600 mb-1">Weekly Hours</h3>
+                        <p class="text-2xl font-bold text-gray-900" id="stat-hours">0</p>
                     </div>
                 </div>
 
-                <div class="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
-                    <h3 class="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <span class="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
-                        Incentive Tier Progress
-                    </h3>
-                    <div class="flex justify-between items-end mb-3">
-                        <span class="text-xs font-bold text-gray-500" id="tier-status-text">Tier 1 (Loading...)</span>
-                        <span class="text-sm font-black text-gray-900" id="tier-count-display">0 / 6 appointments</span>
-                    </div>
-                    <div class="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
-                        <div id="tier-progress-bar" class="progress-bar h-full rounded-full" style="width: 0%"></div>
+                <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-8">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Incentive Tier Progress</h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-600" id="tier-status-text">Tier 1 (Loading...)</span>
+                            <span class="text-sm font-medium text-gray-900" id="tier-count-display">0 / 8 appointments</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div id="tier-progress-bar" class="progress-bar h-3 rounded-full" style="width: 0%"></div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div id="leads-list" class="mb-12 scroll-mt-24">
-                <div class="flex flex-col md:flex-row md:items-center justify-between mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900">Recent Leads History</h2>
-                    <input type="text" id="leadSearch" placeholder="Search homeowners..." class="px-4 py-2 border rounded-xl focus:ring-2 focus:ring-orange-500 w-full md:w-64 mt-4 md:mt-0">
-                </div>
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                            <tr>
-                                <th class="px-6 py-4 text-left">Homeowner</th>
-                                <th class="px-6 py-4 text-left">Date Submitted</th>
-                                <th class="px-6 py-4 text-left">Status</th>
-                                <th class="px-6 py-4 text-left">Address</th>
-                            </tr>
-                        </thead>
-                        <tbody id="leads-table-body" class="divide-y divide-gray-100 text-sm">
-                            <tr><td colspan="4" class="px-6 py-12 text-center text-gray-400">Fetching live performance data...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div id="performance" class="mb-12 scroll-mt-24">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6">Performance Visualization</h2>
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 text-center">
-                    <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-                        <h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6">Weekly Volume (Mon-Sun)</h3>
+            <div id="performance" class="mb-12">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Performance Trends</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <h3 class="text-lg font-semibold mb-4">Weekly Appointments</h3>
                         <div id="appointmentsChart" class="chart-container"></div>
                     </div>
-                    <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center">
-                        <h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6">Estimated Daily Incentives</h3>
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <h3 class="text-lg font-semibold mb-4">Incentive Earnings</h3>
                         <div id="incentivesChart" class="chart-container"></div>
                     </div>
                 </div>
             </div>
 
-            <div id="profile" class="mb-12 scroll-mt-24">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6 border-b pb-4">Agent Profile</h2>
-                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-10">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-y-10 gap-x-6 mb-12">
-                        <div><p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Full Name</p><p id="profileName" class="text-lg font-bold text-gray-900">Loading...</p></div>
-                        <div><p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Position</p><p id="profilePosition" class="text-lg font-bold text-gray-900">Loading...</p></div>
-                        <div><p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Email Address</p><p id="profileEmail" class="text-lg font-bold text-gray-900">Loading...</p></div>
-                        <div><p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Base Rate</p><p id="profileRate" class="text-lg font-bold text-gray-900">Loading...</p></div>
-                        <div><p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Weekly Hours</p><p id="profileHours" class="text-lg font-bold text-gray-900">Loading...</p></div>
-                        <div><p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Start Date</p><p id="profileStartDate" class="text-lg font-bold text-gray-900">Loading...</p></div>
-                    </div>
-
-                    <div class="mt-12 pt-10 border-t border-gray-100">
-                        <h3 class="text-xl font-bold text-gray-900 mb-6">Bonus Structure Reference</h3>
-                        <div class="overflow-hidden border border-gray-200 rounded-2xl">
-                            <table class="min-w-full divide-y divide-gray-200 text-sm">
-                                <thead class="bg-gray-50 text-[10px] font-bold text-gray-400 uppercase">
-                                    <tr>
-                                        <th class="px-6 py-4 text-left">Apts Count</th>
-                                        <th class="px-6 py-4 text-left">Standard</th>
-                                        <th class="px-6 py-4 text-left text-orange-600">High Perf (<25% Cancel)</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-gray-100 font-medium">
-                                    <tr><td class="px-6 py-4">1st - 6th Apt</td><td class="px-6 py-4">$50 Flat</td><td class="px-6 py-4 text-orange-600 font-bold bg-orange-50/20">$50 Flat</td></tr>
-                                    <tr><td class="px-6 py-4 font-bold">8th Apt</td><td class="px-6 py-4 font-bold">$30 Flat</td><td class="px-6 py-4 text-orange-600 font-bold bg-orange-50/20">$50 Flat</td></tr>
-                                    <tr><td class="px-6 py-4">9th - 12th Apt</td><td class="px-6 py-4">$15 each</td><td class="px-6 py-4 text-orange-600 font-bold bg-orange-50/20">$17 each</td></tr>
-                                    <tr><td class="px-6 py-4">13th & Above</td><td class="px-6 py-4">$25 each</td><td class="px-6 py-4 text-orange-600 font-bold bg-orange-50/20">$27 each</td></tr>
-                                </tbody>
-                            </table>
+            <div id="profile" class="mb-8">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Profile Information</h2>
+                <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Full Name</h3>
+                            <p class="text-lg font-semibold text-gray-900" id="profileName">Loading...</p>
                         </div>
-                        <p class="text-xs text-gray-400 mt-4 italic">* High Performance criteria requires maintaining a cancellation rate below 25%. No additional flat bonus for the 7th appointment.</p>
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Position</h3>
+                            <p class="text-lg font-semibold text-gray-900" id="profilePosition">Loading...</p>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Email Address</h3>
+                            <p class="text-lg font-semibold text-gray-900" id="profileEmail">Loading...</p>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Base Rate</h3>
+                            <p class="text-lg font-semibold text-gray-900" id="profileRate">Loading...</p>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Weekly Hours</h3>
+                            <p class="text-lg font-semibold text-gray-900" id="profileHours">Loading...</p>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Start Date</h3>
+                            <p class="text-lg font-semibold text-gray-900" id="profileStartDate">Loading...</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="timeOffModal" class="modal fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 p-8">
-            <h3 class="text-2xl font-bold mb-6">Request Time Off</h3>
+    <div id="timeOffModal" class="modal fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6">
+            <h3 class="text-lg font-semibold mb-4">Request Time Off</h3>
             <form id="timeOffForm" class="space-y-4">
-                <div><label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Start Date</label><input type="date" name="startDate" required class="w-full p-4 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-orange-500"></div>
-                <div><label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">End Date</label><input type="date" name="endDate" required class="w-full p-4 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-orange-500"></div>
-                <div><label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Reason</label><select name="reason" required class="w-full p-4 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-orange-500"><option value="vacation">Vacation</option><option value="sick">Sick Leave</option><option value="personal">Personal</option></select></div>
-                <div class="flex space-x-3 pt-6"><button type="button" onclick="closeTimeOffModal()" class="flex-1 p-4 text-gray-500 font-bold border-0 hover:bg-gray-100 rounded-xl transition-colors">Cancel</button><button type="submit" class="flex-1 bg-orange-500 text-white p-4 font-bold rounded-xl hover:bg-orange-600 transition-colors shadow-lg">Submit Request</button></div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Start Date</label>
+                    <input type="date" name="startDate" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">End Date</label>
+                    <input type="date" name="endDate" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Reason</label>
+                    <select name="reason" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500">
+                        <option value="vacation">Vacation</option>
+                        <option value="sick">Sick Leave</option>
+                        <option value="personal">Personal</option>
+                    </select>
+                </div>
+                <div class="flex space-x-3 pt-2">
+                    <button type="button" onclick="closeTimeOffModal()" class="flex-1 p-3 border rounded-lg hover:bg-gray-50">Cancel</button>
+                    <button type="submit" class="flex-1 bg-orange-500 text-white p-3 rounded-lg hover:bg-orange-600 transition-colors">Submit Request</button>
+                </div>
             </form>
         </div>
     </div>
@@ -188,6 +200,7 @@
         function openTimeOffModal() { document.getElementById('timeOffModal').classList.remove('hidden'); }
         function closeTimeOffModal() { document.getElementById('timeOffModal').classList.add('hidden'); }
         
+        // Navigation Smooth Scroll
         document.querySelectorAll('.nav-item').forEach(item => {
             item.addEventListener('click', (e) => {
                 const targetId = item.getAttribute('href').substring(1);
@@ -201,15 +214,7 @@
             });
         });
 
-        document.getElementById('leadSearch').addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            const rows = document.querySelectorAll('#leads-table-body tr');
-            rows.forEach(row => {
-                const name = row.cells[0].textContent.toLowerCase();
-                row.style.display = name.includes(term) ? '' : 'none';
-            });
-        });
-
+        // Form Submission Bridge
         document.getElementById('timeOffForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
@@ -218,7 +223,20 @@
                 endDate: formData.get('endDate'),
                 reason: formData.get('reason')
             });
-            if (success) { closeTimeOffModal(); e.target.reset(); }
+            if (success) {
+                closeTimeOffModal();
+                e.target.reset();
+            }
+        });
+
+        // Initialize Charts
+        document.addEventListener('DOMContentLoaded', () => {
+            const chart1 = echarts.init(document.getElementById('appointmentsChart'));
+            chart1.setOption({
+                xAxis: { type: 'category', data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
+                yAxis: { type: 'value' },
+                series: [{ data: [2, 5, 3, 8, 4], type: 'line', color: '#FF6B35', smooth: true }]
+            });
         });
     </script>
 </body>
