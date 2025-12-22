@@ -136,7 +136,7 @@
             <div id="profile" class="mb-8">
                 <h2 class="text-2xl font-bold text-gray-900 mb-6">Profile Information</h2>
                 <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         <div>
                             <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Full Name</h3>
                             <p class="text-lg font-semibold text-gray-900" id="profileName">Loading...</p>
@@ -163,47 +163,47 @@
                         </div>
                     </div>
 
-                    <div class="mt-8 pt-8 border-t border-gray-100">
-                        <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                            <svg class="w-5 h-5 mr-2 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-1.391 2.184-2.192 1.55l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.801.634-2.492-.629-2.192-1.55l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.381-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                    <div class="mt-12 border-t border-gray-100 pt-8">
+                        <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                            <svg class="w-6 h-6 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
                             </svg>
-                            Incentive Bonus Structure
+                            Incentive Structure Reference
                         </h3>
-                        <div class="overflow-hidden border border-gray-200 rounded-xl">
+                        <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Apts Count</th>
-                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Standard Bonus</th>
-                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider text-orange-600">High Perf. (&lt;25% Cancel)</th>
+                                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Appointment Range</th>
+                                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Standard Bonus</th>
+                                        <th class="px-6 py-4 text-left text-xs font-bold text-orange-600 uppercase tracking-wider bg-orange-50">High Perf. (&lt;25% Cancel)</th>
                                     </tr>
                                 </thead>
-                                <tbody class="bg-white divide-y divide-gray-200 text-sm">
-                                    <tr>
-                                        <td class="px-6 py-4 font-medium text-gray-900">1st - 6th Apt</td>
-                                        <td class="px-6 py-4">$50 (One-time)</td>
-                                        <td class="px-6 py-4 font-semibold text-orange-600">$50 (One-time)</td>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="px-6 py-4 text-sm font-semibold text-gray-900">1st - 6th Apt</td>
+                                        <td class="px-6 py-4 text-sm text-gray-600">$50 (Flat)</td>
+                                        <td class="px-6 py-4 text-sm font-bold text-orange-600 bg-orange-50/30">$50 (Flat)</td>
                                     </tr>
-                                    <tr>
-                                        <td class="px-6 py-4 font-medium text-gray-900">8th Apt</td>
-                                        <td class="px-6 py-4">$30 (One-time)</td>
-                                        <td class="px-6 py-4 font-semibold text-orange-600">$50 (One-time)</td>
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="px-6 py-4 text-sm font-semibold text-gray-900">8th Apt</td>
+                                        <td class="px-6 py-4 text-sm text-gray-600">$30 (Flat)</td>
+                                        <td class="px-6 py-4 text-sm font-bold text-orange-600 bg-orange-50/30">$50 (Flat)</td>
                                     </tr>
-                                    <tr>
-                                        <td class="px-6 py-4 font-medium text-gray-900">9th - 12th Apt</td>
-                                        <td class="px-6 py-4">$15 (Each)</td>
-                                        <td class="px-6 py-4 font-semibold text-orange-600">$17 (Each)</td>
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="px-6 py-4 text-sm font-semibold text-gray-900">9th - 12th Apt</td>
+                                        <td class="px-6 py-4 text-sm text-gray-600">$15 (Per Apt)</td>
+                                        <td class="px-6 py-4 text-sm font-bold text-orange-600 bg-orange-50/30">$17 (Per Apt)</td>
                                     </tr>
-                                    <tr>
-                                        <td class="px-6 py-4 font-medium text-gray-900">13th & Above</td>
-                                        <td class="px-6 py-4">$25 (Each)</td>
-                                        <td class="px-6 py-4 font-semibold text-orange-600">$27 (Each)</td>
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="px-6 py-4 text-sm font-semibold text-gray-900">13th & Above</td>
+                                        <td class="px-6 py-4 text-sm text-gray-600">$25 (Per Apt)</td>
+                                        <td class="px-6 py-4 text-sm font-bold text-orange-600 bg-orange-50/30">$27 (Per Apt)</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
-                        <p class="text-[10px] text-gray-400 mt-3 italic">** 7th Appointment does not carry an additional base incentive.</p>
+                        <p class="text-xs text-gray-400 mt-4 italic">* Cancellation rates are calculated live based on current lead sheet data. No additional base incentive for the 7th appointment.</p>
                     </div>
                 </div>
             </div>
@@ -268,15 +268,6 @@
                 closeTimeOffModal();
                 e.target.reset();
             }
-        });
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const chart1 = echarts.init(document.getElementById('appointmentsChart'));
-            chart1.setOption({
-                xAxis: { type: 'category', data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
-                yAxis: { type: 'value' },
-                series: [{ data: [2, 5, 3, 8, 4], type: 'line', color: '#FF6B35', smooth: true }]
-            });
         });
     </script>
 </body>
