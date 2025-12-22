@@ -162,49 +162,6 @@
                             <p class="text-lg font-semibold text-gray-900" id="profileStartDate">Loading...</p>
                         </div>
                     </div>
-
-                    <div class="mt-12 border-t border-gray-100 pt-8">
-                        <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                            <svg class="w-6 h-6 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                            </svg>
-                            Incentive Structure Reference
-                        </h3>
-                        <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Appointment Range</th>
-                                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Standard Bonus</th>
-                                        <th class="px-6 py-4 text-left text-xs font-bold text-orange-600 uppercase tracking-wider bg-orange-50">High Perf. (&lt;25% Cancel)</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">
-                                    <tr class="hover:bg-gray-50 transition-colors">
-                                        <td class="px-6 py-4 text-sm font-semibold text-gray-900">1st - 6th Apt</td>
-                                        <td class="px-6 py-4 text-sm text-gray-600">$50 (Flat)</td>
-                                        <td class="px-6 py-4 text-sm font-bold text-orange-600 bg-orange-50/30">$50 (Flat)</td>
-                                    </tr>
-                                    <tr class="hover:bg-gray-50 transition-colors">
-                                        <td class="px-6 py-4 text-sm font-semibold text-gray-900">8th Apt</td>
-                                        <td class="px-6 py-4 text-sm text-gray-600">$30 (Flat)</td>
-                                        <td class="px-6 py-4 text-sm font-bold text-orange-600 bg-orange-50/30">$50 (Flat)</td>
-                                    </tr>
-                                    <tr class="hover:bg-gray-50 transition-colors">
-                                        <td class="px-6 py-4 text-sm font-semibold text-gray-900">9th - 12th Apt</td>
-                                        <td class="px-6 py-4 text-sm text-gray-600">$15 (Per Apt)</td>
-                                        <td class="px-6 py-4 text-sm font-bold text-orange-600 bg-orange-50/30">$17 (Per Apt)</td>
-                                    </tr>
-                                    <tr class="hover:bg-gray-50 transition-colors">
-                                        <td class="px-6 py-4 text-sm font-semibold text-gray-900">13th & Above</td>
-                                        <td class="px-6 py-4 text-sm text-gray-600">$25 (Per Apt)</td>
-                                        <td class="px-6 py-4 text-sm font-bold text-orange-600 bg-orange-50/30">$27 (Per Apt)</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <p class="text-xs text-gray-400 mt-4 italic">* Cancellation rates are calculated live based on current lead sheet data. No additional base incentive for the 7th appointment.</p>
-                    </div>
                 </div>
             </div>
         </div>
@@ -243,6 +200,7 @@
         function openTimeOffModal() { document.getElementById('timeOffModal').classList.remove('hidden'); }
         function closeTimeOffModal() { document.getElementById('timeOffModal').classList.add('hidden'); }
         
+        // Navigation Smooth Scroll
         document.querySelectorAll('.nav-item').forEach(item => {
             item.addEventListener('click', (e) => {
                 const targetId = item.getAttribute('href').substring(1);
@@ -256,6 +214,7 @@
             });
         });
 
+        // Form Submission Bridge
         document.getElementById('timeOffForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
@@ -268,6 +227,16 @@
                 closeTimeOffModal();
                 e.target.reset();
             }
+        });
+
+        // Initialize Charts
+        document.addEventListener('DOMContentLoaded', () => {
+            const chart1 = echarts.init(document.getElementById('appointmentsChart'));
+            chart1.setOption({
+                xAxis: { type: 'category', data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
+                yAxis: { type: 'value' },
+                series: [{ data: [2, 5, 3, 8, 4], type: 'line', color: '#FF6B35', smooth: true }]
+            });
         });
     </script>
 </body>
