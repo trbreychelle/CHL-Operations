@@ -1,5 +1,5 @@
 // Call Hammer Leads - Main Application Logic
-// Integrated with n8n Localhost Test Webhook
+// Integrated with n8n Localhost Production Webhook
 
 class CallHammerPortal {
     constructor() {
@@ -11,10 +11,11 @@ class CallHammerPortal {
         
         // n8n Webhook URLs 
         this.webhooks = {
-            login: 'http://localhost:5678/webhook-test/agent-login', 
-            fetchData: 'http://localhost:5678/webhook-test/fetch-agent-data', 
-            addEmployee: 'http://localhost:5678/webhook-test/add-employee',
-            timeOffRequest: 'http://localhost:5678/webhook-test/timeoff-request'
+            // Production URLs (Workflow must be set to ACTIVE in n8n)
+            login: 'http://localhost:5678/webhook/agent-login', 
+            fetchData: 'http://localhost:5678/webhook/fetch-agent-data', 
+            addEmployee: 'http://localhost:5678/webhook/add-employee',
+            timeOffRequest: 'http://localhost:5678/webhook/timeoff-request'
         };
 
         this.init();
@@ -49,7 +50,7 @@ class CallHammerPortal {
             if (result.status === "success") {
                 this.leadsData = result.leads || [];
                 console.log('Leads loaded:', this.leadsData);
-                // After data is loaded, you can call a function here to update your UI tables
+                // Trigger UI update here if necessary
                 return result;
             }
         } catch (error) {
@@ -72,12 +73,13 @@ class CallHammerPortal {
                 body: JSON.stringify({ email, password })
             });
 
-            if (!response.ok) throw new Error('n8n is not listening. Click "Listen for test event".');
+            // Handle potential server issues or inactive workflows
+            if (!response.ok) throw new Error('Unable to connect to login server. Ensure n8n workflow is ACTIVE.');
 
             const result = await response.json();
 
             if (result.status === "success") {
-                // Ensure email is included in the user object
+                // Ensure email is preserved for data fetching
                 this.currentUser = { ...result.user, email: email }; 
                 this.createSession(this.currentUser);
                 this.showSuccess('Login successful!');
