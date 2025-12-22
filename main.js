@@ -13,7 +13,7 @@ class CallHammerPortal {
         this.webhooks = {
             // Production URLs (Workflow must be set to ACTIVE in n8n)
             login: 'http://localhost:5678/webhook/agent-login', 
-            fetchData: 'http://localhost:5678/webhook-test/fetch-agent-data', 
+            fetchData: 'http://localhost:5678/webhook/fetch-agent-data', 
             addEmployee: 'http://localhost:5678/webhook/add-employee',
             timeOffRequest: 'http://localhost:5678/webhook/timeoff-request'
         };
