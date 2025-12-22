@@ -22,10 +22,6 @@
             transform: translateY(-2px);
             box-shadow: 0 10px 25px rgba(255, 107, 53, 0.1);
         }
-        .btn-primary {
-            background: linear-gradient(135deg, #FF6B35 0%, #E55A2B 100%);
-            transition: all 0.3s ease;
-        }
         .sidebar {
             background: linear-gradient(180deg, #2D3748 0%, #1A202C 100%);
         }
@@ -123,7 +119,8 @@
                 </div>
             </div>
 
-            <div id="performance" class="mb-8">
+            <div id="performance" class="mb-12">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Performance Trends</h2>
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="bg-white rounded-xl shadow-lg p-6">
                         <h3 class="text-lg font-semibold mb-4">Weekly Appointments</h3>
@@ -135,6 +132,38 @@
                     </div>
                 </div>
             </div>
+
+            <div id="profile" class="mb-8">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Profile Information</h2>
+                <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Full Name</h3>
+                            <p class="text-lg font-semibold text-gray-900" id="profileName">Loading...</p>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Position</h3>
+                            <p class="text-lg font-semibold text-gray-900" id="profilePosition">Loading...</p>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Email Address</h3>
+                            <p class="text-lg font-semibold text-gray-900" id="profileEmail">Loading...</p>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Base Rate</h3>
+                            <p class="text-lg font-semibold text-gray-900" id="profileRate">Loading...</p>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Weekly Hours</h3>
+                            <p class="text-lg font-semibold text-gray-900" id="profileHours">Loading...</p>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Start Date</h3>
+                            <p class="text-lg font-semibold text-gray-900" id="profileStartDate">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -142,15 +171,25 @@
         <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6">
             <h3 class="text-lg font-semibold mb-4">Request Time Off</h3>
             <form id="timeOffForm" class="space-y-4">
-                <input type="date" name="startDate" required class="w-full p-3 border rounded-lg">
-                <input type="date" name="endDate" required class="w-full p-3 border rounded-lg">
-                <select name="reason" required class="w-full p-3 border rounded-lg">
-                    <option value="vacation">Vacation</option>
-                    <option value="sick">Sick Leave</option>
-                </select>
-                <div class="flex space-x-3">
-                    <button type="button" onclick="closeTimeOffModal()" class="flex-1 p-3 border rounded-lg">Cancel</button>
-                    <button type="submit" class="flex-1 bg-orange-500 text-white p-3 rounded-lg">Submit</button>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Start Date</label>
+                    <input type="date" name="startDate" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">End Date</label>
+                    <input type="date" name="endDate" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Reason</label>
+                    <select name="reason" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500">
+                        <option value="vacation">Vacation</option>
+                        <option value="sick">Sick Leave</option>
+                        <option value="personal">Personal</option>
+                    </select>
+                </div>
+                <div class="flex space-x-3 pt-2">
+                    <button type="button" onclick="closeTimeOffModal()" class="flex-1 p-3 border rounded-lg hover:bg-gray-50">Cancel</button>
+                    <button type="submit" class="flex-1 bg-orange-500 text-white p-3 rounded-lg hover:bg-orange-600 transition-colors">Submit Request</button>
                 </div>
             </form>
         </div>
@@ -161,13 +200,42 @@
         function openTimeOffModal() { document.getElementById('timeOffModal').classList.remove('hidden'); }
         function closeTimeOffModal() { document.getElementById('timeOffModal').classList.add('hidden'); }
         
-        // Initialize Charts with mockup trend data
+        // Navigation Smooth Scroll
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const targetId = item.getAttribute('href').substring(1);
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    e.preventDefault();
+                    targetElement.scrollIntoView({ behavior: 'smooth' });
+                    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+                }
+            });
+        });
+
+        // Form Submission Bridge
+        document.getElementById('timeOffForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const success = await portal.submitTimeOffRequest({
+                startDate: formData.get('startDate'),
+                endDate: formData.get('endDate'),
+                reason: formData.get('reason')
+            });
+            if (success) {
+                closeTimeOffModal();
+                e.target.reset();
+            }
+        });
+
+        // Initialize Charts
         document.addEventListener('DOMContentLoaded', () => {
             const chart1 = echarts.init(document.getElementById('appointmentsChart'));
             chart1.setOption({
                 xAxis: { type: 'category', data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
                 yAxis: { type: 'value' },
-                series: [{ data: [2, 5, 3, 8, 4], type: 'line', color: '#FF6B35' }]
+                series: [{ data: [2, 5, 3, 8, 4], type: 'line', color: '#FF6B35', smooth: true }]
             });
         });
     </script>
