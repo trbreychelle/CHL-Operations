@@ -98,51 +98,74 @@ class CallHammerPortal {
             if (tierCountDisp) tierCountDisp.textContent = `${totalAppointments} / ${nextGoal} appointments`;
         }
 
-        // 5. NEW: Render Real Trends & Leads Table
+        // 5. Render Trends & Leads Table
         this.renderCharts(leads);
         this.renderLeadsTable(leads);
     }
 
-    // --- NEW: RENDER PERFORMANCE TRENDS ---
+    // --- UPDATED: RENDER BOTH PERFORMANCE CHARTS ---
     renderCharts(leads) {
-        const chartDom = document.getElementById('appointmentsChart');
-        if (!chartDom || typeof echarts === 'undefined') return;
+        const apptDom = document.getElementById('appointmentsChart');
+        const incDom = document.getElementById('incentivesChart');
+        if (!apptDom || !incDom || typeof echarts === 'undefined') return;
 
-        const myChart = echarts.init(chartDom);
+        const apptChart = echarts.init(apptDom);
+        const incChart = echarts.init(incDom);
         
-        // Group appointments by day of week (0=Sun, 1=Mon, etc.)
-        const dataCounts = [0, 0, 0, 0, 0, 0, 0];
+        // Prepare Data Arrays (Mon-Fri)
+        const daysLabel = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+        const apptCounts = [0, 0, 0, 0, 0];
+        const dailyEarnings = [0, 0, 0, 0, 0];
+
         leads.forEach(lead => {
             const dateStr = lead['Appointment Date /Time'];
             if (dateStr) {
-                const dayIndex = new Date(dateStr).getDay();
-                dataCounts[dayIndex]++;
+                const date = new Date(dateStr);
+                const dayIndex = date.getDay() - 1; // Adjust so Mon=0, Fri=4
+                
+                if (dayIndex >= 0 && dayIndex <= 4) {
+                    apptCounts[dayIndex]++;
+                    
+                    // Daily Incentive Estimate (simplified based on your tier logic)
+                    const status = lead.Status?.toLowerCase() || '';
+                    if (!status.includes('cancel') && !status.includes('reject')) {
+                        dailyEarnings[dayIndex] += 50; // Base value for valid leads
+                    }
+                }
             }
         });
 
-        // Filter for Mon-Fri only for the chart display
-        const weekData = dataCounts.slice(1, 6);
-
-        myChart.setOption({
+        // Weekly Appointments Chart (Line)
+        apptChart.setOption({
             tooltip: { trigger: 'axis' },
-            xAxis: { type: 'category', data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
+            xAxis: { type: 'category', data: daysLabel },
             yAxis: { type: 'value', minInterval: 1 },
             series: [{
-                data: weekData,
+                data: apptCounts,
                 type: 'line',
                 smooth: true,
                 color: '#FF6B35',
-                areaStyle: {
-                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                        { offset: 0, color: 'rgba(255, 107, 53, 0.3)' },
-                        { offset: 1, color: 'rgba(255, 107, 53, 0)' }
-                    ])
-                }
+                areaStyle: { color: 'rgba(255, 107, 53, 0.1)' }
+            }]
+        });
+
+        // Incentive Earnings Chart (Bar)
+        incChart.setOption({
+            tooltip: { 
+                trigger: 'axis',
+                formatter: (params) => `${params[0].name}: $${params[0].value}`
+            },
+            xAxis: { type: 'category', data: daysLabel },
+            yAxis: { type: 'value', axisLabel: { formatter: '${value}' } },
+            series: [{
+                data: dailyEarnings,
+                type: 'bar',
+                color: '#FF6B35',
+                itemStyle: { borderRadius: [4, 4, 0, 0] }
             }]
         });
     }
 
-    // --- NEW: RENDER RECENT LEADS TABLE ---
     renderLeadsTable(leads) {
         const tableBody = document.getElementById('leads-table-body');
         if (!tableBody) return;
