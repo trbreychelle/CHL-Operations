@@ -11,8 +11,8 @@ class CallHammerPortal {
         
         this.webhooks = {
             // FIXED: Removed the extra "login:" word inside the string
-            login: 'http://localhost:5678/webhook-test/agent-login', 
-            fetchData: 'http://localhost:5678/webhook/fetch-agent-data', 
+            login: 'http://localhost:5678/webhook/agent-login', 
+            fetchData: 'http://localhost:5678/webhook-test/fetch-agent-data', 
             addEmployee: 'http://localhost:5678/webhook/add-employee',
             timeOffRequest: 'http://localhost:5678/webhook-test/timeoff-request'
         };
