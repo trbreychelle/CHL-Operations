@@ -26,7 +26,6 @@ class CallHammerPortal {
         }
     }
 
-    // --- DATA FETCHING SYSTEM ---
     async fetchAllData() {
         if (!this.currentUser) return;
         this.setLoadingState(true, 'Fetching live performance data...');
@@ -51,7 +50,6 @@ class CallHammerPortal {
         }
     }
 
-    // --- UI RENDERING ENGINE ---
     updateDashboardUI(leads) {
         if (!this.currentUser) return;
 
@@ -65,8 +63,6 @@ class CallHammerPortal {
         ).length;
         
         const cancelRate = totalAppointments > 0 ? ((cancelledCount / totalAppointments) * 100).toFixed(1) : 0;
-        
-        // Use the NEW updated incentive engine
         const incentiveStats = this.calculateIncentives(totalAppointments, parseFloat(cancelRate));
 
         const apptCount = document.getElementById('stat-appointments');
@@ -77,7 +73,6 @@ class CallHammerPortal {
         if (cancelRateDisp) cancelRateDisp.textContent = `${cancelRate}%`;
         if (incentiveDisp) incentiveDisp.textContent = `$${incentiveStats.totalIncentives.toLocaleString()}`;
 
-        // Update Progress Bar & Tier Text
         const progressBar = document.getElementById('tier-progress-bar');
         const tierStatusText = document.getElementById('tier-status-text');
         const tierCountDisp = document.getElementById('tier-count-display');
@@ -102,41 +97,141 @@ class CallHammerPortal {
         this.renderLeadsTable(leads);
     }
 
-    // --- UPDATED INCENTIVE ENGINE ---
     calculateIncentives(n, c) {
         let total = 0;
-        const highPerformance = c < 25; // Bonus logic for < 25% cancellation
-
-        // 1. First 1-6 appointments: $50 flat base incentive
-        if (n >= 1) total += 50;
-
-        // 2. 8th appointment: $30 base (Standard) or $50 base (High Performance)
+        const highPerformance = c < 25;
+        if (n >= 1) total += 50; 
         if (n >= 8) total += (highPerformance ? 50 : 30);
-
-        // 3. 9th-12th appointments: $15 each (Standard) or $17 each (High Performance)
         const tier3Apts = Math.max(0, Math.min(n, 12) - 8);
         if (tier3Apts > 0) total += tier3Apts * (highPerformance ? 17 : 15);
-
-        // 4. 13th+ appointments: $25 each (Standard) or $27 each (High Performance)
         const tier4Apts = Math.max(0, n - 12);
         if (tier4Apts > 0) total += tier4Apts * (highPerformance ? 27 : 25);
-
         return { totalIncentives: total };
     }
 
-    // Remaining render and auth functions stay the same...
-    renderCharts(leads) { /* Logic from previous update */ }
-    renderLeadsTable(leads) { /* Logic from previous update */ }
-    updateProfileUI() { /* Logic from previous update */ }
-    checkExistingSession() { /* Logic from previous update */ }
-    createSession(user) { /* Logic from previous update */ }
-    isValidSession(sessionData) { return sessionData && sessionData.expiresAt > Date.now(); }
-    redirectToDashboard() { if (!this.currentUser) return; window.location.href = 'agent-dashboard.html'; }
-    logout() { localStorage.removeItem('callHammerSession'); window.location.href = 'index.html'; }
-    setLoadingState(loading, text = 'Loading...') { /* Logic from previous update */ }
-    showError(message) { /* Logic from previous update */ }
-    showSuccess(message) { /* Logic from previous update */ }
-    bindEvents() { /* Logic from previous update */ }
+    renderCharts(leads) {
+        const apptDom = document.getElementById('appointmentsChart');
+        const incDom = document.getElementById('incentivesChart');
+        if (!apptDom || !incDom || typeof echarts === 'undefined') return;
+
+        const apptChart = echarts.init(apptDom);
+        const incChart = echarts.init(incDom);
+        
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+        const apptCounts = [0, 0, 0, 0, 0];
+        const dailyEarnings = [0, 0, 0, 0, 0];
+
+        leads.forEach(lead => {
+            const dateStr = lead['Appointment Date /Time'];
+            if (dateStr) {
+                const dayIndex = new Date(dateStr).getDay() - 1;
+                if (dayIndex >= 0 && dayIndex <= 4) {
+                    apptCounts[dayIndex]++;
+                    if (!lead.Status?.toLowerCase().includes('cancel')) {
+                        dailyEarnings[dayIndex] += 15; // Simplified daily visualization
+                    }
+                }
+            }
+        });
+
+        apptChart.setOption({
+            tooltip: { trigger: 'axis' },
+            xAxis: { type: 'category', data: days },
+            yAxis: { type: 'value' },
+            series: [{ data: apptCounts, type: 'line', smooth: true, color: '#FF6B35' }]
+        });
+
+        incChart.setOption({
+            tooltip: { trigger: 'axis' },
+            xAxis: { type: 'category', data: days },
+            yAxis: { type: 'value' },
+            series: [{ data: dailyEarnings, type: 'bar', color: '#FF6B35' }]
+        });
+    }
+
+    renderLeadsTable(leads) {
+        const tableBody = document.getElementById('leads-table-body');
+        if (!tableBody) return;
+        tableBody.innerHTML = leads.map(lead => `
+            <tr>
+                <td class="px-6 py-4 text-sm text-gray-900">${lead['Homeowner Name(s)'] || 'N/A'}</td>
+                <td class="px-6 py-4 text-sm text-gray-500">${lead['Appointment Date /Time'] || 'N/A'}</td>
+                <td class="px-6 py-4 text-sm text-gray-500">${lead.Status || 'Pending'}</td>
+                <td class="px-6 py-4 text-sm text-gray-500">${lead.Address || 'N/A'}</td>
+            </tr>
+        `).join('');
+    }
+
+    async login(email, password) {
+        if (this.isLoading) return;
+        this.setLoadingState(true, 'Connecting...');
+        try {
+            const response = await fetch(this.webhooks.login, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            const result = await response.json();
+            if (result.status === "success") {
+                this.currentUser = { ...result.user, email: email }; 
+                this.createSession(this.currentUser);
+                window.location.href = 'agent-dashboard.html';
+            } else {
+                throw new Error(result.message || 'Invalid credentials');
+            }
+        } catch (error) {
+            alert(error.message);
+            this.setLoadingState(false);
+        }
+    }
+
+    checkExistingSession() {
+        const session = localStorage.getItem('callHammerSession');
+        if (session) {
+            const sessionData = JSON.parse(session);
+            if (sessionData.expiresAt > Date.now()) {
+                this.currentUser = sessionData.user;
+            } else {
+                localStorage.removeItem('callHammerSession');
+            }
+        }
+    }
+
+    createSession(user) {
+        const sessionData = { user: user, expiresAt: Date.now() + (24 * 60 * 60 * 1000) };
+        localStorage.setItem('callHammerSession', JSON.stringify(sessionData));
+    }
+
+    logout() {
+        localStorage.removeItem('callHammerSession');
+        window.location.href = 'index.html';
+    }
+
+    setLoadingState(loading, text = 'Loading...') {
+        this.isLoading = loading;
+        const btn = document.getElementById('loginButton');
+        if (btn) btn.disabled = loading;
+    }
+
+    updateProfileUI() {
+        if (!this.currentUser) return;
+        const fields = { 'profileName': this.currentUser.name, 'profileEmail': this.currentUser.email };
+        for (const [id, val] of Object.entries(fields)) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
+        }
+    }
+
+    bindEvents() {
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                this.login(formData.get('email'), formData.get('password'));
+            });
+        }
+    }
 }
 
 let portal;
