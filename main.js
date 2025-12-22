@@ -1,5 +1,5 @@
 // Call Hammer Leads - Main Application Logic
-// Integrated with n8n Localhost Production Webhook
+// Updated to count leads by "Date Submitted" column
 
 class CallHammerPortal {
     constructor() {
@@ -53,7 +53,7 @@ class CallHammerPortal {
     updateDashboardUI(leads) {
         if (!this.currentUser) return;
 
-        // 1. Calculations
+        // 1. Calculations based on total leads submitted
         const total = leads.length;
         const cancelled = leads.filter(l => 
             l.Status?.toLowerCase().includes('cancel') || 
@@ -93,21 +93,17 @@ class CallHammerPortal {
     // --- REVISED INCENTIVE ENGINE ---
     calculateIncentives(n, c) {
         let total = 0;
-        const highPerf = c < 25; // Bonus logic for < 25% cancellation
-
-        if (n >= 1) total += 50; // Rule 1: 1st-6th flat $50
-        if (n >= 8) total += (highPerf ? 50 : 30); // Rule 2: 8th flat $30 or $50
-        
-        const t3Count = Math.max(0, Math.min(n, 12) - 8); // Rule 3: 9th-12th each
+        const highPerf = c < 25; 
+        if (n >= 1) total += 50; 
+        if (n >= 8) total += (highPerf ? 50 : 30);
+        const t3Count = Math.max(0, Math.min(n, 12) - 8);
         if (t3Count > 0) total += t3Count * (highPerf ? 17 : 15);
-
-        const t4Count = Math.max(0, n - 12); // Rule 4: 13th+ each
+        const t4Count = Math.max(0, n - 12);
         if (t4Count > 0) total += t4Count * (highPerf ? 27 : 25);
-
         return { totalIncentives: total };
     }
 
-    // --- CHART RENDERER (Appointments & Earnings) ---
+    // --- CHART RENDERER (Counts by "Date Submitted") ---
     renderCharts(leads, cancelRate) {
         const apptDom = document.getElementById('appointmentsChart');
         const incDom = document.getElementById('incentivesChart');
@@ -121,13 +117,19 @@ class CallHammerPortal {
         const earnings = [0, 0, 0, 0, 0];
 
         leads.forEach(l => {
-            const d = new Date(l['Appointment Date /Time']).getDay() - 1;
-            if (d >= 0 && d <= 4) {
-                counts[d]++;
-                // Visualization logic: show the "each" bonus amount in chart bars
-                const status = l.Status?.toLowerCase() || '';
-                if (!status.includes('cancel')) {
-                    earnings[d] += (cancelRate < 25 ? 17 : 15); 
+            // FIXED: Using "Date Submitted" column for tracking
+            const dateStr = l['Date Submitted'] || l['Appointment Date /Time']; 
+            if (dateStr) {
+                const dateObj = new Date(dateStr);
+                const dayIndex = dateObj.getDay() - 1; // Mon=0, Fri=4
+                
+                if (dayIndex >= 0 && dayIndex <= 4) {
+                    counts[dayIndex]++;
+                    const status = l.Status?.toLowerCase() || '';
+                    if (!status.includes('cancel')) {
+                        // Visualizing average daily performance earnings
+                        earnings[dayIndex] += (cancelRate < 25 ? 17 : 15); 
+                    }
                 }
             }
         });
@@ -152,14 +154,13 @@ class CallHammerPortal {
         if (body) body.innerHTML = leads.map(l => `
             <tr>
                 <td class="px-6 py-4 text-sm font-medium text-gray-900">${l['Homeowner Name(s)'] || 'N/A'}</td>
-                <td class="px-6 py-4 text-sm text-gray-500">${l['Appointment Date /Time'] || 'N/A'}</td>
+                <td class="px-6 py-4 text-sm text-gray-500">${l['Date Submitted'] || 'N/A'}</td>
                 <td class="px-6 py-4 text-sm font-bold text-orange-600">${l.Status || 'Pending'}</td>
                 <td class="px-6 py-4 text-sm text-gray-500">${l.Address || 'N/A'}</td>
             </tr>
         `).join('');
     }
 
-    // --- PROFILE MAPPING SYSTEM ---
     updateProfileUI() {
         if (!this.currentUser) return;
         const fields = { 
@@ -178,7 +179,6 @@ class CallHammerPortal {
         }
     }
 
-    // --- AUTH & SESSION ---
     async login(email, password) {
         if (this.isLoading) return;
         this.setLoadingState(true, 'Connecting...');
