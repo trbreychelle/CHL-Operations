@@ -87,38 +87,23 @@ class CallHammerPortal {
         if (cancelRateDisp) cancelRateDisp.textContent = `${cancelRate}%`;
         if (incentiveDisp) incentiveDisp.textContent = `$${incentiveStats.totalIncentives.toLocaleString()}`;
 
-        // 4. Update Progress Bar & Tier Text (FIXED)
+        // 4. Update Progress Bar
         const progressBar = document.getElementById('tier-progress-bar');
-        const tierStatusText = document.getElementById('tier-status-text');
         const tierCountDisp = document.getElementById('tier-count-display');
         
         if (progressBar) {
             let nextGoal = totalAppointments < 8 ? 8 : totalAppointments < 12 ? 12 : 15;
             const percentage = Math.min((totalAppointments / nextGoal) * 100, 100);
             progressBar.style.width = `${percentage}%`;
-            
             if (tierCountDisp) tierCountDisp.textContent = `${totalAppointments} / ${nextGoal} appointments`;
-
-            // Logic to replace "Tier 1 (Loading...)" with actual tier
-            if (tierStatusText) {
-                let currentTier = "Tier 1";
-                if (totalAppointments >= 12) {
-                    currentTier = "Tier 4";
-                } else if (totalAppointments >= 8) {
-                    currentTier = "Tier 3";
-                } else if (totalAppointments >= 6) {
-                    currentTier = "Tier 2";
-                }
-                tierStatusText.textContent = `Current: ${currentTier}`;
-            }
         }
 
-        // 5. Render Real Trends & Leads Table
+        // 5. Render Trends & Leads Table
         this.renderCharts(leads);
         this.renderLeadsTable(leads);
     }
 
-    // --- RENDER PERFORMANCE TRENDS ---
+    // --- UPDATED: RENDER BOTH PERFORMANCE CHARTS ---
     renderCharts(leads) {
         const apptDom = document.getElementById('appointmentsChart');
         const incDom = document.getElementById('incentivesChart');
@@ -127,6 +112,7 @@ class CallHammerPortal {
         const apptChart = echarts.init(apptDom);
         const incChart = echarts.init(incDom);
         
+        // Prepare Data Arrays (Mon-Fri)
         const daysLabel = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
         const apptCounts = [0, 0, 0, 0, 0];
         const dailyEarnings = [0, 0, 0, 0, 0];
@@ -135,18 +121,21 @@ class CallHammerPortal {
             const dateStr = lead['Appointment Date /Time'];
             if (dateStr) {
                 const date = new Date(dateStr);
-                const dayIndex = date.getDay() - 1; 
+                const dayIndex = date.getDay() - 1; // Adjust so Mon=0, Fri=4
                 
                 if (dayIndex >= 0 && dayIndex <= 4) {
                     apptCounts[dayIndex]++;
+                    
+                    // Daily Incentive Estimate (simplified based on your tier logic)
                     const status = lead.Status?.toLowerCase() || '';
                     if (!status.includes('cancel') && !status.includes('reject')) {
-                        dailyEarnings[dayIndex] += 50; 
+                        dailyEarnings[dayIndex] += 50; // Base value for valid leads
                     }
                 }
             }
         });
 
+        // Weekly Appointments Chart (Line)
         apptChart.setOption({
             tooltip: { trigger: 'axis' },
             xAxis: { type: 'category', data: daysLabel },
@@ -160,6 +149,7 @@ class CallHammerPortal {
             }]
         });
 
+        // Incentive Earnings Chart (Bar)
         incChart.setOption({
             tooltip: { 
                 trigger: 'axis',
