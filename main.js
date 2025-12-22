@@ -1,18 +1,13 @@
 // Call Hammer Leads - Main Application Logic
-// Integrated with n8n Localhost Production Webhook
-
 class CallHammerPortal {
     constructor() {
         this.currentUser = null;
-        this.sessionData = null;
-        this.agentsData = [];
         this.leadsData = [];
         this.isLoading = false;
         
         this.webhooks = {
             login: 'http://localhost:5678/webhook/agent-login', 
             fetchData: 'http://localhost:5678/webhook/fetch-agent-data', 
-            addEmployee: 'http://localhost:5678/webhook/add-employee',
             timeOffRequest: 'http://localhost:5678/webhook/timeoff-request'
         };
 
@@ -22,8 +17,6 @@ class CallHammerPortal {
     init() {
         this.checkExistingSession();
         this.bindEvents();
-        this.initializeAnimations();
-
         if (this.currentUser && (window.location.pathname.includes('dashboard'))) {
             this.fetchAllData();
             this.updateProfileUI();
@@ -33,26 +26,21 @@ class CallHammerPortal {
     // --- DATA FETCHING SYSTEM ---
     async fetchAllData() {
         if (!this.currentUser) return;
-        this.setLoadingState(true, 'Fetching live performance data...');
-        
+        this.setLoadingState(true, 'Fetching performance data...');
         try {
             const response = await fetch(this.webhooks.fetchData, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: this.currentUser.email })
             });
-
             if (!response.ok) throw new Error('Failed to fetch data');
-
             const result = await response.json();
             if (result.status === "success") {
                 this.leadsData = result.leads || [];
                 this.updateDashboardUI(this.leadsData);
-                return result;
             }
         } catch (error) {
             console.error('Fetch error:', error);
-            this.showError('Could not sync performance data.');
         } finally {
             this.setLoadingState(false);
         }
@@ -62,180 +50,102 @@ class CallHammerPortal {
     updateDashboardUI(leads) {
         if (!this.currentUser) return;
 
-        // 1. Update Header
-        const nameHeader = document.getElementById('nav-user-name');
-        const roleHeader = document.getElementById('nav-user-role');
-        if (nameHeader) nameHeader.textContent = this.currentUser.name;
-        if (roleHeader) roleHeader.textContent = this.currentUser.role || 'Sales Agent';
+        // 1. Header Updates
+        const navName = document.getElementById('nav-user-name');
+        if (navName) navName.textContent = this.currentUser.name;
 
-        // 2. Calculate Stats
-        const totalAppointments = leads.length;
-        const cancelledCount = leads.filter(l => 
-            l.Status?.toLowerCase().includes('cancel') || 
-            l.Status?.toLowerCase().includes('reject')
-        ).length;
+        // 2. Calculations
+        const total = leads.length;
+        const cancelled = leads.filter(l => l.Status?.toLowerCase().includes('cancel') || l.Status?.toLowerCase().includes('reject')).length;
+        const rate = total > 0 ? ((cancelled / total) * 100).toFixed(1) : 0;
         
-        const cancelRate = totalAppointments > 0 ? ((cancelledCount / totalAppointments) * 100).toFixed(1) : 0;
-        const incentiveStats = this.calculateIncentives(totalAppointments, cancelRate);
+        // Revised Incentive Engine
+        const incentiveStats = this.calculateIncentives(total, parseFloat(rate));
 
         // 3. Update Stat Cards
-        const apptCount = document.getElementById('stat-appointments');
-        const cancelRateDisp = document.getElementById('stat-cancel-rate');
-        const incentiveDisp = document.getElementById('stat-incentives');
-        
-        if (apptCount) apptCount.textContent = totalAppointments;
-        if (cancelRateDisp) cancelRateDisp.textContent = `${cancelRate}%`;
-        if (incentiveDisp) incentiveDisp.textContent = `$${incentiveStats.totalIncentives.toLocaleString()}`;
+        if (document.getElementById('stat-appointments')) document.getElementById('stat-appointments').textContent = total;
+        if (document.getElementById('stat-cancel-rate')) document.getElementById('stat-cancel-rate').textContent = `${rate}%`;
+        if (document.getElementById('stat-incentives')) document.getElementById('stat-incentives').textContent = `$${incentiveStats.totalIncentives}`;
 
-        // 4. Update Progress Bar
+        // 4. Progress Bar & Tier Logic (FIXED)
         const progressBar = document.getElementById('tier-progress-bar');
-        const tierCountDisp = document.getElementById('tier-count-display');
-        
+        const tierStatusText = document.getElementById('tier-status-text');
         if (progressBar) {
-            let nextGoal = totalAppointments < 8 ? 8 : totalAppointments < 12 ? 12 : 15;
-            const percentage = Math.min((totalAppointments / nextGoal) * 100, 100);
-            progressBar.style.width = `${percentage}%`;
-            if (tierCountDisp) tierCountDisp.textContent = `${totalAppointments} / ${nextGoal} appointments`;
+            let nextGoal = total < 6 ? 6 : total < 8 ? 8 : total < 12 ? 12 : 15;
+            progressBar.style.width = `${Math.min((total / nextGoal) * 100, 100)}%`;
+            document.getElementById('tier-count-display').textContent = `${total} / ${nextGoal} appointments`;
+
+            if (tierStatusText) {
+                let tier = total >= 13 ? "Tier 4 (High Performance)" : total >= 9 ? "Tier 3" : total >= 8 ? "Tier 2" : total >= 1 ? "Tier 1" : "Base Only";
+                tierStatusText.textContent = `Current: ${tier}`;
+            }
         }
 
-        // 5. Render Trends & Leads Table
         this.renderCharts(leads);
         this.renderLeadsTable(leads);
     }
 
-    // --- UPDATED: RENDER BOTH PERFORMANCE CHARTS ---
+    // --- REVISED INCENTIVE ENGINE ---
+    calculateIncentives(n, c) {
+        let total = 0;
+        const highPerf = c < 25;
+
+        // Rule 1: 1st - 6th Apt = $50 FLAT
+        if (n >= 1) total += 50;
+
+        // Rule 2: 8th Apt = $30 (Std) or $50 (High) FLAT
+        if (n >= 8) total += (highPerf ? 50 : 30);
+
+        // Rule 3: 9th - 12th Apt = $15 (Std) or $17 (High) EACH
+        const t3Count = Math.max(0, Math.min(n, 12) - 8);
+        if (t3Count > 0) total += t3Count * (highPerf ? 17 : 15);
+
+        // Rule 4: 13th+ Apt = $25 (Std) or $27 (High) EACH
+        const t4Count = Math.max(0, n - 12);
+        if (t4Count > 0) total += t4Count * (highPerf ? 27 : 25);
+
+        return { totalIncentives: total };
+    }
+
+    // --- CHART & TABLE RENDERERS ---
     renderCharts(leads) {
         const apptDom = document.getElementById('appointmentsChart');
         const incDom = document.getElementById('incentivesChart');
         if (!apptDom || !incDom || typeof echarts === 'undefined') return;
 
-        const apptChart = echarts.init(apptDom);
-        const incChart = echarts.init(incDom);
-        
-        // Prepare Data Arrays (Mon-Fri)
-        const daysLabel = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
         const apptCounts = [0, 0, 0, 0, 0];
-        const dailyEarnings = [0, 0, 0, 0, 0];
-
-        leads.forEach(lead => {
-            const dateStr = lead['Appointment Date /Time'];
-            if (dateStr) {
-                const date = new Date(dateStr);
-                const dayIndex = date.getDay() - 1; // Adjust so Mon=0, Fri=4
-                
-                if (dayIndex >= 0 && dayIndex <= 4) {
-                    apptCounts[dayIndex]++;
-                    
-                    // Daily Incentive Estimate (simplified based on your tier logic)
-                    const status = lead.Status?.toLowerCase() || '';
-                    if (!status.includes('cancel') && !status.includes('reject')) {
-                        dailyEarnings[dayIndex] += 50; // Base value for valid leads
-                    }
-                }
-            }
+        leads.forEach(l => {
+            const d = new Date(l['Appointment Date /Time']).getDay() - 1;
+            if (d >= 0 && d <= 4) apptCounts[d]++;
         });
 
-        // Weekly Appointments Chart (Line)
-        apptChart.setOption({
-            tooltip: { trigger: 'axis' },
-            xAxis: { type: 'category', data: daysLabel },
+        echarts.init(apptDom).setOption({
+            xAxis: { type: 'category', data: days },
             yAxis: { type: 'value', minInterval: 1 },
-            series: [{
-                data: apptCounts,
-                type: 'line',
-                smooth: true,
-                color: '#FF6B35',
-                areaStyle: { color: 'rgba(255, 107, 53, 0.1)' }
-            }]
+            series: [{ data: apptCounts, type: 'line', smooth: true, color: '#FF6B35' }]
         });
-
-        // Incentive Earnings Chart (Bar)
-        incChart.setOption({
-            tooltip: { 
-                trigger: 'axis',
-                formatter: (params) => `${params[0].name}: $${params[0].value}`
-            },
-            xAxis: { type: 'category', data: daysLabel },
-            yAxis: { type: 'value', axisLabel: { formatter: '${value}' } },
-            series: [{
-                data: dailyEarnings,
-                type: 'bar',
-                color: '#FF6B35',
-                itemStyle: { borderRadius: [4, 4, 0, 0] }
-            }]
+        
+        echarts.init(incDom).setOption({
+            xAxis: { type: 'category', data: days },
+            yAxis: { type: 'value' },
+            series: [{ data: [0,0,0,0,0], type: 'bar', color: '#FF6B35' }] // Placeholder for daily earnings
         });
     }
 
     renderLeadsTable(leads) {
-        const tableBody = document.getElementById('leads-table-body');
-        if (!tableBody) return;
-
-        if (leads.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="4" class="px-6 py-10 text-center text-gray-400">No appointments found for the current period.</td></tr>';
-            return;
-        }
-
-        tableBody.innerHTML = leads.map(lead => `
+        const body = document.getElementById('leads-table-body');
+        if (body) body.innerHTML = leads.map(l => `
             <tr>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${lead['Homeowner Name(s)'] || 'N/A'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead['Appointment Date /Time'] || 'N/A'}</td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        lead.Status?.toLowerCase() === 'approved' ? 'bg-green-100 text-green-800' : 
-                        lead.Status?.toLowerCase().includes('cancel') ? 'bg-red-100 text-red-800' : 
-                        'bg-yellow-100 text-yellow-800'
-                    }">
-                        ${lead.Status || 'Pending'}
-                    </span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead['Address'] || 'N/A'}</td>
+                <td class="px-6 py-4 text-sm font-medium text-gray-900">${l['Homeowner Name(s)'] || 'N/A'}</td>
+                <td class="px-6 py-4 text-sm text-gray-500">${l['Appointment Date /Time'] || 'N/A'}</td>
+                <td class="px-6 py-4 text-sm font-bold text-orange-600">${l.Status || 'Pending'}</td>
+                <td class="px-6 py-4 text-sm text-gray-500">${l.Address || 'N/A'}</td>
             </tr>
         `).join('');
     }
 
-    updateProfileUI() {
-        if (!this.currentUser) return;
-        
-        const profileFields = {
-            'profileName': this.currentUser.name,
-            'profilePosition': this.currentUser.position || 'Sales Agent',
-            'profileRate': `$${this.currentUser.baseRate || '15.00'}/hour`,
-            'profileHours': `${this.currentUser.weeklyHours || '40'} hours`,
-            'profileStartDate': this.currentUser.startDate || 'January 1, 2024',
-            'profileEmail': this.currentUser.email
-        };
-
-        for (const [id, value] of Object.entries(profileFields)) {
-            const el = document.getElementById(id);
-            if (el) el.textContent = value;
-        }
-    }
-
-    async submitTimeOffRequest(data) {
-        this.setLoadingState(true, 'Submitting request...');
-        try {
-            const response = await fetch(this.webhooks.timeOffRequest, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    email: this.currentUser.email,
-                    name: this.currentUser.name,
-                    ...data
-                })
-            });
-
-            if (!response.ok) throw new Error('Time-off service unavailable.');
-            
-            this.showSuccess('Time-off request sent to management!');
-            return true;
-        } catch (error) {
-            this.showError(error.message);
-            return false;
-        } finally {
-            this.setLoadingState(false);
-        }
-    }
-
+    // --- AUTH & SESSION ---
     async login(email, password) {
         if (this.isLoading) return;
         this.setLoadingState(true, 'Connecting...');
@@ -245,108 +155,46 @@ class CallHammerPortal {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
             });
-            if (!response.ok) throw new Error('Ensure n8n workflow is ACTIVE.');
             const result = await response.json();
-            
             if (result.status === "success") {
-                this.currentUser = { ...result.user, email: email }; 
-                this.createSession(this.currentUser);
-                this.showSuccess(`Welcome, ${this.currentUser.name}!`);
-                setTimeout(() => this.redirectToDashboard(), 800);
-            } else {
-                throw new Error(result.message || 'Invalid credentials');
-            }
-        } catch (error) {
-            this.showError(error.message);
-            this.setLoadingState(false);
-        }
+                this.currentUser = { ...result.user, email: email };
+                localStorage.setItem('callHammerSession', JSON.stringify({ user: this.currentUser, expiresAt: Date.now() + 86400000 }));
+                window.location.href = 'agent-dashboard.html';
+            } else { throw new Error(result.message); }
+        } catch (err) { alert("Login failed: " + err.message); this.setLoadingState(false); }
     }
 
     checkExistingSession() {
         const session = localStorage.getItem('callHammerSession');
         if (session) {
-            try {
-                const sessionData = JSON.parse(session);
-                if (this.isValidSession(sessionData)) {
-                    this.currentUser = sessionData.user;
-                    if (window.location.pathname.endsWith('index.html') || window.location.pathname.endsWith('/')) {
-                        this.redirectToDashboard();
-                    }
-                }
-            } catch (error) {
-                localStorage.removeItem('callHammerSession');
-            }
+            const data = JSON.parse(session);
+            if (data.expiresAt > Date.now()) this.currentUser = data.user;
         }
     }
 
-    createSession(user) {
-        const sessionData = { user: user, timestamp: Date.now(), expiresAt: Date.now() + (24 * 60 * 60 * 1000) };
-        localStorage.setItem('callHammerSession', JSON.stringify(sessionData));
-    }
-
-    isValidSession(sessionData) { return sessionData && sessionData.expiresAt > Date.now(); }
-
-    redirectToDashboard() {
+    updateProfileUI() {
         if (!this.currentUser) return;
-        window.location.href = this.currentUser.role === 'admin' ? 'admin-dashboard.html' : 'agent-dashboard.html';
-    }
-
-    logout() {
-        localStorage.removeItem('callHammerSession');
-        window.location.href = 'index.html';
-    }
-
-    calculateIncentives(n, c) {
-        let total = 0;
-        const t1 = Math.min(n, 6);
-        if (t1 > 0) total += t1 * 50;
-        if (n >= 8) total += (c < 25 ? 50 : 30);
-        const t3 = Math.max(0, Math.min(n - 8, 4));
-        if (t3 > 0) total += t3 * (c < 25 ? 17 : 15);
-        const t4 = Math.max(0, n - 12);
-        if (t4 > 0) total += t4 * (c < 25 ? 27 : 25);
-        return { totalIncentives: total };
-    }
-
-    setLoadingState(loading, text = 'Loading...') {
-        this.isLoading = loading;
-        const btn = document.getElementById('loginButton');
-        const txt = document.getElementById('loginText');
-        if (btn && txt) {
-            btn.disabled = loading;
-            txt.textContent = loading ? text : 'Sign In';
+        const fields = { 'profileName': this.currentUser.name, 'profileEmail': this.currentUser.email };
+        for (const [id, val] of Object.entries(fields)) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
         }
-    }
-
-    showError(message) {
-        const errorDiv = document.getElementById('loginError');
-        if (errorDiv) {
-            errorDiv.querySelector('p').textContent = message;
-            errorDiv.classList.remove('hidden');
-        }
-    }
-
-    showSuccess(message) {
-        const notification = document.createElement('div');
-        notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-        notification.textContent = message;
-        document.body.appendChild(notification);
-        setTimeout(() => notification.remove(), 3000);
     }
 
     bindEvents() {
-        const loginForm = document.getElementById('loginForm');
-        if (loginForm) {
-            loginForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                this.login(formData.get('email'), formData.get('password'));
-            });
-        }
+        const form = document.getElementById('loginForm');
+        if (form) form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const data = new FormData(form);
+            this.login(data.get('email'), data.get('password'));
+        });
     }
 
-    initializeAnimations() { }
+    setLoadingState(loading, text = 'Sign In') {
+        this.isLoading = loading;
+        const btn = document.getElementById('loginButton');
+        if (btn) btn.disabled = loading;
+    }
 }
 
-let portal;
-document.addEventListener('DOMContentLoaded', () => { portal = new CallHammerPortal(); });
+const portal = new CallHammerPortal();
