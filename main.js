@@ -14,7 +14,7 @@ class CallHammerPortal {
             login: 'http://localhost:5678/webhook/agent-login', 
             fetchData: 'http://localhost:5678/webhook/fetch-agent-data', 
             addEmployee: 'http://localhost:5678/webhook/add-employee',
-            timeOffRequest: 'http://localhost:5678/webhook-test/timeoff-request'
+            timeOffRequest: 'http://localhost:5678/webhook/timeoff-request'
         };
 
         this.init();
