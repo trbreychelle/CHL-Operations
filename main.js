@@ -1,5 +1,5 @@
 // Call Hammer Leads - Main Application Logic
-// Optimized for Production with n8n & Caching
+// Integrated with n8n Localhost Test Webhook
 
 class CallHammerPortal {
     constructor() {
@@ -9,13 +9,13 @@ class CallHammerPortal {
         this.leadsData = [];
         this.isLoading = false;
         
-        // n8n Webhook URLs - REPLACE WITH YOUR PRODUCTION URLS FROM n8n
+        // n8n Webhook URLs 
         this.webhooks = {
-            login: 'PASTE_YOUR_PRODUCTION_LOGIN_WEBHOOK_HERE', // New: Specifically for credentials
-            fetchData: 'PASTE_YOUR_PRODUCTION_FETCH_DATA_WEBHOOK_HERE',
-            addEmployee: 'PASTE_YOUR_PRODUCTION_ADD_EMPLOYEE_WEBHOOK_HERE',
-            timeOffRequest: 'PASTE_YOUR_PRODUCTION_TIMEOFF_WEBHOOK_HERE',
-            updatePerformance: 'PASTE_YOUR_PRODUCTION_UPDATE_PERF_WEBHOOK_HERE'
+            // Updated with your specific test URL
+            login: 'http://localhost:5678/webhook-test/agent-login', 
+            fetchData: 'http://localhost:5678/webhook-test/fetch-data',
+            addEmployee: 'http://localhost:5678/webhook-test/add-employee',
+            timeOffRequest: 'http://localhost:5678/webhook-test/timeoff-request'
         };
 
         this.init();
@@ -27,8 +27,40 @@ class CallHammerPortal {
         this.initializeAnimations();
     }
 
-    // --- AUTHENTICATION SYSTEM ---
+    // --- REAL AUTHENTICATION SYSTEM ---
+    async login(email, password) {
+        if (this.isLoading) return;
+        this.setLoadingState(true, 'Connecting to n8n...');
+        
+        try {
+            // Sends the login credentials to your n8n workflow
+            const response = await fetch(this.webhooks.login, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
 
+            // If n8n isn't "Listening" for the test event, this will fail
+            if (!response.ok) throw new Error('n8n is not listening. Click "Listen for test event" in n8n.');
+
+            const result = await response.json();
+
+            if (result.status === "success") {
+                this.currentUser = result.user; // Uses real data from AGENT_MASTER sheet
+                this.createSession(this.currentUser);
+                this.showSuccess('Login successful!');
+                
+                setTimeout(() => this.redirectToDashboard(), 800);
+            } else {
+                throw new Error(result.message || 'Invalid email or password');
+            }
+        } catch (error) {
+            this.showError(error.message);
+            this.setLoadingState(false);
+        }
+    }
+
+    // --- SESSION MANAGEMENT ---
     checkExistingSession() {
         const session = localStorage.getItem('callHammerSession');
         if (session) {
@@ -36,7 +68,6 @@ class CallHammerPortal {
                 const sessionData = JSON.parse(session);
                 if (this.isValidSession(sessionData)) {
                     this.currentUser = sessionData.user;
-                    // Only redirect if we are on the login page (index.html)
                     if (window.location.pathname.endsWith('index.html') || window.location.pathname.endsWith('/')) {
                         this.redirectToDashboard();
                     }
@@ -47,35 +78,6 @@ class CallHammerPortal {
         }
     }
 
-    async login(email, password) {
-        if (this.isLoading) return;
-        this.setLoadingState(true, 'Verifying Credentials...');
-        
-        try {
-            // REAL API CALL: Talking to your n8n Login Workflow
-            const response = await fetch(this.webhooks.login, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
-
-            const result = await response.json();
-
-            if (result.status === "success") {
-                this.currentUser = result.user; // Includes name, role, etc. from Google Sheet
-                this.createSession(this.currentUser);
-                this.showSuccess('Login successful!');
-                
-                setTimeout(() => this.redirectToDashboard(), 800);
-            } else {
-                throw new Error(result.message || 'Invalid email or password');
-            }
-        } catch (error) {
-            this.showError(error.message || 'Login failed. Server unreachable.');
-            this.setLoadingState(false);
-        }
-    }
-
     createSession(user) {
         const sessionData = {
             user: user,
@@ -83,7 +85,6 @@ class CallHammerPortal {
             expiresAt: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
         };
         localStorage.setItem('callHammerSession', JSON.stringify(sessionData));
-        this.sessionData = sessionData;
     }
 
     isValidSession(sessionData) {
@@ -98,54 +99,7 @@ class CallHammerPortal {
 
     logout() {
         localStorage.removeItem('callHammerSession');
-        localStorage.removeItem('cachedLeadsData'); // Clear cache on logout
         window.location.href = 'index.html';
-    }
-
-    // --- DATA MANAGEMENT WITH CACHING ---
-
-    async fetchAllData() {
-        // Anti-Execution Glitch: Check cache first (Valid for 1 hour)
-        const cachedData = localStorage.getItem('cachedLeadsData');
-        const cacheTime = localStorage.getItem('cacheTimestamp');
-        const oneHour = 60 * 60 * 1000;
-
-        if (cachedData && (Date.now() - cacheTime < oneHour)) {
-            const data = JSON.parse(cachedData);
-            this.agentsData = data.agents || [];
-            this.leadsData = data.leads || [];
-            console.log("Loading data from local cache...");
-            return data;
-        }
-
-        try {
-            this.setLoadingState(true, 'Fetching latest leads...');
-            const response = await fetch(this.webhooks.fetchData, {
-                method: 'POST', // Webhooks usually prefer POST for security
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: this.currentUser?.id })
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                this.agentsData = data.agents || [];
-                this.leadsData = data.leads || [];
-                
-                // Save to cache to save n8n executions
-                localStorage.setItem('cachedLeadsData', JSON.stringify(data));
-                localStorage.setItem('cacheTimestamp', Date.now().toString());
-                
-                return data;
-            } else {
-                throw new Error('Server returned an error');
-            }
-        } catch (error) {
-            console.error('Fetch error:', error);
-            this.showError('Could not load real-time data. Check n8n status.');
-            return { agents: [], leads: [] }; // No mock fallback
-        } finally {
-            this.setLoadingState(false);
-        }
     }
 
     // --- INCENTIVE ENGINE (The Math) ---
@@ -158,9 +112,8 @@ class CallHammerPortal {
         // Tier 1: 1-6 leads - $50 each
         const tier1Count = Math.min(n, 6);
         if (tier1Count > 0) {
-            const tier1Total = tier1Count * 50;
-            totalIncentives += tier1Total;
-            tierBreakdown.push({ tier: 1, count: tier1Count, rate: 50, total: tier1Total, description: '1-6 leads' });
+            totalIncentives += tier1Count * 50;
+            tierBreakdown.push({ tier: 1, count: tier1Count, rate: 50, total: tier1Count * 50, description: '1-6 leads' });
         }
 
         // Tier 2: 8th lead - Special bonus
@@ -174,18 +127,16 @@ class CallHammerPortal {
         const tier3Count = Math.max(0, Math.min(n - 8, 4));
         if (tier3Count > 0) {
             const tier3Rate = c < 25 ? 17 : 15;
-            const tier3Total = tier3Count * tier3Rate;
-            totalIncentives += tier3Total;
-            tierBreakdown.push({ tier: 3, count: tier3Count, rate: tier3Rate, total: tier3Total, description: `9-12 leads (${c < 25 ? '$17 bonus' : '$15'})` });
+            totalIncentives += (tier3Count * tier3Rate);
+            tierBreakdown.push({ tier: 3, count: tier3Count, rate: tier3Rate, total: tier3Count * tier3Rate, description: `9-12 leads (${c < 25 ? '$17 bonus' : '$15'})` });
         }
 
         // Tier 4: 13+ leads
         const tier4Count = Math.max(0, n - 12);
         if (tier4Count > 0) {
             const tier4Rate = c < 25 ? 27 : 25;
-            const tier4Total = tier4Count * tier4Rate;
-            totalIncentives += tier4Total;
-            tierBreakdown.push({ tier: 4, count: tier4Count, rate: tier4Rate, total: tier4Total, description: `13+ leads (${c < 25 ? '$27 bonus' : '$25'})` });
+            totalIncentives += (tier4Count * tier4Rate);
+            tierBreakdown.push({ tier: 4, count: tier4Count, rate: tier4Rate, total: tier4Count * tier4Rate, description: `13+ leads (${c < 25 ? '$27 bonus' : '$25'})` });
         }
 
         return { totalIncentives, tierBreakdown, appointmentCount: n, cancellationRate: c };
@@ -231,7 +182,7 @@ class CallHammerPortal {
         }
     }
 
-    initializeAnimations() { /* Animation logic here */ }
+    initializeAnimations() { /* Animation logic */ }
 }
 
 // Initialize
