@@ -12,7 +12,7 @@ class CallHammerPortal {
         // n8n Webhook URLs 
         this.webhooks = {
             login: 'http://localhost:5678/webhook-test/agent-login', 
-            fetchData: 'http://localhost:5678/webhook-test/fetch-agent-data', // UPDATED URL
+            fetchData: 'http://localhost:5678/webhook-test/fetch-agent-data', 
             addEmployee: 'http://localhost:5678/webhook-test/add-employee',
             timeOffRequest: 'http://localhost:5678/webhook-test/timeoff-request'
         };
@@ -24,6 +24,11 @@ class CallHammerPortal {
         this.checkExistingSession();
         this.bindEvents();
         this.initializeAnimations();
+
+        // Automatically fetch data if user is already logged in on a dashboard page
+        if (this.currentUser && (window.location.pathname.includes('dashboard'))) {
+            this.fetchAllData();
+        }
     }
 
     // --- DATA FETCHING SYSTEM ---
@@ -43,6 +48,8 @@ class CallHammerPortal {
             const result = await response.json();
             if (result.status === "success") {
                 this.leadsData = result.leads || [];
+                console.log('Leads loaded:', this.leadsData);
+                // After data is loaded, you can call a function here to update your UI tables
                 return result;
             }
         } catch (error) {
@@ -65,12 +72,13 @@ class CallHammerPortal {
                 body: JSON.stringify({ email, password })
             });
 
-            if (!response.ok) throw new Error('n8n is not listening. Click "Listen for test event" in n8n.');
+            if (!response.ok) throw new Error('n8n is not listening. Click "Listen for test event".');
 
             const result = await response.json();
 
             if (result.status === "success") {
-                this.currentUser = result.user; 
+                // Ensure email is included in the user object
+                this.currentUser = { ...result.user, email: email }; 
                 this.createSession(this.currentUser);
                 this.showSuccess('Login successful!');
                 
