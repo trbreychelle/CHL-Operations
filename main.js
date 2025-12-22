@@ -10,7 +10,8 @@ class CallHammerPortal {
         this.isLoading = false;
         
         this.webhooks = {
-            login: 'login: 'http://localhost:5678/webhook-test/agent-login', 
+            // FIXED: Removed the extra "login:" word inside the string
+            login: 'http://localhost:5678/webhook-test/agent-login', 
             fetchData: 'http://localhost:5678/webhook/fetch-agent-data', 
             addEmployee: 'http://localhost:5678/webhook/add-employee',
             timeOffRequest: 'http://localhost:5678/webhook-test/timeoff-request'
@@ -26,7 +27,6 @@ class CallHammerPortal {
 
         if (this.currentUser && (window.location.pathname.includes('dashboard'))) {
             this.fetchAllData();
-            // Automatically update profile fields from session data
             this.updateProfileUI();
         }
     }
@@ -97,11 +97,9 @@ class CallHammerPortal {
         }
     }
 
-    // --- NEW: PROFILE TAB UPDATE ---
     updateProfileUI() {
         if (!this.currentUser) return;
         
-        // Map the IDs in your HTML to the data from AGENT_MASTER sheet
         const profileFields = {
             'profileName': this.currentUser.name,
             'profilePosition': this.currentUser.position || 'Sales Agent',
@@ -117,7 +115,6 @@ class CallHammerPortal {
         }
     }
 
-    // --- NEW: TIME OFF SUBMISSION ---
     async submitTimeOffRequest(data) {
         this.setLoadingState(true, 'Submitting request...');
         try {
@@ -143,7 +140,6 @@ class CallHammerPortal {
         }
     }
 
-    // --- AUTHENTICATION & SESSION LOGIC ---
     async login(email, password) {
         if (this.isLoading) return;
         this.setLoadingState(true, 'Connecting...');
