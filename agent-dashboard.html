@@ -5,58 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agent Dashboard - Call Hammer Leads</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { font-family: 'Inter', sans-serif; }
-        .progress-bar {
-            background: linear-gradient(90deg, #FF6B35 0%, #FF8C61 100%);
-            transition: width 1s ease-in-out;
-        }
-        .metric-card {
-            background: linear-gradient(135deg, rgba(255, 107, 53, 0.05) 0%, rgba(255, 140, 97, 0.02) 100%);
-            transition: all 0.3s ease;
-        }
-        .metric-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(255, 107, 53, 0.1);
-        }
-        .sidebar {
-            background: linear-gradient(180deg, #2D3748 0%, #1A202C 100%);
-        }
-        .nav-item { transition: all 0.3s ease; }
-        .nav-item:hover, .nav-item.active {
-            background: rgba(255, 107, 53, 0.1);
-            border-left: 4px solid #FF6B35;
-        }
-        .chart-container { min-height: 300px; }
+        .progress-bar { background: linear-gradient(90deg, #FF6B35 0%, #FF8C61 100%); transition: width 1s ease-in-out; }
+        .metric-card { transition: all 0.3s ease; }
+        .sidebar { background: linear-gradient(180deg, #2D3748 0%, #1A202C 100%); }
+        .nav-item:hover, .nav-item.active { background: rgba(255, 107, 53, 0.1); border-left: 4px solid #FF6B35; }
+        .chart-container { min-height: 350px; }
         .modal { backdrop-filter: blur(10px); }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
     <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <div class="flex items-center space-x-4">
-                    <div class="flex items-center space-x-2">
-                        <div class="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
-                            <span class="text-white font-bold text-sm">CH</span>
-                        </div>
-                        <span class="text-xl font-bold text-gray-900">Agent Dashboard</span>
-                    </div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
+            <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold">CH</div>
+                <span class="text-xl font-bold text-gray-900">Agent Portal</span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div class="text-right">
+                    <p class="text-sm font-medium text-gray-900" id="nav-user-name">Loading...</p>
+                    <p class="text-xs text-gray-500" id="nav-user-role">Agent</p>
                 </div>
-                <div class="flex items-center space-x-4">
-                    <div class="text-right">
-                        <p class="text-sm font-medium text-gray-900" id="nav-user-name">Loading...</p>
-                        <p class="text-xs text-gray-500" id="nav-user-role">Agent</p>
-                    </div>
-                    <button onclick="portal.logout()" class="text-gray-600 hover:text-orange-600 transition-colors">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                        </svg>
-                    </button>
-                </div>
+                <button onclick="portal.logout()" class="text-gray-600 hover:text-orange-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                </button>
             </div>
         </div>
     </nav>
@@ -64,103 +39,102 @@
     <div class="flex">
         <div class="sidebar w-64 min-h-screen text-white p-6 hidden lg:block">
             <nav class="space-y-2">
-                <a href="#overview" class="nav-item active flex items-center space-x-3 px-4 py-3 rounded-lg">
-                    <span>Overview</span>
-                </a>
-                <a href="#performance" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg">
-                    <span>Performance</span>
-                </a>
-                <a href="#profile" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg">
-                    <span>Profile</span>
-                </a>
-                <button onclick="openTimeOffModal()" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
-                    <span>Request Time Off</span>
-                </button>
+                <a href="#overview" class="nav-item active flex px-4 py-3 rounded-lg">Overview</a>
+                <a href="#leads-list" class="nav-item flex px-4 py-3 rounded-lg">Recent Leads</a>
+                <a href="#performance" class="nav-item flex px-4 py-3 rounded-lg">Trends</a>
+                <a href="#profile" class="nav-item flex px-4 py-3 rounded-lg">Profile</a>
+                <button onclick="openTimeOffModal()" class="w-full text-left px-4 py-3 mt-10 hover:bg-gray-700 rounded-lg">Request Time Off</button>
             </nav>
         </div>
 
         <div class="flex-1 p-6">
-            <div id="overview" class="mb-8">
-                <h1 class="text-3xl font-bold text-gray-900 mb-6">Performance Overview</h1>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-                        <h3 class="text-sm font-medium text-gray-600 mb-1">Total Appointments</h3>
-                        <p class="text-2xl font-bold text-gray-900" id="stat-appointments">0</p>
-                    </div>
+            <div id="overview" class="mb-8 scroll-mt-20">
+                <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                    <h1 class="text-3xl font-bold text-gray-900">Performance Overview</h1>
+                    <select id="performanceFilter" onchange="portal.handleFilterChange(this.value)" class="px-4 py-2 border rounded-lg bg-white shadow-sm focus:ring-2 focus:ring-orange-500 outline-none">
+                        <option value="this-week">This Current Week</option>
+                        <option value="last-30-days">Last 30 Days</option>
+                        <option value="last-4-weeks">Last 4 Weeks</option>
+                        <option value="last-6-weeks">Last 6 Weeks</option>
+                    </select>
+                </div>
 
-                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-                        <h3 class="text-sm font-medium text-gray-600 mb-1">Cancellation Rate</h3>
-                        <p class="text-2xl font-bold text-gray-900" id="stat-cancel-rate">0%</p>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border">
+                        <h3 class="text-xs font-bold text-gray-400 uppercase">Total Appointments</h3>
+                        <p class="text-2xl font-bold" id="stat-appointments">0</p>
                     </div>
-
-                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-                        <h3 class="text-sm font-medium text-gray-600 mb-1">Total Incentives</h3>
-                        <p class="text-2xl font-bold text-gray-900" id="stat-incentives">$0</p>
+                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border">
+                        <h3 class="text-xs font-bold text-gray-400 uppercase">Cancellation Rate</h3>
+                        <p class="text-2xl font-bold" id="stat-cancel-rate">0%</p>
                     </div>
-
-                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-                        <h3 class="text-sm font-medium text-gray-600 mb-1">Weekly Hours</h3>
-                        <p class="text-2xl font-bold text-gray-900" id="stat-hours">0</p>
+                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border">
+                        <h3 class="text-xs font-bold text-gray-400 uppercase">Total Incentives</h3>
+                        <p class="text-2xl font-bold text-orange-600" id="stat-incentives">$0</p>
+                    </div>
+                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border">
+                        <h3 class="text-xs font-bold text-gray-400 uppercase">Weekly Hours</h3>
+                        <p class="text-2xl font-bold" id="stat-hours">0</p>
                     </div>
                 </div>
 
-                <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-8">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Incentive Tier Progress</h3>
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-600" id="tier-status-text">Tier 1 (Loading...)</span>
-                            <span class="text-sm font-medium text-gray-900" id="tier-count-display">0 / 8 appointments</span>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-3">
-                            <div id="tier-progress-bar" class="progress-bar h-3 rounded-full" style="width: 0%"></div>
-                        </div>
+                <div class="bg-white rounded-xl shadow-lg border p-6 mb-8">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-sm font-medium text-gray-600" id="tier-status-text">Tier 1 (Loading...)</span>
+                        <span class="text-sm font-bold text-gray-900" id="tier-count-display">0 / 6 appointments</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-3">
+                        <div id="tier-progress-bar" class="progress-bar h-3 rounded-full" style="width: 0%"></div>
                     </div>
                 </div>
             </div>
 
-            <div id="performance" class="mb-12">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6">Performance Trends</h2>
+            <div id="leads-list" class="mb-12 scroll-mt-20">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900">Recent Appointments</h2>
+                    <input type="text" id="leadSearch" placeholder="Search homeowners..." class="px-4 py-2 border rounded-lg w-64 focus:ring-2 focus:ring-orange-500">
+                </div>
+                <div class="bg-white rounded-xl shadow-lg border overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Homeowner</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Date Submitted</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Address</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leads-table-body" class="bg-white divide-y divide-gray-200 text-sm">
+                            <tr><td colspan="4" class="px-6 py-10 text-center text-gray-400">Loading leads...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="performance" class="mb-12 scroll-mt-20">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Performance Trends (Mon-Sun)</h2>
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="bg-white rounded-xl shadow-lg p-6">
-                        <h3 class="text-lg font-semibold mb-4">Weekly Appointments</h3>
+                        <h3 class="font-semibold mb-4">Daily Submission Volume</h3>
                         <div id="appointmentsChart" class="chart-container"></div>
                     </div>
                     <div class="bg-white rounded-xl shadow-lg p-6">
-                        <h3 class="text-lg font-semibold mb-4">Incentive Earnings</h3>
+                        <h3 class="font-semibold mb-4">Estimated Daily Earnings</h3>
                         <div id="incentivesChart" class="chart-container"></div>
                     </div>
                 </div>
             </div>
 
-            <div id="profile" class="mb-8">
+            <div id="profile" class="mb-8 scroll-mt-20">
                 <h2 class="text-2xl font-bold text-gray-900 mb-6">Profile Information</h2>
-                <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        <div>
-                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Full Name</h3>
-                            <p class="text-lg font-semibold text-gray-900" id="profileName">Loading...</p>
-                        </div>
-                        <div>
-                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Position</h3>
-                            <p class="text-lg font-semibold text-gray-900" id="profilePosition">Loading...</p>
-                        </div>
-                        <div>
-                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Email Address</h3>
-                            <p class="text-lg font-semibold text-gray-900" id="profileEmail">Loading...</p>
-                        </div>
-                        <div>
-                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Base Rate</h3>
-                            <p class="text-lg font-semibold text-gray-900" id="profileRate">Loading...</p>
-                        </div>
-                        <div>
-                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Weekly Hours</h3>
-                            <p class="text-lg font-semibold text-gray-900" id="profileHours">Loading...</p>
-                        </div>
-                        <div>
-                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Start Date</h3>
-                            <p class="text-lg font-semibold text-gray-900" id="profileStartDate">Loading...</p>
-                        </div>
+                <div class="bg-white rounded-xl shadow-lg border p-8">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+                        <div><p class="text-xs font-bold text-gray-400 uppercase">Full Name</p><p class="text-lg font-semibold" id="profileName">Loading...</p></div>
+                        <div><p class="text-xs font-bold text-gray-400 uppercase">Position</p><p class="text-lg font-semibold" id="profilePosition">Loading...</p></div>
+                        <div><p class="text-xs font-bold text-gray-400 uppercase">Email</p><p class="text-lg font-semibold" id="profileEmail">Loading...</p></div>
+                        <div><p class="text-xs font-bold text-gray-400 uppercase">Base Rate</p><p class="text-lg font-semibold" id="profileRate">Loading...</p></div>
+                        <div><p class="text-xs font-bold text-gray-400 uppercase">Weekly Hours</p><p class="text-lg font-semibold" id="profileHours">Loading...</p></div>
+                        <div><p class="text-xs font-bold text-gray-400 uppercase">Start Date</p><p class="text-lg font-semibold" id="profileStartDate">Loading...</p></div>
                     </div>
                 </div>
             </div>
@@ -168,29 +142,13 @@
     </div>
 
     <div id="timeOffModal" class="modal fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
-        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6">
-            <h3 class="text-lg font-semibold mb-4">Request Time Off</h3>
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-8">
+            <h3 class="text-xl font-bold mb-6">Request Time Off</h3>
             <form id="timeOffForm" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Start Date</label>
-                    <input type="date" name="startDate" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">End Date</label>
-                    <input type="date" name="endDate" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Reason</label>
-                    <select name="reason" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500">
-                        <option value="vacation">Vacation</option>
-                        <option value="sick">Sick Leave</option>
-                        <option value="personal">Personal</option>
-                    </select>
-                </div>
-                <div class="flex space-x-3 pt-2">
-                    <button type="button" onclick="closeTimeOffModal()" class="flex-1 p-3 border rounded-lg hover:bg-gray-50">Cancel</button>
-                    <button type="submit" class="flex-1 bg-orange-500 text-white p-3 rounded-lg hover:bg-orange-600 transition-colors">Submit Request</button>
-                </div>
+                <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Start Date</label><input type="date" name="startDate" required class="w-full p-3 border rounded-lg"></div>
+                <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">End Date</label><input type="date" name="endDate" required class="w-full p-3 border rounded-lg"></div>
+                <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Reason</label><select name="reason" required class="w-full p-3 border rounded-lg"><option value="vacation">Vacation</option><option value="sick">Sick Leave</option><option value="personal">Personal</option></select></div>
+                <div class="flex space-x-3 pt-6"><button type="button" onclick="closeTimeOffModal()" class="flex-1 p-3 border rounded-lg hover:bg-gray-100">Cancel</button><button type="submit" class="flex-1 bg-orange-500 text-white p-3 rounded-lg hover:bg-orange-600">Submit</button></div>
             </form>
         </div>
     </div>
@@ -200,7 +158,6 @@
         function openTimeOffModal() { document.getElementById('timeOffModal').classList.remove('hidden'); }
         function closeTimeOffModal() { document.getElementById('timeOffModal').classList.add('hidden'); }
         
-        // Navigation Smooth Scroll
         document.querySelectorAll('.nav-item').forEach(item => {
             item.addEventListener('click', (e) => {
                 const targetId = item.getAttribute('href').substring(1);
@@ -214,28 +171,12 @@
             });
         });
 
-        // Form Submission Bridge
-        document.getElementById('timeOffForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const success = await portal.submitTimeOffRequest({
-                startDate: formData.get('startDate'),
-                endDate: formData.get('endDate'),
-                reason: formData.get('reason')
-            });
-            if (success) {
-                closeTimeOffModal();
-                e.target.reset();
-            }
-        });
-
-        // Initialize Charts
-        document.addEventListener('DOMContentLoaded', () => {
-            const chart1 = echarts.init(document.getElementById('appointmentsChart'));
-            chart1.setOption({
-                xAxis: { type: 'category', data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
-                yAxis: { type: 'value' },
-                series: [{ data: [2, 5, 3, 8, 4], type: 'line', color: '#FF6B35', smooth: true }]
+        document.getElementById('leadSearch').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#leads-table-body tr');
+            rows.forEach(row => {
+                const name = row.cells[0].textContent.toLowerCase();
+                row.style.display = name.includes(term) ? '' : 'none';
             });
         });
     </script>
