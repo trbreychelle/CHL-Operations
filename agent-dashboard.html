@@ -56,7 +56,19 @@
 
         <div class="flex-1 p-6">
             <div id="overview" class="mb-8 scroll-mt-20">
-                <h1 class="text-3xl font-bold text-gray-900 mb-6">Performance Overview</h1>
+                <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                    <h1 class="text-3xl font-bold text-gray-900">Performance Overview</h1>
+                    
+                    <div class="relative inline-block text-left">
+                        <select id="performanceFilter" onchange="portal.handleFilterChange(this.value)" class="block w-full px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm font-medium text-gray-700">
+                            <option value="this-week">This Current Week</option>
+                            <option value="last-30-days">Last 30 Days</option>
+                            <option value="last-4-weeks">Last 4 Weeks</option>
+                            <option value="last-6-weeks">Last 6 Weeks</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
                         <h3 class="text-sm font-medium text-gray-600 mb-1">Total Appointments</h3>
@@ -100,7 +112,7 @@
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Homeowner</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Appt Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Date Submitted</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Address</th>
                             </tr>
@@ -195,7 +207,7 @@
             });
         });
 
-        // Real-time Lead Search
+        // Search Leads
         document.getElementById('leadSearch').addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
             const rows = document.querySelectorAll('#leads-table-body tr');
@@ -205,7 +217,7 @@
             });
         });
 
-        // Time Off Form Bridge
+        // Time Off Bridge
         document.getElementById('timeOffForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
