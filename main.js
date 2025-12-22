@@ -11,9 +11,8 @@ class CallHammerPortal {
         
         // n8n Webhook URLs 
         this.webhooks = {
-            // Updated with your specific test URL
             login: 'http://localhost:5678/webhook-test/agent-login', 
-            fetchData: 'http://localhost:5678/webhook-test/fetch-data',
+            fetchData: 'http://localhost:5678/webhook-test/fetch-agent-data', // UPDATED URL
             addEmployee: 'http://localhost:5678/webhook-test/add-employee',
             timeOffRequest: 'http://localhost:5678/webhook-test/timeoff-request'
         };
@@ -27,26 +26,51 @@ class CallHammerPortal {
         this.initializeAnimations();
     }
 
+    // --- DATA FETCHING SYSTEM ---
+    async fetchAllData() {
+        if (!this.currentUser) return;
+        this.setLoadingState(true, 'Fetching live lead data...');
+        
+        try {
+            const response = await fetch(this.webhooks.fetchData, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: this.currentUser.email })
+            });
+
+            if (!response.ok) throw new Error('Failed to fetch data from n8n');
+
+            const result = await response.json();
+            if (result.status === "success") {
+                this.leadsData = result.leads || [];
+                return result;
+            }
+        } catch (error) {
+            console.error('Fetch error:', error);
+            this.showError('Could not sync with Google Sheets.');
+        } finally {
+            this.setLoadingState(false);
+        }
+    }
+
     // --- REAL AUTHENTICATION SYSTEM ---
     async login(email, password) {
         if (this.isLoading) return;
         this.setLoadingState(true, 'Connecting to n8n...');
         
         try {
-            // Sends the login credentials to your n8n workflow
             const response = await fetch(this.webhooks.login, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
             });
 
-            // If n8n isn't "Listening" for the test event, this will fail
             if (!response.ok) throw new Error('n8n is not listening. Click "Listen for test event" in n8n.');
 
             const result = await response.json();
 
             if (result.status === "success") {
-                this.currentUser = result.user; // Uses real data from AGENT_MASTER sheet
+                this.currentUser = result.user; 
                 this.createSession(this.currentUser);
                 this.showSuccess('Login successful!');
                 
@@ -102,41 +126,37 @@ class CallHammerPortal {
         window.location.href = 'index.html';
     }
 
-    // --- INCENTIVE ENGINE (The Math) ---
+    // --- INCENTIVE ENGINE ---
     calculateIncentives(appointmentCount, cancellationRate) {
         const n = parseInt(appointmentCount) || 0;
         const c = parseFloat(cancellationRate) || 0;
         let totalIncentives = 0;
         let tierBreakdown = [];
 
-        // Tier 1: 1-6 leads - $50 each
         const tier1Count = Math.min(n, 6);
         if (tier1Count > 0) {
             totalIncentives += tier1Count * 50;
             tierBreakdown.push({ tier: 1, count: tier1Count, rate: 50, total: tier1Count * 50, description: '1-6 leads' });
         }
 
-        // Tier 2: 8th lead - Special bonus
         if (n >= 8) {
             const tier2Rate = c < 25 ? 50 : 30;
             totalIncentives += tier2Rate;
-            tierBreakdown.push({ tier: 2, count: 1, rate: tier2Rate, total: tier2Rate, description: `8th lead (${c < 25 ? 'Low Cancel Bonus' : 'Standard'})` });
+            tierBreakdown.push({ tier: 2, count: 1, rate: tier2Rate, total: tier2Rate, description: `8th lead` });
         }
 
-        // Tier 3: 9-12 leads
         const tier3Count = Math.max(0, Math.min(n - 8, 4));
         if (tier3Count > 0) {
             const tier3Rate = c < 25 ? 17 : 15;
             totalIncentives += (tier3Count * tier3Rate);
-            tierBreakdown.push({ tier: 3, count: tier3Count, rate: tier3Rate, total: tier3Count * tier3Rate, description: `9-12 leads (${c < 25 ? '$17 bonus' : '$15'})` });
+            tierBreakdown.push({ tier: 3, count: tier3Count, rate: tier3Rate, total: tier3Count * tier3Rate, description: `9-12 leads` });
         }
 
-        // Tier 4: 13+ leads
         const tier4Count = Math.max(0, n - 12);
         if (tier4Count > 0) {
             const tier4Rate = c < 25 ? 27 : 25;
             totalIncentives += (tier4Count * tier4Rate);
-            tierBreakdown.push({ tier: 4, count: tier4Count, rate: tier4Rate, total: tier4Count * tier4Rate, description: `13+ leads (${c < 25 ? '$27 bonus' : '$25'})` });
+            tierBreakdown.push({ tier: 4, count: tier4Count, rate: tier4Rate, total: tier4Count * tier4Rate, description: `13+ leads` });
         }
 
         return { totalIncentives, tierBreakdown, appointmentCount: n, cancellationRate: c };
