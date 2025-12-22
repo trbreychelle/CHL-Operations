@@ -20,7 +20,7 @@
     <nav class="bg-white shadow-sm border-b sticky top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 flex justify-between items-center h-16">
             <div class="flex items-center space-x-2">
-                <div class="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">CH</div>
+                <div class="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold">CH</div>
                 <span class="text-xl font-bold text-gray-900">Agent Portal</span>
             </div>
             <div class="flex items-center space-x-4">
@@ -28,8 +28,8 @@
                     <p class="text-sm font-medium text-gray-900" id="nav-user-name">Loading...</p>
                     <p class="text-xs text-gray-500" id="nav-user-role">Agent</p>
                 </div>
-                <button onclick="portal.logout()" class="text-gray-400 hover:text-orange-600 transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                <button onclick="portal.logout()" class="text-gray-600 hover:text-orange-600 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
                 </button>
             </div>
         </div>
@@ -42,11 +42,12 @@
                 <a href="#leads-list" class="nav-item flex px-4 py-3 rounded-lg">Recent Leads</a>
                 <a href="#performance" class="nav-item flex px-4 py-3 rounded-lg">Trends</a>
                 <a href="#profile" class="nav-item flex px-4 py-3 rounded-lg">Profile</a>
+                <button onclick="openTimeOffModal()" class="w-full text-left px-4 py-3 mt-10 hover:bg-gray-700 rounded-lg">Request Time Off</button>
             </nav>
         </div>
 
         <div class="flex-1 p-6">
-            <div id="overview" class="mb-8">
+            <div id="overview" class="mb-8 scroll-mt-20">
                 <div class="flex justify-between items-center mb-6">
                     <h1 class="text-3xl font-bold text-gray-900">Performance Overview</h1>
                     <select id="performanceFilter" onchange="portal.handleFilterChange(this.value)" class="px-4 py-2 border rounded-lg bg-white shadow-sm focus:ring-2 focus:ring-orange-500 outline-none">
@@ -72,7 +73,7 @@
                     </div>
                     <div class="metric-card bg-white p-6 rounded-xl shadow-lg border">
                         <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Weekly Hours</h3>
-                        <p class="text-2xl font-bold text-gray-900" id="stat-hours">0</p>
+                        <p class="text-2xl font-bold" id="stat-hours">0</p>
                     </div>
                 </div>
 
@@ -103,7 +104,7 @@
                             </tr>
                         </thead>
                         <tbody id="leads-table-body" class="divide-y divide-gray-100 text-sm">
-                            <tr><td colspan="4" class="px-6 py-12 text-center text-gray-400 italic">Fetch data using the filter above...</td></tr>
+                            <tr><td colspan="4" class="px-6 py-12 text-center text-gray-400 italic">Select a filter to load data...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -138,16 +139,23 @@
             </div>
         </div>
     </div>
+
+    <div id="timeOffModal" class="modal fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-8">
+            <h3 class="text-xl font-bold mb-6">Request Time Off</h3>
+            <form id="timeOffForm" class="space-y-4">
+                <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Start Date</label><input type="date" name="startDate" required class="w-full p-3 border rounded-lg"></div>
+                <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">End Date</label><input type="date" name="endDate" required class="w-full p-3 border rounded-lg"></div>
+                <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Reason</label><select name="reason" required class="w-full p-3 border rounded-lg"><option value="vacation">Vacation</option><option value="sick">Sick Leave</option><option value="personal">Personal</option></select></div>
+                <div class="flex space-x-3 pt-6"><button type="button" onclick="closeTimeOffModal()" class="flex-1 p-3 border rounded-lg hover:bg-gray-100">Cancel</button><button type="submit" class="flex-1 bg-orange-500 text-white p-3 rounded-lg hover:bg-orange-600">Submit</button></div>
+            </form>
+        </div>
+    </div>
+
     <script src="main.js"></script>
     <script>
-        document.getElementById('leadSearch').addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            const rows = document.querySelectorAll('#leads-table-body tr');
-            rows.forEach(row => {
-                const name = row.cells[0].textContent.toLowerCase();
-                row.style.display = name.includes(term) ? '' : 'none';
-            });
-        });
+        function openTimeOffModal() { document.getElementById('timeOffModal').classList.remove('hidden'); }
+        function closeTimeOffModal() { document.getElementById('timeOffModal').classList.add('hidden'); }
     </script>
 </body>
 </html>
