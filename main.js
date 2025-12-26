@@ -10,7 +10,7 @@ class CallHammerPortal {
         this.webhooks = {
             login: 'http://localhost:5678/webhook/agent-login', 
             fetchData: 'http://localhost:5678/webhook/fetch-agent-data', 
-            fetchAdminData: 'http://localhost:5678/webhook/fetch-admin-dashboard', // New Admin Webhook
+            fetchAdminData: 'http://localhost:5678/webhook-test/fetch-admin-dashboard', // New Admin Webhook
             timeOffRequest: 'http://localhost:5678/webhook/timeoff-request'
         };
         this.init();
