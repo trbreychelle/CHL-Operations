@@ -22,10 +22,6 @@
             background: linear-gradient(135deg, #FF6B35 0%, #E55A2B 100%);
             transition: all 0.3s ease;
         }
-        .btn-primary:hover {
-            transform: scale(1.02);
-            box-shadow: 0 10px 20px rgba(255, 107, 53, 0.3);
-        }
         .sidebar { background: linear-gradient(180deg, #2D3748 0%, #1A202C 100%); }
         .nav-item { transition: all 0.3s ease; cursor: pointer; }
         .nav-item:hover, .nav-item.active {
@@ -61,7 +57,7 @@
                         <p class="text-xs text-gray-500">System Administrator</p>
                     </div>
                     <button onclick="portal.logout()" class="text-gray-600 hover:text-orange-600">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke-width="2" stroke-linecap="round"></path></svg>
                     </button>
                 </div>
             </div>
@@ -82,7 +78,7 @@
         <div class="flex-1 p-6">
             <div class="mb-6 flex justify-between items-center">
                 <h1 class="text-3xl font-bold text-gray-900">Team Overview</h1>
-                <select id="timeFrameFilter" class="px-4 py-2 border rounded-lg bg-white shadow-sm">
+                <select id="timeFrameFilter" class="px-4 py-2 border rounded-lg bg-white shadow-sm focus:ring-2 focus:ring-orange-500">
                     <option value="current_week">Current Week</option>
                     <option value="last_30_days">Last 30 Days</option>
                     <option value="last_4_weeks">Last 4 Weeks</option>
@@ -109,7 +105,7 @@
                 </div>
             </div>
 
-            <div id="performance" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div id="performance" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 scroll-mt-20">
                 <div class="bg-white rounded-xl shadow border p-6">
                     <h3 class="text-lg font-semibold mb-4">Top 10 Performers</h3>
                     <div id="topPerformersChart" class="chart-container"></div>
@@ -154,14 +150,13 @@
     <div id="addEmployeeModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
         <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-8">
             <h3 class="text-xl font-bold mb-6">Add New Employee</h3>
-            <p class="text-sm text-gray-500 mb-4">Implementation for n8n employee creation goes here.</p>
-            <button onclick="closeAddEmployeeModal()" class="w-full p-3 bg-gray-100 rounded-lg">Close</button>
+            <p class="text-sm text-gray-500 mb-6">Agent data will be sent directly to AGENT_MASTER.</p>
+            <button onclick="closeAddEmployeeModal()" class="w-full p-3 bg-gray-100 rounded-lg hover:bg-gray-200">Close</button>
         </div>
     </div>
 
     <script src="main.js"></script>
     <script>
-        // Use the logic you provided
         class AdminDashboard {
             constructor() {
                 this.agentsData = [];
@@ -185,13 +180,15 @@
             }
 
             async refreshDashboard() {
-                // Ensure portal exists from main.js
                 if (typeof portal === 'undefined') return;
                 
-                const result = await portal.fetchAdminDashboardData();
+                // FIXED: Now passes currentTimeFrame filter to main.js and n8n
+                const result = await portal.fetchAdminDashboardData(this.currentTimeFrame);
+                
                 if (result && result.status === "success") {
                     this.agentsData = result.data.agents;
                     
+                    // FIXED: Mapped keys to match n8n response for real numbers
                     document.getElementById('activeAgents').textContent = result.data.summary.activeAgents;
                     document.getElementById('totalTeamAppointments').textContent = result.data.summary.totalAppointments.toLocaleString();
                     document.getElementById('avgCancellationRate').textContent = `${result.data.summary.avgCancelRate}%`;
@@ -205,6 +202,7 @@
 
             updatePayrollTable() {
                 const tbody = document.getElementById('payrollTableBody');
+                if (!tbody) return;
                 tbody.innerHTML = '';
                 let totalPayroll = 0;
 
@@ -232,6 +230,7 @@
 
             updateEmployeeCards() {
                 const container = document.getElementById('employeeCards');
+                if (!container) return;
                 container.innerHTML = '';
                 this.agentsData.slice(0, 12).forEach(agent => {
                     const card = document.createElement('div');
@@ -241,7 +240,7 @@
                         <div class="flex items-center space-x-4 mb-4">
                             <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 font-semibold">${initials}</div>
                             <div>
-                                <h3 class="font-semibold">${agent.name}</h3>
+                                <h3 class="font-semibold text-gray-900">${agent.name}</h3>
                                 <p class="text-sm text-gray-500">${agent.position || 'Sales Agent'}</p>
                             </div>
                         </div>
@@ -261,35 +260,36 @@
 
             initTopPerformersChart() {
                 const chartDom = document.getElementById('topPerformersChart');
+                if (!chartDom) return;
                 const myChart = echarts.init(chartDom);
                 const top = [...this.agentsData].sort((a, b) => b.appointments - a.appointments).slice(0, 10);
                 myChart.setOption({
                     tooltip: { trigger: 'axis' },
                     xAxis: { type: 'value' },
                     yAxis: { type: 'category', data: top.map(a => a.name.split(' ')[0]).reverse() },
-                    series: [{ data: top.map(a => a.appointments).reverse(), type: 'bar', itemStyle: { color: '#FF6B35' } }]
+                    series: [{ name: 'Appointments', data: top.map(a => a.appointments).reverse(), type: 'bar', itemStyle: { color: '#FF6B35' } }]
                 });
             }
 
             initBottomPerformersChart() {
                 const chartDom = document.getElementById('bottomPerformersChart');
+                if (!chartDom) return;
                 const myChart = echarts.init(chartDom);
                 const bottom = [...this.agentsData].sort((a, b) => a.appointments - b.appointments).slice(0, 5);
                 myChart.setOption({
                     tooltip: { trigger: 'axis' },
                     xAxis: { type: 'value' },
                     yAxis: { type: 'category', data: bottom.map(a => a.name.split(' ')[0]).reverse() },
-                    series: [{ data: bottom.map(a => a.appointments).reverse(), type: 'bar', itemStyle: { color: '#FC8181' } }]
+                    series: [{ name: 'Appointments', data: bottom.map(a => a.appointments).reverse(), type: 'bar', itemStyle: { color: '#FC8181' } }]
                 });
             }
 
             bindEvents() {
-                document.getElementById('timeFrameFilter').addEventListener('change', (e) => {
+                document.getElementById('timeFrameFilter').addEventListener('change', async (e) => {
                     this.currentTimeFrame = e.target.value;
-                    this.refreshDashboard();
+                    await this.refreshDashboard();
                 });
                 
-                // Sidebar scroll navigation
                 document.querySelectorAll('.nav-item').forEach(item => {
                     item.addEventListener('click', (e) => {
                         e.preventDefault();
@@ -302,17 +302,10 @@
             }
 
             animateElements() {
-                anime({
-                    targets: '.metric-card',
-                    opacity: [0, 1],
-                    translateY: [20, 0],
-                    delay: anime.stagger(100),
-                    easing: 'easeOutQuart'
-                });
+                anime({ targets: '.metric-card', opacity: [0, 1], translateY: [20, 0], delay: anime.stagger(100), easing: 'easeOutQuart' });
             }
         }
 
-        // Initialize
         let adminDashboard;
         document.addEventListener('DOMContentLoaded', () => { adminDashboard = new AdminDashboard(); });
 
