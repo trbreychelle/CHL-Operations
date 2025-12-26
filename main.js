@@ -10,6 +10,7 @@ class CallHammerPortal {
         this.webhooks = {
             login: 'http://localhost:5678/webhook/agent-login', 
             fetchData: 'http://localhost:5678/webhook/fetch-agent-data', 
+            fetchAdminData: 'http://localhost:5678/webhook/fetch-admin-dashboard', // New Admin Webhook
             timeOffRequest: 'http://localhost:5678/webhook/timeoff-request'
         };
         this.init();
@@ -20,11 +21,32 @@ class CallHammerPortal {
         this.bindEvents();
         
         if (this.currentUser && (window.location.pathname.includes('dashboard'))) {
-            this.fetchAllData();
-            this.updateProfileUI();
+            if (this.currentUser.role === 'admin') {
+                // Admin dashboard logic is handled by the AdminDashboard class in the HTML
+            } else {
+                this.fetchAllData();
+                this.updateProfileUI();
+            }
         }
     }
 
+    // --- ADMIN DATA FETCHING ---
+    async fetchAdminDashboardData() {
+        if (!this.currentUser || this.currentUser.role !== 'admin') return { status: "error" };
+        try {
+            const response = await fetch(this.webhooks.fetchAdminData, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminEmail: this.currentUser.email })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Admin Data Sync Error:', error);
+            return { status: "error" };
+        }
+    }
+
+    // --- AGENT DATA FETCHING & FILTERING ---
     async fetchAllData() {
         if (!this.currentUser || !this.currentUser.email) return;
         try {
@@ -52,47 +74,51 @@ class CallHammerPortal {
             const submittedDate = new Date(dateStr);
             const diffDays = (startOfDay - submittedDate) / (1000 * 60 * 60 * 24);
 
-            if (value === 'this-week') {
+            if (value === 'this-week' || value === 'current_week') {
                 const day = startOfDay.getDay(); 
                 const diff = startOfDay.getDate() - day + (day == 0 ? -6 : 1); 
                 const monday = new Date(new Date().setDate(diff));
                 monday.setHours(0,0,0,0);
                 return submittedDate >= monday;
             }
-            if (value === 'last-30-days') return diffDays <= 30;
-            if (value === 'last-4-weeks') return diffDays <= 28;
-            if (value === 'last-6-weeks') return diffDays <= 42;
+            if (value === 'last-30-days' || value === 'last_30_days') return diffDays <= 30;
+            if (value === 'last-4-weeks' || value === 'last_4_weeks') return diffDays <= 28;
+            if (value === 'last-6-weeks' || value === 'last_6_weeks') return diffDays <= 42;
             return true;
         });
         this.updateDashboardUI(this.filteredLeads);
     }
 
-    // --- UPDATED UI UPDATES TO HANDLE CREDITED/REJECTED ---
+    // --- UI UPDATES (AGENT DASHBOARD) ---
     updateDashboardUI(leads) {
-        const total = leads.length;
+        const totalRaw = leads.length;
         
-        // Count as cancelled if status is "cancel", "credited", or "rejected"
+        // Count Approved leads for Tier/Incentives
+        const approvedLeads = leads.filter(l => (l.Status || '').toLowerCase() === 'approved');
+        const approvedCount = approvedLeads.length;
+
+        // Count Cancelled/Credited/Rejected for Cancel Rate
         const cancelled = leads.filter(l => {
             const status = (l.Status || '').toLowerCase();
             return status.includes('cancel') || status.includes('credited') || status.includes('rejected');
         }).length;
 
-        const rate = total > 0 ? ((cancelled / total) * 100).toFixed(1) : 0;
-        const incentives = this.calculateIncentives(total, parseFloat(rate));
+        const rate = totalRaw > 0 ? ((cancelled / totalRaw) * 100).toFixed(1) : 0;
+        const incentives = this.calculateIncentives(approvedCount, parseFloat(rate));
 
-        if (document.getElementById('stat-appointments')) document.getElementById('stat-appointments').textContent = total;
+        if (document.getElementById('stat-appointments')) document.getElementById('stat-appointments').textContent = totalRaw;
         if (document.getElementById('stat-cancel-rate')) document.getElementById('stat-cancel-rate').textContent = `${rate}%`;
-        if (document.getElementById('stat-incentives')) document.getElementById('stat-incentives').textContent = `$${incentives}`;
+        if (document.getElementById('stat-incentives')) document.getElementById('stat-incentives').textContent = this.formatCurrency(incentives);
         if (document.getElementById('stat-hours')) document.getElementById('stat-hours').textContent = this.currentUser.weeklyHours || '0';
 
         const progressBar = document.getElementById('tier-progress-bar');
         const tierText = document.getElementById('tier-status-text');
         if (progressBar) {
-            let nextGoal = total < 6 ? 6 : total < 8 ? 8 : total < 12 ? 12 : 15;
-            progressBar.style.width = `${Math.min((total / nextGoal) * 100, 100)}%`;
-            document.getElementById('tier-count-display').textContent = `${total} / ${nextGoal} appointments`;
+            let nextGoal = approvedCount < 6 ? 6 : approvedCount < 8 ? 8 : approvedCount < 12 ? 12 : 15;
+            progressBar.style.width = `${Math.min((approvedCount / nextGoal) * 100, 100)}%`;
+            document.getElementById('tier-count-display').textContent = `${approvedCount} / ${nextGoal} approved appointments`;
             if (tierText) {
-                let tier = total >= 13 ? "Tier 4" : total >= 9 ? "Tier 3" : total >= 8 ? "Tier 2" : total >= 1 ? "Tier 1" : "Base Only";
+                let tier = approvedCount >= 13 ? "Tier 4" : approvedCount >= 9 ? "Tier 3" : approvedCount >= 8 ? "Tier 2" : approvedCount >= 1 ? "Tier 1" : "Base Only";
                 tierText.textContent = `Current Status: ${tier}`;
             }
         }
@@ -100,16 +126,21 @@ class CallHammerPortal {
         this.renderLeadsTable(leads);
     }
 
-    calculateIncentives(n, c) {
+    // --- UNIVERSAL LOGIC ---
+    calculateIncentives(approvedN, cancelRate) {
         let total = 0;
-        const isHighPerf = c < 25; 
-        if (n >= 1) total += 50; 
-        if (n >= 8) total += (isHighPerf ? 50 : 30);
-        const t3 = Math.max(0, Math.min(n, 12) - 8);
+        const isHighPerf = cancelRate < 25; 
+        if (approvedN >= 1) total += 50; 
+        if (approvedN >= 8) total += (isHighPerf ? 50 : 30);
+        const t3 = Math.max(0, Math.min(approvedN, 12) - 8);
         if (t3 > 0) total += t3 * (isHighPerf ? 17 : 15);
-        const t4 = Math.max(0, n - 12);
+        const t4 = Math.max(0, approvedN - 12);
         if (t4 > 0) total += t4 * (isHighPerf ? 27 : 25);
         return total;
+    }
+
+    formatCurrency(val) {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
     }
 
     renderCharts(leads, cancelRate) {
@@ -129,12 +160,7 @@ class CallHammerPortal {
                 if (dIdx === -1) dIdx = 6; 
                 if (dIdx >= 0 && dIdx <= 6) {
                     counts[dIdx]++;
-                    
-                    // Logic check: only add earnings if it is NOT a cancellation/credit/rejection
-                    const status = (l.Status || '').toLowerCase();
-                    const isCancelled = status.includes('cancel') || status.includes('credited') || status.includes('rejected');
-
-                    if (!isCancelled) {
+                    if ((l.Status || '').toLowerCase() === 'approved') {
                         earnings[dIdx] += (cancelRate < 25 ? 17 : 15);
                     }
                 }
@@ -166,17 +192,7 @@ class CallHammerPortal {
         }
     }
 
-    async submitTimeOffRequest(data) {
-        try {
-            const response = await fetch(this.webhooks.timeOffRequest, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: this.currentUser.email, name: this.currentUser.name, ...data })
-            });
-            if (response.ok) { alert("Time-off request submitted!"); return true; }
-        } catch (err) { alert("Submission failed."); return false; }
-    }
-
+    // --- AUTH & REDIRECTION ---
     async login(email, password) {
         if (this.isLoading) return;
         this.isLoading = true;
@@ -187,11 +203,7 @@ class CallHammerPortal {
                 const userObj = { ...result.user, email: email };
                 this.currentUser = userObj;
                 localStorage.setItem('callHammerSession', JSON.stringify({ user: userObj, expiresAt: Date.now() + 86400000 }));
-                if (userObj.role === 'admin') {
-                    window.location.href = 'admin-dashboard.html';
-                } else {
-                    window.location.href = 'agent-dashboard.html';
-                }
+                window.location.href = userObj.role === 'admin' ? 'admin-dashboard.html' : 'agent-dashboard.html';
             } else { alert(result.message); }
         } catch (err) { alert("Login failed: Network error"); }
         finally { this.isLoading = false; }
@@ -212,17 +224,6 @@ class CallHammerPortal {
                 e.preventDefault();
                 const data = new FormData(loginForm);
                 await this.login(data.get('email'), data.get('password'));
-            });
-        }
-        const timeOffForm = document.getElementById('timeOffForm');
-        if (timeOffForm) {
-            timeOffForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const formData = new FormData(timeOffForm);
-                const success = await this.submitTimeOffRequest({
-                    startDate: formData.get('startDate'), endDate: formData.get('endDate'), reason: formData.get('reason')
-                });
-                if (success) { if(typeof closeTimeOffModal === 'function') closeTimeOffModal(); timeOffForm.reset(); }
             });
         }
     }
