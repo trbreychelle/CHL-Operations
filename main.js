@@ -19,14 +19,12 @@ class CallHammerPortal {
         this.checkExistingSession();
         this.bindEvents();
         
-        // Load data only if on a dashboard page
         if (this.currentUser && (window.location.pathname.includes('dashboard'))) {
             this.fetchAllData();
             this.updateProfileUI();
         }
     }
 
-    // --- DATA FETCHING & FILTERING ---
     async fetchAllData() {
         if (!this.currentUser || !this.currentUser.email) return;
         try {
@@ -69,10 +67,16 @@ class CallHammerPortal {
         this.updateDashboardUI(this.filteredLeads);
     }
 
-    // --- UI UPDATES ---
+    // --- UPDATED UI UPDATES TO HANDLE CREDITED/REJECTED ---
     updateDashboardUI(leads) {
         const total = leads.length;
-        const cancelled = leads.filter(l => l.Status?.toLowerCase().includes('cancel')).length;
+        
+        // Count as cancelled if status is "cancel", "credited", or "rejected"
+        const cancelled = leads.filter(l => {
+            const status = (l.Status || '').toLowerCase();
+            return status.includes('cancel') || status.includes('credited') || status.includes('rejected');
+        }).length;
+
         const rate = total > 0 ? ((cancelled / total) * 100).toFixed(1) : 0;
         const incentives = this.calculateIncentives(total, parseFloat(rate));
 
@@ -125,7 +129,12 @@ class CallHammerPortal {
                 if (dIdx === -1) dIdx = 6; 
                 if (dIdx >= 0 && dIdx <= 6) {
                     counts[dIdx]++;
-                    if (!l.Status?.toLowerCase().includes('cancel')) {
+                    
+                    // Logic check: only add earnings if it is NOT a cancellation/credit/rejection
+                    const status = (l.Status || '').toLowerCase();
+                    const isCancelled = status.includes('cancel') || status.includes('credited') || status.includes('rejected');
+
+                    if (!isCancelled) {
                         earnings[dIdx] += (cancelRate < 25 ? 17 : 15);
                     }
                 }
@@ -157,7 +166,6 @@ class CallHammerPortal {
         }
     }
 
-    // --- AUTH & REDIRECTION LOGIC ---
     async submitTimeOffRequest(data) {
         try {
             const response = await fetch(this.webhooks.timeOffRequest, {
@@ -179,8 +187,6 @@ class CallHammerPortal {
                 const userObj = { ...result.user, email: email };
                 this.currentUser = userObj;
                 localStorage.setItem('callHammerSession', JSON.stringify({ user: userObj, expiresAt: Date.now() + 86400000 }));
-                
-                // --- NEW REDIRECT LOGIC ---
                 if (userObj.role === 'admin') {
                     window.location.href = 'admin-dashboard.html';
                 } else {
