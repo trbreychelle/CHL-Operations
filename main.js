@@ -8,7 +8,7 @@ class CallHammerPortal {
         this.currentFilter = 'this-week';
 
         this.webhooks = {
-            login: 'https://automate.callhammerleads.com/webhook-test/agent-login', 
+            login: 'https://automate.callhammerleads.com/webhook/agent-login', 
             fetchData: 'https://automate.callhammerleads.com/webhook-test/fetch-agent-data', 
             fetchAdminData: 'https://automate.callhammerleads.com/webhook-test/fetch-admin-dashboard',
             timeOffRequest: 'https://automate.callhammerleads.com/webhook-test/timeoff-request',
