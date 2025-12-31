@@ -7,13 +7,14 @@ class CallHammerPortal {
         this.isLoading = false;
         this.currentFilter = 'this-week';
         
-        // FINAL PRODUCTION WEBHOOKS
+        // WEBHOOKS SET TO TEST MODE FOR INITIAL N8N SETUP
         this.webhooks = {
-            login: 'https://automate.callhammerleads.com/webhook/agent-login', 
-            fetchData: 'https://automate.callhammerleads.com/webhook/fetch-agent-data', 
-            fetchAdminData: 'https://automate.callhammerleads.com/webhook/fetch-admin-dashboard',
-            timeOffRequest: 'https://automate.callhammerleads.com/webhook/timeoff-request',
-            changePassword: 'https://automate.callhammerleads.com/webhook/change-password'
+            login: 'https://automate.callhammerleads.com/webhook-test/agent-login', 
+            fetchData: 'https://automate.callhammerleads.com/webhook-test/fetch-agent-data', 
+            fetchAdminData: 'https://automate.callhammerleads.com/webhook-test/fetch-admin-dashboard',
+            timeOffRequest: 'https://automate.callhammerleads.com/webhook-test/timeoff-request',
+            changePassword: 'https://automate.callhammerleads.com/webhook-test/change-password',
+            resetPassword: 'https://automate.callhammerleads.com/webhook-test/reset-password'
         };
         this.init();
     }
@@ -26,6 +27,28 @@ class CallHammerPortal {
             if (this.currentUser.role !== 'admin') {
                 this.fetchAllData();
             }
+        }
+    }
+
+    // --- NEW: Automated Password Reset Trigger ---
+    async triggerAutoReset() {
+        const emailInput = document.getElementById('resetEmail');
+        const email = emailInput.value.trim();
+
+        if (!email) return alert("Please enter your email address.");
+
+        try {
+            const response = await fetch(this.webhooks.resetPassword, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email })
+            });
+            
+            alert("If the email exists, a new temporary password has been sent!");
+            if (typeof toggleResetModal === 'function') toggleResetModal();
+        } catch (err) {
+            console.error('Reset Error:', err);
+            alert("Error connecting to the reset server. Make sure n8n is listening.");
         }
     }
 
@@ -76,7 +99,7 @@ class CallHammerPortal {
                 alert("Login failed: " + (result.message || "Invalid credentials"));
             }
         } catch (err) { 
-            alert("Connection error. Ensure your n8n workflows are ACTIVE."); 
+            alert("Connection error. Ensure you are in 'Test' mode in n8n and the workflow is listening."); 
         }
     }
 
@@ -110,3 +133,6 @@ class CallHammerPortal {
 }
 
 const portal = new CallHammerPortal();
+
+// Exposed global helper for the HTML onclick
+window.triggerAutoReset = () => portal.triggerAutoReset();
