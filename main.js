@@ -10,11 +10,11 @@ class CallHammerPortal {
         // WEBHOOKS SET TO TEST MODE FOR INITIAL N8N SETUP
         this.webhooks = {
             login: 'https://automate.callhammerleads.com/webhook-test/agent-login', 
-            fetchData: 'https://automate.callhammerleads.com/webhook/fetch-agent-data', 
-            fetchAdminData: 'https://automate.callhammerleads.com/webhook/fetch-admin-dashboard',
-            timeOffRequest: 'https://automate.callhammerleads.com/webhook/timeoff-request',
-            changePassword: 'https://automate.callhammerleads.com/webhook/change-password',
-            resetPassword: 'https://automate.callhammerleads.com/webhook/reset-password'
+            fetchData: 'https://automate.callhammerleads.com/webhook-test/fetch-agent-data', 
+            fetchAdminData: 'https://automate.callhammerleads.com/webhook-test/fetch-admin-dashboard',
+            timeOffRequest: 'https://automate.callhammerleads.com/webhook-test/timeoff-request',
+            changePassword: 'https://automate.callhammerleads.com/webhook-test/change-password',
+            resetPassword: 'https://automate.callhammerleads.com/webhook-test/reset-password'
         };
         this.init();
     }
@@ -23,62 +23,91 @@ class CallHammerPortal {
         this.checkExistingSession();
         this.bindEvents();
         
+        // Only fetch data if we are actually on a dashboard page
         if (this.currentUser && (window.location.pathname.includes('dashboard'))) {
-            if (this.currentUser.role !== 'admin') {
-                this.fetchAllData();
-            }
+            this.fetchAllData();
         }
     }
 
-    // --- NEW: Automated Password Reset Trigger ---
-    async triggerAutoReset() {
-        const emailInput = document.getElementById('resetEmail');
-        const email = emailInput.value.trim();
-
-        if (!email) return alert("Please enter your email address.");
-
-        try {
-            const response = await fetch(this.webhooks.resetPassword, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: email })
-            });
-            
-            alert("If the email exists, a new temporary password has been sent!");
-            if (typeof toggleResetModal === 'function') toggleResetModal();
-        } catch (err) {
-            console.error('Reset Error:', err);
-            alert("Error connecting to the reset server. Make sure n8n is listening.");
-        }
-    }
-
-    // --- NEW: Password Update Logic ---
-    async updatePassword(newPassword) {
-        if (!this.currentUser) return alert("You must be logged in to change your password.");
+    // --- RESTORED: DASHBOARD DATA FETCHING ---
+    async fetchAllData() {
+        if (!this.currentUser) return;
+        this.setLoading(true);
         
         try {
-            const response = await fetch(this.webhooks.changePassword, {
+            const response = await fetch(this.webhooks.fetchData, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    email: this.currentUser.email, 
-                    newPassword: newPassword 
+                    email: this.currentUser.email,
+                    role: this.currentUser.role 
                 })
             });
-            const result = await response.json();
-            if (result.status === "success") {
-                alert("Password updated successfully!");
-                return true;
+            const data = await response.json();
+            
+            if (data.status === "success") {
+                this.leadsData = data.leads || [];
+                this.updateUI(data.stats);
+                this.filterLeads();
             }
-            throw new Error(result.message || "Update failed");
         } catch (error) {
-            console.error('Password Update Error:', error);
-            alert("Failed to update password.");
-            return false;
+            console.error('Data Fetch Error:', error);
+        } finally {
+            this.setLoading(false);
         }
     }
 
-    // --- AUTHENTICATION & DATA ---
+    filterLeads() {
+        // Logic to filter leads based on this.currentFilter (e.g., 'this-week')
+        const now = new Date();
+        this.filteredLeads = this.leadsData.filter(lead => {
+            const leadDate = new Date(lead.date);
+            // Example filter: just showing all for now, but you can add date logic here
+            return true; 
+        });
+        this.renderLeadsTable();
+    }
+
+    renderLeadsTable() {
+        const tbody = document.getElementById('leadsTableBody');
+        if (!tbody) return;
+
+        tbody.innerHTML = this.filteredLeads.map(lead => `
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${lead.date || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${lead.clientName || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                        ${lead.status === 'Set' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                        ${lead.status || 'Pending'}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${lead.incentive || '0.00'}</td>
+            </tr>
+        `).join('');
+    }
+
+    updateUI(stats) {
+        // Updates the stat cards (Total Appointments, Net Pay, etc.)
+        if (!stats) return;
+        const elements = {
+            'totalApps': stats.totalAppointments,
+            'netPay': `$${stats.netPay}`,
+            'points': stats.points
+        };
+        for (const [id, val] of Object.entries(elements)) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
+        }
+    }
+
+    setLoading(state) {
+        this.isLoading = state;
+        const loader = document.getElementById('globalLoader');
+        if (loader) loader.classList.toggle('hidden', !state);
+    }
+
+    // --- AUTHENTICATION & SECURITY ---
     async login(email, password) {
         try {
             const response = await fetch(this.webhooks.login, { 
@@ -103,22 +132,7 @@ class CallHammerPortal {
         }
     }
 
-    checkExistingSession() {
-        const session = localStorage.getItem('callHammerSession');
-        if (session) {
-            const data = JSON.parse(session);
-            if (data.expiresAt > Date.now()) {
-                this.currentUser = data.user;
-            } else {
-                this.logout();
-            }
-        }
-    }
-
-    logout() { 
-        localStorage.removeItem('callHammerSession'); 
-        window.location.href = 'index.html'; 
-    }
+    // ... (rest of your existing methods: logout, checkExistingSession, updatePassword, etc.) ...
 
     bindEvents() {
         const loginForm = document.getElementById('loginForm');
@@ -133,6 +147,4 @@ class CallHammerPortal {
 }
 
 const portal = new CallHammerPortal();
-
-// Exposed global helper for the HTML onclick
 window.triggerAutoReset = () => portal.triggerAutoReset();
