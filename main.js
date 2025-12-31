@@ -6,13 +6,14 @@ class CallHammerPortal {
         this.filteredLeads = [];
         this.isLoading = false;
         this.currentFilter = 'this-week';
-        
-        // WEBHOOKS SET TO TEST MODE FOR INITIAL N8N SETUP
+
+        // WEBHOOKS UPDATED TO TEST MODE FOR INITIAL N8N SETUP
         this.webhooks = {
             login: 'https://automate.callhammerleads.com/webhook-test/agent-login', 
             fetchData: 'https://automate.callhammerleads.com/webhook-test/fetch-agent-data', 
             fetchAdminData: 'https://automate.callhammerleads.com/webhook-test/fetch-admin-dashboard',
             timeOffRequest: 'https://automate.callhammerleads.com/webhook-test/timeoff-request',
+            // --- NEW WEBHOOKS ---
             changePassword: 'https://automate.callhammerleads.com/webhook-test/change-password',
             resetPassword: 'https://automate.callhammerleads.com/webhook-test/reset-password'
         };
@@ -22,93 +23,223 @@ class CallHammerPortal {
     init() {
         this.checkExistingSession();
         this.bindEvents();
-        
-        // Only fetch data if we are actually on a dashboard page
+
         if (this.currentUser && (window.location.pathname.includes('dashboard'))) {
-            this.fetchAllData();
+            if (this.currentUser.role !== 'admin') {
+                this.fetchAllData();
+                this.updateProfileUI();
+            }
         }
     }
 
-    // --- RESTORED: DASHBOARD DATA FETCHING ---
-    async fetchAllData() {
-        if (!this.currentUser) return;
-        this.setLoading(true);
+    // --- NEW: AUTOMATED PASSWORD RESET ---
+    async triggerAutoReset() {
+        const emailInput = document.getElementById('resetEmail');
+        const email = emailInput ? emailInput.value.trim() : null;
+
+        if (!email) return alert("Please enter your work email.");
+
+        try {
+            const response = await fetch(this.webhooks.resetPassword, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email })
+            });
+            alert("If the email exists, a new temporary password has been sent to your inbox!");
+            // Check if toggleResetModal exists in the HTML script tag
+            if (typeof toggleResetModal === 'function') toggleResetModal();
+        } catch (err) {
+            alert("Connection error. Ensure n8n is listening to the test webhook.");
+        }
+    }
+
+    // --- NEW: CHANGE PASSWORD (LOGGED IN) ---
+    async updatePassword(newPassword) {
+        if (!this.currentUser) return alert("You must be logged in to change your password.");
         
+        try {
+            const response = await fetch(this.webhooks.changePassword, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    email: this.currentUser.email, 
+                    newPassword: newPassword 
+                })
+            });
+            const result = await response.json();
+            if (result.status === "success") {
+                alert("Password updated successfully!");
+                return true;
+            }
+            throw new Error(result.message || "Update failed");
+        } catch (error) {
+            alert("Failed to update password. Ensure n8n is active.");
+            return false;
+        }
+    }
+
+    // --- RESTORED ADMIN DATA FETCHING ---
+    async fetchAdminDashboardData(timeFrame) {
+        if (!this.currentUser || this.currentUser.role !== 'admin') return { status: "error" };
+        try {
+            const response = await fetch(this.webhooks.fetchAdminData, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    adminEmail: this.currentUser.email,
+                    currentTimeFrame: timeFrame 
+                })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Admin Data Sync Error:', error);
+            return { status: "error" };
+        }
+    }
+
+    // --- AGENT DATA FETCHING ---
+    async fetchAllData() {
+        if (!this.currentUser || !this.currentUser.email) return;
         try {
             const response = await fetch(this.webhooks.fetchData, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    email: this.currentUser.email,
-                    role: this.currentUser.role 
-                })
+                body: JSON.stringify({ email: this.currentUser.email })
             });
-            const data = await response.json();
-            
-            if (data.status === "success") {
-                this.leadsData = data.leads || [];
-                this.updateUI(data.stats);
-                this.filterLeads();
+            const result = await response.json();
+            if (result.status === "success") {
+                this.leadsData = result.leads || [];
+                this.handleFilterChange(this.currentFilter); 
             }
-        } catch (error) {
-            console.error('Data Fetch Error:', error);
-        } finally {
-            this.setLoading(false);
-        }
+        } catch (error) { console.error('Data Sync Error:', error); }
     }
 
-    filterLeads() {
-        // Logic to filter leads based on this.currentFilter (e.g., 'this-week')
+    handleFilterChange(value) {
+        this.currentFilter = value;
         const now = new Date();
+        const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+        
         this.filteredLeads = this.leadsData.filter(lead => {
-            const leadDate = new Date(lead.date);
-            // Example filter: just showing all for now, but you can add date logic here
-            return true; 
+            const dateStr = lead['Date Submitted'] || lead['Appointment Date /Time'];
+            if (!dateStr) return false;
+            const submittedDate = new Date(dateStr);
+            const diffDays = (startOfDay - submittedDate) / (1000 * 60 * 60 * 24);
+
+            if (value === 'this-week' || value === 'current_week') {
+                const day = startOfDay.getDay(); 
+                const diff = startOfDay.getDate() - day + (day == 0 ? -6 : 1); 
+                const monday = new Date(new Date().setDate(diff));
+                monday.setHours(0,0,0,0);
+                return submittedDate >= monday;
+            }
+            if (value === 'last-30-days' || value === 'last_30_days') return diffDays <= 30;
+            if (value === 'last-4-weeks' || value === 'last_4_weeks') return diffDays <= 28;
+            if (value === 'last-6-weeks' || value === 'last_6_weeks') return diffDays <= 42;
+            return true;
         });
-        this.renderLeadsTable();
+        this.updateDashboardUI(this.filteredLeads);
     }
 
-    renderLeadsTable() {
-        const tbody = document.getElementById('leadsTableBody');
-        if (!tbody) return;
+    updateDashboardUI(leads) {
+        const totalRaw = leads.length;
+        const approvedCount = leads.filter(l => (l.Status || '').toLowerCase() === 'approved').length;
+        const cancelled = leads.filter(l => {
+            const s = (l.Status || '').toLowerCase();
+            return s.includes('cancel') || s.includes('credited') || s.includes('rejected');
+        }).length;
 
-        tbody.innerHTML = this.filteredLeads.map(lead => `
-            <tr class="hover:bg-gray-50 transition-colors">
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${lead.date || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${lead.clientName || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                        ${lead.status === 'Set' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
-                        ${lead.status || 'Pending'}
-                    </span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${lead.incentive || '0.00'}</td>
-            </tr>
+        const rate = totalRaw > 0 ? ((cancelled / totalRaw) * 100).toFixed(1) : 0;
+        const incentives = this.calculateIncentives(approvedCount, parseFloat(rate));
+
+        if (document.getElementById('stat-appointments')) document.getElementById('stat-appointments').textContent = totalRaw;
+        if (document.getElementById('stat-cancel-rate')) document.getElementById('stat-cancel-rate').textContent = `${rate}%`;
+        if (document.getElementById('stat-incentives')) document.getElementById('stat-incentives').textContent = this.formatCurrency(incentives);
+        if (document.getElementById('stat-hours')) document.getElementById('stat-hours').textContent = this.currentUser.weeklyHours || '0';
+
+        const progressBar = document.getElementById('tier-progress-bar');
+        const tierText = document.getElementById('tier-status-text');
+        if (progressBar) {
+            let nextGoal = approvedCount < 6 ? 6 : approvedCount < 8 ? 8 : approvedCount < 12 ? 12 : 15;
+            progressBar.style.width = `${Math.min((approvedCount / nextGoal) * 100, 100)}%`;
+            const countDisplay = document.getElementById('tier-count-display');
+            if (countDisplay) countDisplay.textContent = `${approvedCount} / ${nextGoal} approved appointments`;
+            if (tierText) {
+                let tier = approvedCount >= 13 ? "Tier 4" : approvedCount >= 9 ? "Tier 3" : approvedCount >= 8 ? "Tier 2" : approvedCount >= 1 ? "Tier 1" : "Base Only";
+                tierText.textContent = `Current Status: ${tier}`;
+            }
+        }
+        this.renderCharts(leads, parseFloat(rate));
+        this.renderLeadsTable(leads);
+    }
+
+    calculateIncentives(approvedN, cancelRate) {
+        let total = 0;
+        const isHighPerf = cancelRate < 25; 
+        if (approvedN >= 1) total += 50; 
+        if (approvedN >= 8) total += (isHighPerf ? 50 : 30);
+        const t3 = Math.max(0, Math.min(approvedN, 12) - 8);
+        if (t3 > 0) total += t3 * (isHighPerf ? 17 : 15);
+        const t4 = Math.max(0, approvedN - 12);
+        if (t4 > 0) total += t4 * (isHighPerf ? 27 : 25);
+        return total;
+    }
+
+    formatCurrency(val) {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+    }
+
+    renderCharts(leads, cancelRate) {
+        const apptDom = document.getElementById('appointmentsChart');
+        const incDom = document.getElementById('incentivesChart');
+        if (!apptDom || !incDom || typeof echarts === 'undefined') return;
+
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const counts = [0,0,0,0,0,0,0];
+        const earnings = [0,0,0,0,0,0,0];
+
+        leads.forEach(l => {
+            const dateStr = l['Date Submitted'] || l['Appointment Date /Time'];
+            if (dateStr) {
+                const dObj = new Date(dateStr);
+                let dIdx = dObj.getDay() - 1;
+                if (dIdx === -1) dIdx = 6; 
+                if (dIdx >= 0 && dIdx <= 6) {
+                    counts[dIdx]++;
+                    if ((l.Status || '').toLowerCase() === 'approved') {
+                        earnings[dIdx] += (cancelRate < 25 ? 17 : 15);
+                    }
+                }
+            }
+        });
+
+        echarts.init(apptDom).setOption({ xAxis: { type: 'category', data: days }, yAxis: { type: 'value', minInterval: 1 }, series: [{ data: counts, type: 'line', smooth: true, color: '#FF6B35' }] });
+        echarts.init(incDom).setOption({ xAxis: { type: 'category', data: days }, yAxis: { type: 'value' }, series: [{ data: earnings, type: 'bar', color: '#FF6B35' }] });
+    }
+
+    renderLeadsTable(leads) {
+        const body = document.getElementById('leads-table-body');
+        if (body) body.innerHTML = leads.map(l => `
+            <tr><td class="px-6 py-4 font-bold text-gray-900">${l['Homeowner Name(s)'] || 'N/A'}</td><td class="px-6 py-4">${l['Date Submitted'] || 'N/A'}</td><td class="px-6 py-4 text-orange-600 font-bold">${l.Status || 'Pending'}</td><td class="px-6 py-4">${l.Address || 'N/A'}</td></tr>
         `).join('');
     }
 
-    updateUI(stats) {
-        // Updates the stat cards (Total Appointments, Net Pay, etc.)
-        if (!stats) return;
-        const elements = {
-            'totalApps': stats.totalAppointments,
-            'netPay': `$${stats.netPay}`,
-            'points': stats.points
+    updateProfileUI() {
+        if (!this.currentUser) return;
+        const map = {
+            'profileName': this.currentUser.name, 'profileEmail': this.currentUser.email,
+            'profilePosition': this.currentUser.position || 'Sales Agent', 'profileRate': `$${this.currentUser.baseRate || '10.00'}/hr`,
+            'profileHours': `${this.currentUser.weeklyHours || '0'} hours`, 'profileStartDate': this.currentUser.startDate || 'N/A',
+            'nav-user-name': this.currentUser.name
         };
-        for (const [id, val] of Object.entries(elements)) {
+        for (const [id, val] of Object.entries(map)) {
             const el = document.getElementById(id);
             if (el) el.textContent = val;
         }
     }
 
-    setLoading(state) {
-        this.isLoading = state;
-        const loader = document.getElementById('globalLoader');
-        if (loader) loader.classList.toggle('hidden', !state);
-    }
-
-    // --- AUTHENTICATION & SECURITY ---
     async login(email, password) {
+        if (this.isLoading) return;
+        this.isLoading = true;
         try {
             const response = await fetch(this.webhooks.login, { 
                 method: 'POST', 
@@ -119,20 +250,20 @@ class CallHammerPortal {
             if (result.status === "success") {
                 const userObj = { ...result.user, email: email };
                 this.currentUser = userObj;
-                localStorage.setItem('callHammerSession', JSON.stringify({ 
-                    user: userObj, 
-                    expiresAt: Date.now() + 86400000 
-                }));
+                localStorage.setItem('callHammerSession', JSON.stringify({ user: userObj, expiresAt: Date.now() + 86400000 }));
                 window.location.href = userObj.role === 'admin' ? 'admin-dashboard.html' : 'agent-dashboard.html';
-            } else {
-                alert("Login failed: " + (result.message || "Invalid credentials"));
-            }
-        } catch (err) { 
-            alert("Connection error. Ensure you are in 'Test' mode in n8n and the workflow is listening."); 
-        }
+            } else { alert(result.message || "Invalid credentials"); }
+        } catch (err) { alert("Login failed: Network error"); }
+        finally { this.isLoading = false; }
     }
 
-    // ... (rest of your existing methods: logout, checkExistingSession, updatePassword, etc.) ...
+    checkExistingSession() {
+        const session = localStorage.getItem('callHammerSession');
+        if (session) {
+            const data = JSON.parse(session);
+            if (data.expiresAt > Date.now()) this.currentUser = data.user;
+        }
+    }
 
     bindEvents() {
         const loginForm = document.getElementById('loginForm');
@@ -144,7 +275,10 @@ class CallHammerPortal {
             });
         }
     }
+
+    logout() { localStorage.removeItem('callHammerSession'); window.location.href = 'index.html'; }
 }
 
 const portal = new CallHammerPortal();
+// Exposed global helper for the HTML onclick
 window.triggerAutoReset = () => portal.triggerAutoReset();
