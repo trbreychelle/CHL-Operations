@@ -10,11 +10,11 @@ class CallHammerPortal {
         // WEBHOOKS SET TO TEST MODE FOR INITIAL N8N SETUP
         this.webhooks = {
             login: 'https://automate.callhammerleads.com/webhook-test/agent-login', 
-            fetchData: 'https://automate.callhammerleads.com/webhook-test/fetch-agent-data', 
-            fetchAdminData: 'https://automate.callhammerleads.com/webhook-test/fetch-admin-dashboard',
-            timeOffRequest: 'https://automate.callhammerleads.com/webhook-test/timeoff-request',
-            changePassword: 'https://automate.callhammerleads.com/webhook-test/change-password',
-            resetPassword: 'https://automate.callhammerleads.com/webhook-test/reset-password'
+            fetchData: 'https://automate.callhammerleads.com/webhook/fetch-agent-data', 
+            fetchAdminData: 'https://automate.callhammerleads.com/webhook/fetch-admin-dashboard',
+            timeOffRequest: 'https://automate.callhammerleads.com/webhook/timeoff-request',
+            changePassword: 'https://automate.callhammerleads.com/webhook/change-password',
+            resetPassword: 'https://automate.callhammerleads.com/webhook/reset-password'
         };
         this.init();
     }
