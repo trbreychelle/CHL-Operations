@@ -9,10 +9,10 @@ class CallHammerPortal {
 
         this.webhooks = {
             login: 'https://automate.callhammerleads.com/webhook/agent-login', 
-            fetchData: 'https://automate.callhammerleads.com/webhook-test/fetch-agent-data', 
+            // Changed to production URL - remove '-test' once n8n workflow is activated
+            fetchData: 'https://automate.callhammerleads.com/webhook/fetch-agent-data', 
             fetchAdminData: 'https://automate.callhammerleads.com/webhook/fetch-admin-dashboard',
-            timeOffRequest: 'https://automate.callhammerleads.com/webhook-test/timeoff-request',
-            // --- Restored New Features ---
+            timeOffRequest: 'https://automate.callhammerleads.com/webhook/timeoff-request',
             changePassword: 'https://automate.callhammerleads.com/webhook/change-password',
             resetPassword: 'https://automate.callhammerleads.com/webhook/reset-password'
         };
@@ -31,61 +31,46 @@ class CallHammerPortal {
         }
     }
 
-    // --- FORGOT PASSWORD LOGIC ---
-    async triggerAutoReset() {
-        const emailInput = document.getElementById('resetEmail');
-        const email = emailInput ? emailInput.value.trim() : null;
-        if (!email) return alert("Please enter your work email.");
-
+    // --- NEW: ADMIN DATA FETCHING (Required for admin-dashboard.html) ---
+    async fetchAdminDashboardData(timeframe) {
+        if (!this.currentUser || this.currentUser.role !== 'admin') return;
         try {
-            const response = await fetch(this.webhooks.resetPassword, {
+            const response = await fetch(this.webhooks.fetchAdminData, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: email })
+                body: JSON.stringify({ 
+                    email: this.currentUser.email,
+                    timeframe: timeframe 
+                })
             });
-            alert("If the email exists, a new temporary password has been sent!");
-            if (typeof toggleResetModal === 'function') toggleResetModal();
-        } catch (err) {
-            alert("Connection error. Ensure n8n is listening.");
-        }
-    }
-
-    // --- CHANGE PASSWORD LOGIC ---
-    async updatePassword(newPassword) {
-        if (!this.currentUser) return alert("You must be logged in.");
-        try {
-            const response = await fetch(this.webhooks.changePassword, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: this.currentUser.email, newPassword })
-            });
-            const result = await response.json();
-            if (result.status === "success") {
-                alert("Password updated successfully!");
-                return true;
-            }
-            throw new Error(result.message || "Update failed");
+            return await response.json();
         } catch (error) {
-            alert("Failed to update password.");
-            return false;
+            console.error('Admin Sync Error:', error);
+            return { status: "error", message: "Network error" };
         }
     }
 
-    // --- ORIGINAL INTERFACE DATA FETCHING ---
+    // --- AGENT DATA FETCHING ---
     async fetchAllData() {
-        if (!this.currentUser || !this.currentUser.email) return;
+        if (!this.currentUser) return;
         try {
             const response = await fetch(this.webhooks.fetchData, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: this.currentUser.email })
+                // Sending Name as well because RAW LEADS uses 'Appointment Coordinator Name'
+                body: JSON.stringify({ 
+                    email: this.currentUser.email,
+                    name: this.currentUser.name 
+                })
             });
             const result = await response.json();
             if (result.status === "success") {
                 this.leadsData = result.leads || [];
                 this.handleFilterChange(this.currentFilter); 
             }
-        } catch (error) { console.error('Data Sync Error:', error); }
+        } catch (error) { 
+            console.error('Data Sync Error:', error); 
+        }
     }
 
     handleFilterChange(value) {
@@ -94,8 +79,10 @@ class CallHammerPortal {
         const startOfDay = new Date(now.setHours(0, 0, 0, 0));
         
         this.filteredLeads = this.leadsData.filter(lead => {
+            // Updated to match your Google Sheet Headers exactly
             const dateStr = lead['Date Submitted'] || lead['Appointment Date /Time'];
             if (!dateStr) return false;
+            
             const submittedDate = new Date(dateStr);
             const diffDays = (startOfDay - submittedDate) / (1000 * 60 * 60 * 24);
 
@@ -112,7 +99,6 @@ class CallHammerPortal {
         this.updateDashboardUI(this.filteredLeads);
     }
 
-    // --- ORIGINAL INTERFACE UI LOGIC ---
     updateDashboardUI(leads) {
         const totalRaw = leads.length;
         const approvedCount = leads.filter(l => (l.Status || '').toLowerCase() === 'approved').length;
@@ -124,12 +110,10 @@ class CallHammerPortal {
         const rate = totalRaw > 0 ? ((cancelled / totalRaw) * 100).toFixed(1) : 0;
         const incentives = this.calculateIncentives(approvedCount, parseFloat(rate));
 
-        // Update Stat Cards
         if (document.getElementById('stat-appointments')) document.getElementById('stat-appointments').textContent = totalRaw;
         if (document.getElementById('stat-cancel-rate')) document.getElementById('stat-cancel-rate').textContent = `${rate}%`;
         if (document.getElementById('stat-incentives')) document.getElementById('stat-incentives').textContent = this.formatCurrency(incentives);
         
-        // Update Progress Bar
         const progressBar = document.getElementById('tier-progress-bar');
         if (progressBar) {
             let nextGoal = approvedCount < 6 ? 6 : approvedCount < 8 ? 8 : approvedCount < 12 ? 12 : 15;
@@ -137,7 +121,6 @@ class CallHammerPortal {
             document.getElementById('tier-count-display').textContent = `${approvedCount} / ${nextGoal} approved appointments`;
         }
 
-        this.renderCharts(leads, parseFloat(rate));
         this.renderLeadsTable(leads);
     }
 
@@ -147,12 +130,6 @@ class CallHammerPortal {
         if (approvedN >= 1) total += 50; 
         if (approvedN >= 8) total += (isHighPerf ? 50 : 30);
         return total;
-    }
-
-    renderCharts(leads, cancelRate) {
-        const apptDom = document.getElementById('appointmentsChart');
-        if (!apptDom || typeof echarts === 'undefined') return;
-        // ... (Echarts logic from your original code) ...
     }
 
     renderLeadsTable(leads) {
@@ -180,7 +157,6 @@ class CallHammerPortal {
         }
     }
 
-    // --- LOGIN & AUTH ---
     async login(email, password) {
         try {
             const response = await fetch(this.webhooks.login, { 
@@ -190,12 +166,20 @@ class CallHammerPortal {
             });
             const result = await response.json();
             if (result.status === "success") {
+                // Ensure the user object contains the 'name' from AGENT_MASTER
                 const userObj = { ...result.user, email: email };
                 this.currentUser = userObj;
-                localStorage.setItem('callHammerSession', JSON.stringify({ user: userObj, expiresAt: Date.now() + 86400000 }));
+                localStorage.setItem('callHammerSession', JSON.stringify({ 
+                    user: userObj, 
+                    expiresAt: Date.now() + 86400000 
+                }));
                 window.location.href = userObj.role === 'admin' ? 'admin-dashboard.html' : 'agent-dashboard.html';
-            } else { alert(result.message || "Login failed"); }
-        } catch (err) { alert("Login failed: Network error"); }
+            } else { 
+                alert(result.message || "Login failed"); 
+            }
+        } catch (err) { 
+            alert("Login failed: Network error"); 
+        }
     }
 
     checkExistingSession() {
@@ -217,9 +201,15 @@ class CallHammerPortal {
         }
     }
 
-    formatCurrency(val) { return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val); }
-    logout() { localStorage.removeItem('callHammerSession'); window.location.href = 'index.html'; }
+    formatCurrency(val) { 
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val); 
+    }
+
+    logout() { 
+        localStorage.removeItem('callHammerSession'); 
+        window.location.href = 'index.html'; 
+    }
 }
 
 const portal = new CallHammerPortal();
-window.triggerAutoReset = () => portal.triggerAutoReset();
+window.portal = portal; // Make portal globally accessible for dashboard scripts
