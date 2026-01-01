@@ -9,8 +9,8 @@ class CallHammerPortal {
 
         this.webhooks = {
             login: 'https://automate.callhammerleads.com/webhook/agent-login', 
-            // Changed to production URL - remove '-test' once n8n workflow is activated
-            fetchData: 'https://automate.callhammerleads.com/webhook-test/fetch-agent-data', 
+            // Ensure this matches your n8n Production URL
+            fetchData: 'https://automate.callhammerleads.com/webhook/fetch-agent-data', 
             fetchAdminData: 'https://automate.callhammerleads.com/webhook/fetch-admin-dashboard',
             timeOffRequest: 'https://automate.callhammerleads.com/webhook/timeoff-request',
             changePassword: 'https://automate.callhammerleads.com/webhook/change-password',
@@ -31,7 +31,6 @@ class CallHammerPortal {
         }
     }
 
-    // --- NEW: ADMIN DATA FETCHING (Required for admin-dashboard.html) ---
     async fetchAdminDashboardData(timeframe) {
         if (!this.currentUser || this.currentUser.role !== 'admin') return;
         try {
@@ -50,14 +49,13 @@ class CallHammerPortal {
         }
     }
 
-    // --- AGENT DATA FETCHING ---
     async fetchAllData() {
         if (!this.currentUser) return;
         try {
             const response = await fetch(this.webhooks.fetchData, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                // Sending Name as well because RAW LEADS uses 'Appointment Coordinator Name'
+                // Important: Sending 'name' to n8n so it can filter 'Appointment Coordinator Name'
                 body: JSON.stringify({ 
                     email: this.currentUser.email,
                     name: this.currentUser.name 
@@ -79,7 +77,6 @@ class CallHammerPortal {
         const startOfDay = new Date(now.setHours(0, 0, 0, 0));
         
         this.filteredLeads = this.leadsData.filter(lead => {
-            // Updated to match your Google Sheet Headers exactly
             const dateStr = lead['Date Submitted'] || lead['Appointment Date /Time'];
             if (!dateStr) return false;
             
@@ -166,8 +163,12 @@ class CallHammerPortal {
             });
             const result = await response.json();
             if (result.status === "success") {
-                // Ensure the user object contains the 'name' from AGENT_MASTER
-                const userObj = { ...result.user, email: email };
+                // Critical: Save the 'Employee Name' from the sheet to our local session
+                const userObj = { 
+                    name: result.user['Employee Name'] || result.user.name,
+                    role: result.user.Role || result.user.role,
+                    email: email 
+                };
                 this.currentUser = userObj;
                 localStorage.setItem('callHammerSession', JSON.stringify({ 
                     user: userObj, 
@@ -212,4 +213,4 @@ class CallHammerPortal {
 }
 
 const portal = new CallHammerPortal();
-window.portal = portal; // Make portal globally accessible for dashboard scripts
+window.portal = portal;
