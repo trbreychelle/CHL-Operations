@@ -10,7 +10,7 @@ class CallHammerPortal {
         this.webhooks = {
             login: 'https://automate.callhammerleads.com/webhook/agent-login',
             fetchData: 'https://automate.callhammerleads.com/webhook/fetch-agent-data',
-            timeOffRequest: 'https://automate.callhammerleads.com/webhook-test/timeoff-request',
+            timeOffRequest: 'https://automate.callhammerleads.com/webhook/timeoff-request',
             changePassword: 'https://automate.callhammerleads.com/webhook/change-password'
         };
         this.init();
