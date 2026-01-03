@@ -10,7 +10,8 @@ class CallHammerPortal {
         this.webhooks = {
             login: 'https://automate.callhammerleads.com/webhook/agent-login',
             fetchData: 'https://automate.callhammerleads.com/webhook/fetch-agent-data',
-            timeOffRequest: 'https://automate.callhammerleads.com/webhook-test/timeoff-request',
+            // Updated to Production URL for reliability
+            timeOffRequest: 'https://automate.callhammerleads.com/webhook/timeoff-request',
             changePassword: 'https://automate.callhammerleads.com/webhook/change-password'
         };
         this.init();
@@ -42,7 +43,7 @@ class CallHammerPortal {
             if (result.status === "success") {
                 this.leadsData = result.leads || [];
                 
-                // Load Time Off History if management provides it in the response
+                // Load Time Off History from the "Google Sheets - Time Off" node in n8n
                 if (result.timeOffHistory) {
                     this.renderTimeOffHistory(result.timeOffHistory);
                 }
@@ -102,12 +103,10 @@ class CallHammerPortal {
         const cancelRate = totalRaw > 0 ? ((cancelledCount / totalRaw) * 100).toFixed(1) : 0;
         const incentives = this.calculateIncentives(approvedCount, parseFloat(cancelRate));
 
-        // Update Stat Cards
         document.getElementById('stat-appointments').textContent = totalRaw;
         document.getElementById('stat-cancel-rate').textContent = `${cancelRate}%`;
         document.getElementById('stat-incentives').textContent = this.formatCurrency(incentives);
         
-        // Update Progress Bar
         const progressBar = document.getElementById('tier-progress-bar');
         if (progressBar) {
             let nextGoal = approvedCount < 6 ? 6 : approvedCount < 8 ? 8 : approvedCount < 12 ? 12 : 15;
@@ -119,7 +118,7 @@ class CallHammerPortal {
         this.updateCharts(leads); 
     }
 
-    // --- RENDER LEAD LIST (FIXED: Date first, then Name, No Address) ---
+    // --- RENDER LEAD LIST ---
     renderLeadsTable(leads) {
         const body = document.getElementById('leads-table-body');
         const statusFilter = document.getElementById('status-filter')?.value || 'all';
@@ -142,7 +141,7 @@ class CallHammerPortal {
         `).join('');
     }
 
-    // --- RENDER TIME OFF HISTORY ---
+    // --- RENDER TIME OFF HISTORY (Updated for New Labels) ---
     renderTimeOffHistory(history) {
         const container = document.getElementById('timeoff-history-list');
         if (!container) return;
@@ -155,21 +154,27 @@ class CallHammerPortal {
             <div class="p-3 bg-gray-50 rounded-lg border border-gray-100 mb-2">
                 <div class="flex justify-between items-start">
                     <span class="text-[10px] font-bold text-gray-400 uppercase">${req.startDate} — ${req.endDate}</span>
-                    <span class="text-[8px] font-bold ${this.getStatusStyle(req.Status)} uppercase px-2 py-0.5 rounded">${req.Status || 'Pending'}</span>
+                    <span class="text-[8px] font-bold ${this.getStatusStyle(req.Status)} uppercase px-2 py-0.5 rounded">${req.Status || 'Pending Approval'}</span>
                 </div>
-                <p class="text-xs text-gray-700 mt-1 font-medium">${req.reason || 'Leave Request'}</p>
+                <p class="text-xs text-gray-700 mt-1 font-medium">${req.Reason || 'Leave Request'}</p>
             </div>
         `).join('');
     }
 
+    // Updated color logic for your new Google Sheet labels
     getStatusStyle(status) {
         const s = (status || '').toLowerCase();
+        // Green for Approved
         if (s === 'approved') return 'bg-green-100 text-green-700';
-        if (s.includes('reject') || s.includes('cancel')) return 'bg-red-100 text-red-700';
-        return 'bg-orange-100 text-orange-700';
+        // Red for Declined
+        if (s.includes('declined') || s.includes('reject') || s.includes('cancel')) {
+            return 'bg-red-100 text-red-700';
+        }
+        // Orange/Yellow for Pending Approval
+        return 'bg-yellow-100 text-yellow-700';
     }
 
-    // --- CHART LOGIC (FUNCTIONAL) ---
+    // --- CHART LOGIC ---
     initCharts() {
         const appChartEl = document.getElementById('appointmentsChart');
         const incChartEl = document.getElementById('incentivesChart');
@@ -185,7 +190,6 @@ class CallHammerPortal {
         if (!this.charts) this.initCharts();
         if (!this.charts) return;
 
-        // Group leads by date for the graph
         const dateGroups = leads.reduce((acc, lead) => {
             const date = lead['Date Submitted'] || 'N/A';
             acc[date] = (acc[date] || 0) + 1;
@@ -211,28 +215,22 @@ class CallHammerPortal {
         });
     }
 
-    // --- INCENTIVE CALCULATION (PRESERVED) ---
     calculateIncentives(approvedN, cancelRate) {
         let total = 0;
         const isHighPerf = cancelRate < 25; 
-
         if (approvedN >= 1) total += 50; 
         if (approvedN >= 8) total += (isHighPerf ? 50 : 30);
-        
         if (approvedN >= 9) {
             const extra = Math.min(approvedN, 12) - 8;
             total += extra * (isHighPerf ? 17 : 15);
         }
-        
         if (approvedN >= 13) {
             const extra = approvedN - 12;
             total += extra * (isHighPerf ? 27 : 25);
         }
-
         return total;
     }
 
-    // --- PROFILE & SESSION (PRESERVED) ---
     updateProfileUI() {
         if (!this.currentUser) return;
         const map = {
@@ -274,7 +272,6 @@ class CallHammerPortal {
         } catch (err) { alert("Login failed: Network error"); }
     }
 
-    // --- AGENT ACTIONS (PRESERVED) ---
     async submitTimeOffRequest(data) {
         try {
             const response = await fetch(this.webhooks.timeOffRequest, { 
