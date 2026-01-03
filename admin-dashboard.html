@@ -2,15 +2,12 @@
     class AdminDashboard {
         constructor() {
             this.agentsData = [];
-            this.currentTimeFrame = 'current_week';
             this.init();
         }
 
         async init() {
             this.loadAdminProfile();
-            // Data is fetched automatically by portal.init() in main.js
             this.bindEvents();
-            this.animateElements();
         }
 
         loadAdminProfile() {
@@ -18,40 +15,28 @@
             if (session) {
                 const s = JSON.parse(session);
                 document.getElementById('adminName').textContent = s.user.name;
-                document.getElementById('adminRole').textContent = s.user.role.replace('_', ' ').toUpperCase();
-                
-                if (s.user.role === 'admin') {
-                    document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
-                }
+                document.getElementById('adminRole').textContent = s.user.role.toUpperCase();
+                if (s.user.role === 'admin') document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
             }
         }
 
-        async refreshDashboard() {
-            if (typeof portal === 'undefined') return;
-            
+        refreshDashboard() {
             this.agentsData = portal.leadsData || [];
             const employees = portal.employeeList || [];
             
-            const summary = this.calculateSummary(this.agentsData);
+            const total = this.agentsData.length;
+            const cancelled = this.agentsData.filter(l => (l.Status || '').toLowerCase().includes('cancel')).length;
+            const rate = total > 0 ? ((cancelled / total) * 100).toFixed(1) : 0;
+            const incentives = this.agentsData.filter(l => (l.Status || '').toLowerCase() === 'approved').length * 50;
             
             document.getElementById('activeAgents').textContent = employees.length;
-            document.getElementById('totalTeamAppointments').textContent = this.agentsData.length;
-            document.getElementById('avgCancellationRate').textContent = `${summary.cancelRate}%`;
-            document.getElementById('totalTeamIncentives').textContent = portal.formatCurrency(summary.incentives);
+            document.getElementById('totalTeamAppointments').textContent = total;
+            document.getElementById('avgCancellationRate').textContent = `${rate}%`;
+            document.getElementById('totalTeamIncentives').textContent = portal.formatCurrency(incentives);
             
             this.updatePayrollTable(employees);
             this.updateEmployeeCards(employees);
             this.initializeCharts();
-        }
-
-        calculateSummary(leads) {
-            const total = leads.length;
-            const cancelled = leads.filter(l => (l.Status || '').toLowerCase().includes('cancel')).length;
-            const rate = total > 0 ? ((cancelled / total) * 100).toFixed(1) : 0;
-            const approvedCount = leads.filter(l => (l.Status || '').toLowerCase() === 'approved').length;
-            
-            // Average incentive calculation (can be refined per agent)
-            return { total, cancelRate: rate, incentives: approvedCount * 50 }; 
         }
 
         updatePayrollTable(employees) {
@@ -61,33 +46,19 @@
             let totalPool = 0;
 
             employees.forEach(emp => {
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-gray-50';
-                
-                const baseRate = parseFloat(emp['Base Rate']) || 0;
-                // Get real incentives for this agent
+                const base = parseFloat(emp['Base Rate']) || 0;
                 const agentLeads = this.agentsData.filter(l => l.Agent === emp['Employee Name']);
-                const approvedLeads = agentLeads.filter(l => (l.Status || '').toLowerCase() === 'approved').length;
-                const agentIncentives = approvedLeads * 50; 
-                
-                const total = baseRate + agentIncentives;
-                totalPool += total;
+                const incentives = agentLeads.filter(l => (l.Status || '').toLowerCase() === 'approved').length * 50;
+                totalPool += (base + incentives);
 
-                row.innerHTML = `
-                    <td class="px-6 py-4">
-                        <div class="text-sm font-bold text-gray-900">${emp['Employee Name']}</div>
-                        <div class="text-xs text-gray-400">${emp.Email}</div>
-                    </td>
-                    <td class="px-6 py-4 text-sm font-medium text-gray-600">${portal.formatCurrency(baseRate)}</td>
-                    <td class="px-6 py-4 text-sm font-medium text-yellow-600">${portal.formatCurrency(agentIncentives)}</td>
-                    <td class="px-6 py-4 text-sm font-bold text-gray-900">${portal.formatCurrency(total)}</td>
-                    <td class="px-6 py-4">
-                        <span class="performance-badge ${emp.Employment_Status === 'Offboarded' ? 'low' : 'high'}">
-                            ${(emp.Employment_Status || 'Active').toUpperCase()}
-                        </span>
-                    </td>
-                `;
-                tbody.appendChild(row);
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4"><div class="font-bold">${emp['Employee Name']}</div><div class="text-xs text-gray-400">${emp.Email}</div></td>
+                        <td class="px-6 py-4">${portal.formatCurrency(base)}</td>
+                        <td class="px-6 py-4 text-yellow-600">${portal.formatCurrency(incentives)}</td>
+                        <td class="px-6 py-4 font-bold">${portal.formatCurrency(base + incentives)}</td>
+                        <td class="px-6 py-4"><span class="performance-badge high">ACTIVE</span></td>
+                    </tr>`;
             });
             document.getElementById('totalPayrollAmount').textContent = portal.formatCurrency(totalPool);
         }
@@ -95,85 +66,41 @@
         updateEmployeeCards(employees) {
             const container = document.getElementById('employeeCards');
             if (!container) return;
-            container.innerHTML = '';
-            employees.forEach(emp => {
-                const card = document.createElement('div');
-                card.className = 'bg-white border rounded-xl p-6 hover:shadow-lg transition-shadow';
+            container.innerHTML = employees.map(emp => {
                 const initials = emp['Employee Name'].split(' ').map(n => n[0]).join('');
-                
-                card.innerHTML = `
-                    <div class="flex items-center justify-between mb-6">
-                        <div class="flex items-center space-x-4">
+                return `
+                    <div class="bg-white border rounded-xl p-6 shadow-sm">
+                        <div class="flex items-center space-x-4 mb-6">
                             <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-700 font-bold">${initials}</div>
-                            <div>
-                                <h3 class="font-bold text-gray-900">${emp['Employee Name']}</h3>
-                                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">${emp.Role}</p>
-                            </div>
+                            <div><h3 class="font-bold">${emp['Employee Name']}</h3><p class="text-[10px] text-gray-400 uppercase">${emp.Role}</p></div>
                         </div>
-                    </div>
-                    <div class="space-y-3 mb-6">
-                        <div class="flex justify-between text-xs"><span class="text-gray-500">Manager:</span><span class="font-bold">${emp.Manager_Email || 'System Admin'}</span></div>
-                        <div class="flex justify-between text-xs"><span class="text-gray-500">Hourly Rate:</span><span class="font-bold text-yellow-600">${portal.formatCurrency(emp['Base Rate'])}</span></div>
-                    </div>
-                    <div class="flex space-x-2 pt-4 border-t">
-                        <button onclick="portal.offboardEmployee('${emp.Email}')" class="flex-1 text-[10px] font-bold text-red-500 hover:text-red-700 uppercase">Offboard</button>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
+                        <div class="space-y-2 mb-6 text-xs">
+                            <div class="flex justify-between"><span>Manager:</span><span class="font-bold">${emp.Manager_Email || 'Admin'}</span></div>
+                            <div class="flex justify-between"><span>Rate:</span><span class="font-bold text-yellow-600">${portal.formatCurrency(emp['Base Rate'])}</span></div>
+                        </div>
+                        <button onclick="portal.offboardEmployee('${emp.Email}')" class="w-full py-2 text-[10px] font-bold text-red-500 border rounded-lg">OFFBOARD</button>
+                    </div>`;
+            }).join('');
         }
 
         initializeCharts() {
-            // Logic to calculate top performers from this.agentsData
             const counts = {};
-            this.agentsData.forEach(l => {
-                const name = l.Agent || 'Unknown';
-                counts[name] = (counts[name] || 0) + 1;
-            });
-            const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]).slice(0, 10);
+            this.agentsData.forEach(l => { counts[l.Agent] = (counts[l.Agent] || 0) + 1; });
+            const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]).slice(0, 5);
             
-            const chartDom = document.getElementById('topPerformersChart');
-            if (!chartDom) return;
-            const myChart = echarts.init(chartDom);
-            myChart.setOption({
-                tooltip: { trigger: 'axis' },
+            echarts.init(document.getElementById('topPerformersChart')).setOption({
                 xAxis: { type: 'value' },
                 yAxis: { type: 'category', data: sorted.map(i => i[0]).reverse() },
-                series: [{ name: 'Appointments', data: sorted.map(i => i[1]).reverse(), type: 'bar', itemStyle: { color: '#FBBF24', borderRadius: [0, 4, 4, 0] } }]
+                series: [{ data: sorted.map(i => i[1]).reverse(), type: 'bar', itemStyle: { color: '#FBBF24' } }]
             });
         }
 
         bindEvents() {
-            document.getElementById('timeFrameFilter').addEventListener('change', (e) => {
-                portal.currentFilter = e.target.value;
-                portal.fetchAllData();
-            });
-            
-            document.getElementById('addEmpForm').onsubmit = async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const data = Object.fromEntries(formData);
-                const res = await fetch(portal.webhooks.manageEmployee, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'add', ...data })
-                });
-                if (res.ok) { 
-                    alert('Employee Added Successfully'); 
-                    closeAddEmployeeModal(); 
-                    portal.fetchAllData(); 
-                }
-            };
-        }
-
-        animateElements() {
-            anime({ targets: '.metric-card', opacity: [0, 1], translateY: [20, 0], delay: anime.stagger(100), easing: 'easeOutQuart' });
+            document.getElementById('timeFrameFilter').onchange = (e) => { portal.currentFilter = e.target.value; portal.fetchAllData(); };
         }
     }
-
-    let adminDashboard;
-    document.addEventListener('DOMContentLoaded', () => { adminDashboard = new AdminDashboard(); window.adminDashboard = adminDashboard; });
-
+    let adminDashboard = new AdminDashboard();
+    window.adminDashboard = adminDashboard;
     function openAddEmployeeModal() { document.getElementById('addEmployeeModal').classList.remove('hidden'); }
     function closeAddEmployeeModal() { document.getElementById('addEmployeeModal').classList.add('hidden'); }
 </script>
