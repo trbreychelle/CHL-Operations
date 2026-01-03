@@ -3,32 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Management Dashboard - Call Hammer Leads</title>
+    <title>Admin Dashboard - Call Hammer Leads</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { font-family: 'Inter', sans-serif; }
-        /* Branding: Yellow Dominant (#FBBF24) and Dark Grey (#1F2937) */
         .metric-card {
-            background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(31, 41, 55, 0.02) 100%);
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.05) 0%, rgba(31, 41, 55, 0.02) 100%);
             transition: all 0.3s ease;
         }
         .metric-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(251, 191, 36, 0.2);
+            box-shadow: 0 10px 25px rgba(251, 191, 36, 0.1);
         }
         .btn-primary {
-            background-color: #FBBF24;
-            color: #1F2937;
+            background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%);
             transition: all 0.3s ease;
+            color: #1F2937;
         }
-        .btn-primary:hover { background-color: #F59E0B; }
         .sidebar { background: linear-gradient(180deg, #1F2937 0%, #111827 100%); }
         .nav-item { transition: all 0.3s ease; cursor: pointer; color: #D1D5DB; }
         .nav-item:hover, .nav-item.active {
-            background: rgba(251, 191, 36, 0.15);
+            background: rgba(251, 191, 36, 0.1);
             border-left: 4px solid #FBBF24;
             color: #FBBF24;
         }
@@ -39,7 +37,7 @@
             padding: 0.25rem 0.75rem;
             border-radius: 9999px;
             font-size: 0.75rem;
-            font-weight: bold;
+            font-weight: 500;
         }
         .performance-badge.high { background-color: #FEF3C7; color: #92400E; }
         .performance-badge.medium { background-color: #F3F4F6; color: #374151; }
@@ -54,15 +52,15 @@
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center space-x-2">
                     <div class="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center text-gray-900 font-bold text-sm">CH</div>
-                    <span class="text-xl font-bold text-gray-900">Management Dashboard</span>
+                    <span class="text-xl font-bold text-gray-900">Admin Dashboard</span>
                 </div>
                 <div class="flex items-center space-x-4">
                     <div class="text-right">
                         <p class="text-sm font-medium text-gray-900" id="adminName">Loading...</p>
-                        <p class="text-xs text-gray-500 uppercase font-bold" id="adminRole">System Admin</p>
+                        <p class="text-xs text-gray-500" id="adminRoleDisplay">System Administrator</p>
                     </div>
                     <button onclick="portal.logout()" class="text-gray-400 hover:text-yellow-600">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke-width="2" stroke-linecap="round" stroke="currentColor"></path></svg>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke-width="2" stroke-linecap="round" stroke-currentColor></path></svg>
                     </button>
                 </div>
             </div>
@@ -82,7 +80,7 @@
 
         <div class="flex-1 p-6">
             <div class="mb-6 flex justify-between items-center">
-                <h1 class="text-3xl font-bold text-gray-900">Team Insights</h1>
+                <h1 class="text-3xl font-bold text-gray-900">Team Overview</h1>
                 <select id="timeFrameFilter" class="px-4 py-2 border rounded-lg bg-white shadow-sm focus:ring-2 focus:ring-yellow-400 outline-none">
                     <option value="this-week">Current Week</option>
                     <option value="30-days">Last 30 Days</option>
@@ -92,76 +90,71 @@
 
             <div id="overview" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <div class="metric-card bg-white p-6 rounded-xl border">
-                    <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Managed Agents</h3>
-                    <p class="text-3xl font-bold text-gray-900" id="activeAgents">0</p>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase mb-1">Managed Agents</h3>
+                    <p class="text-2xl font-bold text-gray-900" id="activeAgents">0</p>
                 </div>
                 <div class="metric-card bg-white p-6 rounded-xl border">
-                    <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Appointments</h3>
-                    <p class="text-3xl font-bold text-gray-900" id="totalTeamAppointments">0</p>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase mb-1">Total Appointments</h3>
+                    <p class="text-2xl font-bold text-gray-900" id="totalTeamAppointments">0</p>
                 </div>
                 <div class="metric-card bg-white p-6 rounded-xl border">
-                    <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Avg Cancel Rate</h3>
-                    <p class="text-3xl font-bold text-gray-900" id="avgCancellationRate">0%</p>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase mb-1">Avg Cancel Rate</h3>
+                    <p class="text-2xl font-bold text-gray-900" id="avgCancellationRate">0%</p>
                 </div>
                 <div class="metric-card bg-white p-6 rounded-xl border">
-                    <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Team Incentives</h3>
-                    <p class="text-3xl font-bold text-yellow-600" id="totalTeamIncentives">$0</p>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase mb-1">Team Incentives</h3>
+                    <p class="text-2xl font-bold text-yellow-600" id="totalTeamIncentives">$0</p>
                 </div>
             </div>
 
             <div id="performance" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 scroll-mt-20">
-                <div class="bg-white rounded-xl shadow-sm border p-6">
-                    <h3 class="text-lg font-bold mb-4">Top Performers</h3>
+                <div class="bg-white rounded-xl shadow border p-6">
+                    <h3 class="text-lg font-semibold mb-4">Top Performers</h3>
                     <div id="topPerformersChart" class="chart-container"></div>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border p-6">
-                    <h3 class="text-lg font-bold mb-4">Needs Attention</h3>
+                <div class="bg-white rounded-xl shadow border p-6">
+                    <h3 class="text-lg font-semibold mb-4">Bottom Performers</h3>
                     <div id="bottomPerformersChart" class="chart-container"></div>
                 </div>
             </div>
 
             <div id="payroll" class="mb-8 scroll-mt-20">
                 <h2 class="text-2xl font-bold mb-6">Payroll Summary</h2>
-                <div class="bg-white rounded-xl shadow-sm border p-6">
+                <div class="bg-white rounded-xl shadow border p-6">
                     <div class="payroll-table">
                         <table class="w-full">
-                            <thead class="bg-gray-50 text-left border-b">
+                            <thead class="bg-gray-50 text-left">
                                 <tr>
-                                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Employee</th>
-                                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Hourly Rate</th>
-                                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Incentives</th>
-                                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Employment</th>
-                                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Status</th>
+                                    <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Employee</th>
+                                    <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Hourly Rate</th>
+                                    <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Incentives</th>
+                                    <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Role</th>
+                                    <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
                                 </tr>
                             </thead>
                             <tbody id="payrollTableBody" class="divide-y"></tbody>
                         </table>
                     </div>
                     <div class="mt-6 pt-6 border-t flex justify-between items-center">
-                        <span class="text-lg font-bold">Total Managed Incentives</span>
+                        <span class="text-lg font-semibold">Total Payroll Amount</span>
                         <span class="text-2xl font-bold text-yellow-600" id="totalPayrollAmount">$0</span>
                     </div>
                 </div>
             </div>
 
             <div id="employees" class="scroll-mt-20">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold">Employee Roster</h2>
-                </div>
+                <h2 class="text-2xl font-bold mb-6">Employee Management</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="employeeCards"></div>
             </div>
         </div>
     </div>
 
     <div id="addEmployeeModal" class="fixed inset-0 bg-black/60 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
-            <div class="bg-yellow-400 p-6">
-                <h3 class="text-xl font-bold text-gray-900">Add New Team Member</h3>
-                <p class="text-sm text-gray-800">Assign a name, email, and management role.</p>
-            </div>
-            <form id="addEmpForm" class="p-8 space-y-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-8">
+            <h3 class="text-xl font-bold mb-6">Add New Team Member</h3>
+            <form id="addEmpForm" class="space-y-4">
                 <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Full Name</label><input type="text" name="name" required class="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-yellow-400"></div>
-                <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Email Address</label><input type="email" name="email" required class="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-yellow-400"></div>
+                <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Email</label><input type="email" name="email" required class="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-yellow-400"></div>
                 <div class="grid grid-cols-2 gap-4">
                     <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Role</label>
                         <select name="role" class="w-full p-3 border rounded-lg">
@@ -172,10 +165,10 @@
                     </div>
                     <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Base Rate ($)</label><input type="number" name="baseRate" value="10" class="w-full p-3 border rounded-lg"></div>
                 </div>
-                <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Team Leader Email</label><input type="email" name="managerEmail" placeholder="leave blank if Admin/TL" class="w-full p-3 border rounded-lg"></div>
+                <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Manager Email</label><input type="email" name="managerEmail" placeholder="Agent's TL Email" class="w-full p-3 border rounded-lg"></div>
                 <div class="flex space-x-3 pt-4">
-                    <button type="button" onclick="closeAddEmployeeModal()" class="flex-1 p-4 bg-gray-100 rounded-xl font-bold text-gray-500 hover:bg-gray-200">Cancel</button>
-                    <button type="submit" class="flex-1 p-4 bg-yellow-400 rounded-xl font-bold text-gray-900 hover:bg-yellow-500">Create Account</button>
+                    <button type="button" onclick="closeAddEmployeeModal()" class="flex-1 p-3 bg-gray-100 rounded-lg hover:bg-gray-200">Cancel</button>
+                    <button type="submit" class="flex-1 p-3 bg-yellow-400 rounded-lg font-bold text-gray-900">Add Employee</button>
                 </div>
             </form>
         </div>
@@ -185,9 +178,6 @@
     <script>
         class AdminDashboard {
             constructor() {
-                this.agentsData = [];
-                this.employeeList = [];
-                this.currentTimeFrame = 'this-week';
                 this.init();
             }
 
@@ -201,10 +191,10 @@
             loadAdminProfile() {
                 const session = localStorage.getItem('callHammerSession');
                 if (session) {
-                    const s = JSON.parse(session);
-                    document.getElementById('adminName').textContent = s.user.name;
-                    document.getElementById('adminRole').textContent = s.user.role.replace('_', ' ').toUpperCase();
-                    if (s.user.role === 'admin') {
+                    const sessionData = JSON.parse(session);
+                    document.getElementById('adminName').textContent = sessionData.user.name;
+                    document.getElementById('adminRoleDisplay').textContent = sessionData.user.role.replace('_', ' ').toUpperCase();
+                    if (sessionData.user.role === 'admin') {
                         document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
                     }
                 }
@@ -212,124 +202,96 @@
 
             async refreshDashboard() {
                 if (typeof portal === 'undefined') return;
+                await portal.fetchAllData(); // Fetches REAL data from Google Sheets
                 
-                // Triggers fetch from n8n
-                await portal.fetchAllData(); 
-                
-                // Pull data from the portal class
-                this.agentsData = portal.leadsData || [];
-                this.employeeList = portal.employeeList || [];
-                
-                const summary = this.calculateSummary(this.agentsData);
-                
-                document.getElementById('activeAgents').textContent = this.employeeList.length;
-                document.getElementById('totalTeamAppointments').textContent = summary.total.toLocaleString();
+                const leads = portal.leadsData || [];
+                const employees = portal.employeeList || [];
+                const summary = this.calculateSummary(leads, employees);
+
+                document.getElementById('activeAgents').textContent = employees.length;
+                document.getElementById('totalTeamAppointments').textContent = summary.total;
                 document.getElementById('avgCancellationRate').textContent = `${summary.cancelRate}%`;
                 document.getElementById('totalTeamIncentives').textContent = portal.formatCurrency(summary.incentives);
                 
-                this.updatePayrollTable();
-                this.updateEmployeeCards();
-                this.initializeCharts();
+                this.updatePayrollTable(employees, leads);
+                this.updateEmployeeCards(employees);
+                this.initializeCharts(leads);
             }
 
-            calculateSummary(leads) {
+            calculateSummary(leads, employees) {
                 const total = leads.length;
-                // Count any lead with "cancel", "rejected", or "declined"
-                const cancelled = leads.filter(l => {
-                    const s = (l.Status || '').toLowerCase();
-                    return s.includes('cancel') || s.includes('reject') || s.includes('declined');
-                }).length;
-                const rate = total > 0 ? ((cancelled / total) * 100).toFixed(1) : 0;
-                
-                // Aggregated incentives for the managed group
-                const totalIncentives = leads.filter(l => (l.Status||'').toLowerCase() === 'approved').length * 50; 
-                return { total, cancelRate: rate, incentives: totalIncentives }; 
+                const cancelled = leads.filter(l => (l.Status || '').toLowerCase().includes('cancel') || (l.Status || '').toLowerCase().includes('declined')).length;
+                const cancelRate = total > 0 ? ((cancelled / total) * 100).toFixed(1) : 0;
+                const approvedCount = leads.filter(l => (l.Status || '').toLowerCase() === 'approved').length;
+                return { total, cancelRate, incentives: approvedCount * 50 };
             }
 
-            updatePayrollTable() {
+            updatePayrollTable(employees, leads) {
                 const tbody = document.getElementById('payrollTableBody');
                 if (!tbody) return;
                 tbody.innerHTML = '';
-                let totalIncentivePool = 0;
+                let totalPool = 0;
 
-                this.employeeList.forEach(emp => {
-                    // Match agent names in RAW LEADS to employee list names
-                    const agentLeads = this.agentsData.filter(l => 
-                        l['Appointment Coordinator Name'] === emp['Employee Name'] && 
-                        (l.Status||'').toLowerCase() === 'approved'
-                    );
-                    
+                employees.forEach(emp => {
+                    const agentLeads = leads.filter(l => l['Appointment Coordinator Name'] === emp['Employee Name'] && (l.Status || '').toLowerCase() === 'approved');
                     const incentives = agentLeads.length * 50;
-                    totalIncentivePool += incentives;
+                    totalPool += incentives;
 
                     const row = document.createElement('tr');
                     row.className = 'hover:bg-gray-50';
                     row.innerHTML = `
                         <td class="px-6 py-4">
-                            <div class="text-sm font-bold text-gray-900">${emp['Employee Name']}</div>
-                            <div class="text-xs text-gray-400">${emp.Email}</div>
+                            <div class="text-sm font-medium text-gray-900">${emp['Employee Name']}</div>
+                            <div class="text-xs text-gray-500">${emp.Email}</div>
                         </td>
-                        <td class="px-6 py-4 text-sm font-medium text-gray-600">${portal.formatCurrency(emp['Base Rate'] || 0)}</td>
+                        <td class="px-6 py-4 text-sm">${portal.formatCurrency(emp['Base Rate'] || 0)}</td>
                         <td class="px-6 py-4 text-sm font-bold text-yellow-600">${portal.formatCurrency(incentives)}</td>
-                        <td class="px-6 py-4 text-xs font-bold uppercase text-gray-500">${emp.Role}</td>
-                        <td class="px-6 py-4">
-                            <span class="performance-badge ${emp.Employment_Status === 'Offboarded' ? 'low' : 'high'}">
-                                ${(emp.Employment_Status || 'Active').toUpperCase()}
-                            </span>
-                        </td>
+                        <td class="px-6 py-4 text-xs font-bold uppercase text-gray-400">${emp.Role}</td>
+                        <td class="px-6 py-4"><span class="performance-badge ${emp.Employment_Status === 'Offboarded' ? 'low' : 'high'}">${(emp.Employment_Status || 'Active').toUpperCase()}</span></td>
                     `;
                     tbody.appendChild(row);
                 });
-                document.getElementById('totalPayrollAmount').textContent = portal.formatCurrency(totalIncentivePool);
+                document.getElementById('totalPayrollAmount').textContent = portal.formatCurrency(totalPool);
             }
 
-            updateEmployeeCards() {
+            updateEmployeeCards(employees) {
                 const container = document.getElementById('employeeCards');
                 if (!container) return;
                 container.innerHTML = '';
-                this.employeeList.forEach(emp => {
+                employees.forEach(emp => {
+                    const initials = emp['Employee Name'].split(' ').map(n => n[0]).join('');
                     const card = document.createElement('div');
-                    card.className = 'bg-white border rounded-xl p-6 hover:shadow-lg transition-shadow';
-                    const initials = emp['Employee Name'] ? emp['Employee Name'].split(' ').map(n => n[0]).join('') : '??';
-                    
+                    card.className = 'bg-white border rounded-lg p-6 hover:shadow-lg transition-shadow';
                     card.innerHTML = `
-                        <div class="flex items-center justify-between mb-6">
-                            <div class="flex items-center space-x-4">
-                                <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-700 font-bold">${initials}</div>
-                                <div>
-                                    <h3 class="font-bold text-gray-900">${emp['Employee Name']}</h3>
-                                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">${emp.Role}</p>
-                                </div>
+                        <div class="flex items-center space-x-4 mb-4">
+                            <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-600 font-semibold">${initials}</div>
+                            <div>
+                                <h3 class="font-semibold text-gray-900">${emp['Employee Name']}</h3>
+                                <p class="text-xs text-gray-500">${emp.Role.toUpperCase()}</p>
                             </div>
                         </div>
-                        <div class="space-y-3 mb-6">
-                            <div class="flex justify-between"><span class="text-xs text-gray-500">Managed By:</span><span class="text-xs font-bold">${emp.Manager_Email || 'Global Admin'}</span></div>
-                            <div class="flex justify-between"><span class="text-xs text-gray-500">Hourly Rate:</span><span class="text-xs font-bold text-yellow-600">${portal.formatCurrency(emp['Base Rate'])}</span></div>
-                        </div>
-                        <div class="flex space-x-2 pt-4 border-t">
-                            <button onclick="portal.offboardEmployee('${emp.Email}')" class="flex-1 text-[10px] font-bold text-red-500 hover:text-red-700 uppercase">Offboard</button>
-                            <button class="admin-only hidden flex-1 text-[10px] font-bold text-gray-400 hover:text-gray-900 uppercase">Reassign</button>
+                        <div class="space-y-2 border-t pt-4">
+                            <div class="flex justify-between text-xs"><span class="text-gray-500">Manager:</span><span class="font-medium">${emp.Manager_Email || 'Admin'}</span></div>
+                            <div class="flex justify-between text-xs"><span class="text-gray-500">Employment:</span><span class="font-medium">${emp.Employment_Status || 'Active'}</span></div>
                         </div>
                     `;
                     container.appendChild(card);
                 });
-                this.loadAdminProfile(); // Ensure reassign buttons show for admins
             }
 
-            initializeCharts() {
-                // Group real leads by coordinator name
-                const grouping = this.agentsData.reduce((acc, lead) => {
+            initializeCharts(leads) {
+                const stats = leads.reduce((acc, lead) => {
                     const name = lead['Appointment Coordinator Name'] || 'Unknown';
                     acc[name] = (acc[name] || 0) + 1;
                     return acc;
                 }, {});
 
-                const sorted = Object.entries(grouping).sort((a, b) => b[1] - a[1]);
+                const sorted = Object.entries(stats).sort((a, b) => b[1] - a[1]);
                 const top = sorted.slice(0, 10);
                 const bottom = [...sorted].reverse().slice(0, 5);
 
                 this.renderChart('topPerformersChart', top, '#FBBF24');
-                this.renderChart('bottomPerformersChart', bottom, '#374151');
+                this.renderChart('bottomPerformersChart', bottom, '#1F2937');
             }
 
             renderChart(id, data, color) {
@@ -338,28 +300,23 @@
                 const myChart = echarts.init(chartDom);
                 myChart.setOption({
                     tooltip: { trigger: 'axis' },
-                    xAxis: { type: 'value', axisLine: { show: false } },
+                    xAxis: { type: 'value' },
                     yAxis: { type: 'category', data: data.map(a => a[0].split(' ')[0]).reverse() },
-                    series: [{ name: 'Leads', data: data.map(a => a[1]).reverse(), type: 'bar', itemStyle: { color: color, borderRadius: [0, 4, 4, 0] } }]
+                    series: [{ name: 'Appointments', data: data.map(a => a[1]).reverse(), type: 'bar', itemStyle: { color: color, borderRadius: [0, 4, 4, 0] } }]
                 });
             }
 
             bindEvents() {
-                document.getElementById('timeFrameFilter').addEventListener('change', (e) => {
+                document.getElementById('timeFrameFilter').addEventListener('change', async (e) => {
                     portal.currentFilter = e.target.value;
-                    this.refreshDashboard();
+                    await this.refreshDashboard();
                 });
                 
                 document.getElementById('addEmpForm').onsubmit = async (e) => {
                     e.preventDefault();
                     const formData = new FormData(e.target);
-                    const data = Object.fromEntries(formData);
-                    const success = await portal.addEmployee(data);
-                    if (success) { 
-                        alert('Employee Added Successfully'); 
-                        closeAddEmployeeModal(); 
-                        this.refreshDashboard(); 
-                    }
+                    const success = await portal.addEmployee(Object.fromEntries(formData));
+                    if (success) { alert('Employee Added!'); closeAddEmployeeModal(); this.refreshDashboard(); }
                 };
 
                 document.querySelectorAll('.nav-item').forEach(item => {
@@ -367,21 +324,16 @@
                         e.preventDefault();
                         document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
                         item.classList.add('active');
-                        const targetId = item.getAttribute('href').substring(1);
-                        const targetEl = document.getElementById(targetId);
-                        if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth' });
+                        document.getElementById(item.getAttribute('href').substring(1)).scrollIntoView({ behavior: 'smooth' });
                     });
                 });
             }
 
-            animateElements() {
-                anime({ targets: '.metric-card', opacity: [0, 1], translateY: [20, 0], delay: anime.stagger(100), easing: 'easeOutQuart' });
-            }
+            animateElements() { anime({ targets: '.metric-card', opacity: [0, 1], translateY: [20, 0], delay: anime.stagger(100), easing: 'easeOutQuart' }); }
         }
 
         let adminDashboard;
         document.addEventListener('DOMContentLoaded', () => { adminDashboard = new AdminDashboard(); });
-
         function openAddEmployeeModal() { document.getElementById('addEmployeeModal').classList.remove('hidden'); }
         function closeAddEmployeeModal() { document.getElementById('addEmployeeModal').classList.add('hidden'); }
     </script>
