@@ -1,719 +1,216 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - Call Hammer Leads</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        * { font-family: 'Inter', sans-serif; }
-        .metric-card {
-            background: linear-gradient(135deg, rgba(255, 107, 53, 0.05) 0%, rgba(255, 140, 97, 0.02) 100%);
-            transition: all 0.3s ease;
-        }
-        .metric-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(255, 107, 53, 0.1);
-        }
-        .btn-primary {
-            background: linear-gradient(135deg, #FF6B35 0%, #E55A2B 100%);
-            transition: all 0.3s ease;
-        }
-        .btn-primary:hover {
-            transform: scale(1.02);
-            box-shadow: 0 10px 20px rgba(255, 107, 53, 0.3);
-        }
-        .sidebar {
-            background: linear-gradient(180deg, #2D3748 0%, #1A202C 100%);
-        }
-        .nav-item {
-            transition: all 0.3s ease;
-        }
-        .nav-item:hover {
-            background: rgba(255, 107, 53, 0.1);
-            border-left: 4px solid #FF6B35;
-        }
-        .nav-item.active {
-            background: rgba(255, 107, 53, 0.2);
-            border-left: 4px solid #FF6B35;
-        }
-        .chart-container {
-            min-height: 400px;
-        }
-        .modal {
-            backdrop-filter: blur(10px);
-        }
-        .filter-dropdown {
-            background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 0.5rem;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        }
-        .performance-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 500;
-        }
-        .performance-badge.high {
-            background-color: #d1fae5;
-            color: #065f46;
-        }
-        .performance-badge.medium {
-            background-color: #fef3c7;
-            color: #92400e;
-        }
-        .performance-badge.low {
-            background-color: #fee2e2;
-            color: #991b1b;
-        }
-        .payroll-table {
-            max-height: 600px;
-            overflow-y: auto;
-        }
-        .payroll-table::-webkit-scrollbar {
-            width: 6px;
-        }
-        .payroll-table::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 3px;
-        }
-        .payroll-table::-webkit-scrollbar-thumb {
-            background: #FF6B35;
-            border-radius: 3px;
-        }
-    </style>
-</head>
-<body class="bg-gray-50 min-h-screen">
-    <!-- Navigation -->
-    <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <div class="flex items-center space-x-4">
-                    <div class="flex items-center space-x-2">
-                        <div class="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
-                            <span class="text-white font-bold text-sm">CH</span>
-                        </div>
-                        <span class="text-xl font-bold text-gray-900">Admin Dashboard</span>
-                    </div>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <div class="text-right">
-                        <p class="text-sm font-medium text-gray-900" id="adminName">Sarah Johnson</p>
-                        <p class="text-xs text-gray-500">System Administrator</p>
-                    </div>
-                    <button onclick="portal.logout()" class="text-gray-600 hover:text-orange-600 transition-colors">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </nav>
+// Call Hammer Leads - Unified Application Logic (Agent & Admin)
+class CallHammerPortal {
+    constructor() {
+        this.currentUser = null;
+        this.leadsData = [];
+        this.filteredLeads = [];
+        this.isLoading = false;
+        this.currentFilter = 'this-week';
 
-    <div class="flex">
-        <!-- Sidebar -->
-        <div class="sidebar w-64 min-h-screen text-white p-6 hidden lg:block">
-            <nav class="space-y-2">
-                <a href="#overview" class="nav-item active flex items-center space-x-3 px-4 py-3 rounded-lg">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-                    </svg>
-                    <span>Overview</span>
-                </a>
-                <a href="#performance" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                    </svg>
-                    <span>Team Performance</span>
-                </a>
-                <a href="#payroll" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
-                    </svg>
-                    <span>Payroll</span>
-                </a>
-                <a href="#employees" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                    </svg>
-                    <span>Employees</span>
-                </a>
-                <button onclick="openAddEmployeeModal()" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
-                    </svg>
-                    <span>Add Employee</span>
-                </button>
-            </nav>
-        </div>
+        this.webhooks = {
+            login: 'https://automate.callhammerleads.com/webhook/agent-login', 
+            // Ensure this matches your n8n Production URL
+            fetchData: 'https://automate.callhammerleads.com/webhook-test/fetch-agent-data', 
+            fetchAdminData: 'https://automate.callhammerleads.com/webhook/fetch-admin-dashboard',
+            timeOffRequest: 'https://automate.callhammerleads.com/webhook/timeoff-request',
+            changePassword: 'https://automate.callhammerleads.com/webhook/change-password',
+            resetPassword: 'https://automate.callhammerleads.com/webhook/reset-password'
+        };
+        this.init();
+    }
 
-        <!-- Main Content -->
-        <div class="flex-1 p-6">
-            <!-- Time Frame Filter -->
-            <div class="mb-6 flex justify-between items-center">
-                <h1 class="text-3xl font-bold text-gray-900">Team Overview</h1>
-                <div class="flex items-center space-x-4">
-                    <select id="timeFrameFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
-                        <option value="current_week">Current Week</option>
-                        <option value="last_30_days">Last 30 Days</option>
-                        <option value="last_4_weeks">Last 4 Weeks</option>
-                        <option value="last_6_weeks">Last 6 Weeks</option>
-                    </select>
-                </div>
-            </div>
+    init() {
+        this.checkExistingSession();
+        this.bindEvents();
 
-            <!-- Key Metrics -->
-            <div id="overview" class="mb-8">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                                <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                                </svg>
-                            </div>
-                            <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">29 Total</span>
-                        </div>
-                        <h3 class="text-sm font-medium text-gray-600 mb-1">Active Agents</h3>
-                        <p class="text-2xl font-bold text-gray-900" id="activeAgents">29</p>
-                    </div>
-
-                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                                <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                                </svg>
-                            </div>
-                            <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">+15%</span>
-                        </div>
-                        <h3 class="text-sm font-medium text-gray-600 mb-1">Total Appointments</h3>
-                        <p class="text-2xl font-bold text-gray-900" id="totalTeamAppointments">2,847</p>
-                    </div>
-
-                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                                <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
-                                </svg>
-                            </div>
-                            <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">21.2%</span>
-                        </div>
-                        <h3 class="text-sm font-medium text-gray-600 mb-1">Avg Cancellation Rate</h3>
-                        <p class="text-2xl font-bold text-gray-900" id="avgCancellationRate">21.2%</p>
-                    </div>
-
-                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                                <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                                </svg>
-                            </div>
-                            <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">$31,240</span>
-                        </div>
-                        <h3 class="text-sm font-medium text-gray-600 mb-1">Total Incentives</h3>
-                        <p class="text-2xl font-bold text-gray-900" id="totalTeamIncentives">$31,240</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Performance Charts -->
-            <div id="performance" class="mb-8">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6">Team Performance Analysis</h2>
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                    <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Top 10 Performers</h3>
-                        <div id="topPerformersChart" class="chart-container"></div>
-                    </div>
-                    <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Bottom 5 Performers</h3>
-                        <div id="bottomPerformersChart" class="chart-container"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Payroll Summary -->
-            <div id="payroll" class="mb-8">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6">Payroll Summary</h2>
-                <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                    <div class="payroll-table">
-                        <table class="w-full">
-                            <thead class="bg-gray-50 sticky top-0">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Base Pay</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Incentives</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Pay</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Performance</th>
-                                </tr>
-                            </thead>
-                            <tbody id="payrollTableBody" class="bg-white divide-y divide-gray-200">
-                                <!-- Dynamic content will be inserted here -->
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="mt-6 pt-6 border-t border-gray-200">
-                        <div class="flex justify-between items-center">
-                            <span class="text-lg font-semibold text-gray-900">Total Payroll Amount</span>
-                            <span class="text-2xl font-bold text-orange-600" id="totalPayrollAmount">$0</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Employee Management -->
-            <div id="employees" class="mb-8">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6">Employee Management</h2>
-                <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="employeeCards">
-                        <!-- Dynamic employee cards will be inserted here -->
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Add Employee Modal -->
-    <div id="addEmployeeModal" class="modal fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
-        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-screen overflow-y-auto">
-            <div class="p-6 border-b border-gray-200">
-                <div class="flex justify-between items-center">
-                    <h3 class="text-lg font-semibold text-gray-900">Add New Employee</h3>
-                    <button onclick="closeAddEmployeeModal()" class="text-gray-400 hover:text-gray-600">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            <form id="addEmployeeForm" class="p-6 space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label for="firstName" class="block text-sm font-medium text-gray-700 mb-2">First Name</label>
-                        <input type="text" id="firstName" name="firstName" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
-                    </div>
-                    <div>
-                        <label for="lastName" class="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
-                        <input type="text" id="lastName" name="lastName" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
-                    </div>
-                </div>
-                <div>
-                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-                    <input type="email" id="email" name="email" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label for="baseRate" class="block text-sm font-medium text-gray-700 mb-2">Base Rate ($/hour)</label>
-                        <input type="number" id="baseRate" name="baseRate" step="0.01" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
-                    </div>
-                    <div>
-                        <label for="weeklyHours" class="block text-sm font-medium text-gray-700 mb-2">Weekly Hours</label>
-                        <input type="number" id="weeklyHours" name="weeklyHours" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
-                    </div>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label for="position" class="block text-sm font-medium text-gray-700 mb-2">Position</label>
-                        <select id="position" name="position" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
-                            <option value="">Select Position</option>
-                            <option value="Sales Agent">Sales Agent</option>
-                            <option value="Senior Sales Agent">Senior Sales Agent</option>
-                            <option value="Team Lead">Team Lead</option>
-                            <option value="Supervisor">Supervisor</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="startDate" class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-                        <input type="date" id="startDate" name="startDate" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
-                    </div>
-                </div>
-                <div class="flex space-x-3 pt-4">
-                    <button type="button" onclick="closeAddEmployeeModal()" class="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-                        Cancel
-                    </button>
-                    <button type="submit" class="flex-1 btn-primary text-white px-4 py-3 rounded-lg">
-                        Add Employee
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script src="main.js"></script>
-    <script>
-        // Admin Dashboard specific functionality
-        class AdminDashboard {
-            constructor() {
-                this.agentsData = [];
-                this.currentTimeFrame = 'current_week';
-                this.init();
-            }
-
-            init() {
-                this.loadAdminData();
-                this.initializeCharts();
-                this.bindEvents();
-                this.animateElements();
-                this.generateMockPayrollData();
-            }
-
-            loadAdminData() {
-                // Load admin data from session
-                const session = localStorage.getItem('callHammerSession');
-                if (session) {
-                    try {
-                        const sessionData = JSON.parse(session);
-                        document.getElementById('adminName').textContent = sessionData.user.name;
-                    } catch (error) {
-                        console.error('Error loading admin data:', error);
-                    }
-                }
-            }
-
-            generateMockPayrollData() {
-                // Generate mock data for 29 agents
-                const names = [
-                    'John Smith', 'Jane Doe', 'Mike Johnson', 'Sarah Wilson', 'David Brown',
-                    'Lisa Davis', 'Tom Anderson', 'Emily Taylor', 'Chris Martinez', 'Amy Thompson',
-                    'Ryan Garcia', 'Jessica Lee', 'Kevin White', 'Amanda Clark', 'Brian Lewis',
-                    'Melissa Walker', 'Jason Hall', 'Rachel Allen', 'Justin Young', 'Stephanie King',
-                    'Brandon Wright', 'Nicole Lopez', 'Jonathan Hill', 'Samantha Scott', 'Dylan Green',
-                    'Ashley Baker', 'Tyler Adams', 'Brittany Nelson', 'Cameron Mitchell'
-                ];
-
-                this.agentsData = names.map((name, index) => {
-                    const baseRate = 14 + Math.random() * 8; // $14-22/hour
-                    const weeklyHours = 38 + Math.random() * 6; // 38-44 hours
-                    const totalAppointments = 60 + Math.random() * 100; // 60-160 appointments
-                    const cancellationRate = 15 + Math.random() * 25; // 15-40%
-                    
-                    const basePay = baseRate * weeklyHours;
-                    const incentives = portal.calculateIncentives(totalAppointments, cancellationRate);
-                    const totalPay = basePay + incentives.totalIncentives;
-
-                    return {
-                        id: `agent_${String(index + 1).padStart(3, '0')}`,
-                        name: name,
-                        email: name.toLowerCase().replace(' ', '.') + '@callhammer.com',
-                        baseRate: baseRate,
-                        weeklyHours: weeklyHours,
-                        totalAppointments: Math.round(totalAppointments),
-                        cancellationRate: cancellationRate.toFixed(1),
-                        basePay: basePay,
-                        incentives: incentives.totalIncentives,
-                        totalPay: totalPay,
-                        performance: totalAppointments > 120 ? 'high' : totalAppointments > 80 ? 'medium' : 'low'
-                    };
-                });
-
-                this.updatePayrollTable();
-                this.updateEmployeeCards();
-            }
-
-            updatePayrollTable() {
-                const tbody = document.getElementById('payrollTableBody');
-                tbody.innerHTML = '';
-
-                let totalPayroll = 0;
-
-                this.agentsData.forEach(agent => {
-                    const row = document.createElement('tr');
-                    row.className = 'hover:bg-gray-50';
-                    
-                    const performanceBadgeClass = agent.performance === 'high' ? 'performance-badge high' : 
-                                                 agent.performance === 'medium' ? 'performance-badge medium' : 
-                                                 'performance-badge low';
-                    
-                    const performanceText = agent.performance === 'high' ? 'High' : 
-                                          agent.performance === 'medium' ? 'Medium' : 'Low';
-
-                    row.innerHTML = `
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-medium text-gray-900">${agent.name}</div>
-                            <div class="text-sm text-gray-500">${agent.email}</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            ${portal.formatCurrency(agent.basePay)}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            ${portal.formatCurrency(agent.incentives)}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            ${portal.formatCurrency(agent.totalPay)}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="${performanceBadgeClass}">${performanceText}</span>
-                        </td>
-                    `;
-                    
-                    tbody.appendChild(row);
-                    totalPayroll += agent.totalPay;
-                });
-
-                document.getElementById('totalPayrollAmount').textContent = portal.formatCurrency(totalPayroll);
-            }
-
-            updateEmployeeCards() {
-                const container = document.getElementById('employeeCards');
-                container.innerHTML = '';
-
-                this.agentsData.slice(0, 12).forEach(agent => {
-                    const card = document.createElement('div');
-                    card.className = 'bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow';
-                    
-                    const initials = agent.name.split(' ').map(n => n[0]).join('');
-                    const performanceColor = agent.performance === 'high' ? 'text-green-600' : 
-                                           agent.performance === 'medium' ? 'text-yellow-600' : 'text-red-600';
-
-                    card.innerHTML = `
-                        <div class="flex items-center space-x-4 mb-4">
-                            <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                                <span class="text-orange-600 font-semibold">${initials}</span>
-                            </div>
-                            <div>
-                                <h3 class="font-semibold text-gray-900">${agent.name}</h3>
-                                <p class="text-sm text-gray-500">${agent.position || 'Sales Agent'}</p>
-                            </div>
-                        </div>
-                        <div class="space-y-2">
-                            <div class="flex justify-between">
-                                <span class="text-sm text-gray-600">Appointments:</span>
-                                <span class="text-sm font-medium">${agent.totalAppointments}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-sm text-gray-600">Cancellation Rate:</span>
-                                <span class="text-sm font-medium">${agent.cancellationRate}%</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-sm text-gray-600">Performance:</span>
-                                <span class="text-sm font-medium ${performanceColor}">${agent.performance.charAt(0).toUpperCase() + agent.performance.slice(1)}</span>
-                            </div>
-                        </div>
-                    `;
-                    
-                    container.appendChild(card);
-                });
-            }
-
-            initializeCharts() {
-                this.initTopPerformersChart();
-                this.initBottomPerformersChart();
-            }
-
-            initTopPerformersChart() {
-                const chartDom = document.getElementById('topPerformersChart');
-                const myChart = echarts.init(chartDom);
-                
-                const topPerformers = [...this.agentsData]
-                    .sort((a, b) => b.totalAppointments - a.totalAppointments)
-                    .slice(0, 10);
-
-                const option = {
-                    tooltip: {
-                        trigger: 'axis',
-                        axisPointer: {
-                            type: 'shadow'
-                        },
-                        formatter: function(params) {
-                            const agent = topPerformers[params[0].dataIndex];
-                            return `${agent.name}<br/>Appointments: ${agent.totalAppointments}<br/>Cancellation Rate: ${agent.cancellationRate}%`;
-                        }
-                    },
-                    grid: {
-                        left: '3%',
-                        right: '4%',
-                        bottom: '3%',
-                        containLabel: true
-                    },
-                    xAxis: {
-                        type: 'value'
-                    },
-                    yAxis: {
-                        type: 'category',
-                        data: topPerformers.map(agent => agent.name.split(' ')[0])
-                    },
-                    series: [{
-                        name: 'Appointments',
-                        type: 'bar',
-                        itemStyle: {
-                            color: {
-                                type: 'linear',
-                                x: 0,
-                                y: 0,
-                                x2: 1,
-                                y2: 0,
-                                colorStops: [{
-                                    offset: 0, color: '#FF6B35'
-                                }, {
-                                    offset: 1, color: '#FF8C61'
-                                }]
-                            }
-                        },
-                        data: topPerformers.map(agent => agent.totalAppointments)
-                    }]
-                };
-
-                myChart.setOption(option);
-            }
-
-            initBottomPerformersChart() {
-                const chartDom = document.getElementById('bottomPerformersChart');
-                const myChart = echarts.init(chartDom);
-                
-                const bottomPerformers = [...this.agentsData]
-                    .sort((a, b) => a.totalAppointments - b.totalAppointments)
-                    .slice(0, 5);
-
-                const option = {
-                    tooltip: {
-                        trigger: 'axis',
-                        axisPointer: {
-                            type: 'shadow'
-                        },
-                        formatter: function(params) {
-                            const agent = bottomPerformers[params[0].dataIndex];
-                            return `${agent.name}<br/>Appointments: ${agent.totalAppointments}<br/>Cancellation Rate: ${agent.cancellationRate}%`;
-                        }
-                    },
-                    grid: {
-                        left: '3%',
-                        right: '4%',
-                        bottom: '3%',
-                        containLabel: true
-                    },
-                    xAxis: {
-                        type: 'value'
-                    },
-                    yAxis: {
-                        type: 'category',
-                        data: bottomPerformers.map(agent => agent.name.split(' ')[0])
-                    },
-                    series: [{
-                        name: 'Appointments',
-                        type: 'bar',
-                        itemStyle: {
-                            color: {
-                                type: 'linear',
-                                x: 0,
-                                y: 0,
-                                x2: 1,
-                                y2: 0,
-                                colorStops: [{
-                                    offset: 0, color: '#E53E3E'
-                                }, {
-                                    offset: 1, color: '#FC8181'
-                                }]
-                            }
-                        },
-                        data: bottomPerformers.map(agent => agent.totalAppointments)
-                    }]
-                };
-
-                myChart.setOption(option);
-            }
-
-            bindEvents() {
-                // Time frame filter
-                const timeFrameFilter = document.getElementById('timeFrameFilter');
-                timeFrameFilter.addEventListener('change', (e) => {
-                    this.currentTimeFrame = e.target.value;
-                    this.updateDashboardData();
-                });
-
-                // Add employee form
-                const addEmployeeForm = document.getElementById('addEmployeeForm');
-                addEmployeeForm.addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    const formData = new FormData(e.target);
-                    
-                    try {
-                        const employeeData = {
-                            firstName: formData.get('firstName'),
-                            lastName: formData.get('lastName'),
-                            email: formData.get('email'),
-                            baseRate: parseFloat(formData.get('baseRate')),
-                            weeklyHours: parseInt(formData.get('weeklyHours')),
-                            position: formData.get('position'),
-                            startDate: formData.get('startDate')
-                        };
-
-                        await portal.addNewEmployee(employeeData);
-                        
-                        closeAddEmployeeModal();
-                        e.target.reset();
-                        
-                        // Refresh the payroll table and employee cards
-                        this.generateMockPayrollData();
-                    } catch (error) {
-                        console.error('Error adding employee:', error);
-                    }
-                });
-
-                // Navigation items
-                const navItems = document.querySelectorAll('.nav-item');
-                navItems.forEach(item => {
-                    item.addEventListener('click', (e) => {
-                        if (item.getAttribute('href')) {
-                            e.preventDefault();
-                            const targetId = item.getAttribute('href').substring(1);
-                            const targetElement = document.getElementById(targetId);
-                            if (targetElement) {
-                                targetElement.scrollIntoView({ behavior: 'smooth' });
-                            }
-                        }
-                        
-                        // Update active state
-                        navItems.forEach(nav => nav.classList.remove('active'));
-                        item.classList.add('active');
-                    });
-                });
-            }
-
-            updateDashboardData() {
-                // Update dashboard based on selected time frame
-                console.log('Updating dashboard for time frame:', this.currentTimeFrame);
-                // This would typically fetch new data from the server
-            }
-
-            animateElements() {
-                // Animate metric cards
-                const metricCards = document.querySelectorAll('.metric-card');
-                if (typeof anime !== 'undefined' && metricCards.length > 0) {
-                    anime({
-                        targets: metricCards,
-                        opacity: [0, 1],
-                        translateY: [20, 0],
-                        delay: anime.stagger(100),
-                        duration: 600,
-                        easing: 'easeOutQuart'
-                    });
-                }
+        if (this.currentUser && (window.location.pathname.includes('dashboard'))) {
+            if (this.currentUser.role !== 'admin') {
+                this.fetchAllData();
+                this.updateProfileUI();
             }
         }
+    }
 
-        // Global functions for modal handling
-        function openAddEmployeeModal() {
-            document.getElementById('addEmployeeModal').classList.remove('hidden');
+    async fetchAdminDashboardData(timeframe) {
+        if (!this.currentUser || this.currentUser.role !== 'admin') return;
+        try {
+            const response = await fetch(this.webhooks.fetchAdminData, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    email: this.currentUser.email,
+                    timeframe: timeframe 
+                })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Admin Sync Error:', error);
+            return { status: "error", message: "Network error" };
         }
+    }
 
-        function closeAddEmployeeModal() {
-            document.getElementById('addEmployeeModal').classList.add('hidden');
+    async fetchAllData() {
+        if (!this.currentUser) return;
+        try {
+            const response = await fetch(this.webhooks.fetchData, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                // Important: Sending 'name' to n8n so it can filter 'Appointment Coordinator Name'
+                body: JSON.stringify({ 
+                    email: this.currentUser.email,
+                    name: this.currentUser.name 
+                })
+            });
+            const result = await response.json();
+            if (result.status === "success") {
+                this.leadsData = result.leads || [];
+                this.handleFilterChange(this.currentFilter); 
+            }
+        } catch (error) { 
+            console.error('Data Sync Error:', error); 
         }
+    }
 
-        // Initialize dashboard when DOM is loaded
-        let adminDashboard;
-        document.addEventListener('DOMContentLoaded', function() {
-            adminDashboard = new AdminDashboard();
+    handleFilterChange(value) {
+        this.currentFilter = value;
+        const now = new Date();
+        const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+        
+        this.filteredLeads = this.leadsData.filter(lead => {
+            const dateStr = lead['Date Submitted'] || lead['Appointment Date /Time'];
+            if (!dateStr) return false;
+            
+            const submittedDate = new Date(dateStr);
+            const diffDays = (startOfDay - submittedDate) / (1000 * 60 * 60 * 24);
+
+            if (value === 'this-week') {
+                const day = startOfDay.getDay(); 
+                const diff = startOfDay.getDate() - day + (day == 0 ? -6 : 1); 
+                const monday = new Date(new Date().setDate(diff));
+                monday.setHours(0,0,0,0);
+                return submittedDate >= monday;
+            }
+            if (value === 'last-30-days') return diffDays <= 30;
+            return true;
         });
-    </script>
-</body>
-</html>
+        this.updateDashboardUI(this.filteredLeads);
+    }
+
+    updateDashboardUI(leads) {
+        const totalRaw = leads.length;
+        const approvedCount = leads.filter(l => (l.Status || '').toLowerCase() === 'approved').length;
+        const cancelled = leads.filter(l => {
+            const s = (l.Status || '').toLowerCase();
+            return s.includes('cancel') || s.includes('credited') || s.includes('rejected');
+        }).length;
+
+        const rate = totalRaw > 0 ? ((cancelled / totalRaw) * 100).toFixed(1) : 0;
+        const incentives = this.calculateIncentives(approvedCount, parseFloat(rate));
+
+        if (document.getElementById('stat-appointments')) document.getElementById('stat-appointments').textContent = totalRaw;
+        if (document.getElementById('stat-cancel-rate')) document.getElementById('stat-cancel-rate').textContent = `${rate}%`;
+        if (document.getElementById('stat-incentives')) document.getElementById('stat-incentives').textContent = this.formatCurrency(incentives);
+        
+        const progressBar = document.getElementById('tier-progress-bar');
+        if (progressBar) {
+            let nextGoal = approvedCount < 6 ? 6 : approvedCount < 8 ? 8 : approvedCount < 12 ? 12 : 15;
+            progressBar.style.width = `${Math.min((approvedCount / nextGoal) * 100, 100)}%`;
+            document.getElementById('tier-count-display').textContent = `${approvedCount} / ${nextGoal} approved appointments`;
+        }
+
+        this.renderLeadsTable(leads);
+    }
+
+    calculateIncentives(approvedN, cancelRate) {
+        let total = 0;
+        const isHighPerf = cancelRate < 25; 
+        if (approvedN >= 1) total += 50; 
+        if (approvedN >= 8) total += (isHighPerf ? 50 : 30);
+        return total;
+    }
+
+    renderLeadsTable(leads) {
+        const body = document.getElementById('leads-table-body');
+        if (body) body.innerHTML = leads.map(l => `
+            <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4 font-bold text-gray-900">${l['Homeowner Name(s)'] || 'N/A'}</td>
+                <td class="px-6 py-4">${l['Date Submitted'] || 'N/A'}</td>
+                <td class="px-6 py-4 text-orange-600 font-bold">${l.Status || 'Pending'}</td>
+                <td class="px-6 py-4">${l.Address || 'N/A'}</td>
+            </tr>
+        `).join('');
+    }
+
+    updateProfileUI() {
+        if (!this.currentUser) return;
+        const map = {
+            'profileName': this.currentUser.name,
+            'profileEmail': this.currentUser.email,
+            'nav-user-name': this.currentUser.name
+        };
+        for (const [id, val] of Object.entries(map)) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
+        }
+    }
+
+    async login(email, password) {
+        try {
+            const response = await fetch(this.webhooks.login, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ email, password }) 
+            });
+            const result = await response.json();
+            if (result.status === "success") {
+                // Critical: Save the 'Employee Name' from the sheet to our local session
+                const userObj = { 
+                    name: result.user['Employee Name'] || result.user.name,
+                    role: result.user.Role || result.user.role,
+                    email: email 
+                };
+                this.currentUser = userObj;
+                localStorage.setItem('callHammerSession', JSON.stringify({ 
+                    user: userObj, 
+                    expiresAt: Date.now() + 86400000 
+                }));
+                window.location.href = userObj.role === 'admin' ? 'admin-dashboard.html' : 'agent-dashboard.html';
+            } else { 
+                alert(result.message || "Login failed"); 
+            }
+        } catch (err) { 
+            alert("Login failed: Network error"); 
+        }
+    }
+
+    checkExistingSession() {
+        const session = localStorage.getItem('callHammerSession');
+        if (session) {
+            const data = JSON.parse(session);
+            if (data.expiresAt > Date.now()) this.currentUser = data.user;
+        }
+    }
+
+    bindEvents() {
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const data = new FormData(loginForm);
+                await this.login(data.get('email'), data.get('password'));
+            });
+        }
+    }
+
+    formatCurrency(val) { 
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val); 
+    }
+
+    logout() { 
+        localStorage.removeItem('callHammerSession'); 
+        window.location.href = 'index.html'; 
+    }
+}
+
+const portal = new CallHammerPortal();
+window.portal = portal;
