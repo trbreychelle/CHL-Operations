@@ -5,6 +5,7 @@ class CallHammerPortal {
         this.leadsData = [];
         this.filteredLeads = [];
         this.currentFilter = 'this-week';
+        this.charts = null; 
 
         this.webhooks = {
             login: 'https://automate.callhammerleads.com/webhook/agent-login',
@@ -25,7 +26,6 @@ class CallHammerPortal {
         }
     }
 
-    // --- DATA FETCHING & FILTERING ---
     async fetchAllData() {
         if (!this.currentUser) return;
         try {
@@ -76,7 +76,6 @@ class CallHammerPortal {
         this.updateDashboardUI(this.filteredLeads);
     }
 
-    // --- DASHBOARD UI UPDATES ---
     updateDashboardUI(leads) {
         const getVal = (obj, key) => {
             const foundKey = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
@@ -95,12 +94,10 @@ class CallHammerPortal {
         const cancelRate = totalRaw > 0 ? ((cancelledCount / totalRaw) * 100).toFixed(1) : 0;
         const incentives = this.calculateIncentives(approvedCount, parseFloat(cancelRate));
 
-        // Update Stat Cards
         document.getElementById('stat-appointments').textContent = totalRaw;
         document.getElementById('stat-cancel-rate').textContent = `${cancelRate}%`;
         document.getElementById('stat-incentives').textContent = this.formatCurrency(incentives);
         
-        // Update Progress Bar
         const progressBar = document.getElementById('tier-progress-bar');
         if (progressBar) {
             let nextGoal = approvedCount < 6 ? 6 : approvedCount < 8 ? 8 : approvedCount < 12 ? 12 : 15;
@@ -109,46 +106,96 @@ class CallHammerPortal {
         }
 
         this.renderLeadsTable(leads);
+        this.updateCharts(leads); 
     }
 
-    // --- RENDER LEAD LIST (With Status) ---
+    // Swapped Homeowner Name and Date Submitted, removed Address
     renderLeadsTable(leads) {
         const body = document.getElementById('leads-table-body');
+        const statusFilter = document.getElementById('status-filter')?.value || 'all';
         if (!body) return;
-        body.innerHTML = leads.map(l => `
-            <tr class="hover:bg-gray-50">
+
+        const filtered = statusFilter === 'all' 
+            ? leads 
+            : leads.filter(l => (l.Status || '').toLowerCase() === statusFilter.toLowerCase());
+
+        body.innerHTML = filtered.map(l => `
+            <tr class="hover:bg-gray-50 transition-colors">
                 <td class="px-6 py-4 font-bold text-gray-900">${l['Homeowner Name(s)'] || 'N/A'}</td>
-                <td class="px-6 py-4">${l['Date Submitted'] || 'N/A'}</td>
-                <td class="px-6 py-4 text-orange-600 font-bold">${l.Status || 'Pending Review'}</td>
-                <td class="px-6 py-4 text-xs text-gray-500">${l.Address || 'N/A'}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">${l['Date Submitted'] || 'N/A'}</td>
+                <td class="px-6 py-4">
+                    <span class="px-3 py-1 rounded-full text-xs font-bold ${this.getStatusStyle(l.Status)}">
+                        ${l.Status || 'Pending Review'}
+                    </span>
+                </td>
             </tr>
         `).join('');
     }
 
-    // --- INCENTIVE CALCULATION (Exact Tiers) ---
+    getStatusStyle(status) {
+        const s = (status || '').toLowerCase();
+        if (s === 'approved') return 'bg-green-100 text-green-700';
+        if (s.includes('reject') || s.includes('cancel')) return 'bg-red-100 text-red-700';
+        return 'bg-orange-100 text-orange-700';
+    }
+
+    // --- CHART LOGIC ---
+    initCharts() {
+        const appChartEl = document.getElementById('appointmentsChart');
+        const incChartEl = document.getElementById('incentivesChart');
+        if (appChartEl && incChartEl) {
+            this.charts = {
+                appointments: echarts.init(appChartEl),
+                incentives: echarts.init(incChartEl)
+            };
+        }
+    }
+
+    updateCharts(leads) {
+        if (!this.charts) this.initCharts();
+        if (!this.charts) return;
+
+        const dateGroups = leads.reduce((acc, lead) => {
+            const date = lead['Date Submitted'] || 'N/A';
+            acc[date] = (acc[date] || 0) + 1;
+            return acc;
+        }, {});
+
+        const sortedDates = Object.keys(dateGroups).sort((a, b) => new Date(a) - new Date(b)).slice(-7);
+        const appointmentCounts = sortedDates.map(date => dateGroups[date]);
+        const incentiveProjection = appointmentCounts.map(count => count * 50); 
+
+        this.charts.appointments.setOption({
+            tooltip: { trigger: 'axis' },
+            xAxis: { type: 'category', data: sortedDates },
+            yAxis: { type: 'value' },
+            series: [{ data: appointmentCounts, type: 'bar', itemStyle: { color: '#FF6B35' } }]
+        });
+
+        this.charts.incentives.setOption({
+            tooltip: { trigger: 'axis' },
+            xAxis: { type: 'category', data: sortedDates },
+            yAxis: { type: 'value' },
+            series: [{ data: incentiveProjection, type: 'line', smooth: true, lineStyle: { color: '#FF8C61' }, areaStyle: { color: 'rgba(255, 140, 97, 0.1)' } }]
+        });
+    }
+
     calculateIncentives(approvedN, cancelRate) {
         let total = 0;
         const isHighPerf = cancelRate < 25; 
-
-        if (approvedN >= 1) total += 50; // 1st - 6th Apt Tier
-        if (approvedN >= 8) total += (isHighPerf ? 50 : 30); // 8th Apt Tier
-        
-        // 9th - 12th Apt Tier
+        if (approvedN >= 1) total += 50; 
+        if (approvedN >= 8) total += (isHighPerf ? 50 : 30);
         if (approvedN >= 9) {
             const extra = Math.min(approvedN, 12) - 8;
             total += extra * (isHighPerf ? 17 : 15);
         }
-        
-        // 13th & Above Tier
         if (approvedN >= 13) {
             const extra = approvedN - 12;
             total += extra * (isHighPerf ? 27 : 25);
         }
-
         return total;
     }
 
-    // --- PROFILE & SESSION (PRESERVED) ---
     updateProfileUI() {
         if (!this.currentUser) return;
         const map = {
@@ -207,9 +254,29 @@ class CallHammerPortal {
                 await this.login(data.get('email'), data.get('password'));
             });
         }
+        
+        // Navigation View Switcher logic
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const href = item.getAttribute('href');
+                if (href && href.startsWith('#')) {
+                    const targetId = 'view-' + href.substring(1);
+                    document.querySelectorAll('.dashboard-view').forEach(v => v.classList.add('hidden'));
+                    document.getElementById(targetId)?.classList.remove('hidden');
+                    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+                }
+            });
+        });
+
         const filterSelect = document.getElementById('timeframe-filter');
         if (filterSelect) {
             filterSelect.addEventListener('change', (e) => this.handleFilterChange(e.target.value));
+        }
+
+        const statusFilter = document.getElementById('status-filter');
+        if (statusFilter) {
+            statusFilter.addEventListener('change', () => this.renderLeadsTable(this.filteredLeads));
         }
     }
 
