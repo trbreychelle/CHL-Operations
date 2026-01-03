@@ -1,20 +1,16 @@
-// Call Hammer Leads - Unified Application Logic (Agent & Admin)
+// Call Hammer Leads - Unified Application Logic
 class CallHammerPortal {
     constructor() {
         this.currentUser = null;
         this.leadsData = [];
         this.filteredLeads = [];
-        this.isLoading = false;
         this.currentFilter = 'this-week';
 
         this.webhooks = {
-            login: 'https://automate.callhammerleads.com/webhook/agent-login', 
-            // Ensure this matches your n8n Production URL
-            fetchData: 'https://automate.callhammerleads.com/webhook-test/fetch-agent-data', 
-            fetchAdminData: 'https://automate.callhammerleads.com/webhook/fetch-admin-dashboard',
+            login: 'https://automate.callhammerleads.com/webhook/agent-login',
+            fetchData: 'https://automate.callhammerleads.com/webhook-test/fetch-agent-data',
             timeOffRequest: 'https://automate.callhammerleads.com/webhook/timeoff-request',
-            changePassword: 'https://automate.callhammerleads.com/webhook/change-password',
-            resetPassword: 'https://automate.callhammerleads.com/webhook/reset-password'
+            changePassword: 'https://automate.callhammerleads.com/webhook/change-password'
         };
         this.init();
     }
@@ -23,39 +19,19 @@ class CallHammerPortal {
         this.checkExistingSession();
         this.bindEvents();
 
-        if (this.currentUser && (window.location.pathname.includes('dashboard'))) {
-            if (this.currentUser.role !== 'admin') {
-                this.fetchAllData();
-                this.updateProfileUI();
-            }
+        if (this.currentUser && window.location.pathname.includes('dashboard')) {
+            this.fetchAllData();
+            this.updateProfileUI();
         }
     }
 
-    async fetchAdminDashboardData(timeframe) {
-        if (!this.currentUser || this.currentUser.role !== 'admin') return;
-        try {
-            const response = await fetch(this.webhooks.fetchAdminData, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    email: this.currentUser.email,
-                    timeframe: timeframe 
-                })
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('Admin Sync Error:', error);
-            return { status: "error", message: "Network error" };
-        }
-    }
-
+    // --- DATA FETCHING & FILTERING ---
     async fetchAllData() {
         if (!this.currentUser) return;
         try {
             const response = await fetch(this.webhooks.fetchData, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                // Important: Sending 'name' to n8n so it can filter 'Appointment Coordinator Name'
                 body: JSON.stringify({ 
                     email: this.currentUser.email,
                     name: this.currentUser.name 
@@ -74,43 +50,57 @@ class CallHammerPortal {
     handleFilterChange(value) {
         this.currentFilter = value;
         const now = new Date();
-        const startOfDay = new Date(now.setHours(0, 0, 0, 0));
-        
+        now.setHours(0, 0, 0, 0);
+
         this.filteredLeads = this.leadsData.filter(lead => {
+            if (value === 'all-time') return true;
             const dateStr = lead['Date Submitted'] || lead['Appointment Date /Time'];
             if (!dateStr) return false;
-            
-            const submittedDate = new Date(dateStr);
-            const diffDays = (startOfDay - submittedDate) / (1000 * 60 * 60 * 24);
 
-            if (value === 'this-week') {
-                const day = startOfDay.getDay(); 
-                const diff = startOfDay.getDate() - day + (day == 0 ? -6 : 1); 
-                const monday = new Date(new Date().setDate(diff));
-                monday.setHours(0,0,0,0);
-                return submittedDate >= monday;
+            const itemDate = new Date(dateStr);
+            const diffDays = (now - itemDate) / (1000 * 60 * 60 * 24);
+
+            switch(value) {
+                case 'this-week':
+                    const day = now.getDay();
+                    const diff = now.getDate() - day + (day == 0 ? -6 : 1);
+                    const monday = new Date(new Date().setDate(diff));
+                    monday.setHours(0,0,0,0);
+                    return itemDate >= monday;
+                case '30-days': return diffDays <= 30;
+                case '4-weeks': return diffDays <= 28;
+                case '6-weeks': return diffDays <= 42;
+                default: return true;
             }
-            if (value === 'last-30-days') return diffDays <= 30;
-            return true;
         });
         this.updateDashboardUI(this.filteredLeads);
     }
 
+    // --- DASHBOARD UI UPDATES ---
     updateDashboardUI(leads) {
+        const getVal = (obj, key) => {
+            const foundKey = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
+            return foundKey ? (obj[foundKey] || '') : '';
+        };
+
         const totalRaw = leads.length;
-        const approvedCount = leads.filter(l => (l.Status || '').toLowerCase() === 'approved').length;
-        const cancelled = leads.filter(l => {
-            const s = (l.Status || '').toLowerCase();
+        const approvedLeads = leads.filter(l => getVal(l, 'Status').toString().toLowerCase() === 'approved');
+        const approvedCount = approvedLeads.length;
+        
+        const cancelledCount = leads.filter(l => {
+            const s = getVal(l, 'Status').toString().toLowerCase();
             return s.includes('cancel') || s.includes('credited') || s.includes('rejected');
         }).length;
 
-        const rate = totalRaw > 0 ? ((cancelled / totalRaw) * 100).toFixed(1) : 0;
-        const incentives = this.calculateIncentives(approvedCount, parseFloat(rate));
+        const cancelRate = totalRaw > 0 ? ((cancelledCount / totalRaw) * 100).toFixed(1) : 0;
+        const incentives = this.calculateIncentives(approvedCount, parseFloat(cancelRate));
 
-        if (document.getElementById('stat-appointments')) document.getElementById('stat-appointments').textContent = totalRaw;
-        if (document.getElementById('stat-cancel-rate')) document.getElementById('stat-cancel-rate').textContent = `${rate}%`;
-        if (document.getElementById('stat-incentives')) document.getElementById('stat-incentives').textContent = this.formatCurrency(incentives);
+        // Update Stat Cards
+        document.getElementById('stat-appointments').textContent = totalRaw;
+        document.getElementById('stat-cancel-rate').textContent = `${cancelRate}%`;
+        document.getElementById('stat-incentives').textContent = this.formatCurrency(incentives);
         
+        // Update Progress Bar
         const progressBar = document.getElementById('tier-progress-bar');
         if (progressBar) {
             let nextGoal = approvedCount < 6 ? 6 : approvedCount < 8 ? 8 : approvedCount < 12 ? 12 : 15;
@@ -121,31 +111,53 @@ class CallHammerPortal {
         this.renderLeadsTable(leads);
     }
 
-    calculateIncentives(approvedN, cancelRate) {
-        let total = 0;
-        const isHighPerf = cancelRate < 25; 
-        if (approvedN >= 1) total += 50; 
-        if (approvedN >= 8) total += (isHighPerf ? 50 : 30);
-        return total;
-    }
-
+    // --- RENDER LEAD LIST (With Status) ---
     renderLeadsTable(leads) {
         const body = document.getElementById('leads-table-body');
-        if (body) body.innerHTML = leads.map(l => `
+        if (!body) return;
+        body.innerHTML = leads.map(l => `
             <tr class="hover:bg-gray-50">
                 <td class="px-6 py-4 font-bold text-gray-900">${l['Homeowner Name(s)'] || 'N/A'}</td>
                 <td class="px-6 py-4">${l['Date Submitted'] || 'N/A'}</td>
-                <td class="px-6 py-4 text-orange-600 font-bold">${l.Status || 'Pending'}</td>
-                <td class="px-6 py-4">${l.Address || 'N/A'}</td>
+                <td class="px-6 py-4 text-orange-600 font-bold">${l.Status || 'Pending Review'}</td>
+                <td class="px-6 py-4 text-xs text-gray-500">${l.Address || 'N/A'}</td>
             </tr>
         `).join('');
     }
 
+    // --- INCENTIVE CALCULATION (Exact Tiers) ---
+    calculateIncentives(approvedN, cancelRate) {
+        let total = 0;
+        const isHighPerf = cancelRate < 25; 
+
+        if (approvedN >= 1) total += 50; // 1st - 6th Apt Tier
+        if (approvedN >= 8) total += (isHighPerf ? 50 : 30); // 8th Apt Tier
+        
+        // 9th - 12th Apt Tier
+        if (approvedN >= 9) {
+            const extra = Math.min(approvedN, 12) - 8;
+            total += extra * (isHighPerf ? 17 : 15);
+        }
+        
+        // 13th & Above Tier
+        if (approvedN >= 13) {
+            const extra = approvedN - 12;
+            total += extra * (isHighPerf ? 27 : 25);
+        }
+
+        return total;
+    }
+
+    // --- PROFILE & SESSION (PRESERVED) ---
     updateProfileUI() {
         if (!this.currentUser) return;
         const map = {
             'profileName': this.currentUser.name,
             'profileEmail': this.currentUser.email,
+            'profilePosition': this.currentUser.role,
+            'profileRate': this.formatCurrency(this.currentUser.baseRate || 0),
+            'profileHours': this.currentUser.weeklyHours || 'N/A',
+            'profileStartDate': this.currentUser.startDate || 'N/A',
             'nav-user-name': this.currentUser.name
         };
         for (const [id, val] of Object.entries(map)) {
@@ -163,24 +175,19 @@ class CallHammerPortal {
             });
             const result = await response.json();
             if (result.status === "success") {
-                // Critical: Save the 'Employee Name' from the sheet to our local session
                 const userObj = { 
                     name: result.user['Employee Name'] || result.user.name,
                     role: result.user.Role || result.user.role,
-                    email: email 
+                    email: email,
+                    baseRate: result.user['Base Rate'],
+                    weeklyHours: result.user['Weekly Hours'],
+                    startDate: result.user['Start Date']
                 };
                 this.currentUser = userObj;
-                localStorage.setItem('callHammerSession', JSON.stringify({ 
-                    user: userObj, 
-                    expiresAt: Date.now() + 86400000 
-                }));
+                localStorage.setItem('callHammerSession', JSON.stringify({ user: userObj, expiresAt: Date.now() + 86400000 }));
                 window.location.href = userObj.role === 'admin' ? 'admin-dashboard.html' : 'agent-dashboard.html';
-            } else { 
-                alert(result.message || "Login failed"); 
-            }
-        } catch (err) { 
-            alert("Login failed: Network error"); 
-        }
+            } else { alert(result.message || "Login failed"); }
+        } catch (err) { alert("Login failed: Network error"); }
     }
 
     checkExistingSession() {
@@ -200,11 +207,13 @@ class CallHammerPortal {
                 await this.login(data.get('email'), data.get('password'));
             });
         }
+        const filterSelect = document.getElementById('timeframe-filter');
+        if (filterSelect) {
+            filterSelect.addEventListener('change', (e) => this.handleFilterChange(e.target.value));
+        }
     }
 
-    formatCurrency(val) { 
-        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val); 
-    }
+    formatCurrency(val) { return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val); }
 
     logout() { 
         localStorage.removeItem('callHammerSession'); 
