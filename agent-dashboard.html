@@ -9,34 +9,39 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { font-family: 'Inter', sans-serif; }
-        .progress-bar { background: linear-gradient(90deg, #FF6B35 0%, #FF8C61 100%); transition: width 1s ease-in-out; }
-        .metric-card { background: linear-gradient(135deg, rgba(255, 107, 53, 0.05) 0%, rgba(255, 140, 97, 0.02) 100%); transition: all 0.3s ease; }
-        .metric-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(255, 107, 53, 0.1); }
-        .sidebar { background: linear-gradient(180deg, #2D3748 0%, #1A202C 100%); }
-        .nav-item { transition: all 0.3s ease; cursor: pointer; }
-        .nav-item:hover, .nav-item.active { background: rgba(255, 107, 53, 0.1); border-left: 4px solid #FF6B35; color: #FF6B35; }
+        /* Yellow Dominant (#FBBF24) and Dark Grey (#1F2937) Branding */
+        .progress-bar { background: linear-gradient(90deg, #FBBF24 0%, #F59E0B 100%); transition: width 1s ease-in-out; }
+        .metric-card { background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(31, 41, 55, 0.02) 100%); transition: all 0.3s ease; }
+        .metric-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(251, 191, 36, 0.15); }
+        .sidebar { background: linear-gradient(180deg, #374151 0%, #111827 100%); }
+        .nav-item { transition: all 0.3s ease; cursor: pointer; color: #D1D5DB; }
+        .nav-item:hover, .nav-item.active { background: rgba(251, 191, 36, 0.15); border-left: 4px solid #FBBF24; color: #FBBF24; }
         .chart-container { min-height: 350px; width: 100%; }
         .dashboard-view { display: none; }
         .dashboard-view.active { display: block; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* Calendar Range Styling */
-        .calendar-day { transition: all 0.2s ease; position: relative; }
-        .calendar-day:not(.disabled):hover { background-color: #FFF7ED; color: #FF6B35; border-color: #FF6B35; }
-        .calendar-day.selected { background-color: #FF6B35 !important; color: white !important; font-weight: bold; border-radius: 50%; }
-        .calendar-day.in-range { background-color: #FFedd5 !important; color: #ea580c !important; border-radius: 0; }
+        /* Calendly-style Range Selection */
+        .calendar-day { transition: all 0.2s ease; position: relative; border: 1px solid #F3F4F6; }
+        .calendar-day:not(.disabled):hover { background-color: #FEF3C7; color: #B45309; border-color: #FBBF24; }
+        .calendar-day.selected { background-color: #FBBF24 !important; color: #1F2937 !important; font-weight: bold; border-radius: 50%; border-color: #1F2937; }
+        .calendar-day.in-range { background-color: #FEF3C7 !important; color: #92400E !important; border-radius: 0; }
+        
+        /* Sidebar History Scrollbar */
+        #timeoff-history-list::-webkit-scrollbar { width: 4px; }
+        #timeoff-history-list::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 10px; }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gray-50 min-h-screen text-gray-800">
     <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center space-x-4">
                     <div class="flex items-center space-x-2">
-                        <div class="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
-                            <span class="text-white font-bold text-sm">CH</span>
+                        <div class="w-8 h-8 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-lg flex items-center justify-center">
+                            <span class="text-gray-900 font-bold text-sm">CH</span>
                         </div>
-                        <span class="text-xl font-bold text-gray-900">Agent Dashboard</span>
+                        <span class="text-xl font-bold text-gray-900 tracking-tight">Agent Dashboard</span>
                     </div>
                 </div>
                 <div class="flex items-center space-x-4">
@@ -44,7 +49,7 @@
                         <p class="text-sm font-medium text-gray-900" id="nav-user-name">Loading...</p>
                         <p class="text-xs text-gray-500" id="nav-user-role">Agent</p>
                     </div>
-                    <button onclick="portal.logout()" class="text-gray-600 hover:text-orange-600 transition-colors">
+                    <button onclick="portal.logout()" class="text-gray-400 hover:text-yellow-600 transition-colors">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                     </button>
                 </div>
@@ -55,18 +60,19 @@
     <div class="flex">
         <div class="sidebar w-64 min-h-screen text-white p-6 hidden lg:block">
             <nav class="space-y-2">
-                <a href="#overview" class="nav-item active flex items-center space-x-3 px-4 py-3 rounded-lg"><span>Performance Overview</span></a>
-                <a href="#leads" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg"><span>My Leads</span></a>
-                <a href="#profile" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg"><span>Profile Info</span></a>
-                <a href="#timeoff" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg"><span>Request Time Off</span></a>
+                <a href="#overview" class="nav-item active flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Performance Overview</span></a>
+                <a href="#leads" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>My Leads</span></a>
+                <a href="#profile" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Profile Info</span></a>
+                <a href="#timeoff" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Request Time Off</span></a>
             </nav>
         </div>
 
-        <div class="flex-1 p-6">
+        <div class="flex-1 p-6 lg:p-10">
+            
             <div id="view-overview" class="dashboard-view active">
-                <div class="flex justify-between items-center mb-6">
+                <div class="flex justify-between items-center mb-8">
                     <h1 class="text-3xl font-bold text-gray-900">Performance Overview</h1>
-                    <select id="timeframe-filter" class="p-2 border rounded-lg bg-white shadow-sm text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+                    <select id="timeframe-filter" class="p-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-sm focus:ring-2 focus:ring-yellow-400 outline-none">
                         <option value="this-week">Current Week</option>
                         <option value="30-days">Last 30 Days</option>
                         <option value="4-weeks">Last 4 Weeks</option>
@@ -76,104 +82,104 @@
                 </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-                        <h3 class="text-sm font-medium text-gray-600 mb-1">Total Appointments</h3>
-                        <p class="text-2xl font-bold text-gray-900" id="stat-appointments">0</p>
+                    <div class="metric-card bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Appointments</h3>
+                        <p class="text-3xl font-bold text-gray-900" id="stat-appointments">0</p>
                     </div>
-                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-                        <h3 class="text-sm font-medium text-gray-600 mb-1">Cancellation Rate</h3>
-                        <p class="text-2xl font-bold text-gray-900" id="stat-cancel-rate">0%</p>
+                    <div class="metric-card bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Cancellation Rate</h3>
+                        <p class="text-3xl font-bold text-gray-900" id="stat-cancel-rate">0%</p>
                     </div>
-                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-                        <h3 class="text-sm font-medium text-gray-600 mb-1">Total Incentives</h3>
-                        <p class="text-2xl font-bold text-gray-900" id="stat-incentives">$0.00</p>
+                    <div class="metric-card bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Incentives</h3>
+                        <p class="text-3xl font-bold text-yellow-600" id="stat-incentives">$0.00</p>
                     </div>
-                    <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-                        <h3 class="text-sm font-medium text-gray-600 mb-1">Weekly Hours</h3>
-                        <p class="text-2xl font-bold text-gray-900" id="stat-hours">0</p>
+                    <div class="metric-card bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Weekly Hours</h3>
+                        <p class="text-3xl font-bold text-gray-900" id="stat-hours">0</p>
                     </div>
                 </div>
 
-                <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-8">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Incentive Tier Progress</h3>
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4">Incentive Tier Progress</h3>
                     <div class="space-y-4">
                         <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-600" id="tier-status-text">Tier 1 (Loading...)</span>
-                            <span class="text-sm font-medium text-gray-900" id="tier-count-display">0 / 6 approved appointments</span>
+                            <span class="text-sm font-medium text-gray-500" id="tier-status-text">Tier 1 Loading...</span>
+                            <span class="text-sm font-bold text-gray-900" id="tier-count-display">0 / 6 approved appointments</span>
                         </div>
-                        <div class="w-full bg-gray-200 rounded-full h-3">
-                            <div id="tier-progress-bar" class="progress-bar h-3 rounded-full" style="width: 0%"></div>
+                        <div class="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
+                            <div id="tier-progress-bar" class="progress-bar h-full rounded-full" style="width: 0%"></div>
                         </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="bg-white rounded-xl shadow-lg p-6">
-                        <h3 class="text-lg font-semibold mb-4 text-gray-900">Weekly Appointment Trends</h3>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                        <h3 class="text-lg font-bold mb-6 text-gray-900">Weekly Appointment Trends</h3>
                         <div id="appointmentsChart" class="chart-container"></div>
                     </div>
-                    <div class="bg-white rounded-xl shadow-lg p-6">
-                        <h3 class="text-lg font-semibold mb-4 text-gray-900">Incentive Earning Trends</h3>
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                        <h3 class="text-lg font-bold mb-6 text-gray-900">Incentive Earning Trends</h3>
                         <div id="incentivesChart" class="chart-container"></div>
                     </div>
                 </div>
             </div>
 
             <div id="view-leads" class="dashboard-view">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900">My Submitted Leads</h2>
-                    <select id="status-filter" class="p-2 border rounded-lg bg-white shadow-sm text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+                <div class="flex justify-between items-center mb-8">
+                    <h2 class="text-3xl font-bold text-gray-900">My Submitted Leads</h2>
+                    <select id="status-filter" class="p-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-sm focus:ring-2 focus:ring-yellow-400 outline-none">
                         <option value="all">All Statuses</option>
                         <option value="approved">Approved</option>
                         <option value="pending review">Pending Review</option>
                         <option value="rejected">Rejected</option>
                     </select>
                 </div>
-                <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Date Submitted</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Homeowner Name</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Date Submitted</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Homeowner Name</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
                             </tr>
                         </thead>
-                        <tbody id="leads-table-body" class="bg-white divide-y divide-gray-200"></tbody>
+                        <tbody id="leads-table-body" class="bg-white divide-y divide-gray-100"></tbody>
                     </table>
                 </div>
             </div>
 
             <div id="view-profile" class="dashboard-view">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6">Profile Information</h2>
-                <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-1">Full Name</h3><p class="text-lg font-semibold text-gray-900" id="profileName">Loading...</p></div>
-                        <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-1">Position</h3><p class="text-lg font-semibold text-gray-900" id="profilePosition">Loading...</p></div>
-                        <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-1">Email Address</h3><p class="text-lg font-semibold text-gray-900" id="profileEmail">Loading...</p></div>
-                        <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-1">Base Rate</h3><p class="text-lg font-semibold text-gray-900" id="profileRate">Loading...</p></div>
-                        <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-1">Weekly Hours</h3><p class="text-lg font-semibold text-gray-900" id="profileHours">Loading...</p></div>
-                        <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-1">Start Date</h3><p class="text-lg font-semibold text-gray-900" id="profileStartDate">Loading...</p></div>
+                <h2 class="text-3xl font-bold text-gray-900 mb-8">Profile Information</h2>
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+                        <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Full Name</h3><p class="text-xl font-bold text-gray-900" id="profileName">Loading...</p></div>
+                        <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Position</h3><p class="text-xl font-bold text-gray-900" id="profilePosition">Loading...</p></div>
+                        <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Email Address</h3><p class="text-xl font-bold text-gray-900" id="profileEmail">Loading...</p></div>
+                        <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Base Rate</h3><p class="text-xl font-bold text-yellow-600" id="profileRate">Loading...</p></div>
+                        <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Weekly Hours</h3><p class="text-xl font-bold text-gray-900" id="profileHours">Loading...</p></div>
+                        <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Start Date</h3><p class="text-xl font-bold text-gray-900" id="profileStartDate">Loading...</p></div>
                     </div>
 
-                    <div class="mt-12 border-t border-gray-100 pt-8">
+                    <div class="mt-16 border-t border-gray-100 pt-10">
                         <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                            <svg class="w-6 h-6 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138z" /></svg>
+                            <svg class="w-6 h-6 mr-3 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138z" /></svg>
                             Incentive Structure Reference
                         </h3>
-                        <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
+                        <div class="overflow-hidden rounded-2xl border border-gray-200 shadow-sm bg-white">
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Appointment Range</th>
-                                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Standard Bonus</th>
-                                        <th class="px-6 py-4 text-left text-xs font-bold text-orange-600 uppercase tracking-wider bg-orange-50">High Perf. (<25% Cancel)</th>
+                                        <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Appointment Range</th>
+                                        <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Standard Bonus</th>
+                                        <th class="px-6 py-4 text-left text-[10px] font-bold text-yellow-700 uppercase tracking-widest bg-yellow-50">High Perf. (<25% Cancel)</th>
                                     </tr>
                                 </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">
-                                    <tr><td class="px-6 py-4 text-sm font-semibold text-gray-900">1st - 6th Apt</td><td class="px-6 py-4 text-sm text-gray-600">$50 (Flat)</td><td class="px-6 py-4 text-sm font-bold text-orange-600 bg-orange-50/30">$50 (Flat)</td></tr>
-                                    <tr><td class="px-6 py-4 text-sm font-semibold text-gray-900">8th Apt</td><td class="px-6 py-4 text-sm text-gray-600">$30 (Flat)</td><td class="px-6 py-4 text-sm font-bold text-orange-600 bg-orange-50/30">$50 (Flat)</td></tr>
-                                    <tr><td class="px-6 py-4 text-sm font-semibold text-gray-900">9th - 12th Apt</td><td class="px-6 py-4 text-sm text-gray-600">$15 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-orange-600 bg-orange-50/30">$17 (Per Apt)</td></tr>
-                                    <tr><td class="px-6 py-4 text-sm font-semibold text-gray-900">13th & Above</td><td class="px-6 py-4 text-sm text-gray-600">$25 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-orange-600 bg-orange-50/30">$27 (Per Apt)</td></tr>
+                                <tbody class="bg-white divide-y divide-gray-100">
+                                    <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">1st - 6th Apt</td><td class="px-6 py-4 text-sm text-gray-600">$50 (Flat)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$50 (Flat)</td></tr>
+                                    <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">8th Apt</td><td class="px-6 py-4 text-sm text-gray-600">$30 (Flat)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$50 (Flat)</td></tr>
+                                    <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">9th - 12th Apt</td><td class="px-6 py-4 text-sm text-gray-600">$15 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$17 (Per Apt)</td></tr>
+                                    <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">13th & Above</td><td class="px-6 py-4 text-sm text-gray-600">$25 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$27 (Per Apt)</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -186,9 +192,9 @@
                     <h2 class="text-3xl font-bold text-gray-900 mb-2">Request Time Off</h2>
                     <p class="text-gray-500 mb-8 text-lg">Select a range (Start and End date) to request leave.</p>
                     
-                    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
                         <div class="lg:col-span-1 bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
-                            <h3 class="text-sm font-bold text-gray-400 uppercase mb-4 tracking-widest">My Requests</h3>
+                            <h3 class="text-xs font-bold text-gray-400 uppercase mb-6 tracking-widest">My Request History</h3>
                             <div id="timeoff-history-list" class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
                                 <p class="text-xs text-gray-400 italic">No history found.</p>
                             </div>
@@ -196,30 +202,30 @@
 
                         <div class="lg:col-span-3 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col md:flex-row">
                             <div class="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-gray-100 p-8 bg-gray-50/50">
-                                <div class="w-12 h-12 bg-orange-500 rounded-lg mb-6 flex items-center justify-center">
-                                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                <div class="w-12 h-12 bg-yellow-500 rounded-xl mb-6 flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                                 </div>
-                                <h3 class="text-xl font-bold text-gray-900 mb-2">Range Selection</h3>
-                                <div id="range-preview" class="hidden space-y-4">
-                                    <div><p class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Start Date</p><p class="text-sm font-semibold text-orange-600" id="display-start-date">--</p></div>
-                                    <div><p class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">End Date</p><p class="text-sm font-semibold text-orange-600" id="display-end-date">--</p></div>
-                                    <button id="btn-submit-timeoff" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl hover:bg-orange-700 transition-all shadow-lg shadow-orange-200">Submit Request</button>
+                                <h3 class="text-xl font-bold text-gray-900 mb-4 tracking-tighter">Range Selection</h3>
+                                <div id="range-preview" class="hidden space-y-6">
+                                    <div><p class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Start Date</p><p class="text-sm font-bold text-yellow-600" id="display-start-date">--</p></div>
+                                    <div><p class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">End Date</p><p class="text-sm font-bold text-yellow-600" id="display-end-date">--</p></div>
+                                    <button id="btn-submit-timeoff" class="w-full bg-yellow-500 text-gray-900 font-bold py-4 rounded-xl hover:bg-yellow-600 transition-all shadow-lg shadow-yellow-100">Submit Request</button>
                                 </div>
-                                <p id="range-hint" class="text-sm text-gray-400">Select a start date on the calendar, then an end date to create a range.</p>
+                                <p id="range-hint" class="text-sm text-gray-400 leading-relaxed italic">Click a start date, then an end date on the calendar to select your range.</p>
                             </div>
 
                             <div class="flex-1 p-8">
                                 <div class="flex items-center justify-between mb-8">
                                     <h4 class="text-xl font-bold text-gray-900" id="calendar-month-year">January 2026</h4>
                                     <div class="flex space-x-2">
-                                        <button onclick="changeMonth(-1)" class="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
-                                        <button onclick="changeMonth(1)" class="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
+                                        <button onclick="changeMonth(-1)" class="p-2 hover:bg-gray-100 rounded-full text-gray-400"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
+                                        <button onclick="changeMonth(1)" class="p-2 hover:bg-gray-100 rounded-full text-gray-400"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
                                     </div>
                                 </div>
-                                <div class="grid grid-cols-7 gap-4 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">
+                                <div class="grid grid-cols-7 gap-4 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-6">
                                     <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
                                 </div>
-                                <div id="calendar-grid" class="grid grid-cols-7 gap-1 text-center"></div>
+                                <div id="calendar-grid" class="grid grid-cols-7 gap-2 text-center"></div>
                             </div>
                         </div>
                     </div>
@@ -240,6 +246,8 @@
                 document.querySelectorAll('.dashboard-view').forEach(view => view.classList.remove('active'));
                 const targetView = document.getElementById(targetId);
                 if (targetView) targetView.classList.add('active');
+                
+                // Triggers chart resize on toggle to prevent display issues
                 if (targetId === 'view-overview') {
                     setTimeout(() => { portal.charts?.appointments?.resize(); portal.charts?.incentives?.resize(); }, 100);
                 }
@@ -261,23 +269,19 @@
             
             monthYearLabel.innerText = `${months[currentMonth]} ${currentYear}`;
             grid.innerHTML = '';
-
-            for (let i = 0; i < firstDay; i++) {
-                grid.appendChild(document.createElement('div'));
-            }
+            for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
 
             const today = new Date(); today.setHours(0,0,0,0);
 
             for (let day = 1; day <= daysInMonth; day++) {
                 const dateObj = new Date(currentYear, currentMonth, day);
                 const dayEl = document.createElement('div');
-                dayEl.className = "calendar-day w-9 h-9 flex items-center justify-center border border-gray-50 rounded-full cursor-pointer text-xs font-medium mx-auto";
+                dayEl.className = "calendar-day w-10 h-10 flex items-center justify-center border border-gray-50 rounded-full cursor-pointer text-xs font-semibold mx-auto";
                 dayEl.innerText = day;
 
                 if (dateObj < today) {
                     dayEl.classList.add('text-gray-200', 'cursor-not-allowed', 'disabled');
                 } else {
-                    // Check selection state
                     if (rangeStart && dateObj.getTime() === rangeStart.getTime()) dayEl.classList.add('selected');
                     if (rangeEnd && dateObj.getTime() === rangeEnd.getTime()) dayEl.classList.add('selected');
                     if (rangeStart && rangeEnd && dateObj > rangeStart && dateObj < rangeEnd) dayEl.classList.add('in-range');
@@ -319,8 +323,9 @@
 
         renderCalendar();
 
+        // Connect the "Confirm & Submit" click event to the main.js function
         document.getElementById('btn-submit-timeoff').onclick = async () => {
-            if (!rangeStart || !rangeEnd) return alert("Please select a range.");
+            if (!rangeStart || !rangeEnd) return alert("Please select a range first.");
             const success = await portal.submitTimeOffRequest({
                 startDate: rangeStart.toISOString().split('T')[0],
                 endDate: rangeEnd.toISOString().split('T')[0],
@@ -330,6 +335,7 @@
                 alert('Request Sent Successfully!');
                 rangeStart = null; rangeEnd = null;
                 updateRangeUI(); renderCalendar();
+                portal.fetchAllData(); // Triggers refresh to show new request in history sidebar
             }
         };
     </script>
