@@ -45,7 +45,7 @@
         .performance-badge.medium { background-color: #F3F4F6; color: #374151; }
         .performance-badge.low { background-color: #FEE2E2; color: #991B1B; }
         .payroll-table { max-height: 600px; overflow-y: auto; }
-        .hidden { display: none; }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -62,7 +62,7 @@
                         <p class="text-xs text-gray-500 uppercase font-bold" id="adminRole">System Admin</p>
                     </div>
                     <button onclick="portal.logout()" class="text-gray-400 hover:text-yellow-600">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke-width="2" stroke-linecap="round"></path></svg>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke-width="2" stroke-linecap="round" stroke="currentColor"></path></svg>
                     </button>
                 </div>
             </div>
@@ -84,10 +84,9 @@
             <div class="mb-6 flex justify-between items-center">
                 <h1 class="text-3xl font-bold text-gray-900">Team Insights</h1>
                 <select id="timeFrameFilter" class="px-4 py-2 border rounded-lg bg-white shadow-sm focus:ring-2 focus:ring-yellow-400 outline-none">
-                    <option value="current_week">Current Week</option>
-                    <option value="last_30_days">Last 30 Days</option>
-                    <option value="last_4_weeks">Last 4 Weeks</option>
-                    <option value="last_6_weeks">Last 6 Weeks</option>
+                    <option value="this-week">Current Week</option>
+                    <option value="30-days">Last 30 Days</option>
+                    <option value="all-time">All Time</option>
                 </select>
             </div>
 
@@ -112,11 +111,11 @@
 
             <div id="performance" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 scroll-mt-20">
                 <div class="bg-white rounded-xl shadow-sm border p-6">
-                    <h3 class="text-lg font-bold mb-4">Top 10 Performers</h3>
+                    <h3 class="text-lg font-bold mb-4">Top Performers</h3>
                     <div id="topPerformersChart" class="chart-container"></div>
                 </div>
                 <div class="bg-white rounded-xl shadow-sm border p-6">
-                    <h3 class="text-lg font-bold mb-4">Bottom 5 Performers</h3>
+                    <h3 class="text-lg font-bold mb-4">Needs Attention</h3>
                     <div id="bottomPerformersChart" class="chart-container"></div>
                 </div>
             </div>
@@ -129,9 +128,9 @@
                             <thead class="bg-gray-50 text-left border-b">
                                 <tr>
                                     <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Employee</th>
-                                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Base Pay</th>
+                                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Hourly Rate</th>
                                     <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Incentives</th>
-                                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Total Pay</th>
+                                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Employment</th>
                                     <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Status</th>
                                 </tr>
                             </thead>
@@ -139,7 +138,7 @@
                         </table>
                     </div>
                     <div class="mt-6 pt-6 border-t flex justify-between items-center">
-                        <span class="text-lg font-bold">Total Payroll Estimate</span>
+                        <span class="text-lg font-bold">Total Managed Incentives</span>
                         <span class="text-2xl font-bold text-yellow-600" id="totalPayrollAmount">$0</span>
                     </div>
                 </div>
@@ -173,7 +172,7 @@
                     </div>
                     <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Base Rate ($)</label><input type="number" name="baseRate" value="10" class="w-full p-3 border rounded-lg"></div>
                 </div>
-                <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Team Leader Email (Required for Agents)</label><input type="email" name="managerEmail" placeholder="leave blank if Admin/TL" class="w-full p-3 border rounded-lg"></div>
+                <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Team Leader Email</label><input type="email" name="managerEmail" placeholder="leave blank if Admin/TL" class="w-full p-3 border rounded-lg"></div>
                 <div class="flex space-x-3 pt-4">
                     <button type="button" onclick="closeAddEmployeeModal()" class="flex-1 p-4 bg-gray-100 rounded-xl font-bold text-gray-500 hover:bg-gray-200">Cancel</button>
                     <button type="submit" class="flex-1 p-4 bg-yellow-400 rounded-xl font-bold text-gray-900 hover:bg-yellow-500">Create Account</button>
@@ -187,7 +186,8 @@
         class AdminDashboard {
             constructor() {
                 this.agentsData = [];
-                this.currentTimeFrame = 'current_week';
+                this.employeeList = [];
+                this.currentTimeFrame = 'this-week';
                 this.init();
             }
 
@@ -203,9 +203,7 @@
                 if (session) {
                     const s = JSON.parse(session);
                     document.getElementById('adminName').textContent = s.user.name;
-                    document.getElementById('adminRole').textContent = s.user.role.replace('_', ' ');
-                    
-                    // Multi-Admin Access Check
+                    document.getElementById('adminRole').textContent = s.user.role.replace('_', ' ').toUpperCase();
                     if (s.user.role === 'admin') {
                         document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
                     }
@@ -214,52 +212,66 @@
 
             async refreshDashboard() {
                 if (typeof portal === 'undefined') return;
-                const result = await portal.fetchAllData(); // Triggers global fetch in main.js
                 
-                // Portal should store the leads and employeeList globally
+                // Triggers fetch from n8n
+                await portal.fetchAllData(); 
+                
+                // Pull data from the portal class
                 this.agentsData = portal.leadsData || [];
+                this.employeeList = portal.employeeList || [];
+                
                 const summary = this.calculateSummary(this.agentsData);
                 
-                document.getElementById('activeAgents').textContent = portal.employeeList ? portal.employeeList.length : '...';
+                document.getElementById('activeAgents').textContent = this.employeeList.length;
                 document.getElementById('totalTeamAppointments').textContent = summary.total.toLocaleString();
                 document.getElementById('avgCancellationRate').textContent = `${summary.cancelRate}%`;
                 document.getElementById('totalTeamIncentives').textContent = portal.formatCurrency(summary.incentives);
                 
-                this.updatePayrollTable(portal.employeeList || []);
-                this.updateEmployeeCards(portal.employeeList || []);
+                this.updatePayrollTable();
+                this.updateEmployeeCards();
                 this.initializeCharts();
             }
 
             calculateSummary(leads) {
                 const total = leads.length;
-                const cancelled = leads.filter(l => (l.Status||'').toLowerCase().includes('cancel')).length;
+                // Count any lead with "cancel", "rejected", or "declined"
+                const cancelled = leads.filter(l => {
+                    const s = (l.Status || '').toLowerCase();
+                    return s.includes('cancel') || s.includes('reject') || s.includes('declined');
+                }).length;
                 const rate = total > 0 ? ((cancelled / total) * 100).toFixed(1) : 0;
-                // Simple team incentive sum logic
-                return { total, cancelRate: rate, incentives: total * 50 }; 
+                
+                // Aggregated incentives for the managed group
+                const totalIncentives = leads.filter(l => (l.Status||'').toLowerCase() === 'approved').length * 50; 
+                return { total, cancelRate: rate, incentives: totalIncentives }; 
             }
 
-            updatePayrollTable(employees) {
+            updatePayrollTable() {
                 const tbody = document.getElementById('payrollTableBody');
                 if (!tbody) return;
                 tbody.innerHTML = '';
-                let totalPool = 0;
+                let totalIncentivePool = 0;
 
-                employees.forEach(emp => {
+                this.employeeList.forEach(emp => {
+                    // Match agent names in RAW LEADS to employee list names
+                    const agentLeads = this.agentsData.filter(l => 
+                        l['Appointment Coordinator Name'] === emp['Employee Name'] && 
+                        (l.Status||'').toLowerCase() === 'approved'
+                    );
+                    
+                    const incentives = agentLeads.length * 50;
+                    totalIncentivePool += incentives;
+
                     const row = document.createElement('tr');
                     row.className = 'hover:bg-gray-50';
-                    const basePay = parseFloat(emp['Base Rate']) || 0;
-                    const estimatedIncentives = 150; // Mock until linked to leads
-                    const total = basePay + estimatedIncentives;
-                    totalPool += total;
-
                     row.innerHTML = `
                         <td class="px-6 py-4">
                             <div class="text-sm font-bold text-gray-900">${emp['Employee Name']}</div>
                             <div class="text-xs text-gray-400">${emp.Email}</div>
                         </td>
-                        <td class="px-6 py-4 text-sm font-medium text-gray-600">${portal.formatCurrency(basePay)}</td>
-                        <td class="px-6 py-4 text-sm font-medium text-yellow-600">${portal.formatCurrency(estimatedIncentives)}</td>
-                        <td class="px-6 py-4 text-sm font-bold text-gray-900">${portal.formatCurrency(total)}</td>
+                        <td class="px-6 py-4 text-sm font-medium text-gray-600">${portal.formatCurrency(emp['Base Rate'] || 0)}</td>
+                        <td class="px-6 py-4 text-sm font-bold text-yellow-600">${portal.formatCurrency(incentives)}</td>
+                        <td class="px-6 py-4 text-xs font-bold uppercase text-gray-500">${emp.Role}</td>
                         <td class="px-6 py-4">
                             <span class="performance-badge ${emp.Employment_Status === 'Offboarded' ? 'low' : 'high'}">
                                 ${(emp.Employment_Status || 'Active').toUpperCase()}
@@ -268,17 +280,17 @@
                     `;
                     tbody.appendChild(row);
                 });
-                document.getElementById('totalPayrollAmount').textContent = portal.formatCurrency(totalPool);
+                document.getElementById('totalPayrollAmount').textContent = portal.formatCurrency(totalIncentivePool);
             }
 
-            updateEmployeeCards(employees) {
+            updateEmployeeCards() {
                 const container = document.getElementById('employeeCards');
                 if (!container) return;
                 container.innerHTML = '';
-                employees.forEach(emp => {
+                this.employeeList.forEach(emp => {
                     const card = document.createElement('div');
                     card.className = 'bg-white border rounded-xl p-6 hover:shadow-lg transition-shadow';
-                    const initials = emp['Employee Name'].split(' ').map(n => n[0]).join('');
+                    const initials = emp['Employee Name'] ? emp['Employee Name'].split(' ').map(n => n[0]).join('') : '??';
                     
                     card.innerHTML = `
                         <div class="flex items-center justify-between mb-6">
@@ -291,7 +303,7 @@
                             </div>
                         </div>
                         <div class="space-y-3 mb-6">
-                            <div class="flex justify-between"><span class="text-xs text-gray-500">Manager:</span><span class="text-xs font-bold">${emp.Manager_Email || 'System Admin'}</span></div>
+                            <div class="flex justify-between"><span class="text-xs text-gray-500">Managed By:</span><span class="text-xs font-bold">${emp.Manager_Email || 'Global Admin'}</span></div>
                             <div class="flex justify-between"><span class="text-xs text-gray-500">Hourly Rate:</span><span class="text-xs font-bold text-yellow-600">${portal.formatCurrency(emp['Base Rate'])}</span></div>
                         </div>
                         <div class="flex space-x-2 pt-4 border-t">
@@ -301,41 +313,40 @@
                     `;
                     container.appendChild(card);
                 });
-                this.loadAdminProfile(); // Re-trigger hide/show
+                this.loadAdminProfile(); // Ensure reassign buttons show for admins
             }
 
             initializeCharts() {
-                this.initTopPerformersChart();
-                this.initBottomPerformersChart();
+                // Group real leads by coordinator name
+                const grouping = this.agentsData.reduce((acc, lead) => {
+                    const name = lead['Appointment Coordinator Name'] || 'Unknown';
+                    acc[name] = (acc[name] || 0) + 1;
+                    return acc;
+                }, {});
+
+                const sorted = Object.entries(grouping).sort((a, b) => b[1] - a[1]);
+                const top = sorted.slice(0, 10);
+                const bottom = [...sorted].reverse().slice(0, 5);
+
+                this.renderChart('topPerformersChart', top, '#FBBF24');
+                this.renderChart('bottomPerformersChart', bottom, '#374151');
             }
 
-            initTopPerformersChart() {
-                const chartDom = document.getElementById('topPerformersChart');
+            renderChart(id, data, color) {
+                const chartDom = document.getElementById(id);
                 if (!chartDom) return;
                 const myChart = echarts.init(chartDom);
                 myChart.setOption({
                     tooltip: { trigger: 'axis' },
                     xAxis: { type: 'value', axisLine: { show: false } },
-                    yAxis: { type: 'category', data: ['Agent A', 'Agent B', 'Agent C'].reverse() },
-                    series: [{ name: 'Appointments', data: [12, 10, 8].reverse(), type: 'bar', itemStyle: { color: '#FBBF24', borderRadius: [0, 4, 4, 0] } }]
-                });
-            }
-
-            initBottomPerformersChart() {
-                const chartDom = document.getElementById('bottomPerformersChart');
-                if (!chartDom) return;
-                const myChart = echarts.init(chartDom);
-                myChart.setOption({
-                    tooltip: { trigger: 'axis' },
-                    xAxis: { type: 'value', axisLine: { show: false } },
-                    yAxis: { type: 'category', data: ['Agent X', 'Agent Y'].reverse() },
-                    series: [{ name: 'Appointments', data: [2, 1].reverse(), type: 'bar', itemStyle: { color: '#374151', borderRadius: [0, 4, 4, 0] } }]
+                    yAxis: { type: 'category', data: data.map(a => a[0].split(' ')[0]).reverse() },
+                    series: [{ name: 'Leads', data: data.map(a => a[1]).reverse(), type: 'bar', itemStyle: { color: color, borderRadius: [0, 4, 4, 0] } }]
                 });
             }
 
             bindEvents() {
                 document.getElementById('timeFrameFilter').addEventListener('change', (e) => {
-                    this.currentTimeFrame = e.target.value;
+                    portal.currentFilter = e.target.value;
                     this.refreshDashboard();
                 });
                 
@@ -357,7 +368,8 @@
                         document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
                         item.classList.add('active');
                         const targetId = item.getAttribute('href').substring(1);
-                        document.getElementById(targetId).scrollIntoView({ behavior: 'smooth' });
+                        const targetEl = document.getElementById(targetId);
+                        if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth' });
                     });
                 });
             }
