@@ -1,377 +1,179 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Management Dashboard - Call Hammer Leads</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        * { font-family: 'Inter', sans-serif; }
-        /* Branding: Yellow Dominant (#FBBF24) and Dark Grey (#1F2937) */
-        .metric-card {
-            background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(31, 41, 55, 0.02) 100%);
-            transition: all 0.3s ease;
+<script>
+    class AdminDashboard {
+        constructor() {
+            this.agentsData = [];
+            this.currentTimeFrame = 'current_week';
+            this.init();
         }
-        .metric-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(251, 191, 36, 0.2);
+
+        async init() {
+            this.loadAdminProfile();
+            // Data is fetched automatically by portal.init() in main.js
+            this.bindEvents();
+            this.animateElements();
         }
-        .btn-primary {
-            background-color: #FBBF24;
-            color: #1F2937;
-            transition: all 0.3s ease;
-        }
-        .btn-primary:hover { background-color: #F59E0B; }
-        .sidebar { background: linear-gradient(180deg, #1F2937 0%, #111827 100%); }
-        .nav-item { transition: all 0.3s ease; cursor: pointer; color: #D1D5DB; }
-        .nav-item:hover, .nav-item.active {
-            background: rgba(251, 191, 36, 0.15);
-            border-left: 4px solid #FBBF24;
-            color: #FBBF24;
-        }
-        .chart-container { min-height: 400px; }
-        .performance-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: bold;
-        }
-        .performance-badge.high { background-color: #FEF3C7; color: #92400E; }
-        .performance-badge.medium { background-color: #F3F4F6; color: #374151; }
-        .performance-badge.low { background-color: #FEE2E2; color: #991B1B; }
-        .payroll-table { max-height: 600px; overflow-y: auto; }
-        .hidden { display: none; }
-    </style>
-</head>
-<body class="bg-gray-50 min-h-screen">
-    <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <div class="flex items-center space-x-2">
-                    <div class="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center text-gray-900 font-bold text-sm">CH</div>
-                    <span class="text-xl font-bold text-gray-900">Management Dashboard</span>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <div class="text-right">
-                        <p class="text-sm font-medium text-gray-900" id="adminName">Loading...</p>
-                        <p class="text-xs text-gray-500 uppercase font-bold" id="adminRole">System Admin</p>
-                    </div>
-                    <button onclick="portal.logout()" class="text-gray-400 hover:text-yellow-600">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke-width="2" stroke-linecap="round"></path></svg>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </nav>
 
-    <div class="flex">
-        <div class="sidebar w-64 min-h-screen text-white p-6 hidden lg:block">
-            <nav class="space-y-2">
-                <a href="#overview" class="nav-item active flex items-center space-x-3 px-4 py-3 rounded-lg">Overview</a>
-                <a href="#performance" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg">Team Performance</a>
-                <a href="#payroll" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg">Payroll</a>
-                <a href="#employees" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg">Employees</a>
-                <button onclick="openAddEmployeeModal()" class="admin-only hidden w-full text-left px-4 py-3 mt-10 hover:bg-gray-700 rounded-lg text-yellow-400 font-bold border border-yellow-400/30">Add Employee</button>
-            </nav>
-        </div>
-
-        <div class="flex-1 p-6">
-            <div class="mb-6 flex justify-between items-center">
-                <h1 class="text-3xl font-bold text-gray-900">Team Insights</h1>
-                <select id="timeFrameFilter" class="px-4 py-2 border rounded-lg bg-white shadow-sm focus:ring-2 focus:ring-yellow-400 outline-none">
-                    <option value="current_week">Current Week</option>
-                    <option value="last_30_days">Last 30 Days</option>
-                    <option value="last_4_weeks">Last 4 Weeks</option>
-                    <option value="last_6_weeks">Last 6 Weeks</option>
-                </select>
-            </div>
-
-            <div id="overview" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div class="metric-card bg-white p-6 rounded-xl border">
-                    <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Managed Agents</h3>
-                    <p class="text-3xl font-bold text-gray-900" id="activeAgents">0</p>
-                </div>
-                <div class="metric-card bg-white p-6 rounded-xl border">
-                    <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Appointments</h3>
-                    <p class="text-3xl font-bold text-gray-900" id="totalTeamAppointments">0</p>
-                </div>
-                <div class="metric-card bg-white p-6 rounded-xl border">
-                    <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Avg Cancel Rate</h3>
-                    <p class="text-3xl font-bold text-gray-900" id="avgCancellationRate">0%</p>
-                </div>
-                <div class="metric-card bg-white p-6 rounded-xl border">
-                    <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Team Incentives</h3>
-                    <p class="text-3xl font-bold text-yellow-600" id="totalTeamIncentives">$0</p>
-                </div>
-            </div>
-
-            <div id="performance" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 scroll-mt-20">
-                <div class="bg-white rounded-xl shadow-sm border p-6">
-                    <h3 class="text-lg font-bold mb-4">Top 10 Performers</h3>
-                    <div id="topPerformersChart" class="chart-container"></div>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm border p-6">
-                    <h3 class="text-lg font-bold mb-4">Bottom 5 Performers</h3>
-                    <div id="bottomPerformersChart" class="chart-container"></div>
-                </div>
-            </div>
-
-            <div id="payroll" class="mb-8 scroll-mt-20">
-                <h2 class="text-2xl font-bold mb-6">Payroll Summary</h2>
-                <div class="bg-white rounded-xl shadow-sm border p-6">
-                    <div class="payroll-table">
-                        <table class="w-full">
-                            <thead class="bg-gray-50 text-left border-b">
-                                <tr>
-                                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Employee</th>
-                                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Base Pay</th>
-                                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Incentives</th>
-                                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Total Pay</th>
-                                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="payrollTableBody" class="divide-y"></tbody>
-                        </table>
-                    </div>
-                    <div class="mt-6 pt-6 border-t flex justify-between items-center">
-                        <span class="text-lg font-bold">Total Payroll Estimate</span>
-                        <span class="text-2xl font-bold text-yellow-600" id="totalPayrollAmount">$0</span>
-                    </div>
-                </div>
-            </div>
-
-            <div id="employees" class="scroll-mt-20">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold">Employee Roster</h2>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="employeeCards"></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="addEmployeeModal" class="fixed inset-0 bg-black/60 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
-            <div class="bg-yellow-400 p-6">
-                <h3 class="text-xl font-bold text-gray-900">Add New Team Member</h3>
-                <p class="text-sm text-gray-800">Assign a name, email, and management role.</p>
-            </div>
-            <form id="addEmpForm" class="p-8 space-y-4">
-                <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Full Name</label><input type="text" name="name" required class="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-yellow-400"></div>
-                <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Email Address</label><input type="email" name="email" required class="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-yellow-400"></div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Role</label>
-                        <select name="role" class="w-full p-3 border rounded-lg">
-                            <option value="agent">Agent</option>
-                            <option value="team_leader">Team Leader</option>
-                            <option value="admin">System Admin</option>
-                        </select>
-                    </div>
-                    <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Base Rate ($)</label><input type="number" name="baseRate" value="10" class="w-full p-3 border rounded-lg"></div>
-                </div>
-                <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Team Leader Email (Required for Agents)</label><input type="email" name="managerEmail" placeholder="leave blank if Admin/TL" class="w-full p-3 border rounded-lg"></div>
-                <div class="flex space-x-3 pt-4">
-                    <button type="button" onclick="closeAddEmployeeModal()" class="flex-1 p-4 bg-gray-100 rounded-xl font-bold text-gray-500 hover:bg-gray-200">Cancel</button>
-                    <button type="submit" class="flex-1 p-4 bg-yellow-400 rounded-xl font-bold text-gray-900 hover:bg-yellow-500">Create Account</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script src="main.js"></script>
-    <script>
-        class AdminDashboard {
-            constructor() {
-                this.agentsData = [];
-                this.currentTimeFrame = 'current_week';
-                this.init();
-            }
-
-            async init() {
-                this.loadAdminProfile();
-                await this.refreshDashboard();
-                this.bindEvents();
-                this.animateElements();
-            }
-
-            loadAdminProfile() {
-                const session = localStorage.getItem('callHammerSession');
-                if (session) {
-                    const s = JSON.parse(session);
-                    document.getElementById('adminName').textContent = s.user.name;
-                    document.getElementById('adminRole').textContent = s.user.role.replace('_', ' ');
-                    
-                    // Multi-Admin Access Check
-                    if (s.user.role === 'admin') {
-                        document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
-                    }
+        loadAdminProfile() {
+            const session = localStorage.getItem('callHammerSession');
+            if (session) {
+                const s = JSON.parse(session);
+                document.getElementById('adminName').textContent = s.user.name;
+                document.getElementById('adminRole').textContent = s.user.role.replace('_', ' ').toUpperCase();
+                
+                if (s.user.role === 'admin') {
+                    document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
                 }
             }
-
-            async refreshDashboard() {
-                if (typeof portal === 'undefined') return;
-                const result = await portal.fetchAllData(); // Triggers global fetch in main.js
-                
-                // Portal should store the leads and employeeList globally
-                this.agentsData = portal.leadsData || [];
-                const summary = this.calculateSummary(this.agentsData);
-                
-                document.getElementById('activeAgents').textContent = portal.employeeList ? portal.employeeList.length : '...';
-                document.getElementById('totalTeamAppointments').textContent = summary.total.toLocaleString();
-                document.getElementById('avgCancellationRate').textContent = `${summary.cancelRate}%`;
-                document.getElementById('totalTeamIncentives').textContent = portal.formatCurrency(summary.incentives);
-                
-                this.updatePayrollTable(portal.employeeList || []);
-                this.updateEmployeeCards(portal.employeeList || []);
-                this.initializeCharts();
-            }
-
-            calculateSummary(leads) {
-                const total = leads.length;
-                const cancelled = leads.filter(l => (l.Status||'').toLowerCase().includes('cancel')).length;
-                const rate = total > 0 ? ((cancelled / total) * 100).toFixed(1) : 0;
-                // Simple team incentive sum logic
-                return { total, cancelRate: rate, incentives: total * 50 }; 
-            }
-
-            updatePayrollTable(employees) {
-                const tbody = document.getElementById('payrollTableBody');
-                if (!tbody) return;
-                tbody.innerHTML = '';
-                let totalPool = 0;
-
-                employees.forEach(emp => {
-                    const row = document.createElement('tr');
-                    row.className = 'hover:bg-gray-50';
-                    const basePay = parseFloat(emp['Base Rate']) || 0;
-                    const estimatedIncentives = 150; // Mock until linked to leads
-                    const total = basePay + estimatedIncentives;
-                    totalPool += total;
-
-                    row.innerHTML = `
-                        <td class="px-6 py-4">
-                            <div class="text-sm font-bold text-gray-900">${emp['Employee Name']}</div>
-                            <div class="text-xs text-gray-400">${emp.Email}</div>
-                        </td>
-                        <td class="px-6 py-4 text-sm font-medium text-gray-600">${portal.formatCurrency(basePay)}</td>
-                        <td class="px-6 py-4 text-sm font-medium text-yellow-600">${portal.formatCurrency(estimatedIncentives)}</td>
-                        <td class="px-6 py-4 text-sm font-bold text-gray-900">${portal.formatCurrency(total)}</td>
-                        <td class="px-6 py-4">
-                            <span class="performance-badge ${emp.Employment_Status === 'Offboarded' ? 'low' : 'high'}">
-                                ${(emp.Employment_Status || 'Active').toUpperCase()}
-                            </span>
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-                });
-                document.getElementById('totalPayrollAmount').textContent = portal.formatCurrency(totalPool);
-            }
-
-            updateEmployeeCards(employees) {
-                const container = document.getElementById('employeeCards');
-                if (!container) return;
-                container.innerHTML = '';
-                employees.forEach(emp => {
-                    const card = document.createElement('div');
-                    card.className = 'bg-white border rounded-xl p-6 hover:shadow-lg transition-shadow';
-                    const initials = emp['Employee Name'].split(' ').map(n => n[0]).join('');
-                    
-                    card.innerHTML = `
-                        <div class="flex items-center justify-between mb-6">
-                            <div class="flex items-center space-x-4">
-                                <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-700 font-bold">${initials}</div>
-                                <div>
-                                    <h3 class="font-bold text-gray-900">${emp['Employee Name']}</h3>
-                                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">${emp.Role}</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="space-y-3 mb-6">
-                            <div class="flex justify-between"><span class="text-xs text-gray-500">Manager:</span><span class="text-xs font-bold">${emp.Manager_Email || 'System Admin'}</span></div>
-                            <div class="flex justify-between"><span class="text-xs text-gray-500">Hourly Rate:</span><span class="text-xs font-bold text-yellow-600">${portal.formatCurrency(emp['Base Rate'])}</span></div>
-                        </div>
-                        <div class="flex space-x-2 pt-4 border-t">
-                            <button onclick="portal.offboardEmployee('${emp.Email}')" class="flex-1 text-[10px] font-bold text-red-500 hover:text-red-700 uppercase">Offboard</button>
-                            <button class="admin-only hidden flex-1 text-[10px] font-bold text-gray-400 hover:text-gray-900 uppercase">Reassign</button>
-                        </div>
-                    `;
-                    container.appendChild(card);
-                });
-                this.loadAdminProfile(); // Re-trigger hide/show
-            }
-
-            initializeCharts() {
-                this.initTopPerformersChart();
-                this.initBottomPerformersChart();
-            }
-
-            initTopPerformersChart() {
-                const chartDom = document.getElementById('topPerformersChart');
-                if (!chartDom) return;
-                const myChart = echarts.init(chartDom);
-                myChart.setOption({
-                    tooltip: { trigger: 'axis' },
-                    xAxis: { type: 'value', axisLine: { show: false } },
-                    yAxis: { type: 'category', data: ['Agent A', 'Agent B', 'Agent C'].reverse() },
-                    series: [{ name: 'Appointments', data: [12, 10, 8].reverse(), type: 'bar', itemStyle: { color: '#FBBF24', borderRadius: [0, 4, 4, 0] } }]
-                });
-            }
-
-            initBottomPerformersChart() {
-                const chartDom = document.getElementById('bottomPerformersChart');
-                if (!chartDom) return;
-                const myChart = echarts.init(chartDom);
-                myChart.setOption({
-                    tooltip: { trigger: 'axis' },
-                    xAxis: { type: 'value', axisLine: { show: false } },
-                    yAxis: { type: 'category', data: ['Agent X', 'Agent Y'].reverse() },
-                    series: [{ name: 'Appointments', data: [2, 1].reverse(), type: 'bar', itemStyle: { color: '#374151', borderRadius: [0, 4, 4, 0] } }]
-                });
-            }
-
-            bindEvents() {
-                document.getElementById('timeFrameFilter').addEventListener('change', (e) => {
-                    this.currentTimeFrame = e.target.value;
-                    this.refreshDashboard();
-                });
-                
-                document.getElementById('addEmpForm').onsubmit = async (e) => {
-                    e.preventDefault();
-                    const formData = new FormData(e.target);
-                    const data = Object.fromEntries(formData);
-                    const success = await portal.addEmployee(data);
-                    if (success) { 
-                        alert('Employee Added Successfully'); 
-                        closeAddEmployeeModal(); 
-                        this.refreshDashboard(); 
-                    }
-                };
-
-                document.querySelectorAll('.nav-item').forEach(item => {
-                    item.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-                        item.classList.add('active');
-                        const targetId = item.getAttribute('href').substring(1);
-                        document.getElementById(targetId).scrollIntoView({ behavior: 'smooth' });
-                    });
-                });
-            }
-
-            animateElements() {
-                anime({ targets: '.metric-card', opacity: [0, 1], translateY: [20, 0], delay: anime.stagger(100), easing: 'easeOutQuart' });
-            }
         }
 
-        let adminDashboard;
-        document.addEventListener('DOMContentLoaded', () => { adminDashboard = new AdminDashboard(); });
+        async refreshDashboard() {
+            if (typeof portal === 'undefined') return;
+            
+            this.agentsData = portal.leadsData || [];
+            const employees = portal.employeeList || [];
+            
+            const summary = this.calculateSummary(this.agentsData);
+            
+            document.getElementById('activeAgents').textContent = employees.length;
+            document.getElementById('totalTeamAppointments').textContent = this.agentsData.length;
+            document.getElementById('avgCancellationRate').textContent = `${summary.cancelRate}%`;
+            document.getElementById('totalTeamIncentives').textContent = portal.formatCurrency(summary.incentives);
+            
+            this.updatePayrollTable(employees);
+            this.updateEmployeeCards(employees);
+            this.initializeCharts();
+        }
 
-        function openAddEmployeeModal() { document.getElementById('addEmployeeModal').classList.remove('hidden'); }
-        function closeAddEmployeeModal() { document.getElementById('addEmployeeModal').classList.add('hidden'); }
-    </script>
-</body>
-</html>
+        calculateSummary(leads) {
+            const total = leads.length;
+            const cancelled = leads.filter(l => (l.Status || '').toLowerCase().includes('cancel')).length;
+            const rate = total > 0 ? ((cancelled / total) * 100).toFixed(1) : 0;
+            const approvedCount = leads.filter(l => (l.Status || '').toLowerCase() === 'approved').length;
+            
+            // Average incentive calculation (can be refined per agent)
+            return { total, cancelRate: rate, incentives: approvedCount * 50 }; 
+        }
+
+        updatePayrollTable(employees) {
+            const tbody = document.getElementById('payrollTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            let totalPool = 0;
+
+            employees.forEach(emp => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                
+                const baseRate = parseFloat(emp['Base Rate']) || 0;
+                // Get real incentives for this agent
+                const agentLeads = this.agentsData.filter(l => l.Agent === emp['Employee Name']);
+                const approvedLeads = agentLeads.filter(l => (l.Status || '').toLowerCase() === 'approved').length;
+                const agentIncentives = approvedLeads * 50; 
+                
+                const total = baseRate + agentIncentives;
+                totalPool += total;
+
+                row.innerHTML = `
+                    <td class="px-6 py-4">
+                        <div class="text-sm font-bold text-gray-900">${emp['Employee Name']}</div>
+                        <div class="text-xs text-gray-400">${emp.Email}</div>
+                    </td>
+                    <td class="px-6 py-4 text-sm font-medium text-gray-600">${portal.formatCurrency(baseRate)}</td>
+                    <td class="px-6 py-4 text-sm font-medium text-yellow-600">${portal.formatCurrency(agentIncentives)}</td>
+                    <td class="px-6 py-4 text-sm font-bold text-gray-900">${portal.formatCurrency(total)}</td>
+                    <td class="px-6 py-4">
+                        <span class="performance-badge ${emp.Employment_Status === 'Offboarded' ? 'low' : 'high'}">
+                            ${(emp.Employment_Status || 'Active').toUpperCase()}
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+            document.getElementById('totalPayrollAmount').textContent = portal.formatCurrency(totalPool);
+        }
+
+        updateEmployeeCards(employees) {
+            const container = document.getElementById('employeeCards');
+            if (!container) return;
+            container.innerHTML = '';
+            employees.forEach(emp => {
+                const card = document.createElement('div');
+                card.className = 'bg-white border rounded-xl p-6 hover:shadow-lg transition-shadow';
+                const initials = emp['Employee Name'].split(' ').map(n => n[0]).join('');
+                
+                card.innerHTML = `
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-700 font-bold">${initials}</div>
+                            <div>
+                                <h3 class="font-bold text-gray-900">${emp['Employee Name']}</h3>
+                                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">${emp.Role}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="space-y-3 mb-6">
+                        <div class="flex justify-between text-xs"><span class="text-gray-500">Manager:</span><span class="font-bold">${emp.Manager_Email || 'System Admin'}</span></div>
+                        <div class="flex justify-between text-xs"><span class="text-gray-500">Hourly Rate:</span><span class="font-bold text-yellow-600">${portal.formatCurrency(emp['Base Rate'])}</span></div>
+                    </div>
+                    <div class="flex space-x-2 pt-4 border-t">
+                        <button onclick="portal.offboardEmployee('${emp.Email}')" class="flex-1 text-[10px] font-bold text-red-500 hover:text-red-700 uppercase">Offboard</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        initializeCharts() {
+            // Logic to calculate top performers from this.agentsData
+            const counts = {};
+            this.agentsData.forEach(l => {
+                const name = l.Agent || 'Unknown';
+                counts[name] = (counts[name] || 0) + 1;
+            });
+            const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]).slice(0, 10);
+            
+            const chartDom = document.getElementById('topPerformersChart');
+            if (!chartDom) return;
+            const myChart = echarts.init(chartDom);
+            myChart.setOption({
+                tooltip: { trigger: 'axis' },
+                xAxis: { type: 'value' },
+                yAxis: { type: 'category', data: sorted.map(i => i[0]).reverse() },
+                series: [{ name: 'Appointments', data: sorted.map(i => i[1]).reverse(), type: 'bar', itemStyle: { color: '#FBBF24', borderRadius: [0, 4, 4, 0] } }]
+            });
+        }
+
+        bindEvents() {
+            document.getElementById('timeFrameFilter').addEventListener('change', (e) => {
+                portal.currentFilter = e.target.value;
+                portal.fetchAllData();
+            });
+            
+            document.getElementById('addEmpForm').onsubmit = async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const data = Object.fromEntries(formData);
+                const res = await fetch(portal.webhooks.manageEmployee, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'add', ...data })
+                });
+                if (res.ok) { 
+                    alert('Employee Added Successfully'); 
+                    closeAddEmployeeModal(); 
+                    portal.fetchAllData(); 
+                }
+            };
+        }
+
+        animateElements() {
+            anime({ targets: '.metric-card', opacity: [0, 1], translateY: [20, 0], delay: anime.stagger(100), easing: 'easeOutQuart' });
+        }
+    }
+
+    let adminDashboard;
+    document.addEventListener('DOMContentLoaded', () => { adminDashboard = new AdminDashboard(); window.adminDashboard = adminDashboard; });
+
+    function openAddEmployeeModal() { document.getElementById('addEmployeeModal').classList.remove('hidden'); }
+    function closeAddEmployeeModal() { document.getElementById('addEmployeeModal').classList.add('hidden'); }
+</script>
