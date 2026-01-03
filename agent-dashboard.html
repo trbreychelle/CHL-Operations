@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agent Dashboard - Call Hammer Leads</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -21,10 +20,11 @@
         .dashboard-view.active { display: block; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* Calendly-style styling */
-        .calendar-day { transition: all 0.2s ease; }
-        .calendar-day:not(.disabled):hover { background-color: #FFF7ED; color: #FF6B35; border-color: #FF6B35; transform: scale(1.05); }
-        .calendar-day.selected { background-color: #FF6B35 !important; color: white !important; border-color: #FF6B35 !important; font-weight: bold; }
+        /* Calendar Range Styling */
+        .calendar-day { transition: all 0.2s ease; position: relative; }
+        .calendar-day:not(.disabled):hover { background-color: #FFF7ED; color: #FF6B35; border-color: #FF6B35; }
+        .calendar-day.selected { background-color: #FF6B35 !important; color: white !important; font-weight: bold; border-radius: 50%; }
+        .calendar-day.in-range { background-color: #FFedd5 !important; color: #ea580c !important; border-radius: 0; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -109,11 +109,11 @@
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="bg-white rounded-xl shadow-lg p-6">
-                        <h3 class="text-lg font-semibold mb-4 text-gray-900">Weekly Appointments</h3>
+                        <h3 class="text-lg font-semibold mb-4 text-gray-900">Weekly Appointment Trends</h3>
                         <div id="appointmentsChart" class="chart-container"></div>
                     </div>
                     <div class="bg-white rounded-xl shadow-lg p-6">
-                        <h3 class="text-lg font-semibold mb-4 text-gray-900">Incentive Earnings</h3>
+                        <h3 class="text-lg font-semibold mb-4 text-gray-900">Incentive Earning Trends</h3>
                         <div id="incentivesChart" class="chart-container"></div>
                     </div>
                 </div>
@@ -154,44 +154,73 @@
                         <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-1">Weekly Hours</h3><p class="text-lg font-semibold text-gray-900" id="profileHours">Loading...</p></div>
                         <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-1">Start Date</h3><p class="text-lg font-semibold text-gray-900" id="profileStartDate">Loading...</p></div>
                     </div>
+
+                    <div class="mt-12 border-t border-gray-100 pt-8">
+                        <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                            <svg class="w-6 h-6 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138z" /></svg>
+                            Incentive Structure Reference
+                        </h3>
+                        <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Appointment Range</th>
+                                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Standard Bonus</th>
+                                        <th class="px-6 py-4 text-left text-xs font-bold text-orange-600 uppercase tracking-wider bg-orange-50">High Perf. (<25% Cancel)</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr><td class="px-6 py-4 text-sm font-semibold text-gray-900">1st - 6th Apt</td><td class="px-6 py-4 text-sm text-gray-600">$50 (Flat)</td><td class="px-6 py-4 text-sm font-bold text-orange-600 bg-orange-50/30">$50 (Flat)</td></tr>
+                                    <tr><td class="px-6 py-4 text-sm font-semibold text-gray-900">8th Apt</td><td class="px-6 py-4 text-sm text-gray-600">$30 (Flat)</td><td class="px-6 py-4 text-sm font-bold text-orange-600 bg-orange-50/30">$50 (Flat)</td></tr>
+                                    <tr><td class="px-6 py-4 text-sm font-semibold text-gray-900">9th - 12th Apt</td><td class="px-6 py-4 text-sm text-gray-600">$15 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-orange-600 bg-orange-50/30">$17 (Per Apt)</td></tr>
+                                    <tr><td class="px-6 py-4 text-sm font-semibold text-gray-900">13th & Above</td><td class="px-6 py-4 text-sm text-gray-600">$25 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-orange-600 bg-orange-50/30">$27 (Per Apt)</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <div id="view-timeoff" class="dashboard-view">
-                <div class="max-w-4xl mx-auto">
+                <div class="max-w-6xl mx-auto">
                     <h2 class="text-3xl font-bold text-gray-900 mb-2">Request Time Off</h2>
-                    <p class="text-gray-500 mb-8 text-lg">Select a date below to request leave.</p>
+                    <p class="text-gray-500 mb-8 text-lg">Select a range (Start and End date) to request leave.</p>
                     
-                    <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col md:flex-row min-h-[600px]">
-                        <div class="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-gray-100 p-8 bg-gray-50/50">
-                            <div class="w-12 h-12 bg-orange-500 rounded-lg mb-6 flex items-center justify-center">
-                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                            </div>
-                            <h3 class="text-xl font-bold text-gray-900 mb-2">Time Off Request</h3>
-                            <div class="flex items-center text-gray-600 mb-4">
-                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                <span>Full day leave</span>
-                            </div>
-                            <div id="selected-date-preview" class="hidden">
-                                <p class="text-sm font-bold text-gray-400 uppercase mb-1">Selected Date</p>
-                                <p class="text-lg font-semibold text-orange-600 mb-6" id="display-selected-date">None</p>
-                                <button id="btn-submit-timeoff" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl hover:bg-orange-700 transition-all shadow-lg shadow-orange-200">Confirm & Submit</button>
+                    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                        <div class="lg:col-span-1 bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+                            <h3 class="text-sm font-bold text-gray-400 uppercase mb-4 tracking-widest">My Requests</h3>
+                            <div id="timeoff-history-list" class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                                <p class="text-xs text-gray-400 italic">No history found.</p>
                             </div>
                         </div>
 
-                        <div class="flex-1 p-8">
-                            <div class="flex items-center justify-between mb-8">
-                                <h4 class="text-xl font-bold text-gray-900" id="calendar-month-year">January 2026</h4>
-                                <div class="flex space-x-2">
-                                    <button onclick="changeMonth(-1)" class="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
-                                    <button onclick="changeMonth(1)" class="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
+                        <div class="lg:col-span-3 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col md:flex-row">
+                            <div class="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-gray-100 p-8 bg-gray-50/50">
+                                <div class="w-12 h-12 bg-orange-500 rounded-lg mb-6 flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                                 </div>
-                            </div>
-                            <div class="grid grid-cols-7 gap-4 text-center text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
-                                <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
-                            </div>
-                            <div id="calendar-grid" class="grid grid-cols-7 gap-3 text-center">
+                                <h3 class="text-xl font-bold text-gray-900 mb-2">Range Selection</h3>
+                                <div id="range-preview" class="hidden space-y-4">
+                                    <div><p class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Start Date</p><p class="text-sm font-semibold text-orange-600" id="display-start-date">--</p></div>
+                                    <div><p class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">End Date</p><p class="text-sm font-semibold text-orange-600" id="display-end-date">--</p></div>
+                                    <button id="btn-submit-timeoff" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl hover:bg-orange-700 transition-all shadow-lg shadow-orange-200">Submit Request</button>
                                 </div>
+                                <p id="range-hint" class="text-sm text-gray-400">Select a start date on the calendar, then an end date to create a range.</p>
+                            </div>
+
+                            <div class="flex-1 p-8">
+                                <div class="flex items-center justify-between mb-8">
+                                    <h4 class="text-xl font-bold text-gray-900" id="calendar-month-year">January 2026</h4>
+                                    <div class="flex space-x-2">
+                                        <button onclick="changeMonth(-1)" class="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
+                                        <button onclick="changeMonth(1)" class="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-7 gap-4 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">
+                                    <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                                </div>
+                                <div id="calendar-grid" class="grid grid-cols-7 gap-1 text-center"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -201,7 +230,7 @@
 
     <script src="main.js"></script>
     <script>
-        // SPA ROUTING
+        // SPA Routing logic
         document.querySelectorAll('.nav-item').forEach(item => {
             item.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -211,14 +240,17 @@
                 document.querySelectorAll('.dashboard-view').forEach(view => view.classList.remove('active'));
                 const targetView = document.getElementById(targetId);
                 if (targetView) targetView.classList.add('active');
-                if (targetId === 'view-overview') setTimeout(() => { portal.charts?.appointments?.resize(); portal.charts?.incentives?.resize(); }, 100);
+                if (targetId === 'view-overview') {
+                    setTimeout(() => { portal.charts?.appointments?.resize(); portal.charts?.incentives?.resize(); }, 100);
+                }
             });
         });
 
-        // CALENDLY-STYLE INTERACTIVE CALENDAR
+        // Range Calendar Logic
         let currentMonth = new Date().getMonth();
         let currentYear = new Date().getFullYear();
-        let selectedDate = null;
+        let rangeStart = null;
+        let rangeEnd = null;
 
         function renderCalendar() {
             const grid = document.getElementById('calendar-grid');
@@ -231,31 +263,50 @@
             grid.innerHTML = '';
 
             for (let i = 0; i < firstDay; i++) {
-                const empty = document.createElement('div');
-                grid.appendChild(empty);
+                grid.appendChild(document.createElement('div'));
             }
 
-            const today = new Date();
-            today.setHours(0,0,0,0);
+            const today = new Date(); today.setHours(0,0,0,0);
 
             for (let day = 1; day <= daysInMonth; day++) {
                 const dateObj = new Date(currentYear, currentMonth, day);
                 const dayEl = document.createElement('div');
-                dayEl.className = "calendar-day w-10 h-10 flex items-center justify-center border border-gray-100 rounded-full cursor-pointer text-sm font-medium mx-auto";
+                dayEl.className = "calendar-day w-9 h-9 flex items-center justify-center border border-gray-50 rounded-full cursor-pointer text-xs font-medium mx-auto";
                 dayEl.innerText = day;
 
                 if (dateObj < today) {
-                    dayEl.classList.add('text-gray-300', 'cursor-not-allowed', 'disabled');
+                    dayEl.classList.add('text-gray-200', 'cursor-not-allowed', 'disabled');
                 } else {
+                    // Check selection state
+                    if (rangeStart && dateObj.getTime() === rangeStart.getTime()) dayEl.classList.add('selected');
+                    if (rangeEnd && dateObj.getTime() === rangeEnd.getTime()) dayEl.classList.add('selected');
+                    if (rangeStart && rangeEnd && dateObj > rangeStart && dateObj < rangeEnd) dayEl.classList.add('in-range');
+
                     dayEl.onclick = () => {
-                        document.querySelectorAll('.calendar-day').forEach(el => el.classList.remove('selected'));
-                        dayEl.classList.add('selected');
-                        selectedDate = dateObj;
-                        document.getElementById('selected-date-preview').classList.remove('hidden');
-                        document.getElementById('display-selected-date').innerText = dateObj.toDateString();
+                        if (!rangeStart || (rangeStart && rangeEnd)) {
+                            rangeStart = dateObj; rangeEnd = null;
+                        } else if (dateObj < rangeStart) {
+                            rangeStart = dateObj;
+                        } else {
+                            rangeEnd = dateObj;
+                        }
+                        updateRangeUI();
+                        renderCalendar();
                     };
                 }
                 grid.appendChild(dayEl);
+            }
+        }
+
+        function updateRangeUI() {
+            const preview = document.getElementById('range-preview');
+            const hint = document.getElementById('range-hint');
+            if (rangeStart) {
+                preview.classList.remove('hidden'); hint.classList.add('hidden');
+                document.getElementById('display-start-date').innerText = rangeStart.toDateString();
+                document.getElementById('display-end-date').innerText = rangeEnd ? rangeEnd.toDateString() : 'Select end date...';
+            } else {
+                preview.classList.add('hidden'); hint.classList.remove('hidden');
             }
         }
 
@@ -269,16 +320,16 @@
         renderCalendar();
 
         document.getElementById('btn-submit-timeoff').onclick = async () => {
-            if (!selectedDate) return;
+            if (!rangeStart || !rangeEnd) return alert("Please select a range.");
             const success = await portal.submitTimeOffRequest({
-                startDate: selectedDate.toISOString().split('T')[0],
-                endDate: selectedDate.toISOString().split('T')[0],
+                startDate: rangeStart.toISOString().split('T')[0],
+                endDate: rangeEnd.toISOString().split('T')[0],
                 reason: 'vacation'
             });
             if (success) {
                 alert('Request Sent Successfully!');
-                document.getElementById('selected-date-preview').classList.add('hidden');
-                document.querySelectorAll('.calendar-day').forEach(el => el.classList.remove('selected'));
+                rangeStart = null; rangeEnd = null;
+                updateRangeUI(); renderCalendar();
             }
         };
     </script>
