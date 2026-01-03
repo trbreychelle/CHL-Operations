@@ -10,26 +10,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { font-family: 'Inter', sans-serif; }
-        .progress-bar {
-            background: linear-gradient(90deg, #FF6B35 0%, #FF8C61 100%);
-            transition: width 1s ease-in-out;
-        }
-        .metric-card {
-            background: linear-gradient(135deg, rgba(255, 107, 53, 0.05) 0%, rgba(255, 140, 97, 0.02) 100%);
-            transition: all 0.3s ease;
-        }
-        .metric-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(255, 107, 53, 0.1);
-        }
-        .sidebar {
-            background: linear-gradient(180deg, #2D3748 0%, #1A202C 100%);
-        }
+        .progress-bar { background: linear-gradient(90deg, #FF6B35 0%, #FF8C61 100%); transition: width 1s ease-in-out; }
+        .metric-card { background: linear-gradient(135deg, rgba(255, 107, 53, 0.05) 0%, rgba(255, 140, 97, 0.02) 100%); transition: all 0.3s ease; }
+        .metric-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(255, 107, 53, 0.1); }
+        .sidebar { background: linear-gradient(180deg, #2D3748 0%, #1A202C 100%); }
         .nav-item { transition: all 0.3s ease; }
-        .nav-item:hover, .nav-item.active {
-            background: rgba(255, 107, 53, 0.1);
-            border-left: 4px solid #FF6B35;
-        }
+        .nav-item:hover, .nav-item.active { background: rgba(255, 107, 53, 0.1); border-left: 4px solid #FF6B35; }
         .chart-container { min-height: 300px; }
         .modal { backdrop-filter: blur(10px); }
     </style>
@@ -64,41 +50,40 @@
     <div class="flex">
         <div class="sidebar w-64 min-h-screen text-white p-6 hidden lg:block">
             <nav class="space-y-2">
-                <a href="#overview" class="nav-item active flex items-center space-x-3 px-4 py-3 rounded-lg">
-                    <span>Overview</span>
-                </a>
-                <a href="#performance" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg">
-                    <span>Performance</span>
-                </a>
-                <a href="#profile" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg">
-                    <span>Profile</span>
-                </a>
-                <button onclick="openTimeOffModal()" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
-                    <span>Request Time Off</span>
-                </button>
+                <a href="#overview" class="nav-item active flex items-center space-x-3 px-4 py-3 rounded-lg"><span>Overview</span></a>
+                <a href="#performance" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg"><span>Performance</span></a>
+                <a href="#leads" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg"><span>My Leads</span></a>
+                <a href="#profile" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg"><span>Profile</span></a>
+                <button onclick="openTimeOffModal()" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left"><span>Request Time Off</span></button>
             </nav>
         </div>
 
         <div class="flex-1 p-6">
             <div id="overview" class="mb-8">
-                <h1 class="text-3xl font-bold text-gray-900 mb-6">Performance Overview</h1>
+                <div class="flex justify-between items-center mb-6">
+                    <h1 class="text-3xl font-bold text-gray-900">Performance Overview</h1>
+                    <select id="timeframe-filter" class="p-2 border rounded-lg bg-white shadow-sm text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+                        <option value="this-week">Current Week</option>
+                        <option value="30-days">Last 30 Days</option>
+                        <option value="4-weeks">Last 4 Weeks</option>
+                        <option value="6-weeks">Last 6 Weeks</option>
+                        <option value="all-time">All Time Records</option>
+                    </select>
+                </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
                         <h3 class="text-sm font-medium text-gray-600 mb-1">Total Appointments</h3>
                         <p class="text-2xl font-bold text-gray-900" id="stat-appointments">0</p>
                     </div>
-
                     <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
                         <h3 class="text-sm font-medium text-gray-600 mb-1">Cancellation Rate</h3>
                         <p class="text-2xl font-bold text-gray-900" id="stat-cancel-rate">0%</p>
                     </div>
-
                     <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
                         <h3 class="text-sm font-medium text-gray-600 mb-1">Total Incentives</h3>
                         <p class="text-2xl font-bold text-gray-900" id="stat-incentives">$0</p>
                     </div>
-
                     <div class="metric-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
                         <h3 class="text-sm font-medium text-gray-600 mb-1">Weekly Hours</h3>
                         <p class="text-2xl font-bold text-gray-900" id="stat-hours">0</p>
@@ -130,6 +115,23 @@
                         <h3 class="text-lg font-semibold mb-4">Incentive Earnings</h3>
                         <div id="incentivesChart" class="chart-container"></div>
                     </div>
+                </div>
+            </div>
+
+            <div id="leads" class="mb-12">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">My Submitted Leads</h2>
+                <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Date Submitted</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Homeowner Name</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leads-table-body" class="bg-white divide-y divide-gray-200">
+                            </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -165,9 +167,7 @@
 
                     <div class="mt-12 border-t border-gray-100 pt-8">
                         <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                            <svg class="w-6 h-6 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                            </svg>
+                            <svg class="w-6 h-6 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138z" /></svg>
                             Incentive Structure Reference
                         </h3>
                         <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
@@ -214,26 +214,10 @@
         <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6">
             <h3 class="text-lg font-semibold mb-4">Request Time Off</h3>
             <form id="timeOffForm" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Start Date</label>
-                    <input type="date" name="startDate" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">End Date</label>
-                    <input type="date" name="endDate" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Reason</label>
-                    <select name="reason" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500">
-                        <option value="vacation">Vacation</option>
-                        <option value="sick">Sick Leave</option>
-                        <option value="personal">Personal</option>
-                    </select>
-                </div>
-                <div class="flex space-x-3 pt-2">
-                    <button type="button" onclick="closeTimeOffModal()" class="flex-1 p-3 border rounded-lg hover:bg-gray-50">Cancel</button>
-                    <button type="submit" class="flex-1 bg-orange-500 text-white p-3 rounded-lg hover:bg-orange-600 transition-colors">Submit Request</button>
-                </div>
+                <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Start Date</label><input type="date" name="startDate" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500"></div>
+                <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">End Date</label><input type="date" name="endDate" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500"></div>
+                <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Reason</label><select name="reason" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500"><option value="vacation">Vacation</option><option value="sick">Sick Leave</option><option value="personal">Personal</option></select></div>
+                <div class="flex space-x-3 pt-2"><button type="button" onclick="closeTimeOffModal()" class="flex-1 p-3 border rounded-lg hover:bg-gray-50">Cancel</button><button type="submit" class="flex-1 bg-orange-500 text-white p-3 rounded-lg hover:bg-orange-600 transition-colors">Submit Request</button></div>
             </form>
         </div>
     </div>
@@ -242,33 +226,8 @@
     <script>
         function openTimeOffModal() { document.getElementById('timeOffModal').classList.remove('hidden'); }
         function closeTimeOffModal() { document.getElementById('timeOffModal').classList.add('hidden'); }
-        
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                const targetId = item.getAttribute('href').substring(1);
-                const targetElement = document.getElementById(targetId);
-                if (targetElement) {
-                    e.preventDefault();
-                    targetElement.scrollIntoView({ behavior: 'smooth' });
-                    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-                    item.classList.add('active');
-                }
-            });
-        });
-
-        document.getElementById('timeOffForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const success = await portal.submitTimeOffRequest({
-                startDate: formData.get('startDate'),
-                endDate: formData.get('endDate'),
-                reason: formData.get('reason')
-            });
-            if (success) {
-                closeTimeOffModal();
-                e.target.reset();
-            }
-        });
+        document.querySelectorAll('.nav-item').forEach(item => { item.addEventListener('click', (e) => { const targetId = item.getAttribute('href').substring(1); const targetElement = document.getElementById(targetId); if (targetElement) { e.preventDefault(); targetElement.scrollIntoView({ behavior: 'smooth' }); document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active')); item.classList.add('active'); } }); });
+        document.getElementById('timeOffForm').addEventListener('submit', async (e) => { e.preventDefault(); const formData = new FormData(e.target); const success = await portal.submitTimeOffRequest({ startDate: formData.get('startDate'), endDate: formData.get('endDate'), reason: formData.get('reason') }); if (success) { closeTimeOffModal(); e.target.reset(); } });
     </script>
 </body>
 </html>
