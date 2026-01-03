@@ -26,6 +26,7 @@ class CallHammerPortal {
         }
     }
 
+    // --- DATA FETCHING & FILTERING ---
     async fetchAllData() {
         if (!this.currentUser) return;
         try {
@@ -40,6 +41,12 @@ class CallHammerPortal {
             const result = await response.json();
             if (result.status === "success") {
                 this.leadsData = result.leads || [];
+                
+                // Load Time Off History if management provides it in the response
+                if (result.timeOffHistory) {
+                    this.renderTimeOffHistory(result.timeOffHistory);
+                }
+                
                 this.handleFilterChange(this.currentFilter); 
             }
         } catch (error) { 
@@ -76,6 +83,7 @@ class CallHammerPortal {
         this.updateDashboardUI(this.filteredLeads);
     }
 
+    // --- DASHBOARD UI UPDATES ---
     updateDashboardUI(leads) {
         const getVal = (obj, key) => {
             const foundKey = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
@@ -94,10 +102,12 @@ class CallHammerPortal {
         const cancelRate = totalRaw > 0 ? ((cancelledCount / totalRaw) * 100).toFixed(1) : 0;
         const incentives = this.calculateIncentives(approvedCount, parseFloat(cancelRate));
 
+        // Update Stat Cards
         document.getElementById('stat-appointments').textContent = totalRaw;
         document.getElementById('stat-cancel-rate').textContent = `${cancelRate}%`;
         document.getElementById('stat-incentives').textContent = this.formatCurrency(incentives);
         
+        // Update Progress Bar
         const progressBar = document.getElementById('tier-progress-bar');
         if (progressBar) {
             let nextGoal = approvedCount < 6 ? 6 : approvedCount < 8 ? 8 : approvedCount < 12 ? 12 : 15;
@@ -109,7 +119,7 @@ class CallHammerPortal {
         this.updateCharts(leads); 
     }
 
-    // Swapped Homeowner Name and Date Submitted, removed Address
+    // --- RENDER LEAD LIST (FIXED: Date first, then Name, No Address) ---
     renderLeadsTable(leads) {
         const body = document.getElementById('leads-table-body');
         const statusFilter = document.getElementById('status-filter')?.value || 'all';
@@ -121,14 +131,34 @@ class CallHammerPortal {
 
         body.innerHTML = filtered.map(l => `
             <tr class="hover:bg-gray-50 transition-colors">
-                <td class="px-6 py-4 font-bold text-gray-900">${l['Homeowner Name(s)'] || 'N/A'}</td>
                 <td class="px-6 py-4 text-sm text-gray-600">${l['Date Submitted'] || 'N/A'}</td>
+                <td class="px-6 py-4 font-bold text-gray-900">${l['Homeowner Name(s)'] || 'N/A'}</td>
                 <td class="px-6 py-4">
-                    <span class="px-3 py-1 rounded-full text-xs font-bold ${this.getStatusStyle(l.Status)}">
+                    <span class="px-3 py-1 rounded-full text-xs font-bold ${this.getStatusStyle(l.Status)} uppercase">
                         ${l.Status || 'Pending Review'}
                     </span>
                 </td>
             </tr>
+        `).join('');
+    }
+
+    // --- RENDER TIME OFF HISTORY ---
+    renderTimeOffHistory(history) {
+        const container = document.getElementById('timeoff-history-list');
+        if (!container) return;
+        if (!history.length) {
+            container.innerHTML = '<p class="text-xs text-gray-400 italic">No history found.</p>';
+            return;
+        }
+
+        container.innerHTML = history.map(req => `
+            <div class="p-3 bg-gray-50 rounded-lg border border-gray-100 mb-2">
+                <div class="flex justify-between items-start">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase">${req.startDate} — ${req.endDate}</span>
+                    <span class="text-[8px] font-bold ${this.getStatusStyle(req.Status)} uppercase px-2 py-0.5 rounded">${req.Status || 'Pending'}</span>
+                </div>
+                <p class="text-xs text-gray-700 mt-1 font-medium">${req.reason || 'Leave Request'}</p>
+            </div>
         `).join('');
     }
 
@@ -139,7 +169,7 @@ class CallHammerPortal {
         return 'bg-orange-100 text-orange-700';
     }
 
-    // --- CHART LOGIC ---
+    // --- CHART LOGIC (FUNCTIONAL) ---
     initCharts() {
         const appChartEl = document.getElementById('appointmentsChart');
         const incChartEl = document.getElementById('incentivesChart');
@@ -155,6 +185,7 @@ class CallHammerPortal {
         if (!this.charts) this.initCharts();
         if (!this.charts) return;
 
+        // Group leads by date for the graph
         const dateGroups = leads.reduce((acc, lead) => {
             const date = lead['Date Submitted'] || 'N/A';
             acc[date] = (acc[date] || 0) + 1;
@@ -176,26 +207,32 @@ class CallHammerPortal {
             tooltip: { trigger: 'axis' },
             xAxis: { type: 'category', data: sortedDates },
             yAxis: { type: 'value' },
-            series: [{ data: incentiveProjection, type: 'line', smooth: true, lineStyle: { color: '#FF8C61' }, areaStyle: { color: 'rgba(255, 140, 97, 0.1)' } }]
+            series: [{ data: incentiveProjection, type: 'line', smooth: true, lineStyle: { color: '#FF8C61', width: 3 }, areaStyle: { color: 'rgba(255, 140, 97, 0.1)' } }]
         });
     }
 
+    // --- INCENTIVE CALCULATION (PRESERVED) ---
     calculateIncentives(approvedN, cancelRate) {
         let total = 0;
         const isHighPerf = cancelRate < 25; 
+
         if (approvedN >= 1) total += 50; 
         if (approvedN >= 8) total += (isHighPerf ? 50 : 30);
+        
         if (approvedN >= 9) {
             const extra = Math.min(approvedN, 12) - 8;
             total += extra * (isHighPerf ? 17 : 15);
         }
+        
         if (approvedN >= 13) {
             const extra = approvedN - 12;
             total += extra * (isHighPerf ? 27 : 25);
         }
+
         return total;
     }
 
+    // --- PROFILE & SESSION (PRESERVED) ---
     updateProfileUI() {
         if (!this.currentUser) return;
         const map = {
@@ -237,6 +274,18 @@ class CallHammerPortal {
         } catch (err) { alert("Login failed: Network error"); }
     }
 
+    // --- AGENT ACTIONS (PRESERVED) ---
+    async submitTimeOffRequest(data) {
+        try {
+            const response = await fetch(this.webhooks.timeOffRequest, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ ...data, email: this.currentUser.email, name: this.currentUser.name }) 
+            });
+            return response.ok;
+        } catch (err) { return false; }
+    }
+
     checkExistingSession() {
         const session = localStorage.getItem('callHammerSession');
         if (session) {
@@ -255,23 +304,9 @@ class CallHammerPortal {
             });
         }
         
-        // Navigation View Switcher logic
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                const href = item.getAttribute('href');
-                if (href && href.startsWith('#')) {
-                    const targetId = 'view-' + href.substring(1);
-                    document.querySelectorAll('.dashboard-view').forEach(v => v.classList.add('hidden'));
-                    document.getElementById(targetId)?.classList.remove('hidden');
-                    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-                    item.classList.add('active');
-                }
-            });
-        });
-
-        const filterSelect = document.getElementById('timeframe-filter');
-        if (filterSelect) {
-            filterSelect.addEventListener('change', (e) => this.handleFilterChange(e.target.value));
+        const timeframeFilter = document.getElementById('timeframe-filter');
+        if (timeframeFilter) {
+            timeframeFilter.addEventListener('change', (e) => this.handleFilterChange(e.target.value));
         }
 
         const statusFilter = document.getElementById('status-filter');
