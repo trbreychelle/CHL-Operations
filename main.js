@@ -56,7 +56,6 @@ class CallHammerPortal {
                     this.renderTimeOffHistory(result.timeOffHistory);
                 }
 
-                // If admin-dashboard.html is open, refresh its UI
                 if (window.adminDashboard) {
                     window.adminDashboard.refreshDashboard();
                 }
@@ -68,39 +67,28 @@ class CallHammerPortal {
         }
     }
 
-    renderEmployeeManagement(employees) {
-        const container = document.getElementById('employee-list-body');
-        if (!container) return;
-        container.innerHTML = employees.map(emp => `
-            <tr class="hover:bg-gray-50">
-                <td class="px-6 py-4 text-sm font-bold text-gray-900">${emp['Employee Name'] || 'N/A'}</td>
-                <td class="px-6 py-4 text-sm text-gray-600">${emp.Email || 'N/A'}</td>
-                <td class="px-6 py-4 text-sm font-medium uppercase">${emp.Role || 'Agent'}</td>
-                <td class="px-6 py-4 text-sm">
-                    <span class="px-2 py-1 rounded text-xs ${emp.Employment_Status === 'Offboarded' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}">
-                        ${emp.Employment_Status || 'Active'}
-                    </span>
-                </td>
-                <td class="px-6 py-4 text-right">
-                    <button onclick="portal.offboardEmployee('${emp.Email}')" class="text-red-600 hover:text-red-900 text-xs font-bold">OFFBOARD</button>
-                </td>
-            </tr>
-        `).join('');
-    }
+    // --- NEW: Payroll Week Calculation (Saturday to Friday MST) ---
+    getPayrollWeekRange() {
+        // Get current time in MST (UTC-7)
+        const now = new Date();
+        const mstOffset = -7 * 60; // MST in minutes
+        const localOffset = now.getTimezoneOffset();
+        const mstNow = new Date(now.getTime() + (mstOffset + localOffset) * 60000);
+        
+        const dayOfWeek = mstNow.getDay(); // 0 (Sun) to 6 (Sat)
+        
+        // Calculate start of payroll (The most recent Saturday)
+        const start = new Date(mstNow);
+        const diffToSat = (dayOfWeek === 6) ? 0 : (dayOfWeek + 1);
+        start.setDate(mstNow.getDate() - diffToSat);
+        start.setHours(0, 0, 0, 0);
 
-    async offboardEmployee(email) {
-        if (!confirm(`Are you sure you want to offboard ${email}?`)) return;
-        try {
-            const res = await fetch(this.webhooks.manageEmployee, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'offboard', email: email })
-            });
-            if (res.ok) { 
-                alert('Employee status updated.'); 
-                this.fetchAllData(); 
-            }
-        } catch (err) { alert('Failed to update status.'); }
+        // Calculate end of payroll (The upcoming Friday)
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        end.setHours(23, 59, 59, 999);
+
+        return { start, end };
     }
 
     updateDashboardUI(leads) {
@@ -109,27 +97,71 @@ class CallHammerPortal {
             return foundKey ? (obj[foundKey] || '') : '';
         };
 
-        const totalRaw = leads.length;
-        const approvedLeads = leads.filter(l => getVal(l, 'Status').toString().toLowerCase() === 'approved');
-        const cancelledCount = leads.filter(l => {
+        // 1. Identify leads for the CURRENT Payroll Week (Sat-Fri) for Incentive Calculation
+        const payrollRange = this.getPayrollWeekRange();
+        const payrollLeads = this.leadsData.filter(l => {
+            const subDate = new Date(getVal(l, 'Date Submitted'));
+            return subDate >= payrollRange.start && subDate <= payrollRange.end;
+        });
+
+        // 2. Metrics for the Payroll Week
+        const payrollApproved = payrollLeads.filter(l => getVal(l, 'Status').toString().toLowerCase() === 'approved');
+        const payrollTotal = payrollLeads.length;
+        const payrollCancelled = payrollLeads.filter(l => {
             const s = getVal(l, 'Status').toString().toLowerCase();
             return s.includes('cancel') || s.includes('credited') || s.includes('rejected');
         }).length;
 
+        const payrollCancelRate = payrollTotal > 0 ? (payrollCancelled / payrollTotal) * 100 : 0;
+        
+        // 3. Calculate Incentives based on Payroll Week Data
+        const currentIncentives = this.calculateIncentives(payrollApproved.length, payrollCancelRate);
+
+        // 4. Update UI Stats (Appointments and Rate reflect the chosen Filter, Incentives reflect the Payroll Week)
+        const totalRaw = leads.length;
+        const cancelledCount = leads.filter(l => {
+            const s = getVal(l, 'Status').toString().toLowerCase();
+            return s.includes('cancel') || s.includes('credited') || s.includes('rejected');
+        }).length;
         const rate = totalRaw > 0 ? ((cancelledCount / totalRaw) * 100).toFixed(1) : 0;
-        const incentives = this.calculateIncentives(approvedLeads.length, parseFloat(rate));
 
         if (document.getElementById('stat-appointments')) document.getElementById('stat-appointments').textContent = totalRaw;
         if (document.getElementById('stat-cancel-rate')) document.getElementById('stat-cancel-rate').textContent = `${rate}%`;
-        if (document.getElementById('stat-incentives')) document.getElementById('stat-incentives').textContent = this.formatCurrency(incentives);
+        if (document.getElementById('stat-incentives')) document.getElementById('stat-incentives').textContent = this.formatCurrency(currentIncentives);
         
+        // Progress bar logic (Next Tier Goal)
         const progressBar = document.getElementById('tier-progress-bar');
         if (progressBar) {
-            let nextGoal = approvedLeads.length < 6 ? 6 : approvedLeads.length < 8 ? 8 : 12;
-            progressBar.style.width = `${Math.min((approvedLeads.length / nextGoal) * 100, 100)}%`;
-            document.getElementById('tier-count-display').textContent = `${approvedLeads.length} / ${nextGoal} approved`;
+            let nextGoal = payrollApproved.length < 6 ? 6 : payrollApproved.length < 8 ? 8 : payrollApproved.length < 12 ? 12 : 20;
+            progressBar.style.width = `${Math.min((payrollApproved.length / nextGoal) * 100, 100)}%`;
+            document.getElementById('tier-count-display').textContent = `${payrollApproved.length} / ${nextGoal} approved (This Payroll Week)`;
+            document.getElementById('tier-status-text').textContent = `Cycle: ${payrollRange.start.toLocaleDateString()} - ${payrollRange.end.toLocaleDateString()}`;
         }
+
         this.renderLeadsTable(leads);
+    }
+
+    // --- FIXED: Tiered Incentive Logic based on Reference Table ---
+    calculateIncentives(approvedN, cancelRate) {
+        let total = 0;
+        const isHighPerf = cancelRate < 25;
+
+        for (let i = 1; i <= approvedN; i++) {
+            if (i <= 7) {
+                // 1st - 7th Apt: $50
+                total += 50;
+            } else if (i === 8) {
+                // 8th Apt: $30 or $50
+                total += isHighPerf ? 50 : 30;
+            } else if (i >= 9 && i <= 12) {
+                // 9th - 12th Apt: $15 or $17
+                total += isHighPerf ? 17 : 15;
+            } else if (i >= 13) {
+                // 13th & Above: $25 or $27
+                total += isHighPerf ? 27 : 25;
+            }
+        }
+        return total;
     }
 
     renderLeadsTable(leads) {
@@ -172,7 +204,10 @@ class CallHammerPortal {
         const map = {
             'profileName': u.name, 'profileEmail': u.email, 'profilePosition': u.role,
             'profileRate': this.formatCurrency(u.baseRate), 'nav-user-name': u.name,
-            'nav-user-role': (u.role || 'Agent').toUpperCase()
+            'nav-user-role': (u.role || 'Agent').toUpperCase(),
+            'stat-hours': u.weeklyHours || 0,
+            'profileHours': u.weeklyHours || 0,
+            'profileStartDate': u.startDate || 'N/A'
         };
         for (const [id, val] of Object.entries(map)) {
             const el = document.getElementById(id);
@@ -182,17 +217,21 @@ class CallHammerPortal {
 
     handleFilterChange(value) {
         this.currentFilter = value;
-        this.updateDashboardUI(this.leadsData);
-    }
+        const now = new Date();
+        let filtered = this.leadsData;
 
-    calculateIncentives(approvedN, cancelRate) {
-        let total = 0;
-        for (let i = 1; i <= approvedN; i++) {
-            if (i <= 6) total += 50;
-            else if (i === 8) total += (cancelRate < 25) ? 50 : 30;
-            else if (i >= 9) total += (cancelRate < 25) ? 17 : 15;
+        if (value === 'this-week') {
+            const range = this.getPayrollWeekRange();
+            filtered = this.leadsData.filter(l => {
+                const d = new Date(l['Date Submitted']);
+                return d >= range.start && d <= range.end;
+            });
+        } else if (value === '30-days') {
+            const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30));
+            filtered = this.leadsData.filter(l => new Date(l['Date Submitted']) >= thirtyDaysAgo);
         }
-        return total;
+
+        this.updateDashboardUI(filtered);
     }
 
     async login(email, password) {
@@ -228,6 +267,11 @@ class CallHammerPortal {
     bindEvents() {
         const loginForm = document.getElementById('loginForm');
         if (loginForm) loginForm.onsubmit = (e) => { e.preventDefault(); this.login(new FormData(loginForm).get('email'), new FormData(loginForm).get('password')); };
+        
+        const timeframeSelect = document.getElementById('timeframe-filter');
+        if (timeframeSelect) {
+            timeframeSelect.onchange = (e) => this.handleFilterChange(e.target.value);
+        }
     }
 
     formatCurrency(val) { return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val || 0); }
