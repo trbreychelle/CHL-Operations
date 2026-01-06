@@ -6,7 +6,11 @@ class CallHammerPortal {
     this.employeeList = [];
     this.filteredLeads = [];
     this.currentFilter = 'this-week';
-    this.charts = null;
+
+    this.charts = {
+      appointments: null,
+      incentives: null
+    };
 
     this.webhooks = {
       login: 'https://automate.callhammerleads.com/webhook/agent-login',
@@ -35,6 +39,27 @@ class CallHammerPortal {
     }
   }
 
+  // ------------------------
+  // Helpers
+  // ------------------------
+  normalizeKey(obj, key) {
+    if (!obj) return '';
+    const foundKey = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
+    return foundKey ? obj[foundKey] : '';
+  }
+
+  parseDateSafe(value) {
+    if (!value) return null;
+    // Handles: "2026-01-06", "1/6/2026", "Jan 6, 2026"
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  formatDateShort(d) {
+    if (!d) return '';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
   // --- Payroll Week Calculation (Saturday to Friday MST) ---
   getPayrollWeekRange() {
     const now = new Date();
@@ -42,7 +67,7 @@ class CallHammerPortal {
     const localOffset = now.getTimezoneOffset();
     const mstNow = new Date(now.getTime() + (mstOffset + localOffset) * 60000);
 
-    const dayOfWeek = mstNow.getDay();
+    const dayOfWeek = mstNow.getDay(); // Sun=0 ... Sat=6
     const start = new Date(mstNow);
     const diffToSat = (dayOfWeek === 6) ? 0 : (dayOfWeek + 1);
 
@@ -56,6 +81,9 @@ class CallHammerPortal {
     return { start, end };
   }
 
+  // ------------------------
+  // Data Fetch
+  // ------------------------
   async fetchAllData() {
     if (!this.currentUser) return;
 
@@ -79,7 +107,6 @@ class CallHammerPortal {
         if (result.profile) {
           const p = result.profile;
 
-          // Normalize + store into currentUser so the rest of your UI uses it
           this.currentUser = {
             ...this.currentUser,
             name: p['Employee Name'] || this.currentUser.name,
@@ -94,7 +121,6 @@ class CallHammerPortal {
             paymentStatus: p['Payment Status'] || this.currentUser.paymentStatus
           };
 
-          // Refresh stored session too
           const session = localStorage.getItem('callHammerSession');
           if (session) {
             const s = JSON.parse(session);
@@ -109,116 +135,334 @@ class CallHammerPortal {
           this.renderTimeOffHistory(result.timeOffHistory);
         }
 
-        if (window.adminDashboard) {
-          window.adminDashboard.refreshDashboard();
-        }
-
+        // Refresh UI for selected filter
         this.handleFilterChange(this.currentFilter);
+
+        // Build charts after we have data
+        this.updateCharts();
       }
     } catch (error) {
       console.error('Data Sync Error:', error);
     }
   }
 
-  updateDashboardUI(leads) {
-    const getVal = (obj, key) => {
-      const foundKey = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
-      return foundKey ? (obj[foundKey] || '') : '';
-    };
-
-    // Payroll week incentives always use payroll week
-    const payrollRange = this.getPayrollWeekRange();
-    const payrollLeads = this.leadsData.filter(l => {
-      const subDate = new Date(getVal(l, 'Date Submitted'));
-      return subDate >= payrollRange.start && subDate <= payrollRange.end;
-    });
-
-    const payrollApproved = payrollLeads.filter(l => getVal(l, 'Status').toString().toLowerCase() === 'approved');
-    const payrollTotal = payrollLeads.length;
-    const payrollCancelled = payrollLeads.filter(l => {
-      const s = getVal(l, 'Status').toString().toLowerCase();
-      return s.includes('cancel') || s.includes('credited') || s.includes('rejected');
-    }).length;
-
-    const payrollCancelRate = payrollTotal > 0 ? (payrollCancelled / payrollTotal) * 100 : 0;
-    const currentIncentives = this.calculateIncentives(payrollApproved.length, payrollCancelRate);
-
-    // Stats reflect selected filter leads
-    const totalRaw = leads.length;
-    const cancelledCount = leads.filter(l => {
-      const s = getVal(l, 'Status').toString().toLowerCase();
-      return s.includes('cancel') || s.includes('credited') || s.includes('rejected');
-    }).length;
-    const rate = totalRaw > 0 ? ((cancelledCount / totalRaw) * 100).toFixed(1) : 0;
-
-    if (document.getElementById('stat-appointments')) document.getElementById('stat-appointments').textContent = totalRaw;
-    if (document.getElementById('stat-cancel-rate')) document.getElementById('stat-cancel-rate').textContent = `${rate}%`;
-    if (document.getElementById('stat-incentives')) document.getElementById('stat-incentives').textContent = this.formatCurrency(currentIncentives);
-
-    // Weekly hours should reflect profile weekly hours (AGENT_MASTER)
-    if (document.getElementById('stat-hours')) document.getElementById('stat-hours').textContent = this.currentUser?.weeklyHours || 0;
-
-    // Progress bar
-    const progressBar = document.getElementById('tier-progress-bar');
-    if (progressBar) {
-      let nextGoal = payrollApproved.length < 6 ? 6 : payrollApproved.length < 8 ? 8 : payrollApproved.length < 12 ? 12 : 20;
-      progressBar.style.width = `${Math.min((payrollApproved.length / nextGoal) * 100, 100)}%`;
-      document.getElementById('tier-count-display').textContent = `${payrollApproved.length} / ${nextGoal} approved (This Payroll Week)`;
-      document.getElementById('tier-status-text').textContent = `Cycle: ${payrollRange.start.toLocaleDateString()} - ${payrollRange.end.toLocaleDateString()}`;
-    }
-
-    this.renderLeadsTable(leads);
-  }
-
+  // ------------------------
+  // Incentives (FIXED: No bonus on 7th)
+  // ------------------------
   calculateIncentives(approvedN, cancelRate) {
     let total = 0;
     const isHighPerf = cancelRate < 25;
 
     for (let i = 1; i <= approvedN; i++) {
-      if (i <= 7) total += 50;
-      else if (i === 8) total += isHighPerf ? 50 : 30;
-      else if (i >= 9 && i <= 12) total += isHighPerf ? 17 : 15;
-      else if (i >= 13) total += isHighPerf ? 27 : 25;
+      if (i <= 6) {
+        total += 50; // ✅ 1st–6th only
+      } else if (i === 7) {
+        total += 0; // ✅ NO incentive on 7th
+      } else if (i === 8) {
+        total += isHighPerf ? 50 : 30;
+      } else if (i >= 9 && i <= 12) {
+        total += isHighPerf ? 17 : 15;
+      } else if (i >= 13) {
+        total += isHighPerf ? 27 : 25;
+      }
     }
     return total;
   }
 
+  // ------------------------
+  // Dashboard UI
+  // ------------------------
+  updateDashboardUI(leads) {
+    const getVal = (obj, key) => this.normalizeKey(obj, key) || '';
+
+    // Payroll week incentives always use payroll week (Saturday–Friday MST)
+    const payrollRange = this.getPayrollWeekRange();
+    const payrollLeads = this.leadsData.filter(l => {
+      const subDate = this.parseDateSafe(getVal(l, 'Date Submitted'));
+      return subDate && subDate >= payrollRange.start && subDate <= payrollRange.end;
+    });
+
+    // Approved for incentives
+    const payrollApproved = payrollLeads.filter(l => getVal(l, 'Status').toString().toLowerCase() === 'approved');
+
+    // Cancel Rate (Payroll week)
+    const payrollTotal = payrollLeads.length;
+    const payrollCancelled = payrollLeads.filter(l => {
+      const s = getVal(l, 'Status').toString().toLowerCase();
+      return s.includes('cancel') || s.includes('credited') || s.includes('rejected') || s.includes('declined');
+    }).length;
+
+    const payrollCancelRate = payrollTotal > 0 ? (payrollCancelled / payrollTotal) * 100 : 0;
+
+    // ✅ Incentives shown in card = Payroll week incentives
+    const currentIncentives = this.calculateIncentives(payrollApproved.length, payrollCancelRate);
+
+    // Stats reflect selected timeframe
+    const totalRaw = leads.length;
+    const cancelledCount = leads.filter(l => {
+      const s = getVal(l, 'Status').toString().toLowerCase();
+      return s.includes('cancel') || s.includes('credited') || s.includes('rejected') || s.includes('declined');
+    }).length;
+
+    const rate = totalRaw > 0 ? ((cancelledCount / totalRaw) * 100).toFixed(1) : "0.0";
+
+    if (document.getElementById('stat-appointments')) document.getElementById('stat-appointments').textContent = totalRaw;
+    if (document.getElementById('stat-cancel-rate')) document.getElementById('stat-cancel-rate').textContent = `${rate}%`;
+    if (document.getElementById('stat-incentives')) document.getElementById('stat-incentives').textContent = this.formatCurrency(currentIncentives);
+
+    // Weekly hours from AGENT_MASTER
+    if (document.getElementById('stat-hours')) document.getElementById('stat-hours').textContent = this.currentUser?.weeklyHours || 0;
+
+    // ✅ Tier progress (based on payroll-week approved)
+    const progressBar = document.getElementById('tier-progress-bar');
+    const tierText = document.getElementById('tier-status-text');
+    const tierCountDisplay = document.getElementById('tier-count-display');
+
+    if (progressBar && tierText && tierCountDisplay) {
+      const approved = payrollApproved.length;
+
+      // Next tier goal: 6 -> 8 -> 12 -> 13 (then keep 13 as milestone)
+      let nextGoal = 6;
+      if (approved >= 6 && approved < 8) nextGoal = 8;
+      else if (approved >= 8 && approved < 12) nextGoal = 12;
+      else if (approved >= 12 && approved < 13) nextGoal = 13;
+      else if (approved >= 13) nextGoal = 13;
+
+      const pct = nextGoal > 0 ? Math.min((approved / nextGoal) * 100, 100) : 0;
+      progressBar.style.width = `${pct}%`;
+
+      tierText.textContent = `Cycle: ${this.formatDateShort(payrollRange.start)} - ${this.formatDateShort(payrollRange.end)}`;
+      tierCountDisplay.textContent = `${approved} / ${nextGoal} approved (This Payroll Week)`;
+
+      // Optional note for appointment #7 = $0
+      const noteEl = document.getElementById('tier-note-7th');
+      if (noteEl) noteEl.textContent = "Note: 7th approved appointment has no additional bonus.";
+    }
+
+    // Leads table
+    this.renderLeadsTable(leads);
+  }
+
+  // ------------------------
+  // Leads Table + Status Filter
+  // ------------------------
   renderLeadsTable(leads) {
     const body = document.getElementById('leads-table-body');
     if (!body) return;
 
-    body.innerHTML = leads.map(l => `
-      <tr class="hover:bg-gray-50">
-        <td class="px-6 py-4 text-sm text-gray-600">${l['Date Submitted'] || 'N/A'}</td>
-        <td class="px-6 py-4 font-bold text-gray-900">${l['Homeowner Name(s)'] || 'N/A'}</td>
-        <td class="px-6 py-4">
-          <span class="px-3 py-1 rounded-full text-xs font-bold ${this.getStatusStyle(l.Status)} uppercase">
-            ${l.Status || 'Pending'}
-          </span>
-        </td>
-      </tr>
-    `).join('');
-  }
+    body.innerHTML = leads.map(l => {
+      const date = l['Date Submitted'] || this.normalizeKey(l, 'Date Submitted') || 'N/A';
+      const homeowner = l['Homeowner Name(s)'] || l['Homeowner Name'] || this.normalizeKey(l, 'Homeowner Name(s)') || 'N/A';
+      const status = l['Status'] || this.normalizeKey(l, 'Status') || 'Pending';
 
-  renderTimeOffHistory(history) {
-    const container = document.getElementById('timeoff-history-list');
-    if (!container) return;
-
-    container.innerHTML = (Array.isArray(history) ? history : []).map(req => `
-      <div class="p-3 bg-gray-50 rounded-lg border border-gray-100 mb-2">
-        <span class="text-[10px] font-bold text-gray-400 uppercase">${req['Start Date'] || req.startDate || ''} — ${req['End Date'] || req.endDate || ''}</span>
-        <p class="text-xs text-gray-700 font-medium">${req.Reason || req.reason || 'Leave Request'}</p>
-      </div>
-    `).join('') || `<p class="text-xs text-gray-400 italic">No history found.</p>`;
+      return `
+        <tr class="hover:bg-gray-50">
+          <td class="px-6 py-4 text-sm text-gray-600">${date}</td>
+          <td class="px-6 py-4 font-bold text-gray-900">${homeowner}</td>
+          <td class="px-6 py-4">
+            <span class="px-3 py-1 rounded-full text-xs font-bold ${this.getStatusStyle(status)} uppercase">
+              ${status}
+            </span>
+          </td>
+        </tr>
+      `;
+    }).join('') || `<tr><td class="px-6 py-6 text-sm text-gray-500" colspan="3">No leads found.</td></tr>`;
   }
 
   getStatusStyle(status) {
     const s = (status || '').toLowerCase();
     if (s === 'approved') return 'bg-green-100 text-green-700';
-    if (s.includes('cancel') || s.includes('reject') || s.includes('credited')) return 'bg-red-100 text-red-700';
+    if (s.includes('cancel') || s.includes('reject') || s.includes('credited') || s.includes('declined')) return 'bg-red-100 text-red-700';
     return 'bg-yellow-100 text-yellow-700';
   }
 
+  // ------------------------
+  // Time Off History (Dates + Status)
+  // ------------------------
+  renderTimeOffHistory(history) {
+    const container = document.getElementById('timeoff-history-list');
+    if (!container) return;
+
+    const rows = Array.isArray(history) ? history : [];
+
+    // Sort newest first if possible
+    rows.sort((a, b) => {
+      const ad = this.parseDateSafe(a['Start Date'] || a.startDate) || new Date(0);
+      const bd = this.parseDateSafe(b['Start Date'] || b.startDate) || new Date(0);
+      return bd - ad;
+    });
+
+    container.innerHTML = rows.map(req => {
+      const start = req['Start Date'] || req.startDate || '';
+      const end = req['End Date'] || req.endDate || '';
+      const reason = req['Reason'] || req.Reason || req.reason || 'Leave Request';
+      const status = (req['Status'] || req.status || 'Pending').toString();
+
+      const badge = (() => {
+        const s = status.toLowerCase();
+        if (s.includes('approve')) return 'bg-green-100 text-green-700';
+        if (s.includes('decline') || s.includes('reject')) return 'bg-red-100 text-red-700';
+        return 'bg-yellow-100 text-yellow-700';
+      })();
+
+      return `
+        <div class="p-3 bg-white rounded-lg border border-gray-100 shadow-sm">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[10px] font-bold text-gray-400 uppercase">${start} — ${end}</span>
+            <span class="px-2 py-1 rounded-full text-[10px] font-bold ${badge}">${status}</span>
+          </div>
+          <p class="text-xs text-gray-700 font-semibold">${reason}</p>
+        </div>
+      `;
+    }).join('') || `<p class="text-xs text-gray-400 italic">No history found.</p>`;
+  }
+
+  // ------------------------
+  // Filters
+  // ------------------------
+  handleFilterChange(value) {
+    this.currentFilter = value;
+    const now = new Date();
+    let filtered = this.leadsData;
+
+    if (value === 'this-week') {
+      const range = this.getPayrollWeekRange();
+      filtered = this.leadsData.filter(l => {
+        const d = this.parseDateSafe(l['Date Submitted'] || this.normalizeKey(l, 'Date Submitted'));
+        return d && d >= range.start && d <= range.end;
+      });
+    } else if (value === '30-days') {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(now.getDate() - 30);
+      filtered = this.leadsData.filter(l => {
+        const d = this.parseDateSafe(l['Date Submitted'] || this.normalizeKey(l, 'Date Submitted'));
+        return d && d >= thirtyDaysAgo;
+      });
+    } else if (value === '4-weeks') {
+      const d0 = new Date();
+      d0.setDate(now.getDate() - 28);
+      filtered = this.leadsData.filter(l => {
+        const d = this.parseDateSafe(l['Date Submitted'] || this.normalizeKey(l, 'Date Submitted'));
+        return d && d >= d0;
+      });
+    } else if (value === '6-weeks') {
+      const d0 = new Date();
+      d0.setDate(now.getDate() - 42);
+      filtered = this.leadsData.filter(l => {
+        const d = this.parseDateSafe(l['Date Submitted'] || this.normalizeKey(l, 'Date Submitted'));
+        return d && d >= d0;
+      });
+    } else if (value === 'all-time') {
+      filtered = this.leadsData;
+    }
+
+    this.updateDashboardUI(filtered);
+    this.updateCharts(); // refresh charts when filter changes
+  }
+
+  // ------------------------
+  // Charts (ECharts)
+  // ------------------------
+  updateCharts() {
+    const chartA = document.getElementById('appointmentsChart');
+    const chartI = document.getElementById('incentivesChart');
+    if (!chartA || !chartI) return;
+
+    // Init charts once
+    if (!this.charts.appointments) this.charts.appointments = echarts.init(chartA);
+    if (!this.charts.incentives) this.charts.incentives = echarts.init(chartI);
+
+    // Build weekly buckets for last 8 weeks
+    const buckets = this.buildWeeklyBuckets(8);
+
+    // Fill buckets based on leadsData
+    for (const lead of this.leadsData) {
+      const date = this.parseDateSafe(lead['Date Submitted'] || this.normalizeKey(lead, 'Date Submitted'));
+      if (!date) continue;
+
+      const weekKey = this.getWeekKey(date);
+      if (!buckets[weekKey]) continue;
+
+      const status = (lead['Status'] || this.normalizeKey(lead, 'Status') || '').toString().toLowerCase();
+
+      buckets[weekKey].submitted += 1;
+
+      if (status === 'approved') buckets[weekKey].approved += 1;
+      if (status.includes('cancel') || status.includes('reject') || status.includes('declined') || status.includes('credited')) buckets[weekKey].cancelled += 1;
+    }
+
+    // Compute incentives per week
+    for (const k of Object.keys(buckets)) {
+      const week = buckets[k];
+      const cancelRate = week.submitted > 0 ? (week.cancelled / week.submitted) * 100 : 0;
+      week.incentives = this.calculateIncentives(week.approved, cancelRate);
+    }
+
+    const labels = Object.keys(buckets).sort(); // oldest -> newest
+    const approvedSeries = labels.map(k => buckets[k].approved);
+    const submittedSeries = labels.map(k => buckets[k].submitted);
+    const incentiveSeries = labels.map(k => buckets[k].incentives);
+
+    // Appointment Trends chart
+    this.charts.appointments.setOption({
+      tooltip: { trigger: 'axis' },
+      xAxis: { type: 'category', data: labels },
+      yAxis: { type: 'value' },
+      series: [
+        { name: 'Submitted', type: 'line', data: submittedSeries, smooth: true },
+        { name: 'Approved', type: 'line', data: approvedSeries, smooth: true }
+      ]
+    }, true);
+
+    // Incentive Trends chart
+    this.charts.incentives.setOption({
+      tooltip: { trigger: 'axis' },
+      xAxis: { type: 'category', data: labels },
+      yAxis: { type: 'value' },
+      series: [
+        { name: 'Incentives', type: 'bar', data: incentiveSeries }
+      ]
+    }, true);
+
+    // Resize on window resize
+    window.addEventListener('resize', () => {
+      this.charts?.appointments?.resize();
+      this.charts?.incentives?.resize();
+    });
+  }
+
+  buildWeeklyBuckets(weeksBack = 8) {
+    // Creates keys like "Dec 01" (week start)
+    const out = {};
+    const now = new Date();
+
+    for (let w = weeksBack - 1; w >= 0; w--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - (w * 7));
+      const start = this.getWeekStart(d);
+      const label = start.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+      out[label] = { submitted: 0, approved: 0, cancelled: 0, incentives: 0 };
+    }
+    return out;
+  }
+
+  getWeekStart(d) {
+    const date = new Date(d);
+    // Week start = Sunday
+    const day = date.getDay();
+    date.setDate(date.getDate() - day);
+    date.setHours(0,0,0,0);
+    return date;
+  }
+
+  getWeekKey(d) {
+    const start = this.getWeekStart(d);
+    return start.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+  }
+
+  // ------------------------
+  // Profile
+  // ------------------------
   updateProfileUI() {
     if (!this.currentUser) return;
     const u = this.currentUser;
@@ -241,36 +485,9 @@ class CallHammerPortal {
     }
   }
 
-  handleFilterChange(value) {
-    this.currentFilter = value;
-    const now = new Date();
-    let filtered = this.leadsData;
-
-    if (value === 'this-week') {
-      const range = this.getPayrollWeekRange();
-      filtered = this.leadsData.filter(l => {
-        const d = new Date(l['Date Submitted']);
-        return d >= range.start && d <= range.end;
-      });
-    } else if (value === '30-days') {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(now.getDate() - 30);
-      filtered = this.leadsData.filter(l => new Date(l['Date Submitted']) >= thirtyDaysAgo);
-    } else if (value === '4-weeks') {
-      const d = new Date();
-      d.setDate(now.getDate() - 28);
-      filtered = this.leadsData.filter(l => new Date(l['Date Submitted']) >= d);
-    } else if (value === '6-weeks') {
-      const d = new Date();
-      d.setDate(now.getDate() - 42);
-      filtered = this.leadsData.filter(l => new Date(l['Date Submitted']) >= d);
-    } else if (value === 'all-time') {
-      filtered = this.leadsData;
-    }
-
-    this.updateDashboardUI(filtered);
-  }
-
+  // ------------------------
+  // Auth / Session
+  // ------------------------
   async login(email, password) {
     try {
       const res = await fetch(this.webhooks.login, {
@@ -340,6 +557,19 @@ class CallHammerPortal {
     if (timeframeSelect) {
       timeframeSelect.onchange = (e) => this.handleFilterChange(e.target.value);
     }
+
+    const statusSelect = document.getElementById('status-filter');
+    if (statusSelect) {
+      statusSelect.onchange = (e) => {
+        const v = (e.target.value || 'all').toLowerCase();
+        let filtered = this.filteredLeads?.length ? this.filteredLeads : this.leadsData;
+
+        if (v !== 'all') {
+          filtered = filtered.filter(l => (l['Status'] || this.normalizeKey(l, 'Status') || '').toString().toLowerCase() === v);
+        }
+        this.renderLeadsTable(filtered);
+      };
+    }
   }
 
   formatCurrency(val) {
@@ -350,8 +580,6 @@ class CallHammerPortal {
     localStorage.removeItem('callHammerSession');
     window.location.href = 'index.html';
   }
-
-  updateCharts() {}
 }
 
 const portal = new CallHammerPortal();
