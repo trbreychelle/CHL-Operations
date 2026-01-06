@@ -20,13 +20,13 @@
         .dashboard-view { display: none; }
         .dashboard-view.active { display: block; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        
+
         /* Calendly-style Range Selection */
         .calendar-day { transition: all 0.2s ease; position: relative; border: 1px solid #F3F4F6; }
         .calendar-day:not(.disabled):hover { background-color: #FEF3C7; color: #B45309; border-color: #FBBF24; }
         .calendar-day.selected { background-color: #FBBF24 !important; color: #1F2937 !important; font-weight: bold; border-radius: 50%; border-color: #1F2937; }
         .calendar-day.in-range { background-color: #FEF3C7 !important; color: #92400E !important; border-radius: 0; }
-        
+
         /* Sidebar History Scrollbar */
         #timeoff-history-list::-webkit-scrollbar { width: 4px; }
         #timeoff-history-list::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 10px; }
@@ -68,7 +68,7 @@
         </div>
 
         <div class="flex-1 p-6 lg:p-10">
-            
+
             <div id="view-overview" class="dashboard-view active">
                 <div class="flex justify-between items-center mb-8">
                     <h1 class="text-3xl font-bold text-gray-900">Performance Overview</h1>
@@ -80,7 +80,7 @@
                         <option value="all-time">All Time Records</option>
                     </select>
                 </div>
-                
+
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     <div class="metric-card bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                         <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Appointments</h3>
@@ -172,7 +172,7 @@
                                     <tr>
                                         <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Appointment Range</th>
                                         <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Standard Bonus</th>
-                                        <th class="px-6 py-4 text-left text-[10px] font-bold text-yellow-700 uppercase tracking-widest bg-yellow-50">High Perf. (<25% Cancel)</th>
+                                        <th class="px-6 py-4 text-left text-[10px] font-bold text-yellow-700 uppercase tracking-widest bg-yellow-50">High Perf. (&lt;25% Cancel)</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-100">
@@ -191,7 +191,7 @@
                 <div class="max-w-6xl mx-auto">
                     <h2 class="text-3xl font-bold text-gray-900 mb-2">Request Time Off</h2>
                     <p class="text-gray-500 mb-8 text-lg">Select a range (Start and End date) to request leave.</p>
-                    
+
                     <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
                         <div class="lg:col-span-1 bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
                             <h3 class="text-xs font-bold text-gray-400 uppercase mb-6 tracking-widest">My Request History</h3>
@@ -206,20 +206,47 @@
                                     <svg class="w-6 h-6 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                                 </div>
                                 <h3 class="text-xl font-bold text-gray-900 mb-4 tracking-tighter">Range Selection</h3>
+
                                 <div id="range-preview" class="hidden space-y-6">
-                                    <div><p class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Start Date</p><p class="text-sm font-bold text-yellow-600" id="display-start-date">--</p></div>
-                                    <div><p class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">End Date</p><p class="text-sm font-bold text-yellow-600" id="display-end-date">--</p></div>
-                                    <button id="btn-submit-timeoff" class="w-full bg-yellow-500 text-gray-900 font-bold py-4 rounded-xl hover:bg-yellow-600 transition-all shadow-lg shadow-yellow-100">Submit Request</button>
+                                    <div>
+                                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Start Date</p>
+                                        <p class="text-sm font-bold text-yellow-600" id="display-start-date">--</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">End Date</p>
+                                        <p class="text-sm font-bold text-yellow-600" id="display-end-date">--</p>
+                                    </div>
+
+                                    <!-- NEW: Reason dropdown -->
+                                    <div class="space-y-2">
+                                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Reason</p>
+                                        <select id="timeoff-reason" class="w-full p-3 border border-gray-200 rounded-xl bg-white text-sm focus:ring-2 focus:ring-yellow-400 outline-none">
+                                            <option value="Vacation Leave">Vacation Leave</option>
+                                            <option value="Sick Leave">Sick Leave</option>
+                                            <option value="Personal Leave">Personal Leave</option>
+                                        </select>
+                                    </div>
+
+                                    <button id="btn-submit-timeoff" class="w-full bg-yellow-500 text-gray-900 font-bold py-4 rounded-xl hover:bg-yellow-600 transition-all shadow-lg shadow-yellow-100">
+                                        Submit Request
+                                    </button>
                                 </div>
-                                <p id="range-hint" class="text-sm text-gray-400 leading-relaxed italic">Click a start date, then an end date on the calendar to select your range.</p>
+
+                                <p id="range-hint" class="text-sm text-gray-400 leading-relaxed italic">
+                                    Click a start date, then an end date on the calendar to select your range.
+                                </p>
                             </div>
 
                             <div class="flex-1 p-8">
                                 <div class="flex items-center justify-between mb-8">
                                     <h4 class="text-xl font-bold text-gray-900" id="calendar-month-year">January 2026</h4>
                                     <div class="flex space-x-2">
-                                        <button onclick="changeMonth(-1)" class="p-2 hover:bg-gray-100 rounded-full text-gray-400"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
-                                        <button onclick="changeMonth(1)" class="p-2 hover:bg-gray-100 rounded-full text-gray-400"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
+                                        <button onclick="changeMonth(-1)" class="p-2 hover:bg-gray-100 rounded-full text-gray-400">
+                                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                                        </button>
+                                        <button onclick="changeMonth(1)" class="p-2 hover:bg-gray-100 rounded-full text-gray-400">
+                                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                                        </button>
                                     </div>
                                 </div>
                                 <div class="grid grid-cols-7 gap-4 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-6">
@@ -246,7 +273,7 @@
                 document.querySelectorAll('.dashboard-view').forEach(view => view.classList.remove('active'));
                 const targetView = document.getElementById(targetId);
                 if (targetView) targetView.classList.add('active');
-                
+
                 // Triggers chart resize on toggle to prevent display issues
                 if (targetId === 'view-overview') {
                     setTimeout(() => { portal.charts?.appointments?.resize(); portal.charts?.incentives?.resize(); }, 100);
@@ -266,7 +293,7 @@
             const firstDay = new Date(currentYear, currentMonth, 1).getDay();
             const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
             const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-            
+
             monthYearLabel.innerText = `${months[currentMonth]} ${currentYear}`;
             grid.innerHTML = '';
             for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
@@ -323,19 +350,24 @@
 
         renderCalendar();
 
-        // Connect the "Confirm & Submit" click event to the main.js function
+        // UPDATED: Submit sends selected reason from dropdown
         document.getElementById('btn-submit-timeoff').onclick = async () => {
             if (!rangeStart || !rangeEnd) return alert("Please select a range first.");
+
+            const reasonEl = document.getElementById('timeoff-reason');
+            const reason = reasonEl ? reasonEl.value : 'Vacation Leave';
+
             const success = await portal.submitTimeOffRequest({
                 startDate: rangeStart.toISOString().split('T')[0],
                 endDate: rangeEnd.toISOString().split('T')[0],
-                reason: 'vacation'
+                reason
             });
+
             if (success) {
                 alert('Request Sent Successfully!');
                 rangeStart = null; rangeEnd = null;
                 updateRangeUI(); renderCalendar();
-                portal.fetchAllData(); // Triggers refresh to show new request in history sidebar
+                portal.fetchAllData(); // refresh to show new request in history sidebar
             }
         };
     </script>
