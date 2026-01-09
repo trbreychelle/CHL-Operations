@@ -69,13 +69,19 @@
       <div id="view-overview" class="dashboard-view active">
         <div class="flex justify-between items-center mb-8">
           <h1 class="text-3xl font-bold text-gray-900">Performance Overview</h1>
-          <select id="timeframe-filter" class="p-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-sm focus:ring-2 focus:ring-yellow-400 outline-none">
-            <option value="this-week">Current Week</option>
-            <option value="30-days">Last 30 Days</option>
-            <option value="4-weeks">Last 4 Weeks</option>
-            <option value="6-weeks">Last 6 Weeks</option>
-            <option value="all-time">All Time Records</option>
-          </select>
+          <div class="flex items-center space-x-3">
+            <!-- ✅ Added button to make incentives/milestones transparent -->
+            <a href="#profile" class="px-4 py-2.5 rounded-xl bg-yellow-500 text-gray-900 text-sm font-bold hover:bg-yellow-600 transition-all shadow-sm">
+              View Incentives & Milestones
+            </a>
+            <select id="timeframe-filter" class="p-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-sm focus:ring-2 focus:ring-yellow-400 outline-none">
+              <option value="this-week">Current Week</option>
+              <option value="30-days">Last 30 Days</option>
+              <option value="4-weeks">Last 4 Weeks</option>
+              <option value="6-weeks">Last 6 Weeks</option>
+              <option value="all-time">All Time Records</option>
+            </select>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -97,6 +103,29 @@
           </div>
         </div>
 
+        <!-- ✅ Added: Monthly Incentive + Monthly Raffle visibility -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+            <h3 class="text-lg font-bold text-gray-900 mb-2">Monthly Incentive ($100)</h3>
+            <p class="text-xs text-gray-500 mb-4">
+              Based on a rolling 4-week period. Must meet weekly criteria at least 3 out of 4 weeks (≥8 Confirmed + &lt;25% cancellation).
+            </p>
+            <div class="p-4 rounded-xl bg-gray-50 border border-gray-100">
+              <p class="text-sm font-bold text-gray-900" id="monthly-incentive-status">Loading...</p>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+            <h3 class="text-lg font-bold text-gray-900 mb-2">Monthly Raffle ($250)</h3>
+            <p class="text-xs text-gray-500 mb-4">
+              Earn an entry after accumulating 4 eligible weeks (not required to be consecutive): ≥8 Confirmed + &lt;20% cancellation. Resets after entry.
+            </p>
+            <div class="p-4 rounded-xl bg-gray-50 border border-gray-100">
+              <p class="text-sm font-bold text-gray-900" id="monthly-raffle-status">Loading...</p>
+            </div>
+          </div>
+        </div>
+
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
           <h3 class="text-lg font-bold text-gray-900 mb-4">Incentive Tier Progress</h3>
           <div class="space-y-4">
@@ -107,6 +136,9 @@
             <div class="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
               <div id="tier-progress-bar" class="progress-bar h-full rounded-full" style="width: 0%"></div>
             </div>
+
+            <!-- ✅ Added: 7th note placeholder (main.js fills this if present) -->
+            <p class="text-xs text-gray-500 italic" id="tier-note-7th"></p>
           </div>
         </div>
 
@@ -127,6 +159,7 @@
           <h2 class="text-3xl font-bold text-gray-900">My Submitted Leads</h2>
           <select id="status-filter" class="p-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-sm focus:ring-2 focus:ring-yellow-400 outline-none">
             <option value="all">All Statuses</option>
+            <option value="confirmed">Confirmed</option>
             <option value="approved">Approved</option>
             <option value="pending review">Pending Review</option>
             <option value="rejected">Rejected</option>
@@ -158,6 +191,25 @@
             <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Start Date</h3><p class="text-xl font-bold text-gray-900" id="profileStartDate">Loading...</p></div>
           </div>
 
+          <!-- ✅ Added: Milestone summary card block -->
+          <div class="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="bg-gray-50 border border-gray-100 rounded-2xl p-6">
+              <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Hourly Increase (Milestones)</h3>
+              <p class="text-2xl font-bold text-gray-900" id="milestone-hourly-increase">Loading...</p>
+              <p class="text-xs text-gray-500 mt-2" id="milestone-grace-status"></p>
+            </div>
+            <div class="bg-gray-50 border border-gray-100 rounded-2xl p-6">
+              <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Effective Hourly Rate</h3>
+              <p class="text-2xl font-bold text-yellow-600" id="effective-hourly-rate">Loading...</p>
+              <p class="text-xs text-gray-500 mt-2">Base Rate + Milestone Increase</p>
+            </div>
+            <div class="bg-gray-50 border border-gray-100 rounded-2xl p-6">
+              <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Monthly Incentives Snapshot</h3>
+              <p class="text-sm font-bold text-gray-900" id="monthly-incentive-status">Loading...</p>
+              <p class="text-sm font-bold text-gray-900 mt-2" id="monthly-raffle-status">Loading...</p>
+            </div>
+          </div>
+
           <div class="mt-16 border-t border-gray-100 pt-10">
             <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
               <svg class="w-6 h-6 mr-3 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -165,6 +217,16 @@
               </svg>
               Incentive Structure Reference
             </h3>
+
+            <!-- ✅ Added: Confirmed-only note + 7th rule transparency -->
+            <div class="mb-6 p-4 rounded-xl bg-yellow-50 border border-yellow-100">
+              <p class="text-sm font-semibold text-gray-900">
+                Incentives are counted ONLY for appointments with status <span class="font-bold text-yellow-700">Confirmed</span>.
+              </p>
+              <p class="text-xs text-gray-600 mt-1">
+                Bonus triggers at the 6th Confirmed appointment ($50). The 7th Confirmed appointment has no additional bonus. Tier bonuses then apply at 8th, 9th–12th, and 13th+.
+              </p>
+            </div>
 
             <div class="overflow-hidden rounded-2xl border border-gray-200 shadow-sm bg-white">
               <table class="min-w-full divide-y divide-gray-200">
@@ -176,12 +238,98 @@
                   </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-100">
-                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">1st - 6th Apt</td><td class="px-6 py-4 text-sm text-gray-600">$50 (Flat)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$50 (Flat)</td></tr>
-                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">8th Apt</td><td class="px-6 py-4 text-sm text-gray-600">$30 (Flat)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$50 (Flat)</td></tr>
-                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">9th - 12th Apt</td><td class="px-6 py-4 text-sm text-gray-600">$15 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$17 (Per Apt)</td></tr>
-                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">13th & Above</td><td class="px-6 py-4 text-sm text-gray-600">$25 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$27 (Per Apt)</td></tr>
+                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">6th Confirmed Apt</td><td class="px-6 py-4 text-sm text-gray-600">$50 (Flat)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$50 (Flat)</td></tr>
+                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">7th Confirmed Apt</td><td class="px-6 py-4 text-sm text-gray-600">$0 (No Bonus)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$0 (No Bonus)</td></tr>
+                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">8th Confirmed Apt</td><td class="px-6 py-4 text-sm text-gray-600">$30 (Flat)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$50 (Flat)</td></tr>
+                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">9th - 12th Confirmed</td><td class="px-6 py-4 text-sm text-gray-600">$15 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$17 (Per Apt)</td></tr>
+                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">13th & Above Confirmed</td><td class="px-6 py-4 text-sm text-gray-600">$25 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$27 (Per Apt)</td></tr>
                 </tbody>
               </table>
+            </div>
+
+            <!-- ✅ Added: Monthly incentive + raffle rules transparency -->
+            <div class="mt-12">
+              <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                <svg class="w-6 h-6 mr-3 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Monthly Incentives & Raffle
+              </h3>
+
+              <div class="overflow-hidden rounded-2xl border border-gray-200 shadow-sm bg-white">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Program</th>
+                      <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Qualification Rules</th>
+                      <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Reward</th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-100">
+                    <tr>
+                      <td class="px-6 py-4 text-sm font-bold text-gray-900">Monthly Incentive</td>
+                      <td class="px-6 py-4 text-sm text-gray-600">
+                        Over a 4-week period: meet weekly criteria at least 3 out of 4 weeks (≥8 Confirmed AND &lt;25% cancellation).
+                      </td>
+                      <td class="px-6 py-4 text-sm font-bold text-yellow-600">$100</td>
+                    </tr>
+                    <tr>
+                      <td class="px-6 py-4 text-sm font-bold text-gray-900">Monthly Raffle</td>
+                      <td class="px-6 py-4 text-sm text-gray-600">
+                        Earn an entry after accumulating 4 eligible weeks (weeks do not need to be consecutive): ≥8 Confirmed AND &lt;20% cancellation. Resets after entry.
+                      </td>
+                      <td class="px-6 py-4 text-sm font-bold text-yellow-600">$250 Raffle Entry</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- ✅ Added: Milestone rules transparency -->
+            <div class="mt-12">
+              <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                <svg class="w-6 h-6 mr-3 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 01.88 7.903A5 5 0 1115.9 6.12 4 4 0 0116 7z" />
+                </svg>
+                Tenure Milestones (Hourly Rate Increases)
+              </h3>
+
+              <div class="overflow-hidden rounded-2xl border border-gray-200 shadow-sm bg-white">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Milestone</th>
+                      <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Standard Requirement</th>
+                      <th class="px-6 py-4 text-left text-[10px] font-bold text-yellow-700 uppercase tracking-widest bg-yellow-50">High Perf Requirement</th>
+                      <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Increase</th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-100">
+                    <tr>
+                      <td class="px-6 py-4 text-sm font-bold text-gray-900">90 Days</td>
+                      <td class="px-6 py-4 text-sm text-gray-600">≥8 Confirmed per week, met in 75% of all tracked weeks</td>
+                      <td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">≥8 Confirmed per week AND &lt;25% cancellation, met in 75% of all tracked weeks</td>
+                      <td class="px-6 py-4 text-sm font-bold text-gray-900">+$0.50/hr (Standard) or +$0.75/hr (High)</td>
+                    </tr>
+                    <tr>
+                      <td class="px-6 py-4 text-sm font-bold text-gray-900">1 Year</td>
+                      <td class="px-6 py-4 text-sm text-gray-600">≥8 Confirmed per week, met in 75% of all tracked weeks</td>
+                      <td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">≥8 Confirmed per week AND &lt;25% cancellation, met in 75% of all tracked weeks</td>
+                      <td class="px-6 py-4 text-sm font-bold text-gray-900">+ $0.75/hr (Standard) or + $1.50/hr (High)</td>
+                    </tr>
+                    <tr>
+                      <td class="px-6 py-4 text-sm font-bold text-gray-900">1 Year Grace Period</td>
+                      <td class="px-6 py-4 text-sm text-gray-600">
+                        If ≥8 Confirmed weekly goal is met at 1-year mark, standard increase applies.
+                      </td>
+                      <td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">
+                        If cancellation target is missed at 1-year mark, you have an additional 90 days to improve to &lt;25% cancellation to qualify for the extra high performance increase.
+                      </td>
+                      <td class="px-6 py-4 text-sm font-bold text-gray-900">Upgrade from Standard to High if improved within grace window</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
 
           </div>
