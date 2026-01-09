@@ -81,6 +81,41 @@ class CallHammerPortal {
     return { start, end };
   }
 
+  // Convert a Date to MST wall-clock (as a Date object shifted from local time)
+  toMST(date) {
+    const d = new Date(date);
+    const mstOffset = -7 * 60;
+    const localOffset = d.getTimezoneOffset();
+    return new Date(d.getTime() + (mstOffset + localOffset) * 60000);
+  }
+
+  // Payroll week start for a given date (Saturday 00:00 MST)
+  getPayrollWeekStart(date) {
+    const mstDate = this.toMST(date);
+    const dayOfWeek = mstDate.getDay(); // Sun=0 ... Sat=6
+    const start = new Date(mstDate);
+    const diffToSat = (dayOfWeek === 6) ? 0 : (dayOfWeek + 1);
+    start.setDate(mstDate.getDate() - diffToSat);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  }
+
+  getPayrollWeekKey(date) {
+    const start = this.getPayrollWeekStart(date);
+    return start.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+  }
+
+  // Status helpers (Confirmed-only counting for incentives / performance)
+  isConfirmedStatus(status) {
+    const s = (status || '').toString().trim().toLowerCase();
+    return s === 'confirmed';
+  }
+
+  isCancelledLikeStatus(status) {
+    const s = (status || '').toString().toLowerCase();
+    return s.includes('cancel') || s.includes('credited') || s.includes('rejected') || s.includes('declined');
+  }
+
   // ------------------------
   // Data Fetch
   // ------------------------
@@ -147,26 +182,224 @@ class CallHammerPortal {
   }
 
   // ------------------------
-  // Incentives (FIXED: No bonus on 7th)
+  // Incentives (CONFIRMED-based; $50 triggers at 6th only)
   // ------------------------
-  calculateIncentives(approvedN, cancelRate) {
-    let total = 0;
+  calculateIncentives(confirmedN, cancelRate) {
     const isHighPerf = cancelRate < 25;
+    let total = 0;
 
-    for (let i = 1; i <= approvedN; i++) {
-      if (i <= 6) {
-        total += 50; // ✅ 1st–6th only
-      } else if (i === 7) {
-        total += 0; // ✅ NO incentive on 7th
-      } else if (i === 8) {
-        total += isHighPerf ? 50 : 30;
-      } else if (i >= 9 && i <= 12) {
-        total += isHighPerf ? 17 : 15;
-      } else if (i >= 13) {
-        total += isHighPerf ? 27 : 25;
+    // Base flat bonus at 6th confirmed (not per appointment 1–6)
+    if (confirmedN >= 6) total += 50;
+
+    // 7th confirmed: no additional bonus
+    // 8th confirmed: add tier bonus
+    if (confirmedN >= 8) total += isHighPerf ? 50 : 30;
+
+    // 9th–12th confirmed: add per appointment
+    if (confirmedN >= 9) {
+      const count9to12 = Math.min(confirmedN, 12) - 8; // 9..12 => 1..4
+      total += count9to12 * (isHighPerf ? 17 : 15);
+    }
+
+    // 13th+ confirmed: add per appointment above 12
+    if (confirmedN >= 13) {
+      total += (confirmedN - 12) * (isHighPerf ? 27 : 25);
+    }
+
+    return total;
+  }
+
+  // ------------------------
+  // Weekly performance summaries (Payroll week, MST Sat–Fri)
+  // ------------------------
+  buildPayrollWeekBucketsFromLeads(leads) {
+    const getVal = (obj, key) => this.normalizeKey(obj, key) || '';
+    const buckets = {};
+
+    for (const lead of leads) {
+      const date = this.parseDateSafe(getVal(lead, 'Date Submitted'));
+      if (!date) continue;
+
+      const weekKey = this.getPayrollWeekKey(date);
+      if (!buckets[weekKey]) {
+        buckets[weekKey] = {
+          weekKey,
+          weekStart: this.getPayrollWeekStart(date),
+          submitted: 0,
+          confirmed: 0,
+          cancelled: 0,
+          cancelRate: 0,
+          incentives: 0
+        };
+      }
+
+      const status = getVal(lead, 'Status');
+      buckets[weekKey].submitted += 1;
+      if (this.isConfirmedStatus(status)) buckets[weekKey].confirmed += 1;
+      if (this.isCancelledLikeStatus(status)) buckets[weekKey].cancelled += 1;
+    }
+
+    // finalize
+    for (const k of Object.keys(buckets)) {
+      const w = buckets[k];
+      w.cancelRate = w.submitted > 0 ? (w.cancelled / w.submitted) * 100 : 0;
+      w.incentives = this.calculateIncentives(w.confirmed, w.cancelRate);
+    }
+
+    return buckets;
+  }
+
+  // Monthly Incentive ($100): last 4 payroll weeks, need 3/4 weeks meeting:
+  // confirmed >= 8 AND cancelRate < 25
+  computeMonthlyIncentiveStatus() {
+    const buckets = this.buildPayrollWeekBucketsFromLeads(this.leadsData);
+    const keys = Object.keys(buckets).sort((a, b) => (buckets[a].weekStart - buckets[b].weekStart)); // newest first
+    const last4 = keys.slice(0, 4).map(k => buckets[k]);
+
+    const hits = last4.filter(w => w.confirmed >= 8 && w.cancelRate < 25).length;
+    const qualified = last4.length === 4 ? hits >= 3 : false;
+
+    return {
+      qualified,
+      hits,
+      weeksConsidered: last4.length,
+      needed: 3
+    };
+  }
+
+  // Monthly Raffle ($250): accumulate 4 eligible weeks (not necessarily consecutive):
+  // confirmed >= 8 AND cancelRate < 20
+  // Once 4 weeks are accumulated, eligibility is reached and progress resets (cycle-based).
+  // Since backend reset/join tracking isn't shown in this file, we compute cycle progress from all-time eligible weeks.
+  computeMonthlyRaffleStatus() {
+    const buckets = this.buildPayrollWeekBucketsFromLeads(this.leadsData);
+    const weeks = Object.values(buckets).sort((a, b) => a.weekStart - b.weekStart); // oldest -> newest
+
+    const eligibleWeeks = weeks.filter(w => w.confirmed >= 8 && w.cancelRate < 20);
+    const totalEligibleWeeks = eligibleWeeks.length;
+
+    const entriesEarned = Math.floor(totalEligibleWeeks / 4);
+    const progress = totalEligibleWeeks % 4;
+
+    const lastEligibleWeek = eligibleWeeks.length ? eligibleWeeks[eligibleWeeks.length - 1] : null;
+
+    // Optional: "eligible now" when they just hit a multiple of 4 and the latest eligible week is in the current month
+    const now = new Date();
+    const eligibleNow =
+      totalEligibleWeeks >= 4 &&
+      progress === 0 &&
+      lastEligibleWeek &&
+      lastEligibleWeek.weekStart.getMonth() === now.getMonth() &&
+      lastEligibleWeek.weekStart.getFullYear() === now.getFullYear();
+
+    return {
+      eligibleNow,
+      progress,
+      needed: 4,
+      entriesEarned
+    };
+  }
+
+  // Milestones: 90-day and 1-year based on "75% of all-time weekly record"
+  computeMilestoneStatus() {
+    const startDate = this.parseDateSafe(this.currentUser?.startDate);
+    if (!startDate) {
+      return {
+        hasStartDate: false,
+        daysEmployed: 0,
+        increases: { ninetyDay: 0, oneYear: 0, total: 0 },
+        ninetyDay: { eligible: false, standardMet: false, highMet: false },
+        oneYear: { eligible: false, standardMet: false, highMet: false, graceActive: false, graceEnds: null }
+      };
+    }
+
+    const now = new Date();
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const daysEmployed = Math.floor((now.getTime() - startDate.getTime()) / msPerDay);
+
+    // Build payroll-week timeline from startDate week to current week
+    const buckets = this.buildPayrollWeekBucketsFromLeads(this.leadsData);
+
+    const firstWeekStart = this.getPayrollWeekStart(startDate);
+    const currentWeekStart = this.getPayrollWeekStart(now);
+
+    const weeks = [];
+    for (let d = new Date(firstWeekStart); d <= currentWeekStart; d.setDate(d.getDate() + 7)) {
+      const wkStart = new Date(d);
+      const key = wkStart.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+      const existing = Object.values(buckets).find(b => {
+        // match by date value (not label only)
+        return b.weekStart && b.weekStart.getFullYear() === wkStart.getFullYear() &&
+          b.weekStart.getMonth() === wkStart.getMonth() &&
+          b.weekStart.getDate() === wkStart.getDate();
+      });
+
+      weeks.push(existing || {
+        weekKey: key,
+        weekStart: new Date(wkStart),
+        submitted: 0,
+        confirmed: 0,
+        cancelled: 0,
+        cancelRate: 0,
+        incentives: 0
+      });
+    }
+
+    const totalWeeks = weeks.length || 1;
+
+    const standardHits = weeks.filter(w => w.confirmed >= 8).length;
+    const highHits = weeks.filter(w => w.confirmed >= 8 && w.cancelRate < 25).length;
+
+    const standardMet = (standardHits / totalWeeks) >= 0.75;
+    const highMet = (highHits / totalWeeks) >= 0.75;
+
+    // 90-day milestone
+    const ninetyEligible = daysEmployed >= 90;
+    const ninetyIncrease = ninetyEligible ? (highMet ? 0.75 : (standardMet ? 0.50 : 0)) : 0;
+
+    // 1-year milestone
+    const oneYearEligible = daysEmployed >= 365;
+    const oneYearStandardMet = standardMet; // same definition
+    const oneYearHighMet = highMet;
+
+    // grace period: 90 days after 1-year mark if standard met but high not met
+    const graceActive = oneYearEligible && oneYearStandardMet && !oneYearHighMet && daysEmployed < (365 + 90);
+    const graceEnds = graceActive ? new Date(startDate.getTime() + (365 + 90) * msPerDay) : null;
+
+    // 1-year increase component (additional on top of 90-day increase)
+    // Standard: +0.75
+    // High: +1.50
+    // Grace: if later qualifies high within grace, can upgrade from +0.75 to +1.50
+    let oneYearIncrease = 0;
+    if (oneYearEligible) {
+      if (oneYearStandardMet) {
+        oneYearIncrease = oneYearHighMet ? 1.50 : 0.75;
       }
     }
-    return total;
+
+    const totalIncrease = (ninetyIncrease || 0) + (oneYearIncrease || 0);
+
+    return {
+      hasStartDate: true,
+      daysEmployed,
+      increases: {
+        ninetyDay: ninetyIncrease,
+        oneYear: oneYearIncrease,
+        total: totalIncrease
+      },
+      ninetyDay: {
+        eligible: ninetyEligible,
+        standardMet,
+        highMet
+      },
+      oneYear: {
+        eligible: oneYearEligible,
+        standardMet: oneYearStandardMet,
+        highMet: oneYearHighMet,
+        graceActive,
+        graceEnds: graceEnds ? this.formatDateShort(graceEnds) : null
+      }
+    };
   }
 
   // ------------------------
@@ -182,27 +415,21 @@ class CallHammerPortal {
       return subDate && subDate >= payrollRange.start && subDate <= payrollRange.end;
     });
 
-    // Approved for incentives
-    const payrollApproved = payrollLeads.filter(l => getVal(l, 'Status').toString().toLowerCase() === 'approved');
+    // ✅ Confirmed for incentives
+    const payrollConfirmed = payrollLeads.filter(l => this.isConfirmedStatus(getVal(l, 'Status')));
 
     // Cancel Rate (Payroll week)
     const payrollTotal = payrollLeads.length;
-    const payrollCancelled = payrollLeads.filter(l => {
-      const s = getVal(l, 'Status').toString().toLowerCase();
-      return s.includes('cancel') || s.includes('credited') || s.includes('rejected') || s.includes('declined');
-    }).length;
+    const payrollCancelled = payrollLeads.filter(l => this.isCancelledLikeStatus(getVal(l, 'Status'))).length;
 
     const payrollCancelRate = payrollTotal > 0 ? (payrollCancelled / payrollTotal) * 100 : 0;
 
-    // ✅ Incentives shown in card = Payroll week incentives
-    const currentIncentives = this.calculateIncentives(payrollApproved.length, payrollCancelRate);
+    // ✅ Incentives shown in card = Payroll week incentives (Confirmed-based)
+    const currentIncentives = this.calculateIncentives(payrollConfirmed.length, payrollCancelRate);
 
     // Stats reflect selected timeframe
     const totalRaw = leads.length;
-    const cancelledCount = leads.filter(l => {
-      const s = getVal(l, 'Status').toString().toLowerCase();
-      return s.includes('cancel') || s.includes('credited') || s.includes('rejected') || s.includes('declined');
-    }).length;
+    const cancelledCount = leads.filter(l => this.isCancelledLikeStatus(getVal(l, 'Status'))).length;
 
     const rate = totalRaw > 0 ? ((cancelledCount / totalRaw) * 100).toFixed(1) : "0.0";
 
@@ -213,30 +440,76 @@ class CallHammerPortal {
     // Weekly hours from AGENT_MASTER
     if (document.getElementById('stat-hours')) document.getElementById('stat-hours').textContent = this.currentUser?.weeklyHours || 0;
 
-    // ✅ Tier progress (based on payroll-week approved)
+    // ✅ Tier progress (based on payroll-week confirmed)
     const progressBar = document.getElementById('tier-progress-bar');
     const tierText = document.getElementById('tier-status-text');
     const tierCountDisplay = document.getElementById('tier-count-display');
 
     if (progressBar && tierText && tierCountDisplay) {
-      const approved = payrollApproved.length;
+      const confirmed = payrollConfirmed.length;
 
       // Next tier goal: 6 -> 8 -> 12 -> 13 (then keep 13 as milestone)
       let nextGoal = 6;
-      if (approved >= 6 && approved < 8) nextGoal = 8;
-      else if (approved >= 8 && approved < 12) nextGoal = 12;
-      else if (approved >= 12 && approved < 13) nextGoal = 13;
-      else if (approved >= 13) nextGoal = 13;
+      if (confirmed >= 6 && confirmed < 8) nextGoal = 8;
+      else if (confirmed >= 8 && confirmed < 12) nextGoal = 12;
+      else if (confirmed >= 12 && confirmed < 13) nextGoal = 13;
+      else if (confirmed >= 13) nextGoal = 13;
 
-      const pct = nextGoal > 0 ? Math.min((approved / nextGoal) * 100, 100) : 0;
+      const pct = nextGoal > 0 ? Math.min((confirmed / nextGoal) * 100, 100) : 0;
       progressBar.style.width = `${pct}%`;
 
       tierText.textContent = `Cycle: ${this.formatDateShort(payrollRange.start)} - ${this.formatDateShort(payrollRange.end)}`;
-      tierCountDisplay.textContent = `${approved} / ${nextGoal} approved (This Payroll Week)`;
+      tierCountDisplay.textContent = `${confirmed} / ${nextGoal} confirmed (This Payroll Week)`;
 
       // Optional note for appointment #7 = $0
       const noteEl = document.getElementById('tier-note-7th');
-      if (noteEl) noteEl.textContent = "Note: 7th approved appointment has no additional bonus.";
+      if (noteEl) noteEl.textContent = "Note: 7th confirmed appointment has no additional bonus.";
+    }
+
+    // ✅ Monthly incentive + raffle + milestones (display if elements exist)
+    const monthly = this.computeMonthlyIncentiveStatus();
+    const raffle = this.computeMonthlyRaffleStatus();
+    const milestone = this.computeMilestoneStatus();
+
+    const monthlyEl = document.getElementById('monthly-incentive-status');
+    if (monthlyEl) {
+      monthlyEl.textContent = monthly.weeksConsidered === 4
+        ? (monthly.qualified ? `Qualified ($100) — ${monthly.hits}/4 weeks met` : `Not qualified — ${monthly.hits}/4 weeks met (need 3/4)`)
+        : `Not enough data — ${monthly.hits}/${monthly.weeksConsidered} weeks met (need 4 weeks tracked)`;
+    }
+
+    const raffleEl = document.getElementById('monthly-raffle-status');
+    if (raffleEl) {
+      if (raffle.eligibleNow) {
+        raffleEl.textContent = `Eligible for Monthly Raffle ($250) — entry earned (cycle reset after entry)`;
+      } else {
+        raffleEl.textContent = `Raffle progress: ${raffle.progress}/${raffle.needed} eligible weeks (Entries earned: ${raffle.entriesEarned})`;
+      }
+    }
+
+    const increaseEl = document.getElementById('milestone-hourly-increase');
+    if (increaseEl) {
+      if (!milestone.hasStartDate) {
+        increaseEl.textContent = `Hourly Increase: N/A (missing start date)`;
+      } else {
+        increaseEl.textContent = `Hourly Increase: +$${(milestone.increases.total || 0).toFixed(2)}/hr`;
+      }
+    }
+
+    const effectiveRateEl = document.getElementById('effective-hourly-rate');
+    if (effectiveRateEl) {
+      const base = parseFloat(this.currentUser?.baseRate || 0) || 0;
+      const eff = base + (milestone.increases.total || 0);
+      effectiveRateEl.textContent = this.formatCurrency(eff);
+    }
+
+    const graceEl = document.getElementById('milestone-grace-status');
+    if (graceEl) {
+      if (milestone.oneYear?.graceActive) {
+        graceEl.textContent = `Grace period active — ends ${milestone.oneYear.graceEnds} (improve cancellation rate to qualify for high performance increase)`;
+      } else {
+        graceEl.textContent = '';
+      }
     }
 
     // Leads table
@@ -272,6 +545,7 @@ class CallHammerPortal {
   getStatusStyle(status) {
     const s = (status || '').toLowerCase();
     if (s === 'approved') return 'bg-green-100 text-green-700';
+    if (s === 'confirmed') return 'bg-green-100 text-green-700';
     if (s.includes('cancel') || s.includes('reject') || s.includes('credited') || s.includes('declined')) return 'bg-red-100 text-red-700';
     return 'bg-yellow-100 text-yellow-700';
   }
@@ -356,6 +630,9 @@ class CallHammerPortal {
       filtered = this.leadsData;
     }
 
+    // ✅ keep filteredLeads updated for status filter dropdown usage
+    this.filteredLeads = filtered;
+
     this.updateDashboardUI(filtered);
     this.updateCharts(); // refresh charts when filter changes
   }
@@ -372,7 +649,7 @@ class CallHammerPortal {
     if (!this.charts.appointments) this.charts.appointments = echarts.init(chartA);
     if (!this.charts.incentives) this.charts.incentives = echarts.init(chartI);
 
-    // Build weekly buckets for last 8 weeks
+    // Build weekly buckets for last 8 weeks (Payroll weeks)
     const buckets = this.buildWeeklyBuckets(8);
 
     // Fill buckets based on leadsData
@@ -387,19 +664,19 @@ class CallHammerPortal {
 
       buckets[weekKey].submitted += 1;
 
-      if (status === 'approved') buckets[weekKey].approved += 1;
+      if (status === 'confirmed') buckets[weekKey].confirmed += 1;
       if (status.includes('cancel') || status.includes('reject') || status.includes('declined') || status.includes('credited')) buckets[weekKey].cancelled += 1;
     }
 
-    // Compute incentives per week
+    // Compute incentives per week (Confirmed-based)
     for (const k of Object.keys(buckets)) {
       const week = buckets[k];
       const cancelRate = week.submitted > 0 ? (week.cancelled / week.submitted) * 100 : 0;
-      week.incentives = this.calculateIncentives(week.approved, cancelRate);
+      week.incentives = this.calculateIncentives(week.confirmed, cancelRate);
     }
 
     const labels = Object.keys(buckets).sort(); // oldest -> newest
-    const approvedSeries = labels.map(k => buckets[k].approved);
+    const confirmedSeries = labels.map(k => buckets[k].confirmed);
     const submittedSeries = labels.map(k => buckets[k].submitted);
     const incentiveSeries = labels.map(k => buckets[k].incentives);
 
@@ -410,7 +687,7 @@ class CallHammerPortal {
       yAxis: { type: 'value' },
       series: [
         { name: 'Submitted', type: 'line', data: submittedSeries, smooth: true },
-        { name: 'Approved', type: 'line', data: approvedSeries, smooth: true }
+        { name: 'Confirmed', type: 'line', data: confirmedSeries, smooth: true }
       ]
     }, true);
 
@@ -441,23 +718,18 @@ class CallHammerPortal {
       d.setDate(d.getDate() - (w * 7));
       const start = this.getWeekStart(d);
       const label = start.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
-      out[label] = { submitted: 0, approved: 0, cancelled: 0, incentives: 0 };
+      out[label] = { submitted: 0, confirmed: 0, cancelled: 0, incentives: 0 };
     }
     return out;
   }
 
   getWeekStart(d) {
-    const date = new Date(d);
-    // Week start = Sunday
-    const day = date.getDay();
-    date.setDate(date.getDate() - day);
-    date.setHours(0,0,0,0);
-    return date;
+    // Payroll week start = Saturday MST
+    return this.getPayrollWeekStart(d);
   }
 
   getWeekKey(d) {
-    const start = this.getWeekStart(d);
-    return start.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+    return this.getPayrollWeekKey(d);
   }
 
   // ------------------------
@@ -482,6 +754,54 @@ class CallHammerPortal {
     for (const [id, val] of Object.entries(map)) {
       const el = document.getElementById(id);
       if (el) el.textContent = val;
+    }
+
+    // ✅ Optional: milestone/effective rate display (if IDs exist in HTML)
+    const milestone = this.computeMilestoneStatus();
+
+    const increaseEl = document.getElementById('milestone-hourly-increase');
+    if (increaseEl) {
+      if (!milestone.hasStartDate) {
+        increaseEl.textContent = `Hourly Increase: N/A (missing start date)`;
+      } else {
+        increaseEl.textContent = `Hourly Increase: +$${(milestone.increases.total || 0).toFixed(2)}/hr`;
+      }
+    }
+
+    const effectiveRateEl = document.getElementById('effective-hourly-rate');
+    if (effectiveRateEl) {
+      const base = parseFloat(u.baseRate || 0) || 0;
+      const eff = base + (milestone.increases.total || 0);
+      effectiveRateEl.textContent = this.formatCurrency(eff);
+    }
+
+    const graceEl = document.getElementById('milestone-grace-status');
+    if (graceEl) {
+      if (milestone.oneYear?.graceActive) {
+        graceEl.textContent = `Grace period active — ends ${milestone.oneYear.graceEnds} (improve cancellation rate to qualify for high performance increase)`;
+      } else {
+        graceEl.textContent = '';
+      }
+    }
+
+    // ✅ Optional: monthly displays (if IDs exist in HTML)
+    const monthly = this.computeMonthlyIncentiveStatus();
+    const raffle = this.computeMonthlyRaffleStatus();
+
+    const monthlyEl = document.getElementById('monthly-incentive-status');
+    if (monthlyEl) {
+      monthlyEl.textContent = monthly.weeksConsidered === 4
+        ? (monthly.qualified ? `Qualified ($100) — ${monthly.hits}/4 weeks met` : `Not qualified — ${monthly.hits}/4 weeks met (need 3/4)`)
+        : `Not enough data — ${monthly.hits}/${monthly.weeksConsidered} weeks met (need 4 weeks tracked)`;
+    }
+
+    const raffleEl = document.getElementById('monthly-raffle-status');
+    if (raffleEl) {
+      if (raffle.eligibleNow) {
+        raffleEl.textContent = `Eligible for Monthly Raffle ($250) — entry earned (cycle reset after entry)`;
+      } else {
+        raffleEl.textContent = `Raffle progress: ${raffle.progress}/${raffle.needed} eligible weeks (Entries earned: ${raffle.entriesEarned})`;
+      }
     }
   }
 
