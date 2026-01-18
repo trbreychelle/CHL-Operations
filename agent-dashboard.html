@@ -44,8 +44,6 @@
           <div class="text-right">
             <p class="text-sm font-medium text-gray-900" id="nav-user-name">Loading...</p>
             <p class="text-xs text-gray-500" id="nav-user-role">Agent</p>
-            <!-- ✅ NEW: MST clock placeholder (main.js will fill this) -->
-            <p class="text-[11px] font-bold text-yellow-600" id="mst-clock">--:--:-- MST</p>
           </div>
           <button onclick="portal.logout()" class="text-gray-400 hover:text-yellow-600 transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -58,13 +56,18 @@
   </nav>
 
   <div class="flex">
-    <div class="sidebar w-64 min-h-screen text-white p-6 hidden lg:block">
+    <div class="sidebar w-64 min-h-screen text-white p-6 hidden lg:block relative">
       <nav class="space-y-2">
         <a href="#overview" class="nav-item active flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Performance Overview</span></a>
         <a href="#leads" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>My Leads</span></a>
         <a href="#profile" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Profile Info</span></a>
         <a href="#timeoff" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Request Time Off</span></a>
       </nav>
+
+      <!-- ✅ MST CLOCK MOVED: bottom-left of sidebar -->
+      <div class="absolute bottom-4 left-6">
+        <p class="text-[11px] font-bold text-yellow-400" id="mst-clock">--:--:-- MST</p>
+      </div>
     </div>
 
     <div class="flex-1 p-6 lg:p-10">
@@ -78,7 +81,6 @@
             </a>
             <select id="timeframe-filter" class="p-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-sm focus:ring-2 focus:ring-yellow-400 outline-none">
               <option value="this-week">Current Week</option>
-              <!-- ✅ NEW: Previous Week -->
               <option value="previous-week">Previous Week</option>
               <option value="30-days">Last 30 Days</option>
               <option value="4-weeks">Last 4 Weeks</option>
@@ -195,7 +197,6 @@
             <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Start Date</h3><p class="text-xl font-bold text-gray-900" id="profileStartDate">Loading...</p></div>
           </div>
 
-          <!-- ✅ Added: Milestone summary card block -->
           <div class="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="bg-gray-50 border border-gray-100 rounded-2xl p-6">
               <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Hourly Increase (Milestones)</h3>
@@ -222,7 +223,6 @@
               Incentive Structure Reference
             </h3>
 
-            <!-- ✅ Added: Confirmed-only note + 7th rule transparency -->
             <div class="mb-6 p-4 rounded-xl bg-yellow-50 border border-yellow-100">
               <p class="text-sm font-semibold text-gray-900">
                 Incentives are counted ONLY for appointments with status <span class="font-bold text-yellow-700">Confirmed</span>.
@@ -251,7 +251,6 @@
               </table>
             </div>
 
-            <!-- ✅ Added: Monthly incentive + raffle rules transparency -->
             <div class="mt-12">
               <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
                 <svg class="w-6 h-6 mr-3 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -289,7 +288,6 @@
               </div>
             </div>
 
-            <!-- ✅ Added: Milestone rules transparency -->
             <div class="mt-12">
               <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
                 <svg class="w-6 h-6 mr-3 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -365,7 +363,6 @@
 
                 <div id="range-preview" class="hidden space-y-6">
 
-                  <!-- ✅ Reason dropdown added -->
                   <div>
                     <p class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Reason</p>
                     <select id="timeoff-reason" class="w-full mt-2 p-3 border border-gray-200 rounded-xl bg-white text-sm focus:ring-2 focus:ring-yellow-400 outline-none">
