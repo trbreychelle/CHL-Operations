@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Team Leader Dashboard - Call Hammer Leads</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Inter', sans-serif; }
+    .progress-bar { background: linear-gradient(90deg, #FBBF24 0%, #F59E0B 100%); transition: width 1s ease-in-out; }
+    .metric-card { background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(31, 41, 55, 0.02) 100%); transition: all 0.3s ease; }
+    .metric-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(251, 191, 36, 0.15); }
+    .sidebar { background: linear-gradient(180deg, #374151 0%, #111827 100%); }
+    .nav-item { transition: all 0.3s ease; cursor: pointer; color: #D1D5DB; }
+    .nav-item:hover, .nav-item.active { background: rgba(251, 191, 36, 0.15); border-left: 4px solid #FBBF24; color: #FBBF24; }
+    .chart-container { min-height: 350px; width: 100%; }
+    .dashboard-view { display: none; }
+    .dashboard-view.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    #timeoff-history-list::-webkit-scrollbar { width: 4px; }
+    #timeoff-history-list::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 10px; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-800">
+  <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <div class="flex items-center space-x-4">
+          <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-lg flex items-center justify-center">
+              <span class="text-gray-900 font-bold text-sm">CH</span>
+            </div>
+            <span class="text-xl font-bold text-gray-900 tracking-tight">Team Leader Dashboard</span>
+          </div>
+        </div>
+        <div class="flex items-center space-x-4">
+          <div class="text-right">
+            <p class="text-sm font-medium text-gray-900" id="nav-user-name">Loading...</p>
+            <p class="text-xs text-gray-500" id="nav-user-role">TEAM LEADER</p>
+          </div>
+          <button onclick="portal.logout()" class="text-gray-400 hover:text-yellow-600 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="flex">
+    <div class="sidebar w-64 min-h-screen text-white p-6 hidden lg:block">
+      <nav class="space-y-2">
+        <a href="#overview" class="nav-item active flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Team Overview</span></a>
+        <a href="#team" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Team Performance</span></a>
+        <a href="#leads" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Team Leads</span></a>
+        <a href="#timeoff" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Team Time Off</span></a>
+        <a href="#profile" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>My Profile</span></a>
+      </nav>
+    </div>
+
+    <div class="flex-1 p-6 lg:p-10">
+
+      <!-- OVERVIEW -->
+      <div id="view-overview" class="dashboard-view active">
+        <div class="flex justify-between items-center mb-8">
+          <h1 class="text-3xl font-bold text-gray-900">Team Overview</h1>
+          <div class="flex items-center space-x-3">
+            <select id="timeframe-filter" class="p-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-sm focus:ring-2 focus:ring-yellow-400 outline-none">
+              <option value="this-week">Current Week</option>
+              <option value="30-days">Last 30 Days</option>
+              <option value="4-weeks">Last 4 Weeks</option>
+              <option value="6-weeks">Last 6 Weeks</option>
+              <option value="all-time">All Time Records</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div class="metric-card bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Team Leads (Submitted)</h3>
+            <p class="text-3xl font-bold text-gray-900" id="tl-stat-submitted">0</p>
+          </div>
+          <div class="metric-card bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Team Confirmed</h3>
+            <p class="text-3xl font-bold text-gray-900" id="tl-stat-confirmed">0</p>
+          </div>
+          <div class="metric-card bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Team Cancelled-like</h3>
+            <p class="text-3xl font-bold text-gray-900" id="tl-stat-cancelled">0</p>
+          </div>
+          <div class="metric-card bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Cancellation Rate</h3>
+            <p class="text-3xl font-bold text-yellow-600" id="tl-stat-cancelrate">0%</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-bold mb-6 text-gray-900">Team Weekly Appointment Trends</h3>
+            <div id="appointmentsChart" class="chart-container"></div>
+          </div>
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-bold mb-6 text-gray-900">Team Incentive Trends (Confirmed-based)</h3>
+            <div id="incentivesChart" class="chart-container"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TEAM PERFORMANCE -->
+      <div id="view-team" class="dashboard-view">
+        <div class="flex justify-between items-center mb-8">
+          <h2 class="text-3xl font-bold text-gray-900">Team Performance</h2>
+          <p class="text-sm text-gray-500">Shows only your agents (from AGENT_MASTER → Manager_Email).</p>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Agent</th>
+                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Submitted</th>
+                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Confirmed</th>
+                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Cancelled-like</th>
+                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Cancel Rate</th>
+                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Last Submitted</th>
+              </tr>
+            </thead>
+            <tbody id="tl-agent-table-body" class="bg-white divide-y divide-gray-100"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TEAM LEADS -->
+      <div id="view-leads" class="dashboard-view">
+        <div class="flex justify-between items-center mb-8">
+          <h2 class="text-3xl font-bold text-gray-900">Team Leads</h2>
+          <select id="status-filter" class="p-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-sm focus:ring-2 focus:ring-yellow-400 outline-none">
+            <option value="all">All Statuses</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="approved">Approved</option>
+            <option value="pending review">Pending Review</option>
+            <option value="rejected">Rejected</option>
+            <option value="credited">Credited</option>
+            <option value="declined">Declined</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Date Submitted</th>
+                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Homeowner Name</th>
+                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
+              </tr>
+            </thead>
+            <tbody id="leads-table-body" class="bg-white divide-y divide-gray-100"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TEAM TIME OFF -->
+      <div id="view-timeoff" class="dashboard-view">
+        <div class="max-w-6xl mx-auto">
+          <h2 class="text-3xl font-bold text-gray-900 mb-2">Team Time Off</h2>
+          <p class="text-gray-500 mb-8 text-lg">View time-off requests for your team.</p>
+
+          <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <div class="lg:col-span-1 bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+              <h3 class="text-xs font-bold text-gray-400 uppercase mb-6 tracking-widest">Team Request History</h3>
+              <div id="timeoff-history-list" class="space-y-4 max-h-[650px] overflow-y-auto pr-2">
+                <p class="text-xs text-gray-400 italic">No history found.</p>
+              </div>
+            </div>
+
+            <div class="lg:col-span-3 bg-white rounded-2xl shadow-2xl border border-gray-100 p-8">
+              <h3 class="text-lg font-bold text-gray-900 mb-2">What you can do here</h3>
+              <p class="text-sm text-gray-600 mb-6">
+                This view is read-only for Team Leaders. Approval/decline can be added later if you want it (admin-only workflow).
+              </p>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-gray-50 border border-gray-100 rounded-2xl p-6">
+                  <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Team Size</h3>
+                  <p class="text-3xl font-bold text-gray-900" id="tl-team-size">0</p>
+                  <p class="text-xs text-gray-500 mt-2">Based on AGENT_MASTER manager mapping</p>
+                </div>
+                <div class="bg-gray-50 border border-gray-100 rounded-2xl p-6">
+                  <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Pending Requests</h3>
+                  <p class="text-3xl font-bold text-yellow-600" id="tl-timeoff-pending">0</p>
+                  <p class="text-xs text-gray-500 mt-2">Pending = Status contains “pending”</p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MY PROFILE -->
+      <div id="view-profile" class="dashboard-view">
+        <h2 class="text-3xl font-bold text-gray-900 mb-8">My Profile</h2>
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+            <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Full Name</h3><p class="text-xl font-bold text-gray-900" id="profileName">Loading...</p></div>
+            <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Position</h3><p class="text-xl font-bold text-gray-900" id="profilePosition">Loading...</p></div>
+            <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Email Address</h3><p class="text-xl font-bold text-gray-900" id="profileEmail">Loading...</p></div>
+            <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Base Rate</h3><p class="text-xl font-bold text-yellow-600" id="profileRate">Loading...</p></div>
+            <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Weekly Hours</h3><p class="text-xl font-bold text-gray-900" id="profileHours">Loading...</p></div>
+            <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Start Date</h3><p class="text-xl font-bold text-gray-900" id="profileStartDate">Loading...</p></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+
+  <script>
+    // SPA Routing logic (same style as Agent dashboard)
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        const targetId = 'view-' + item.getAttribute('href').substring(1);
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        document.querySelectorAll('.dashboard-view').forEach(view => view.classList.remove('active'));
+        const targetView = document.getElementById(targetId);
+        if (targetView) targetView.classList.add('active');
+
+        if (targetId === 'view-overview') {
+          setTimeout(() => { portal.charts?.appointments?.resize(); portal.charts?.incentives?.resize(); }, 100);
+        }
+      });
+    });
+
+    // TL dashboard controller (uses existing portal logic + helpers)
+    window.teamLeadDashboard = {
+      refresh: function() {
+        const leads = portal.filteredLeads?.length ? portal.filteredLeads : portal.leadsData;
+
+        // Top cards
+        const total = leads.length;
+        const confirmed = leads.filter(l => portal.isConfirmedStatus(portal.normalizeKey(l, 'Status') || l['Status'])).length;
+        const cancelled = leads.filter(l => portal.isCancelledLikeStatus(portal.normalizeKey(l, 'Status') || l['Status'])).length;
+        const cancelRate = total > 0 ? ((cancelled / total) * 100).toFixed(1) : "0.0";
+
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        set('tl-stat-submitted', total);
+        set('tl-stat-confirmed', confirmed);
+        set('tl-stat-cancelled', cancelled);
+        set('tl-stat-cancelrate', `${cancelRate}%`);
+
+        // Team size + pending time off
+        set('tl-team-size', Array.isArray(portal.employeeList) ? portal.employeeList.length : 0);
+
+        // Pending requests count from timeoff list UI dataset (if already rendered)
+        // If n8n returns timeOffHistory, portal.renderTimeOffHistory already displays it.
+        // Here we compute pending count from stored data if possible.
+        let pendingCount = 0;
+        if (window._tlTimeOffHistory && Array.isArray(window._tlTimeOffHistory)) {
+          pendingCount = window._tlTimeOffHistory.filter(r => ((r['Status'] || r.status || '') + '').toLowerCase().includes('pending')).length;
+        }
+        set('tl-timeoff-pending', pendingCount);
+
+        // Agent performance table
+        const byAgent = {};
+        for (const l of leads) {
+          const agent = (l['Appointment Coordinator Name'] || portal.normalizeKey(l, 'Appointment Coordinator Name') || 'Unassigned').toString().trim();
+          if (!byAgent[agent]) byAgent[agent] = { agent, submitted: 0, confirmed: 0, cancelled: 0, lastDate: null };
+
+          byAgent[agent].submitted += 1;
+
+          const status = (l['Status'] || portal.normalizeKey(l, 'Status') || '');
+          if (portal.isConfirmedStatus(status)) byAgent[agent].confirmed += 1;
+          if (portal.isCancelledLikeStatus(status)) byAgent[agent].cancelled += 1;
+
+          const d = portal.parseDateSafe(l['Date Submitted'] || portal.normalizeKey(l, 'Date Submitted'));
+          if (d && (!byAgent[agent].lastDate || d > byAgent[agent].lastDate)) byAgent[agent].lastDate = d;
+        }
+
+        const rows = Object.values(byAgent).sort((a, b) => b.confirmed - a.confirmed);
+        const tbody = document.getElementById('tl-agent-table-body');
+        if (tbody) {
+          tbody.innerHTML = rows.map(r => {
+            const rate = r.submitted > 0 ? ((r.cancelled / r.submitted) * 100).toFixed(1) : "0.0";
+            const last = r.lastDate ? portal.formatDateShort(r.lastDate) : '—';
+            return `
+              <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4 font-bold text-gray-900">${r.agent}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">${r.submitted}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">${r.confirmed}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">${r.cancelled}</td>
+                <td class="px-6 py-4 text-sm font-bold text-yellow-600">${rate}%</td>
+                <td class="px-6 py-4 text-sm text-gray-600">${last}</td>
+              </tr>
+            `;
+          }).join('') || `<tr><td class="px-6 py-6 text-sm text-gray-500" colspan="6">No team data found.</td></tr>`;
+        }
+      }
+    };
+
+    // Hook timeframe + status filter to existing portal behavior
+    const tf = document.getElementById('timeframe-filter');
+    if (tf) {
+      tf.onchange = (e) => {
+        portal.handleFilterChange(e.target.value);
+        window.teamLeadDashboard.refresh();
+      };
+    }
+
+    const statusSelect = document.getElementById('status-filter');
+    if (statusSelect) {
+      statusSelect.onchange = (e) => {
+        const v = (e.target.value || 'all').toLowerCase();
+        let filtered = portal.filteredLeads?.length ? portal.filteredLeads : portal.leadsData;
+
+        if (v !== 'all') {
+          filtered = filtered.filter(l => (l['Status'] || portal.normalizeKey(l, 'Status') || '').toString().toLowerCase() === v);
+        }
+        portal.renderLeadsTable(filtered);
+      };
+    }
+
+    // Capture timeOffHistory if the backend returns it and main.js renders it
+    const _origRenderTimeOff = portal.renderTimeOffHistory.bind(portal);
+    portal.renderTimeOffHistory = function(history) {
+      window._tlTimeOffHistory = Array.isArray(history) ? history : [];
+      _origRenderTimeOff(history);
+      window.teamLeadDashboard.refresh();
+    };
+
+    // Initial refresh attempt (will show zeros until fetchAllData finishes)
+    setTimeout(() => window.teamLeadDashboard.refresh(), 200);
+  </script>
+</body>
+</html>
