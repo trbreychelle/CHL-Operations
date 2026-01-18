@@ -179,9 +179,7 @@ class CallHammerPortal {
     return { start, end };
   }
 
-  // ✅ FIX: supports BOTH Weekly_Payroll formats:
-  //   A) "WIDE" = date columns like "1/12/2026", "1/13/2026"...
-  //   B) "ROW"  = each record has Work Date + Hours
+  // ✅ FIXED: Supports Weekly_Payroll "WIDE" format with date columns as headers
   computeWorkedHoursFromWeeklyPayroll(rangeStart, rangeEnd) {
     const rows = Array.isArray(this.weeklyPayroll) ? this.weeklyPayroll : [];
     if (!rows.length || !this.currentUser) return 0;
@@ -196,7 +194,7 @@ class CallHammerPortal {
       return isNaN(n) ? 0 : n;
     };
 
-    // Find the user's row for WIDE format
+    // Find the row for this user (Email first, then name)
     const myRow = rows.find(r => {
       const rowEmail = (get(r, 'Email') || get(r, 'Agent Email') || get(r, 'Employee Email') || '').toLowerCase().trim();
       const rowName = (get(r, 'Agent Name') || get(r, 'Employee Name') || get(r, 'Name') || '').toLowerCase().trim();
@@ -206,31 +204,29 @@ class CallHammerPortal {
       return emailMatch || nameMatch;
     });
 
-    // --- A) WIDE weekly payroll: date keys are columns in the row ---
-    if (myRow) {
-      let wideTotal = 0;
-      let foundAnyDateColumns = false;
+    if (!myRow) return 0;
 
-      for (const [k, v] of Object.entries(myRow)) {
-        // keys like "1/12/2026" or "2026-01-12"
-        const keyDate = this.parseDateSafe(k);
-        if (!keyDate) continue;
+    // ✅ WIDE FORMAT: sum all keys that are date headers within the range
+    let total = 0;
+    let foundDateColumns = false;
 
-        foundAnyDateColumns = true;
+    for (const [k, v] of Object.entries(myRow)) {
+      const keyDate = this.parseDateSafe(k);
+      if (!keyDate) continue;
 
-        const mstKeyDate = this.toMST(keyDate);
-        if (mstKeyDate >= rangeStart && mstKeyDate <= rangeEnd) {
-          wideTotal += parseHours(v);
-        }
+      foundDateColumns = true;
+
+      const mstK = this.toMST(keyDate);
+      if (mstK >= rangeStart && mstK <= rangeEnd) {
+        total += parseHours(v);
       }
-
-      // If the row has date columns, this is the correct total
-      if (foundAnyDateColumns) return wideTotal;
     }
 
-    // --- B) ROW-based payroll: one record per day ---
-    let total = 0;
+    if (foundDateColumns) return total;
 
+    // ✅ Fallback (row-per-day format) if you ever change backend later
+    // (will not run for your current Weekly_Payroll structure)
+    let rowTotal = 0;
     for (const r of rows) {
       const rowEmail = (get(r, 'Email') || get(r, 'Agent Email') || get(r, 'Employee Email') || '').toLowerCase().trim();
       const rowName = (get(r, 'Agent Name') || get(r, 'Employee Name') || get(r, 'Name') || '').toLowerCase().trim();
@@ -264,10 +260,10 @@ class CallHammerPortal {
         get(r, 'Weekly Hours Worked') ||
         '';
 
-      total += parseHours(hoursVal);
+      rowTotal += parseHours(hoursVal);
     }
 
-    return total;
+    return rowTotal;
   }
 
   // Convert a Date to MST wall-clock (as a Date object shifted from local time)
@@ -477,7 +473,7 @@ class CallHammerPortal {
   updateDashboardUI(leads) {
     const getVal = (obj, key) => this.normalizeKey(obj, key) || '';
 
-    // Payroll week for incentives
+    // Payroll week for incentives (always current payroll week)
     const payrollRange = this.getPayrollWeekRange();
     const payrollLeads = this.leadsData.filter(l => {
       const subDate = this.parseDateSafe(getVal(l, 'Date Submitted'));
@@ -501,25 +497,16 @@ class CallHammerPortal {
     if (document.getElementById('stat-cancel-rate')) document.getElementById('stat-cancel-rate').textContent = `${rate}%`;
     if (document.getElementById('stat-incentives')) document.getElementById('stat-incentives').textContent = this.formatCurrency(currentIncentives);
 
-    // ✅ FIX: Weekly Hours card should show ACTUAL worked hours from Weekly_Payroll (not AGENT_MASTER)
-    const curR = this.getPayrollWeekRange();
-    const workedCur = this.computeWorkedHoursFromWeeklyPayroll(curR.start, curR.end);
+    // ✅ Weekly Hours card should show ACTUAL worked hours from Weekly_Payroll
+    // If filter is "previous-week", show previous payroll week hours; otherwise show current payroll week hours.
+    const hoursRange = (this.currentFilter === 'previous-week')
+      ? this.getPreviousPayrollWeekRange()
+      : this.getPayrollWeekRange();
+
+    const workedHours = this.computeWorkedHoursFromWeeklyPayroll(hoursRange.start, hoursRange.end);
 
     const statHoursEl = document.getElementById('stat-hours');
-    if (statHoursEl) statHoursEl.textContent = `${(workedCur || 0).toFixed(2)} hrs`;
-
-    // ✅ If your HTML has these IDs, this shows "Worked hours" for current and previous payroll week (real-time)
-    const workedCurEl = document.getElementById('worked-hours-current');
-    const workedPrevEl = document.getElementById('worked-hours-prev');
-
-    if (workedCurEl || workedPrevEl) {
-      const prevR = this.getPreviousPayrollWeekRange();
-
-      const prevH = this.computeWorkedHoursFromWeeklyPayroll(prevR.start, prevR.end);
-
-      if (workedCurEl) workedCurEl.textContent = (workedCur || 0).toFixed(2);
-      if (workedPrevEl) workedPrevEl.textContent = (prevH || 0).toFixed(2);
-    }
+    if (statHoursEl) statHoursEl.textContent = `${(workedHours || 0).toFixed(2)} hrs`;
 
     // Tier progress (payroll-week confirmed)
     const progressBar = document.getElementById('tier-progress-bar');
@@ -789,9 +776,7 @@ class CallHammerPortal {
       'profileRate': this.formatCurrency(u.baseRate),
       'nav-user-name': u.name || 'Loading...',
       'nav-user-role': (u.role || 'agent').toUpperCase(),
-
-      // ✅ IMPORTANT: Do NOT overwrite stat-hours with "Up to 40hrs" anymore.
-      // Keep profileHours showing the scheduled weekly hours from AGENT_MASTER:
+      // ✅ DO NOT set stat-hours here (dashboard controls it from Weekly_Payroll)
       'profileHours': u.weeklyHours || 0,
       'profileStartDate': u.startDate || 'N/A'
     };
