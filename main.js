@@ -7,6 +7,10 @@ class CallHammerPortal {
     this.filteredLeads = [];
     this.currentFilter = 'this-week';
 
+    // ✅ NEW (optional TL/admin datasets from n8n)
+    this.weeklyPayroll = [];
+    this.timeTracker = [];
+
     this.charts = {
       appointments: null,
       incentives: null
@@ -25,6 +29,7 @@ class CallHammerPortal {
 
   init() {
     this.checkExistingSession();
+    this.enforceRoleRouting(); // ✅ NEW (prevents wrong page access)
     this.bindEvents();
 
     if (this.currentUser && window.location.pathname.includes('dashboard')) {
@@ -37,6 +42,25 @@ class CallHammerPortal {
         document.querySelectorAll('.tl-only').forEach(el => el.classList.remove('hidden'));
       }
     }
+  }
+
+  // ✅ NEW: Role-based routing guard (minimal, non-breaking)
+  enforceRoleRouting() {
+    if (!this.currentUser) return;
+
+    const path = (window.location.pathname || '').toLowerCase();
+    const role = (this.currentUser.role || 'agent').toLowerCase();
+
+    const onAdmin = path.includes('admin-dashboard');
+    const onAgent = path.includes('agent-dashboard');
+    const onTL = path.includes('team-leader-dashboard');
+    const onAnyDashboard = path.includes('dashboard');
+
+    if (!onAnyDashboard) return;
+
+    if (role === 'admin' && !onAdmin) window.location.href = 'admin-dashboard.html';
+    else if (role === 'team_leader' && !onTL) window.location.href = 'team-leader-dashboard.html';
+    else if (role === 'agent' && !onAgent) window.location.href = 'agent-dashboard.html';
   }
 
   // ------------------------
@@ -138,6 +162,10 @@ class CallHammerPortal {
         this.leadsData = Array.isArray(result.leads) ? result.leads : [];
         this.employeeList = Array.isArray(result.employeeList) ? result.employeeList : [];
 
+        // ✅ NEW (optional datasets if backend sends them)
+        this.weeklyPayroll = Array.isArray(result.weeklyPayroll) ? result.weeklyPayroll : [];
+        this.timeTracker = Array.isArray(result.timeTracker) ? result.timeTracker : [];
+
         // ✅ Update profile from AGENT_MASTER real-time (if provided)
         if (result.profile) {
           const p = result.profile;
@@ -164,6 +192,9 @@ class CallHammerPortal {
           }
 
           this.updateProfileUI();
+
+          // ✅ NEW: if role changes in sheet, enforce correct page
+          this.enforceRoleRouting();
         }
 
         if (result.timeOffHistory) {
@@ -175,6 +206,14 @@ class CallHammerPortal {
 
         // Build charts after we have data
         this.updateCharts();
+
+        // ✅ NEW: Optional external dashboards refresh (safe if unused)
+        if (window.adminDashboard && typeof window.adminDashboard.refreshDashboard === 'function') {
+          window.adminDashboard.refreshDashboard();
+        }
+        if (window.teamLeadDashboard && typeof window.teamLeadDashboard.refresh === 'function') {
+          window.teamLeadDashboard.refresh();
+        }
       }
     } catch (error) {
       console.error('Data Sync Error:', error);
@@ -830,7 +869,12 @@ class CallHammerPortal {
         };
 
         localStorage.setItem('callHammerSession', JSON.stringify({ user: userObj, expiresAt: Date.now() + 86400000 }));
-        window.location.href = userObj.role === 'admin' ? 'admin-dashboard.html' : 'agent-dashboard.html';
+
+        // ✅ FIX: role-based redirect includes team_leader
+        const role = userObj.role;
+        if (role === 'admin') window.location.href = 'admin-dashboard.html';
+        else if (role === 'team_leader') window.location.href = 'team-leader-dashboard.html';
+        else window.location.href = 'agent-dashboard.html';
       } else {
         alert("Login failed");
       }
