@@ -35,6 +35,8 @@ class CallHammerPortal {
     if (this.currentUser && window.location.pathname.includes('dashboard')) {
       this.fetchAllData();
       this.updateProfileUI();
+            this.startMSTClock();
+
 
       if (this.currentUser.role === 'admin') {
         document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
@@ -82,6 +84,104 @@ class CallHammerPortal {
   formatDateShort(d) {
     if (!d) return '';
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+    // --- MST Clock Helpers ---
+  formatMSTTime(date = new Date()) {
+    const mst = this.toMST(date);
+    return mst.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  startMSTClock() {
+    const el = document.getElementById('mst-clock');
+    if (!el) return;
+
+    const tick = () => {
+      el.textContent = `${this.formatMSTTime()} MST`;
+    };
+
+    tick();
+    clearInterval(this._mstClockInterval);
+    this._mstClockInterval = setInterval(tick, 1000);
+  }
+    // ------------------------
+  // Weekly Payroll -> Worked Hours (MST Sat–Fri)
+  // ------------------------
+  getPayrollWeekRangeFor(date) {
+    const mstDate = this.toMST(date);
+    const dayOfWeek = mstDate.getDay(); // Sun=0 ... Sat=6
+    const start = new Date(mstDate);
+    const diffToSat = (dayOfWeek === 6) ? 0 : (dayOfWeek + 1);
+    start.setDate(mstDate.getDate() - diffToSat);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+
+    return { start, end };
+  }
+
+  getPreviousPayrollWeekRange() {
+    const cur = this.getPayrollWeekRange();
+    const start = new Date(cur.start); start.setDate(start.getDate() - 7); start.setHours(0, 0, 0, 0);
+    const end = new Date(cur.end); end.setDate(end.getDate() - 7); end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
+
+  computeWorkedHoursFromWeeklyPayroll(rangeStart, rangeEnd) {
+    const rows = Array.isArray(this.weeklyPayroll) ? this.weeklyPayroll : [];
+    if (!rows.length || !this.currentUser) return 0;
+
+    const get = (obj, key) => this.normalizeKey(obj, key) || '';
+
+    // Identify current user by email primarily, fallback to name
+    const myEmail = (this.currentUser.email || '').toLowerCase().trim();
+    const myName = (this.currentUser.name || '').toLowerCase().trim();
+
+    const parseHours = (v) => {
+      const n = parseFloat((v || '').toString().replace(/[^\d.]/g, ''));
+      return isNaN(n) ? 0 : n;
+    };
+
+    let total = 0;
+
+    for (const r of rows) {
+      const rowEmail = (get(r, 'Email') || get(r, 'Agent Email') || get(r, 'Employee Email') || '').toLowerCase().trim();
+      const rowName = (get(r, 'Agent Name') || get(r, 'Employee Name') || get(r, 'Name') || '').toLowerCase().trim();
+
+      const matchesUser = (myEmail && rowEmail && myEmail === rowEmail) || (!!myName && !!rowName && rowName.includes(myName));
+      if (!matchesUser) continue;
+
+      // Date field candidates (weekly payroll often has a work date or a week start)
+      const dateVal =
+        get(r, 'Work Date') ||
+        get(r, 'Date') ||
+        get(r, 'Day') ||
+        get(r, 'Payroll Date') ||
+        get(r, 'Week Start') ||
+        get(r, 'Week Of') ||
+        '';
+
+      const d = this.parseDateSafe(dateVal);
+      if (!d) continue;
+
+      // Check date is within the requested payroll range (use MST-adjusted comparison)
+      const mstD = this.toMST(d);
+      if (mstD < rangeStart || mstD > rangeEnd) continue;
+
+      // Hours candidates
+      const hoursVal =
+        get(r, 'Hours Worked') ||
+        get(r, 'Hours') ||
+        get(r, 'Total Hours') ||
+        get(r, 'Worked Hours') ||
+        get(r, 'Weekly Hours Worked') ||
+        '';
+
+      total += parseHours(hoursVal);
+    }
+
+    return total;
   }
 
   // --- Payroll Week Calculation (Saturday to Friday MST) ---
