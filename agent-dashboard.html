@@ -44,6 +44,8 @@
           <div class="text-right">
             <p class="text-sm font-medium text-gray-900" id="nav-user-name">Loading...</p>
             <p class="text-xs text-gray-500" id="nav-user-role">Agent</p>
+            <!-- ✅ NEW: MST clock placeholder (main.js will fill this) -->
+            <p class="text-[11px] font-bold text-yellow-600" id="mst-clock">--:--:-- MST</p>
           </div>
           <button onclick="portal.logout()" class="text-gray-400 hover:text-yellow-600 transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -76,6 +78,8 @@
             </a>
             <select id="timeframe-filter" class="p-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-sm focus:ring-2 focus:ring-yellow-400 outline-none">
               <option value="this-week">Current Week</option>
+              <!-- ✅ NEW: Previous Week -->
+              <option value="previous-week">Previous Week</option>
               <option value="30-days">Last 30 Days</option>
               <option value="4-weeks">Last 4 Weeks</option>
               <option value="6-weeks">Last 6 Weeks</option>
