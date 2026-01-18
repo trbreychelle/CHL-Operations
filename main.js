@@ -17,12 +17,13 @@ class CallHammerPortal {
     };
 
     this.webhooks = {
-      login: 'https://automate.callhammerleads.com/webhook/agent-login',
-      fetchData: 'https://automate.callhammerleads.com/webhook/fetch-agent-data',
-      timeOffRequest: 'https://automate.callhammerleads.com/webhook/timeoff-request',
-      changePassword: 'https://automate.callhammerleads.com/webhook/change-password',
-      manageEmployee: 'https://automate.callhammerleads.com/webhook/manage-employee'
-    };
+  login: 'https://automate.callhammerleads.com/webhook/agent-login',
+  fetchData: 'https://automate.callhammerleads.com/webhook/fetch-agent-data',
+  fetchTLData: 'https://automate.callhammerleads.com/webhook/fetch-tl-data',
+  timeOffRequest: 'https://automate.callhammerleads.com/webhook/timeoff-request',
+  changePassword: 'https://automate.callhammerleads.com/webhook/change-password',
+  manageEmployee: 'https://automate.callhammerleads.com/webhook/manage-employee'
+};
 
     this.init();
   }
