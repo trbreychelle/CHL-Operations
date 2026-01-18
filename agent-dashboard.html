@@ -64,7 +64,6 @@
         <a href="#timeoff" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Request Time Off</span></a>
       </nav>
 
-      <!-- ✅ MST CLOCK MOVED: bottom-left of sidebar -->
       <div class="absolute bottom-4 left-6">
         <p class="text-[11px] font-bold text-yellow-400" id="mst-clock">--:--:-- MST</p>
       </div>
@@ -75,8 +74,7 @@
         <div class="flex justify-between items-center mb-8">
           <h1 class="text-3xl font-bold text-gray-900">Performance Overview</h1>
           <div class="flex items-center space-x-3">
-            <!-- ✅ Added button to make incentives/milestones transparent -->
-            <a href="#profile" class="px-4 py-2.5 rounded-xl bg-yellow-500 text-gray-900 text-sm font-bold hover:bg-yellow-600 transition-all shadow-sm">
+            <a href="#profile" onclick="document.querySelector('a[href=\'#profile\']').click()" class="px-4 py-2.5 rounded-xl bg-yellow-500 text-gray-900 text-sm font-bold hover:bg-yellow-600 transition-all shadow-sm">
               View Incentives & Milestones
             </a>
             <select id="timeframe-filter" class="p-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-sm focus:ring-2 focus:ring-yellow-400 outline-none">
@@ -109,25 +107,19 @@
           </div>
         </div>
 
-        <!-- ✅ Added: Monthly Incentive + Monthly Raffle visibility -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
             <h3 class="text-lg font-bold text-gray-900 mb-2">Monthly Incentive ($100)</h3>
-            <p class="text-xs text-gray-500 mb-4">
-              Based on a rolling 4-week period. Must meet weekly criteria at least 3 out of 4 weeks (≥8 Confirmed + &lt;25% cancellation).
-            </p>
+            <p class="text-xs text-gray-500 mb-4">Rolling 4-week criteria: ≥8 Confirmed + &lt;25% cancellation in 3/4 weeks.</p>
             <div class="p-4 rounded-xl bg-gray-50 border border-gray-100">
-              <p class="text-sm font-bold text-gray-900" id="monthly-incentive-status">Loading...</p>
+              <p class="text-sm font-bold text-gray-900" id="monthly-incentive-status-ov">Loading...</p>
             </div>
           </div>
-
           <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
             <h3 class="text-lg font-bold text-gray-900 mb-2">Monthly Raffle ($250)</h3>
-            <p class="text-xs text-gray-500 mb-4">
-              Earn an entry after accumulating 4 eligible weeks (not required to be consecutive): ≥8 Confirmed + &lt;20% cancellation. Resets after entry.
-            </p>
+            <p class="text-xs text-gray-500 mb-4">Entry after 4 eligible weeks (≥8 Confirmed + &lt;20% cancellation).</p>
             <div class="p-4 rounded-xl bg-gray-50 border border-gray-100">
-              <p class="text-sm font-bold text-gray-900" id="monthly-raffle-status">Loading...</p>
+              <p class="text-sm font-bold text-gray-900" id="monthly-raffle-status-ov">Loading...</p>
             </div>
           </div>
         </div>
@@ -142,8 +134,6 @@
             <div class="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
               <div id="tier-progress-bar" class="progress-bar h-full rounded-full" style="width: 0%"></div>
             </div>
-
-            <!-- ✅ Added: 7th note placeholder (main.js fills this if present) -->
             <p class="text-xs text-gray-500 italic" id="tier-note-7th"></p>
           </div>
         </div>
@@ -210,8 +200,8 @@
             </div>
             <div class="bg-gray-50 border border-gray-100 rounded-2xl p-6">
               <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Monthly Incentives Snapshot</h3>
-              <p class="text-sm font-bold text-gray-900" id="monthly-incentive-status">Loading...</p>
-              <p class="text-sm font-bold text-gray-900 mt-2" id="monthly-raffle-status">Loading...</p>
+              <p class="text-sm font-bold text-gray-900" id="monthly-incentive-status-prof">Loading...</p>
+              <p class="text-sm font-bold text-gray-900 mt-2" id="monthly-raffle-status-prof">Loading...</p>
             </div>
           </div>
 
@@ -222,23 +212,18 @@
               </svg>
               Incentive Structure Reference
             </h3>
-
+            
             <div class="mb-6 p-4 rounded-xl bg-yellow-50 border border-yellow-100">
-              <p class="text-sm font-semibold text-gray-900">
-                Incentives are counted ONLY for appointments with status <span class="font-bold text-yellow-700">Confirmed</span>.
-              </p>
-              <p class="text-xs text-gray-600 mt-1">
-                Bonus triggers at the 6th Confirmed appointment ($50). The 7th Confirmed appointment has no additional bonus. Tier bonuses then apply at 8th, 9th–12th, and 13th+.
-              </p>
+              <p class="text-sm font-semibold text-gray-900">Incentives are counted ONLY for appointments with status <span class="font-bold text-yellow-700">Confirmed</span>.</p>
             </div>
 
-            <div class="overflow-hidden rounded-2xl border border-gray-200 shadow-sm bg-white">
+            <div class="overflow-hidden rounded-2xl border border-gray-200 shadow-sm bg-white mb-12">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
                     <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Appointment Range</th>
                     <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Standard Bonus</th>
-                    <th class="px-6 py-4 text-left text-[10px] font-bold text-yellow-700 uppercase tracking-widest bg-yellow-50">High Perf. (&lt;25% Cancel)</th>
+                    <th class="px-6 py-4 text-left text-[10px] font-bold text-yellow-700 uppercase tracking-widest bg-yellow-50">High Perf. (<25% Cancel)</th>
                   </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-100">
@@ -246,94 +231,25 @@
                   <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">7th Confirmed Apt</td><td class="px-6 py-4 text-sm text-gray-600">$0 (No Bonus)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$0 (No Bonus)</td></tr>
                   <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">8th Confirmed Apt</td><td class="px-6 py-4 text-sm text-gray-600">$30 (Flat)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$50 (Flat)</td></tr>
                   <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">9th - 12th Confirmed</td><td class="px-6 py-4 text-sm text-gray-600">$15 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$17 (Per Apt)</td></tr>
-                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">13th & Above Confirmed</td><td class="px-6 py-4 text-sm text-gray-600">$25 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$27 (Per Apt)</td></tr>
+                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">13th+ Confirmed</td><td class="px-6 py-4 text-sm text-gray-600">$25 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$27 (Per Apt)</td></tr>
                 </tbody>
               </table>
             </div>
 
-            <div class="mt-12">
-              <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                <svg class="w-6 h-6 mr-3 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Monthly Incentives & Raffle
-              </h3>
-
-              <div class="overflow-hidden rounded-2xl border border-gray-200 shadow-sm bg-white">
-                <table class="min-w-full divide-y divide-gray-200">
-                  <thead class="bg-gray-50">
-                    <tr>
-                      <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Program</th>
-                      <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Qualification Rules</th>
-                      <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Reward</th>
-                    </tr>
-                  </thead>
-                  <tbody class="bg-white divide-y divide-gray-100">
-                    <tr>
-                      <td class="px-6 py-4 text-sm font-bold text-gray-900">Monthly Incentive</td>
-                      <td class="px-6 py-4 text-sm text-gray-600">
-                        Over a 4-week period: meet weekly criteria at least 3 out of 4 weeks (≥8 Confirmed AND &lt;25% cancellation).
-                      </td>
-                      <td class="px-6 py-4 text-sm font-bold text-yellow-600">$100</td>
-                    </tr>
-                    <tr>
-                      <td class="px-6 py-4 text-sm font-bold text-gray-900">Monthly Raffle</td>
-                      <td class="px-6 py-4 text-sm text-gray-600">
-                        Earn an entry after accumulating 4 eligible weeks (weeks do not need to be consecutive): ≥8 Confirmed AND &lt;20% cancellation. Resets after entry.
-                      </td>
-                      <td class="px-6 py-4 text-sm font-bold text-yellow-600">$250 Raffle Entry</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+            <div class="overflow-hidden rounded-2xl border border-gray-200 shadow-sm bg-white">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Milestone</th>
+                    <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Increase</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-100">
+                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">90 Days</td><td class="px-6 py-4 text-sm text-gray-600">+$0.50/hr (Standard) or +$0.75/hr (High)</td></tr>
+                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">1 Year</td><td class="px-6 py-4 text-sm text-gray-600">+$0.75/hr (Standard) or +$1.50/hr (High)</td></tr>
+                </tbody>
+              </table>
             </div>
-
-            <div class="mt-12">
-              <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                <svg class="w-6 h-6 mr-3 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 01.88 7.903A5 5 0 1115.9 6.12 4 4 0 0116 7z" />
-                </svg>
-                Tenure Milestones (Hourly Rate Increases)
-              </h3>
-
-              <div class="overflow-hidden rounded-2xl border border-gray-200 shadow-sm bg-white">
-                <table class="min-w-full divide-y divide-gray-200">
-                  <thead class="bg-gray-50">
-                    <tr>
-                      <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Milestone</th>
-                      <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Standard Requirement</th>
-                      <th class="px-6 py-4 text-left text-[10px] font-bold text-yellow-700 uppercase tracking-widest bg-yellow-50">High Perf Requirement</th>
-                      <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Increase</th>
-                    </tr>
-                  </thead>
-                  <tbody class="bg-white divide-y divide-gray-100">
-                    <tr>
-                      <td class="px-6 py-4 text-sm font-bold text-gray-900">90 Days</td>
-                      <td class="px-6 py-4 text-sm text-gray-600">≥8 Confirmed per week, met in 75% of all tracked weeks</td>
-                      <td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">≥8 Confirmed per week AND &lt;25% cancellation, met in 75% of all tracked weeks</td>
-                      <td class="px-6 py-4 text-sm font-bold text-gray-900">+$0.50/hr (Standard) or +$0.75/hr (High)</td>
-                    </tr>
-                    <tr>
-                      <td class="px-6 py-4 text-sm font-bold text-gray-900">1 Year</td>
-                      <td class="px-6 py-4 text-sm text-gray-600">≥8 Confirmed per week, met in 75% of all tracked weeks</td>
-                      <td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">≥8 Confirmed per week AND &lt;25% cancellation, met in 75% of all tracked weeks</td>
-                      <td class="px-6 py-4 text-sm font-bold text-gray-900">+ $0.75/hr (Standard) or + $1.50/hr (High)</td>
-                    </tr>
-                    <tr>
-                      <td class="px-6 py-4 text-sm font-bold text-gray-900">1 Year Grace Period</td>
-                      <td class="px-6 py-4 text-sm text-gray-600">
-                        If ≥8 Confirmed weekly goal is met at 1-year mark, standard increase applies.
-                      </td>
-                      <td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">
-                        If cancellation target is missed at 1-year mark, you have an additional 90 days to improve to &lt;25% cancellation to qualify for the extra high performance increase.
-                      </td>
-                      <td class="px-6 py-4 text-sm font-bold text-gray-900">Upgrade from Standard to High if improved within grace window</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
           </div>
         </div>
       </div>
@@ -341,8 +257,6 @@
       <div id="view-timeoff" class="dashboard-view">
         <div class="max-w-6xl mx-auto">
           <h2 class="text-3xl font-bold text-gray-900 mb-2">Request Time Off</h2>
-          <p class="text-gray-500 mb-8 text-lg">Select a range (Start and End date) to request leave.</p>
-
           <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
             <div class="lg:col-span-1 bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
               <h3 class="text-xs font-bold text-gray-400 uppercase mb-6 tracking-widest">My Request History</h3>
@@ -350,71 +264,41 @@
                 <p class="text-xs text-gray-400 italic">No history found.</p>
               </div>
             </div>
-
             <div class="lg:col-span-3 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col md:flex-row">
               <div class="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-gray-100 p-8 bg-gray-50/50">
-                <div class="w-12 h-12 bg-yellow-500 rounded-xl mb-6 flex items-center justify-center">
-                  <svg class="w-6 h-6 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-
-                <h3 class="text-xl font-bold text-gray-900 mb-4 tracking-tighter">Range Selection</h3>
-
+                <h3 class="text-xl font-bold text-gray-900 mb-4">Range Selection</h3>
                 <div id="range-preview" class="hidden space-y-6">
-
                   <div>
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Reason</p>
-                    <select id="timeoff-reason" class="w-full mt-2 p-3 border border-gray-200 rounded-xl bg-white text-sm focus:ring-2 focus:ring-yellow-400 outline-none">
+                    <p class="text-[10px] font-bold text-gray-400 uppercase">Reason</p>
+                    <select id="timeoff-reason" class="w-full mt-2 p-3 border border-gray-200 rounded-xl bg-white text-sm outline-none">
                       <option value="Sick Leave">Sick Leave</option>
                       <option value="Vacation Leave" selected>Vacation Leave</option>
                       <option value="Personal Leave">Personal Leave</option>
                     </select>
                   </div>
-
-                  <div>
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Start Date</p>
-                    <p class="text-sm font-bold text-yellow-600" id="display-start-date">--</p>
-                  </div>
-
-                  <div>
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">End Date</p>
-                    <p class="text-sm font-bold text-yellow-600" id="display-end-date">--</p>
-                  </div>
-
-                  <button id="btn-submit-timeoff" class="w-full bg-yellow-500 text-gray-900 font-bold py-4 rounded-xl hover:bg-yellow-600 transition-all shadow-lg shadow-yellow-100">
-                    Submit Request
-                  </button>
+                  <div><p class="text-[10px] font-bold text-gray-400 uppercase">Start Date</p><p class="text-sm font-bold text-yellow-600" id="display-start-date">--</p></div>
+                  <div><p class="text-[10px] font-bold text-gray-400 uppercase">End Date</p><p class="text-sm font-bold text-yellow-600" id="display-end-date">--</p></div>
+                  <button id="btn-submit-timeoff" class="w-full bg-yellow-500 text-gray-900 font-bold py-4 rounded-xl hover:bg-yellow-600 transition-all">Submit Request</button>
                 </div>
-
-                <p id="range-hint" class="text-sm text-gray-400 leading-relaxed italic">
-                  Click a start date, then an end date on the calendar to select your range.
-                </p>
+                <p id="range-hint" class="text-sm text-gray-400 italic">Click a start date, then an end date on the calendar.</p>
               </div>
-
               <div class="flex-1 p-8">
                 <div class="flex items-center justify-between mb-8">
                   <h4 class="text-xl font-bold text-gray-900" id="calendar-month-year">January 2026</h4>
                   <div class="flex space-x-2">
                     <button onclick="changeMonth(-1)" class="p-2 hover:bg-gray-100 rounded-full text-gray-400">
-                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                      </svg>
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
                     </button>
                     <button onclick="changeMonth(1)" class="p-2 hover:bg-gray-100 rounded-full text-gray-400">
-                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                      </svg>
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
                     </button>
                   </div>
                 </div>
-
-                <div class="grid grid-cols-7 gap-4 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-6">
+                <div class="grid grid-cols-7 gap-4 text-center text-[10px] font-bold text-gray-400 uppercase mb-6">
                   <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
                 </div>
                 <div id="calendar-grid" class="grid grid-cols-7 gap-2 text-center"></div>
               </div>
-
             </div>
           </div>
         </div>
@@ -425,7 +309,6 @@
   <script src="main.js"></script>
 
   <script>
-    // SPA Routing logic
     document.querySelectorAll('.nav-item').forEach(item => {
       item.addEventListener('click', (e) => {
         e.preventDefault();
@@ -435,14 +318,12 @@
         document.querySelectorAll('.dashboard-view').forEach(view => view.classList.remove('active'));
         const targetView = document.getElementById(targetId);
         if (targetView) targetView.classList.add('active');
-
         if (targetId === 'view-overview') {
           setTimeout(() => { portal.charts?.appointments?.resize(); portal.charts?.incentives?.resize(); }, 100);
         }
       });
     });
 
-    // Range Calendar Logic
     let currentMonth = new Date().getMonth();
     let currentYear = new Date().getFullYear();
     let rangeStart = null;
@@ -510,28 +391,6 @@
     }
 
     renderCalendar();
-
-    // Submit time off (now uses dropdown reason)
-    document.getElementById('btn-submit-timeoff').onclick = async () => {
-      if (!rangeStart || !rangeEnd) return alert("Please select a range first.");
-
-      const reason = document.getElementById('timeoff-reason')?.value || 'Vacation Leave';
-
-      const success = await portal.submitTimeOffRequest({
-        startDate: rangeStart.toISOString().split('T')[0],
-        endDate: rangeEnd.toISOString().split('T')[0],
-        reason
-      });
-
-      if (success) {
-        alert('Request Sent Successfully!');
-        rangeStart = null; rangeEnd = null;
-        updateRangeUI(); renderCalendar();
-        portal.fetchAllData();
-      } else {
-        alert('Request failed. Please try again.');
-      }
-    };
   </script>
 </body>
 </html>
