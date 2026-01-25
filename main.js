@@ -7,16 +7,19 @@ class CallHammerPortal {
     this.filteredLeads = [];
     this.currentFilter = 'this-week';
 
-    // ✅ NEW (optional TL/admin datasets from n8n)
+    // ✅ TL/Payroll datasets (Existing)
     this.weeklyPayroll = [];
     this.timeTracker = [];
 
-    // ✅ Admin dashboard datasets
+    // ✅ NEW: Admin Dashboard State & Caching
     this.adminState = {
-      clients: [],
-      leads: [],
-      agents: []
+      clients: [],       // Normalized Client List (Joined with Status/Package)
+      leads: [],         // Raw Leads
+      agents: [],        // Normalized Agent List
+      rawStatuses: [],   // Raw delivery tracker data
+      rawPackages: []    // Raw package data
     };
+    this.lastAdminFetch = 0; // Timestamp for caching to prevent Quota errors
 
     this.charts = {
       appointments: null,
@@ -29,7 +32,6 @@ class CallHammerPortal {
       fetchTLData: 'https://automate.callhammerleads.com/webhook/fetch-tl-data',
       fetchAdminData: 'https://automate.callhammerleads.com/webhook/dashboard-data',
       timeOffRequest: 'https://automate.callhammerleads.com/webhook/timeoff-request',
-      changePassword: 'https://automate.callhammerleads.com/webhook/change-password',
       manageEmployee: 'https://automate.callhammerleads.com/webhook/manage-employee'
     };
 
@@ -43,39 +45,42 @@ class CallHammerPortal {
 
     // ✅ Agent / TL dashboard behavior
     if (this.currentUser && window.location.pathname.includes('dashboard')) {
-      this.fetchAllData();
-      this.updateProfileUI();
-      this.startMSTClock();
+      // Only fetch agent data if NOT on admin dashboard
+      if (!window.location.pathname.includes('admin-dashboard')) {
+        this.fetchAllData();
+        this.updateProfileUI();
+        this.startMSTClock();
+      }
 
-      if (this.currentUser.role === 'admin') {
-        document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
-      } else if (this.currentUser.role === 'team_leader') {
+      if (this.currentUser.role === 'team_leader') {
         document.querySelectorAll('.tl-only').forEach(el => el.classList.remove('hidden'));
+      } else if (this.currentUser.role === 'admin') {
+        document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
       }
     }
 
     // ✅ Admin Dashboard behavior (separate fetch so it doesn't interfere)
     if (window.location.pathname.includes('admin-dashboard')) {
-      // auto load admin dashboard data
+      // auto load admin dashboard data with cache check
       setTimeout(() => {
         this.fetchAdminData();
       }, 500);
     }
   }
 
-  // ✅ NEW: Role-based routing guard (minimal, non-breaking)
+  // ✅ NEW: Role-based routing guard
   enforceRoleRouting() {
     if (!this.currentUser) return;
 
     const path = (window.location.pathname || '').toLowerCase();
     const role = (this.currentUser.role || 'agent').toLowerCase();
 
+    // Only redirect if we are actually ON a dashboard page
+    if (!path.includes('dashboard')) return;
+
     const onAdmin = path.includes('admin-dashboard');
     const onAgent = path.includes('agent-dashboard');
     const onTL = path.includes('team-leader-dashboard');
-    const onAnyDashboard = path.includes('dashboard');
-
-    if (!onAnyDashboard) return;
 
     if (role === 'admin' && !onAdmin) window.location.href = 'admin-dashboard.html';
     else if (role === 'team_leader' && !onTL) window.location.href = 'team-leader-dashboard.html';
@@ -91,7 +96,12 @@ class CallHammerPortal {
     return foundKey ? obj[foundKey] : '';
   }
 
-  // ✅ FIX: date-only parsing without timezone shifting (prevents wrong weekly counts)
+  // ✅ NEW: Company Key Normalizer for Joins (removes spaces/punctuation/case)
+  normalizeCompanyKey(str) {
+    if (!str) return 'unknown';
+    return str.toString().toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+  }
+
   parseDateSafe(value) {
     if (!value) return null;
 
@@ -143,17 +153,26 @@ class CallHammerPortal {
     };
 
     tick();
-    clearInterval(this._mstClockInterval);
+    if (this._mstClockInterval) clearInterval(this._mstClockInterval);
     this._mstClockInterval = setInterval(tick, 1000);
   }
 
   // ------------------------
-  // ✅ ADMIN DASHBOARD FETCH (NEW)
+  // ✅ ADMIN DASHBOARD LOGIC (NEW & FIXED)
   // ------------------------
-  async fetchAdminData() {
+  async fetchAdminData(forceRefresh = false) {
+    // 1) Quota Protection: Cache for 60 seconds
+    const now = Date.now();
+    if (!forceRefresh && this.adminState.clients.length > 0 && (now - this.lastAdminFetch < 60000)) {
+      console.log("Using cached Admin Data to save Quota...");
+      if (window.adminDashboard && window.adminDashboard.refreshDashboard) {
+        window.adminDashboard.refreshDashboard();
+      }
+      return;
+    }
+
     try {
       console.log("📡 Fetching Admin Dashboard Data...");
-
       const response = await fetch(this.webhooks.fetchAdminData, {
         method: "GET",
         headers: { "Accept": "application/json" }
@@ -164,18 +183,17 @@ class CallHammerPortal {
       }
 
       const result = await response.json();
-      console.log("✅ Admin Dashboard Raw Result:", result);
+      this.lastAdminFetch = Date.now(); // Update timestamp
 
       // Support multiple possible response shapes from n8n
-      const clients = result.clients || result.Clients || result.CLIENTS || result.data?.clients || [];
-      const leads = result.leads || result.Leads || result.LEADS || result.data?.leads || [];
-      const agents = result.agents || result.Agents || result.AGENTS || result.data?.agents || [];
+      const rawClients = result.clients || result.Clients || result.CLIENTS || result.data?.clients || [];
+      const rawLeads = result.leads || result.Leads || result.LEADS || result.data?.leads || [];
+      const rawAgents = result.agents || result.Agents || result.AGENTS || result.data?.agents || [];
+      const rawStatuses = result.clientStatuses || result.data?.clientStatuses || []; // From Delivery Tracker
+      const rawPackages = result.packages || result.data?.packages || []; // From Lead Package Tab
 
-      this.adminState = {
-        clients: Array.isArray(clients) ? clients : [],
-        leads: Array.isArray(leads) ? leads : [],
-        agents: Array.isArray(agents) ? agents : []
-      };
+      // ✅ 2) Normalize & Join Data
+      this.normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages);
 
       console.log("📊 Admin State Ready:", {
         clients: this.adminState.clients.length,
@@ -195,8 +213,129 @@ class CallHammerPortal {
     }
   }
 
+  // ✅ Central Normalization & Joining Logic (Fixes Headers & Mapping)
+  normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages) {
+    
+    // -- Step A: Create Lookup Maps for Joins (Status & Package) --
+    const statusMap = {};
+    rawStatuses.forEach(row => {
+      // Key: "Roofing Company" from Delivery Tracker
+      const key = this.normalizeCompanyKey(row['Roofing Company'] || row['Company Name']);
+      statusMap[key] = row; 
+    });
+
+    const packageMap = {};
+    rawPackages.forEach(row => {
+      // Key: "Roofing Company Name" from Lead Package tab
+      const key = this.normalizeCompanyKey(row['Roofing Company Name'] || row['Company Name']);
+      packageMap[key] = row;
+    });
+
+    // -- Step B: Map Clients (Fixing "Unnamed" Issue) --
+    this.adminState.clients = rawClients.map(c => {
+      const compName = c['COMPANY NAME'] || c['Company Name'] || c['name'] || 'Unnamed';
+      const key = this.normalizeCompanyKey(compName);
+      
+      // Join Logic
+      const statusRow = statusMap[key] || {};
+      const packageRow = packageMap[key] || {};
+
+      return {
+        clientName: compName,
+        codeName: c['CODE NAME'] || c['Code'] || 'N/A',
+        // Fallback for location if missing
+        location: c['Add location here'] || c['Location'] || 'Remote', 
+        status: statusRow['Client Status'] || statusRow['Status'] || 'Not Started',
+        package: packageRow['Package'] || packageRow['Lead Package'] || 'Standard',
+        leadsPurchased: packageRow['Leads Purchased'] || 0
+      };
+    });
+
+    // -- Step C: Map Agents (Fixing "Agent Names Disappeared") --
+    this.adminState.agents = rawAgents.map(a => ({
+      employeeName: a['Employee Name'] || a['Name'] || 'Unknown Agent',
+      role: a['Role'] || 'Agent',
+      employmentStatus: a['Employment_Status'] || a['Status'] || 'Active',
+      email: a['Email'] || a['Email Address'] || ''
+    }));
+
+    // -- Step D: Store Raw Leads for Performance Calcs --
+    this.adminState.leads = rawLeads;
+  }
+
+  // ✅ NEW: Compute Team Performance from RAW LEADS
+  calculateAdminTeamStats(timeFilter = 'today') {
+    const stats = {}; 
+    // Format: { 'Agent Name': { total: 0, confirmed: 0, rejected: 0, pending: 0 } }
+
+    // 1. Initialize stats with ALL agents from Master List
+    this.adminState.agents.forEach(agent => {
+      stats[agent.employeeName] = { 
+        name: agent.employeeName, 
+        total: 0, 
+        confirmed: 0, 
+        rejected: 0,
+        pending: 0
+      };
+    });
+
+    // 2. Define Date Range
+    const now = new Date();
+    const startOfDay = new Date(now.setHours(0,0,0,0));
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
+    startOfWeek.setHours(0,0,0,0);
+    
+    const startOfMonth = new Date(); 
+    startOfMonth.setDate(now.getDate() - 30);
+    startOfMonth.setHours(0,0,0,0);
+
+    // 3. Process Leads
+    this.adminState.leads.forEach(lead => {
+      const coordinator = lead['Appointment Coordinator Name'] || lead['Setter'] || 'Unknown';
+      
+      // Date Check
+      const dateStr = lead['Date Submitted'] || lead['Date'];
+      const leadDate = this.parseDateSafe(dateStr);
+      if (!leadDate) return;
+
+      let include = false;
+      if (timeFilter === 'today' && leadDate >= startOfDay) include = true;
+      else if (timeFilter === 'this-week' && leadDate >= startOfWeek) include = true;
+      else if (timeFilter === '30-days' && leadDate >= startOfMonth) include = true;
+      else if (timeFilter === 'all') include = true;
+
+      if (include) {
+        // Initialize if not in agent master list (fallback)
+        if (!stats[coordinator]) {
+          stats[coordinator] = { name: coordinator, total: 0, confirmed: 0, rejected: 0, pending: 0 };
+        }
+
+        const s = (lead['Status'] || '').toLowerCase();
+        stats[coordinator].total++;
+
+        if (s === 'confirmed' || s === 'approved') {
+          stats[coordinator].confirmed++;
+        } else if (s.includes('reject') || s.includes('decline') || s.includes('cancel') || s.includes('credit')) {
+          stats[coordinator].rejected++;
+        } else {
+          stats[coordinator].pending++;
+        }
+      }
+    });
+
+    // 4. Convert to Array & Calculate Efficiency
+    return Object.values(stats).map(agent => {
+      const efficiency = agent.total > 0 ? (agent.confirmed / agent.total) * 100 : 0;
+      return {
+        ...agent,
+        efficiency: efficiency.toFixed(1) + '%'
+      };
+    });
+  }
+
   // ------------------------
-  // Weekly Payroll -> Worked Hours (MST Sat–Fri)
+  // Payroll & Date Logic (ORIGINAL RESTORED)
   // ------------------------
   getPayrollWeekRangeFor(date) {
     const mstDate = this.toMST(date);
@@ -409,7 +548,7 @@ class CallHammerPortal {
     }
   }
 
-  // ✅ NEW: Team Leader dashboard fetch (does not affect agent dashboard)
+  // TL Dashboard Fetch
   async fetchTeamLeaderDashboardData() {
     if (!this.currentUser) return null;
 
@@ -424,9 +563,7 @@ class CallHammerPortal {
       });
 
       const result = await response.json();
-
       if (result.status === "success") return result;
-
       console.error("TL Fetch Failed:", result);
       return null;
     } catch (err) {
@@ -436,7 +573,7 @@ class CallHammerPortal {
   }
 
   // ------------------------
-  // Incentives
+  // Incentives (ORIGINAL RESTORED)
   // ------------------------
   calculateIncentives(confirmedN, cancelRate) {
     const isHighPerf = cancelRate < 25;
@@ -518,7 +655,7 @@ class CallHammerPortal {
   }
 
   // ------------------------
-  // Dashboard UI
+  // Dashboard UI (Agent)
   // ------------------------
   updateDashboardUI(leads) {
     const getVal = (obj, key) => this.normalizeKey(obj, key) || '';
@@ -675,7 +812,7 @@ class CallHammerPortal {
   }
 
   // ------------------------
-  // Charts
+  // Charts (ORIGINAL RESTORED)
   // ------------------------
   updateCharts() {
     const chartA = document.getElementById('appointmentsChart');
