@@ -67,28 +67,25 @@
             <div>
                 <div class="px-6 mb-2 text-[10px] font-bold uppercase text-gray-400 tracking-wider">Operations</div>
                 <nav class="space-y-1">
-                    <a href="#overview" class="nav-item active flex items-center px-6 py-3 text-sm">
+                    <a href="#overview" class="nav-item active flex items-center px-6 py-3 text-sm" onclick="Admin.nav('overview', this)">
                         <i class="fa-solid fa-satellite-dish w-5 text-center"></i> Overview
                     </a>
-                    <a href="#clients" class="nav-item flex items-center px-6 py-3 text-sm">
+                    <a href="#clients" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('clients', this)">
                         <i class="fa-solid fa-building w-5 text-center"></i> Passbook Clients
                     </a>
-                    <a href="#leads" class="nav-item flex items-center px-6 py-3 text-sm">
+                    <a href="#leads" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('leads', this)">
                         <i class="fa-solid fa-list-check w-5 text-center"></i> Leads Tracker
                     </a>
-                    <a href="#packages" class="nav-item flex items-center px-6 py-3 text-sm">
-                        <i class="fa-solid fa-box-open w-5 text-center"></i> Package Ledger
-                    </a>
-                </nav>
+                    </nav>
             </div>
 
             <div>
                 <div class="px-6 mb-2 text-[10px] font-bold uppercase text-gray-400 tracking-wider">Management</div>
                 <nav class="space-y-1">
-                    <a href="#payroll" class="nav-item flex items-center px-6 py-3 text-sm">
+                    <a href="#" class="nav-item flex items-center px-6 py-3 text-sm opacity-50 cursor-not-allowed">
                         <i class="fa-solid fa-file-invoice-dollar w-5 text-center"></i> Payroll & Finance
                     </a>
-                    <a href="#agents" class="nav-item flex items-center px-6 py-3 text-sm">
+                    <a href="#" class="nav-item flex items-center px-6 py-3 text-sm opacity-50 cursor-not-allowed">
                         <i class="fa-solid fa-users-gear w-5 text-center"></i> HR & Agents
                     </a>
                 </nav>
@@ -116,7 +113,6 @@
 
         <div class="flex-1 overflow-y-auto p-6 lg:p-8" id="main-scroll">
 
-            <!-- OVERVIEW -->
             <div id="view-overview" class="view-section active">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
                     <div>
@@ -125,12 +121,12 @@
                     </div>
                     <div class="flex gap-4">
                         <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
-                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Est. Profit (Today)</p>
-                            <p class="text-lg font-bold text-emerald-600 mt-1" id="pulse-profit">—</p>
+                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Est. Value (Today)</p>
+                            <p class="text-lg font-bold text-emerald-600 mt-1" id="pulse-profit">$0.00</p>
                         </div>
                         <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
-                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Disputes</p>
-                            <p class="text-lg font-bold text-red-500 mt-1" id="pulse-disputes">0</p>
+                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pending</p>
+                            <p class="text-lg font-bold text-yellow-500 mt-1" id="pulse-pending">0</p>
                         </div>
                     </div>
                 </div>
@@ -144,7 +140,6 @@
                             </h3>
                             <div class="flex gap-3 text-[10px] uppercase font-bold text-gray-500">
                                 <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500"></span> Critical</span>
-                                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-yellow-500"></span> Risk</span>
                                 <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Healthy</span>
                             </div>
                         </div>
@@ -154,13 +149,12 @@
                                     <tr>
                                         <th class="p-4 text-xs font-bold text-gray-400 uppercase w-10">Status</th>
                                         <th class="p-4 text-xs font-bold text-gray-400 uppercase">Client Name</th>
-                                        <th class="p-4 text-xs font-bold text-gray-400 uppercase">Leads Owed</th>
-                                        <th class="p-4 text-xs font-bold text-gray-400 uppercase">Last Deliv.</th>
-                                        <th class="p-4 text-xs font-bold text-gray-400 uppercase">Rej. Rate</th>
+                                        <th class="p-4 text-xs font-bold text-gray-400 uppercase">Code</th>
+                                        <th class="p-4 text-xs font-bold text-gray-400 uppercase">Location</th>
                                     </tr>
                                 </thead>
                                 <tbody id="client-health-body" class="text-sm divide-y divide-gray-50">
-                                    <tr><td colspan="5" class="p-6 text-center text-gray-400 italic">Waiting for admin data...</td></tr>
+                                    <tr><td colspan="5" class="p-6 text-center text-gray-400 italic">Loading clients...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -173,8 +167,8 @@
                         </div>
                         <div class="flex-1 overflow-auto p-3 space-y-2" id="live-floor-list">
                             <div class="p-4 text-center text-xs text-gray-400">
-                                Live Time Tracker not wired in Admin Backend yet.<br>
-                                (We can connect it after Admin loads.)
+                                Live Time Tracker available in Phase 2.<br>
+                                Currently tracking Agent production via Leads.
                             </div>
                         </div>
                     </div>
@@ -186,9 +180,9 @@
                             <i class="fa-solid fa-users-viewfinder text-yellow-500"></i> Team Performance
                         </h3>
                         <div class="flex bg-gray-200 p-1 rounded-lg">
-                            <button onclick="Admin.updatePerf('today')" class="px-4 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
-                            <button onclick="Admin.updatePerf('week')" class="px-4 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
-                            <button onclick="Admin.updatePerf('month')" class="px-4 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">30 Days</button>
+                            <button onclick="Admin.updatePerf('today', this)" class="perf-btn px-4 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
+                            <button onclick="Admin.updatePerf('week', this)" class="perf-btn px-4 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
+                            <button onclick="Admin.updatePerf('month', this)" class="perf-btn px-4 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">30 Days</button>
                         </div>
                     </div>
                     <div class="overflow-x-auto">
@@ -197,30 +191,19 @@
                                 <tr>
                                     <th class="p-4">Agent Name</th>
                                     <th class="p-4 text-center">Total Leads</th>
-                                    <th class="p-4 text-center text-emerald-600">Qualified (Confirmed)</th>
-                                    <th class="p-4 text-center text-red-500">Unqualified</th>
-                                    <th class="p-4 text-center">Cancel Rate</th>
-                                    <th class="p-4 text-right">Est. Bonus</th>
+                                    <th class="p-4 text-center text-emerald-600">Confirmed</th>
+                                    <th class="p-4 text-center text-red-500">Rejected</th>
+                                    <th class="p-4 text-center">Efficiency</th>
                                 </tr>
                             </thead>
                             <tbody id="agent-perf-body" class="divide-y divide-gray-50">
-                                <tr><td colspan="6" class="p-6 text-center text-gray-400 italic">Waiting for admin data...</td></tr>
+                                <tr><td colspan="6" class="p-6 text-center text-gray-400 italic">Calculating performance...</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
-
-                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
-                    <div class="p-5 border-b border-gray-100 bg-gray-50/50 rounded-t-2xl">
-                        <h3 class="font-bold text-gray-900 text-sm">Dispute Resolution Queue</h3>
-                    </div>
-                    <div id="dispute-queue-list" class="divide-y divide-gray-50">
-                        <div class="p-6 text-center text-gray-400 italic">Waiting for admin data...</div>
-                    </div>
-                </div>
             </div>
 
-            <!-- CLIENTS -->
             <div id="view-clients" class="view-section">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold text-gray-900">Passbook Clients</h2>
@@ -256,7 +239,6 @@
                 </div>
             </div>
 
-            <!-- LEADS -->
             <div id="view-leads" class="view-section">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold text-gray-900">Leads Master Record</h2>
@@ -267,7 +249,7 @@
 
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                     <div class="p-4 border-b border-gray-100 flex gap-4 overflow-x-auto bg-gray-50/50">
-                        <select id="lead-status-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm min-w-[150px] bg-white">
+                        <select id="lead-status-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm min-w-[150px] bg-white" onchange="Admin.filterLeads(this.value)">
                             <option value="all">All Statuses</option>
                             <option value="confirmed">Confirmed</option>
                             <option value="approved">Approved</option>
@@ -276,5 +258,226 @@
                             <option value="cancelled">Cancelled</option>
                         </select>
                     </div>
-                    <table class="w-full text-left text-sm whitespace-nowrap">
-                        <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm whitespace-nowrap">
+                            <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+                                <tr>
+                                    <th class="p-4">Date</th>
+                                    <th class="p-4">Homeowner</th>
+                                    <th class="p-4">Agent</th>
+                                    <th class="p-4">Client</th>
+                                    <th class="p-4">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leads-table-body" class="divide-y divide-gray-50">
+                                <tr><td colspan="5" class="p-6 text-center text-gray-400">Loading leads...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const AdminDashboard = {
+            perfPeriod: 'today',
+
+            // Called by main.js when data arrives
+            refreshDashboard: () => {
+                const state = window.portal.adminState;
+                if(!state) return;
+
+                console.log("Refreshing Admin Dashboard UI...");
+
+                // 1. Update Overview Cards
+                this.renderPulse(state.leads);
+                
+                // 2. Render Tables
+                this.renderClientHealth(state.clients);
+                this.updatePerf(this.perfPeriod); // Use current period
+                
+                // 3. Render Clients View
+                this.renderClientCards(state.clients);
+                
+                // 4. Render Leads View
+                this.renderLeads(state.leads);
+            },
+
+            // --- RENDERERS ---
+
+            renderPulse: (leads) => {
+                const today = new Date().toDateString();
+                const todayLeads = leads.filter(l => new Date(l["Date Submitted"]).toDateString() === today);
+                
+                // Calculate estimated value (Arbitrary $50 per confirmed lead for demo, adjust as needed)
+                const confirmed = todayLeads.filter(l => window.portal.isConfirmedStatus(l.Status));
+                const value = confirmed.length * 50; 
+                
+                const pending = leads.filter(l => (l.Status||"").toLowerCase().includes('pending'));
+
+                document.getElementById('pulse-profit').textContent = window.portal.formatCurrency(value);
+                document.getElementById('pulse-pending').textContent = pending.length;
+            },
+
+            renderClientHealth: (clients) => {
+                const tbody = document.getElementById('client-health-body');
+                if(!clients.length) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No clients found.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = clients.map(c => {
+                    // Simple status logic: Randomly healthy for demo if status missing
+                    const status = c.Status || "Active"; 
+                    let dotClass = "st-healthy";
+                    if(status === 'Inactive') dotClass = "st-risk";
+                    
+                    return `
+                        <tr class="hover:bg-gray-50">
+                            <td class="p-4">
+                                <div class="status-container">
+                                    <span class="status-dot ${dotClass}"></span>
+                                </div>
+                            </td>
+                            <td class="p-4 font-bold text-gray-900">${c.Name || c.name || "Unknown"}</td>
+                            <td class="p-4 text-gray-500">${c.Code || c.code || "-"}</td>
+                            <td class="p-4 text-gray-500">${c.City || c.city || ""}, ${c.State || c.state || ""}</td>
+                        </tr>
+                    `;
+                }).join('');
+            },
+
+            updatePerf: (period, btnElement) => {
+                this.perfPeriod = period;
+                
+                // Update button styles
+                if(btnElement) {
+                    document.querySelectorAll('.perf-btn').forEach(b => {
+                        b.classList.remove('bg-white', 'shadow', 'text-gray-900');
+                        b.classList.add('text-gray-500');
+                    });
+                    btnElement.classList.add('bg-white', 'shadow', 'text-gray-900');
+                    btnElement.classList.remove('text-gray-500');
+                }
+
+                const agents = window.portal.adminState.agents;
+                const leads = window.portal.adminState.leads;
+                const tbody = document.getElementById('agent-perf-body');
+
+                if(!agents.length) return;
+
+                // Date Filter Logic
+                const now = new Date();
+                const filterDate = new Date();
+                if(period === 'today') filterDate.setHours(0,0,0,0);
+                if(period === 'week') filterDate.setDate(now.getDate() - 7);
+                if(period === 'month') filterDate.setDate(now.getDate() - 30);
+
+                tbody.innerHTML = agents.map(agent => {
+                    const name = agent["Employee Name"] || agent.name;
+                    
+                    // Filter leads for this agent and time period
+                    const agentLeads = leads.filter(l => {
+                        const lName = (l.Agent || l["Appointment Coordinator"] || "").toLowerCase();
+                        const lDate = window.portal.parseDateSafe(l["Date Submitted"]);
+                        return lName.includes(name.toLowerCase()) && lDate >= filterDate;
+                    });
+
+                    const total = agentLeads.length;
+                    const confirmed = agentLeads.filter(l => window.portal.isConfirmedStatus(l.Status)).length;
+                    const rejected = agentLeads.filter(l => (l.Status||"").toLowerCase().includes('reject')).length;
+                    
+                    // Efficiency %
+                    const eff = total > 0 ? Math.round((confirmed / total) * 100) : 0;
+
+                    return `
+                        <tr>
+                            <td class="p-4 font-bold text-gray-900">${name}</td>
+                            <td class="p-4 text-center text-gray-600">${total}</td>
+                            <td class="p-4 text-center text-emerald-600 font-bold bg-emerald-50 rounded">${confirmed}</td>
+                            <td class="p-4 text-center text-red-500">${rejected}</td>
+                            <td class="p-4 text-center text-gray-600">${eff}%</td>
+                        </tr>
+                    `;
+                }).join('');
+            },
+
+            renderClientCards: (clients) => {
+                const container = document.getElementById('client-cards-container');
+                if(!clients.length) return;
+
+                container.innerHTML = clients.map(c => `
+                    <div class="card-hover bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-start mb-4">
+                                <div class="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center font-bold text-gray-400 border border-gray-200">
+                                    ${(c.Name || "C").substring(0,2).toUpperCase()}
+                                </div>
+                                <span class="badge-in px-2 py-1 rounded text-[10px] font-bold uppercase">Active</span>
+                            </div>
+                            <h3 class="font-bold text-gray-900 text-lg">${c.Name || "Unnamed Client"}</h3>
+                            <p class="text-xs text-gray-500 mt-1"><i class="fa-solid fa-location-dot mr-1"></i> ${c.City || ""}, ${c.State || ""}</p>
+                        </div>
+                        <div class="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center">
+                            <span class="text-xs font-bold text-gray-400">${c.Code || "NO CODE"}</span>
+                            <button class="text-xs text-yellow-600 font-bold hover:underline">View Details</button>
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            renderLeads: (leads) => {
+                const tbody = document.getElementById('leads-table-body');
+                tbody.innerHTML = leads.map(l => {
+                    let statusColor = "text-gray-600 bg-gray-100";
+                    const s = (l.Status||"").toLowerCase();
+                    if(s.includes('confirm')) statusColor = "text-emerald-700 bg-emerald-100";
+                    if(s.includes('reject')) statusColor = "text-red-700 bg-red-100";
+                    if(s.includes('pending')) statusColor = "text-yellow-700 bg-yellow-100";
+
+                    return `
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="p-4 text-gray-500">${l["Date Submitted"] || "-"}</td>
+                        <td class="p-4 font-bold text-gray-900">${l["Homeowner Name"] || "Unknown"}</td>
+                        <td class="p-4 text-gray-500">${l.Agent || "-"}</td>
+                        <td class="p-4 text-gray-500">${l.Client || "-"}</td>
+                        <td class="p-4">
+                            <span class="px-2 py-1 rounded text-xs font-bold uppercase ${statusColor}">${l.Status || "New"}</span>
+                        </td>
+                    </tr>
+                    `;
+                }).join('');
+            },
+
+            filterLeads: (status) => {
+                const allLeads = window.portal.adminState.leads;
+                if(status === 'all') {
+                    AdminDashboard.renderLeads(allLeads);
+                } else {
+                    const filtered = allLeads.filter(l => (l.Status||"").toLowerCase().includes(status));
+                    AdminDashboard.renderLeads(filtered);
+                }
+            },
+
+            nav: (viewId, linkEl) => {
+                // Hide all views
+                document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+                // Show target
+                document.getElementById('view-' + viewId).classList.add('active');
+                
+                // Update Nav State
+                document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+                linkEl.classList.add('active');
+            }
+        };
+
+        // Assign to window so main.js and HTML inline events can find it
+        window.adminDashboard = AdminDashboard;
+        window.Admin = AdminDashboard; // Alias for the inline onclicks in HTML
+    </script>
+
+    <script src="main.js"></script>
+
+</body>
+</html>
