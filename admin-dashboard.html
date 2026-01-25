@@ -12,29 +12,23 @@
     <style>
         * { font-family: 'Inter', sans-serif; }
         body { background-color: #F9FAFB; color: #111827; }
-        
-        /* --- BRANDED SIDEBAR --- */
+
         .sidebar { background: linear-gradient(180deg, #374151 0%, #111827 100%); transition: all 0.3s; }
         .nav-item { transition: all 0.2s; border-left: 4px solid transparent; cursor: pointer; color: #D1D5DB; }
         .nav-item:hover { background: rgba(251, 191, 36, 0.1); color: #FBBF24; }
         .nav-item.active { background: rgba(251, 191, 36, 0.15); color: #FBBF24; border-left-color: #FBBF24; font-weight: 600; }
-        
-        /* --- BRANDED BUTTONS --- */
+
         .btn-primary { background: #F59E0B; color: #111827; font-weight: 700; transition: all 0.2s; }
         .btn-primary:hover { background: #D97706; transform: translateY(-1px); }
-        
-        /* --- STATUS DOTS & TOOLTIPS --- */
+
         .status-container { position: relative; display: inline-flex; align-items: center; }
         .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; cursor: help; }
-        
-        /* Status Colors */
-        .st-critical { background-color: #EF4444; box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2); } /* Red */
-        .st-risk { background-color: #F59E0B; } /* Yellow */
-        .st-healthy { background-color: #10B981; } /* Green */
-        .st-new { background-color: #3B82F6; } /* Blue */
-        .st-bottleneck { background-color: #A855F7; } /* Purple */
+        .st-critical { background-color: #EF4444; box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2); }
+        .st-risk { background-color: #F59E0B; }
+        .st-healthy { background-color: #10B981; }
+        .st-new { background-color: #3B82F6; }
+        .st-bottleneck { background-color: #A855F7; }
 
-        /* Tooltip */
         .tooltip-text {
             visibility: hidden; width: 220px; background-color: #111827; color: #fff; text-align: left;
             border-radius: 8px; padding: 10px; position: absolute; z-index: 50; bottom: 135%; left: 50%;
@@ -47,18 +41,16 @@
         }
         .status-container:hover .tooltip-text { visibility: visible; opacity: 1; }
 
-        /* --- TIME TRACKER BADGES --- */
         .badge-in { background: #DCFCE7; color: #166534; border: 1px solid #BBF7D0; }
         .badge-break { background: #FEF9C3; color: #854D0E; border: 1px solid #FEF08A; }
         .badge-off { background: #F3F4F6; color: #6B7280; border: 1px solid #E5E7EB; }
 
-        /* --- UTILS --- */
         .view-section { display: none; animation: fadeIn 0.3s ease-in-out; }
         .view-section.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        
+
         .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,0,0,0.05); border-color: #FBBF24; transition: all 0.2s; }
-        
+
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
     </style>
@@ -123,7 +115,8 @@
         </div>
 
         <div class="flex-1 overflow-y-auto p-6 lg:p-8" id="main-scroll">
-            
+
+            <!-- OVERVIEW -->
             <div id="view-overview" class="view-section active">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
                     <div>
@@ -133,7 +126,7 @@
                     <div class="flex gap-4">
                         <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
                             <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Est. Profit (Today)</p>
-                            <p class="text-lg font-bold text-emerald-600 mt-1" id="pulse-profit">+$0.00</p>
+                            <p class="text-lg font-bold text-emerald-600 mt-1" id="pulse-profit">—</p>
                         </div>
                         <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
                             <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Disputes</p>
@@ -143,7 +136,7 @@
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                    
+
                     <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col h-[480px]">
                         <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
                             <h3 class="font-bold text-gray-900 flex items-center gap-2">
@@ -167,7 +160,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="client-health-body" class="text-sm divide-y divide-gray-50">
-                                    <tr><td colspan="5" class="p-6 text-center text-gray-400 italic">Loading Monitor...</td></tr>
+                                    <tr><td colspan="5" class="p-6 text-center text-gray-400 italic">Waiting for admin data...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -176,10 +169,13 @@
                     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col h-[480px]">
                         <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
                             <h3 class="font-bold text-gray-900 text-sm">Live Floor Status</h3>
-                            <span class="text-[10px] bg-white border border-gray-200 text-gray-500 px-2 py-1 rounded font-bold uppercase tracking-wider">Synced</span>
+                            <span class="text-[10px] bg-white border border-gray-200 text-gray-500 px-2 py-1 rounded font-bold uppercase tracking-wider">Basic</span>
                         </div>
                         <div class="flex-1 overflow-auto p-3 space-y-2" id="live-floor-list">
-                            <div class="p-4 text-center text-xs text-gray-400">Connecting to Time Tracker...</div>
+                            <div class="p-4 text-center text-xs text-gray-400">
+                                Live Time Tracker not wired in Admin Backend yet.<br>
+                                (We can connect it after Admin loads.)
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -201,14 +197,15 @@
                                 <tr>
                                     <th class="p-4">Agent Name</th>
                                     <th class="p-4 text-center">Total Leads</th>
-                                    <th class="p-4 text-center text-emerald-600">Qualified</th>
+                                    <th class="p-4 text-center text-emerald-600">Qualified (Confirmed)</th>
                                     <th class="p-4 text-center text-red-500">Unqualified</th>
                                     <th class="p-4 text-center">Cancel Rate</th>
                                     <th class="p-4 text-right">Est. Bonus</th>
                                 </tr>
                             </thead>
                             <tbody id="agent-perf-body" class="divide-y divide-gray-50">
-                                </tbody>
+                                <tr><td colspan="6" class="p-6 text-center text-gray-400 italic">Waiting for admin data...</td></tr>
+                            </tbody>
                         </table>
                     </div>
                 </div>
@@ -218,10 +215,12 @@
                         <h3 class="font-bold text-gray-900 text-sm">Dispute Resolution Queue</h3>
                     </div>
                     <div id="dispute-queue-list" class="divide-y divide-gray-50">
-                        </div>
+                        <div class="p-6 text-center text-gray-400 italic">Waiting for admin data...</div>
+                    </div>
                 </div>
             </div>
 
+            <!-- CLIENTS -->
             <div id="view-clients" class="view-section">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold text-gray-900">Passbook Clients</h2>
@@ -233,11 +232,9 @@
                 <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm mb-6 flex flex-wrap gap-4 items-center">
                     <div class="flex-1 min-w-[200px] relative">
                         <i class="fa-solid fa-search absolute left-3 top-3 text-gray-400"></i>
-                        <input type="text" placeholder="Search Name, Code, Phone..." class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                        <input id="client-search" type="text" placeholder="Search Name, Code..." class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400">
                     </div>
-                    <select class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"><option>All States</option><option>AZ</option><option>TX</option></select>
-                    <select class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"><option>All Statuses</option><option>Active</option><option>Paused</option></select>
-                    
+
                     <button onclick="document.getElementById('storm-tool-panel').classList.toggle('hidden')" class="bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-100 transition">
                         <i class="fa-solid fa-cloud-bolt mr-2"></i> Storm Tool
                     </button>
@@ -253,34 +250,13 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="client-cards-container">
-                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 card-hover cursor-pointer group relative">
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">CLIENT-042</span>
-                                <h3 class="font-bold text-lg text-gray-900">Palmer Construction</h3>
-                                <span class="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700">Active</span>
-                            </div>
-                            <button class="text-gray-300 hover:text-yellow-600 transition"><i class="fa-solid fa-pen-to-square"></i></button>
-                        </div>
-                        <div class="space-y-2 text-sm text-gray-600 mb-6">
-                            <p class="flex items-center gap-3"><i class="fa-solid fa-location-dot w-4 text-gray-400"></i> Phoenix, AZ</p>
-                            <p class="flex items-center gap-3"><i class="fa-solid fa-user w-4 text-gray-400"></i> John Palmer</p>
-                            <p class="flex items-center gap-3"><i class="fa-solid fa-phone w-4 text-gray-400"></i> (480) 555-0192</p>
-                        </div>
-                        <div class="pt-4 border-t border-gray-50 flex justify-between items-center text-xs">
-                            <div>
-                                <span class="block text-gray-400 uppercase font-bold text-[10px]">Owed</span>
-                                <span class="font-bold text-gray-900 text-sm">12 Leads</span>
-                            </div>
-                            <div class="text-right">
-                                <span class="block text-gray-400 uppercase font-bold text-[10px]">Reps</span>
-                                <span class="font-bold text-gray-900 text-sm">8 Active</span>
-                            </div>
-                        </div>
+                    <div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">
+                        Waiting for admin data...
                     </div>
                 </div>
             </div>
 
+            <!-- LEADS -->
             <div id="view-leads" class="view-section">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold text-gray-900">Leads Master Record</h2>
@@ -291,262 +267,14 @@
 
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                     <div class="p-4 border-b border-gray-100 flex gap-4 overflow-x-auto bg-gray-50/50">
-                        <select class="px-3 py-2 border border-gray-200 rounded-lg text-sm min-w-[150px] bg-white"><option>All Statuses</option><option>Confirmed</option><option>Rejected</option></select>
-                        <select class="px-3 py-2 border border-gray-200 rounded-lg text-sm min-w-[150px] bg-white"><option>All Agents</option></select>
-                        <input type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+                        <select id="lead-status-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm min-w-[150px] bg-white">
+                            <option value="all">All Statuses</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                            <option value="pending">Pending</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
                     </div>
                     <table class="w-full text-left text-sm whitespace-nowrap">
                         <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
-                            <tr>
-                                <th class="p-4">Date</th>
-                                <th class="p-4">Lead ID</th>
-                                <th class="p-4">Client</th>
-                                <th class="p-4">Homeowner</th>
-                                <th class="p-4">Agent</th>
-                                <th class="p-4">Status</th>
-                                <th class="p-4 text-right">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-50" id="leads-table-body">
-                            <tr class="hover:bg-gray-50 transition">
-                                <td class="p-4 text-gray-500">Jan 23, 10:45 AM</td>
-                                <td class="p-4 font-mono text-xs text-gray-400">#L-9281</td>
-                                <td class="p-4 font-bold text-gray-800">Palmer Construction</td>
-                                <td class="p-4">Mike Smith <br><span class="text-xs text-gray-400">Phoenix, AZ</span></td>
-                                <td class="p-4">Jane Doe</td>
-                                <td class="p-4"><span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Confirmed</span></td>
-                                <td class="p-4 text-right"><button class="text-gray-400 hover:text-gray-800"><i class="fa-solid fa-ellipsis-vertical"></i></button></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div id="view-packages" class="view-section">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6">Package Ledger</h2>
-                <div class="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm mb-6">
-                    <h3 class="font-bold text-gray-900 mb-6 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-yellow-500"></i> Active Packages Progress</h3>
-                    <div class="space-y-8">
-                        <div>
-                            <div class="flex justify-between text-xs mb-2">
-                                <span class="font-bold text-gray-700 text-sm">Palmer Construction (50 Lead Pack)</span>
-                                <span class="text-gray-500 font-bold">45 / 50 Delivered</span>
-                            </div>
-                            <div class="w-full bg-gray-100 rounded-full h-3">
-                                <div class="bg-gradient-to-r from-blue-400 to-blue-600 h-3 rounded-full shadow-lg shadow-blue-500/30" style="width: 90%"></div>
-                            </div>
-                            <div class="flex justify-between mt-2">
-                                <span class="text-[10px] text-gray-400 uppercase font-bold">Started: Jan 1</span>
-                                <span class="text-xs text-red-500 font-bold bg-red-50 px-2 py-0.5 rounded">5 Owed</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="view-payroll" class="view-section">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900">Payroll & Finance</h2>
-                    <button class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-500/20">
-                        <i class="fa-solid fa-file-export mr-2"></i> Export Bank CSV
-                    </button>
-                </div>
-                
-                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-sm border-collapse">
-                            <thead class="bg-gray-50 text-xs font-bold text-gray-500 uppercase border-b border-gray-100">
-                                <tr>
-                                    <th class="p-4 border-r border-gray-100 w-[200px]">Agent</th>
-                                    <th class="p-2 text-center w-[60px]">Total Hrs</th>
-                                    <th class="p-2 text-center w-[100px]">Base Pay</th>
-                                    <th class="p-2 text-center w-[100px] text-emerald-600">Incentives</th>
-                                    <th class="p-4 text-right font-bold w-[120px]">Payout</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-50">
-                                <tr class="hover:bg-gray-50 transition">
-                                    <td class="p-4 font-bold text-gray-800 border-r border-gray-100">Jane Doe <div class="text-xs font-normal text-gray-400">Wise • $5/hr</div></td>
-                                    <td class="p-4 text-center font-bold">40.0</td>
-                                    <td class="p-4 text-center text-gray-600">$200.00</td>
-                                    <td class="p-4 text-center font-bold text-emerald-600">+$150.00</td>
-                                    <td class="p-4 text-right font-bold text-gray-900 bg-yellow-50/30">$350.00</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div id="view-agents" class="view-section">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900">HR & Workforce</h2>
-                    <button class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-700 shadow-lg">
-                        <i class="fa-solid fa-user-plus mr-2"></i> Recruit Agent
-                    </button>
-                </div>
-                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-gray-50 text-xs font-bold text-gray-500 uppercase border-b border-gray-100">
-                            <tr>
-                                <th class="p-4">Agent Name</th>
-                                <th class="p-4">Status</th>
-                                <th class="p-4">Raise Progress (90 Days)</th>
-                                <th class="p-4 text-right">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-50">
-                            <tr class="hover:bg-gray-50 transition">
-                                <td class="p-4 font-bold text-gray-800">Jane Doe</td>
-                                <td class="p-4"><span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Active</span></td>
-                                <td class="p-4">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-24 bg-gray-100 rounded-full h-1.5"><div class="bg-yellow-400 h-1.5 rounded-full shadow-sm" style="width: 80%"></div></div>
-                                        <span class="text-xs font-bold text-gray-500">80%</span>
-                                    </div>
-                                </td>
-                                <td class="p-4 text-right"><button class="text-gray-400 hover:text-gray-800"><i class="fa-solid fa-pen"></i></button></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-        </div>
-    </main>
-
-    <script src="main.js"></script>
-    <script>
-        // --- 1. Routing Logic ---
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                e.preventDefault();
-                // Update Nav
-                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-                item.classList.add('active');
-                
-                // Update View
-                const targetId = 'view-' + item.getAttribute('href').substring(1);
-                document.querySelectorAll('.view-section').forEach(view => view.classList.remove('active'));
-                const targetView = document.getElementById(targetId);
-                if(targetView) targetView.classList.add('active');
-            });
-        });
-
-        // --- 2. Admin Logic Controller ---
-        const Admin = {
-            init: function() {
-                // In a real app, you would fetch data here
-                // portal.fetchAdminData();
-                this.renderClientHealth();
-                this.renderLiveFloor();
-                this.renderTeamPerf();
-                this.renderDisputes();
-            },
-
-            // RENDER: Client Health Monitor
-            renderClientHealth: function() {
-                const tbody = document.getElementById('client-health-body');
-                // Mock Data - In real app, this comes from n8n
-                const data = [
-                    { name: 'Palmer Const.', status: 'critical', owed: 12, last: '56h ago', rej: '12%' },
-                    { name: 'Steel Country', status: 'healthy', owed: 5, last: '2h ago', rej: '5%' },
-                    { name: 'Roofing Pro AZ', status: 'risk', owed: 2, last: '18h ago', rej: '8%' },
-                    { name: 'Apex Exteriors', status: 'bottleneck', owed: 50, last: '4h ago', rej: '42%' }
-                ];
-
-                tbody.innerHTML = data.map(c => {
-                    let dot = '', tip = '';
-                    if(c.status === 'critical') { dot = 'st-critical'; tip = 'CRITICAL: No leads >48h'; }
-                    if(c.status === 'healthy') { dot = 'st-healthy'; tip = 'HEALTHY: Flowing well'; }
-                    if(c.status === 'risk') { dot = 'st-risk'; tip = 'RISK: No leads Today/Yest'; }
-                    if(c.status === 'bottleneck') { dot = 'st-bottleneck'; tip = 'WARNING: High Rejection Rate'; }
-
-                    return `
-                        <tr class="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition">
-                            <td class="p-3">
-                                <div class="status-container">
-                                    <span class="status-dot ${dot}"></span>
-                                    <span class="tooltip-text">${tip}</span>
-                                </div>
-                            </td>
-                            <td class="p-3 font-bold text-gray-800 group-hover:text-yellow-600 transition">${c.name}</td>
-                            <td class="p-3 font-mono text-xs font-bold text-gray-600">${c.owed} Leads</td>
-                            <td class="p-3 text-xs text-gray-500">${c.last}</td>
-                            <td class="p-3 text-xs font-bold ${c.status === 'bottleneck' ? 'text-purple-600' : 'text-gray-500'}">${c.rej}</td>
-                        </tr>
-                    `;
-                }).join('');
-            },
-
-            // RENDER: Live Floor (Time Tracker)
-            renderLiveFloor: function() {
-                const list = document.getElementById('live-floor-list');
-                const agents = [
-                    { name: 'Jane Doe', status: 'Clocked In', badge: 'badge-in', time: '4h 20m' },
-                    { name: 'Mike Ross', status: 'On Break', badge: 'badge-break', time: '15m' },
-                    { name: 'Sarah Connor', status: 'Offline', badge: 'badge-off', time: '14h' }
-                ];
-
-                list.innerHTML = agents.map(a => `
-                    <div class="p-3 bg-gray-50 rounded-lg border border-gray-100 flex justify-between items-center hover:bg-white transition shadow-sm">
-                        <div>
-                            <p class="font-bold text-xs text-gray-700">${a.name}</p>
-                            <span class="${a.badge} px-2 py-0.5 rounded text-[10px] font-bold uppercase inline-block mt-1">${a.status}</span>
-                        </div>
-                        <span class="text-[10px] font-mono text-gray-400 font-bold">${a.time}</span>
-                    </div>
-                `).join('');
-            },
-
-            // RENDER: TEAM PERFORMANCE (LEVEL 2)
-            renderTeamPerf: function() {
-                const tbody = document.getElementById('agent-perf-body');
-                const data = [
-                    { name: 'Jane Doe', total: 12, qual: 8, unqual: 4, rate: '33%', bonus: '$50' },
-                    { name: 'Mike Ross', total: 15, qual: 12, unqual: 3, rate: '20%', bonus: '$110' }
-                ];
-
-                tbody.innerHTML = data.map(a => `
-                    <tr class="hover:bg-gray-50 transition">
-                        <td class="p-4 font-bold text-gray-700">${a.name}</td>
-                        <td class="p-4 text-center font-bold">${a.total}</td>
-                        <td class="p-4 text-center font-bold text-emerald-600">${a.qual}</td>
-                        <td class="p-4 text-center font-bold text-red-500">${a.unqual}</td>
-                        <td class="p-4 text-center text-xs font-bold text-gray-500">${a.rate}</td>
-                        <td class="p-4 text-right font-mono text-xs font-bold text-gray-700 bg-yellow-50/50">${a.bonus}</td>
-                    </tr>
-                `).join('');
-            },
-
-            // RENDER: DISPUTES
-            renderDisputes: function() {
-                const q = document.getElementById('dispute-queue-list');
-                q.innerHTML = `
-                    <div class="p-4 flex justify-between items-start hover:bg-gray-50 transition">
-                        <div>
-                            <div class="flex gap-2 items-center mb-1">
-                                <span class="text-[10px] font-bold bg-red-100 text-red-600 px-1.5 rounded">CREDIT REQ</span>
-                                <span class="text-xs font-bold text-gray-700">Lead #L-921</span>
-                            </div>
-                            <p class="text-xs text-gray-500 italic">"Homeowner is out of service area." - Jane D.</p>
-                        </div>
-                        <div class="flex gap-1">
-                            <button class="bg-emerald-50 text-emerald-600 p-1.5 rounded hover:bg-emerald-100 transition" title="Approve"><i class="fa-solid fa-check"></i></button>
-                            <button class="bg-gray-100 text-gray-500 p-1.5 rounded hover:bg-gray-200 transition" title="Deny"><i class="fa-solid fa-xmark"></i></button>
-                        </div>
-                    </div>
-                `;
-            },
-            
-            updatePerf: function(period) {
-                // Placeholder for filtering logic
-                console.log("Filtering performance by: " + period);
-            }
-        };
-
-        // Boot
-        Admin.init();
-    </script>
-</body>
-</html>
