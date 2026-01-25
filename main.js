@@ -23,7 +23,7 @@ class CallHammerPortal {
       fetchData: "https://automate.callhammerleads.com/webhook/fetch-agent-data",
 
       // IMPORTANT: Replace this with the Production URL from your “CHL Admin Backend” workflow webhook node
-      fetchAdminData: "https://automate.callhammerleads.com/webhook/CHL-ADMIN-BACKEND"
+      fetchAdminData: "https://automate.callhammerleads.com/webhook/dashboard-data"
     };
 
     this.init();
