@@ -7,27 +7,26 @@ class CallHammerPortal {
     this.filteredLeads = [];
     this.currentFilter = 'this-week';
 
-    // ✅ NEW (optional TL/admin datasets from n8n)
+    // ✅ TL/Payroll datasets (Existing)
     this.weeklyPayroll = [];
     this.timeTracker = [];
 
-    // ✅ Admin dashboard datasets (UPDATED STRUCTURE)
+    // ✅ NEW: Admin Dashboard State & Caching
     this.adminState = {
-      clients: [],      // Normalized Client List
-      leads: [],        // Raw Leads (for stats)
-      agents: [],       // Normalized Agent List
-      rawStatuses: [],  // For joins
-      rawPackages: []   // For joins
+      clients: [],       // Normalized Client List (Joined with Status/Package)
+      leads: [],         // Raw Leads
+      agents: [],        // Normalized Agent List
+      rawStatuses: [],   // Raw delivery tracker data
+      rawPackages: []    // Raw package data
     };
-    
-    // ✅ QUOTA PROTECTION: Timestamp for caching
-    this.lastAdminFetch = 0; 
+    this.lastAdminFetch = 0; // Timestamp for caching to prevent Quota errors
 
     this.charts = {
       appointments: null,
       incentives: null
     };
 
+    // ✅ Your real webhooks
     this.webhooks = {
       login: 'https://automate.callhammerleads.com/webhook/agent-login',
       fetchData: 'https://automate.callhammerleads.com/webhook/fetch-agent-data',
@@ -43,42 +42,39 @@ class CallHammerPortal {
 
   init() {
     this.checkExistingSession();
-    this.enforceRoleRouting(); // ✅ NEW: Protects pages
+    this.enforceRoleRouting(); // ✅ prevents wrong page access
     this.bindEvents();
 
     // ✅ Agent / TL dashboard behavior
     if (this.currentUser && window.location.pathname.includes('dashboard')) {
-      // Only run Agent fetches if NOT on Admin Dashboard
+      // Only fetch agent data if NOT on admin dashboard
       if (!window.location.pathname.includes('admin-dashboard')) {
         this.fetchAllData();
         this.updateProfileUI();
         this.startMSTClock();
       }
 
-      if (this.currentUser.role === 'admin') {
-        document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
-      } else if (this.currentUser.role === 'team_leader') {
+      if (this.currentUser.role === 'team_leader') {
         document.querySelectorAll('.tl-only').forEach(el => el.classList.remove('hidden'));
+      } else if (this.currentUser.role === 'admin') {
+        document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
       }
     }
 
-    // ✅ Admin Dashboard behavior (separate fetch so it doesn't interfere)
+    // ✅ Admin Dashboard behavior
     if (window.location.pathname.includes('admin-dashboard')) {
-      // Auto load admin dashboard data
-      setTimeout(() => {
-        this.fetchAdminData();
-      }, 500);
+      setTimeout(() => this.fetchAdminData(), 500);
     }
   }
 
-  // ✅ NEW: Role-based routing guard (minimal, non-breaking)
+  // ✅ Role-based routing guard
   enforceRoleRouting() {
     if (!this.currentUser) return;
 
     const path = (window.location.pathname || '').toLowerCase();
     const role = (this.currentUser.role || 'agent').toLowerCase();
 
-    // Only redirect if actually ON a dashboard page
+    // Only redirect if we are actually ON a dashboard page
     if (!path.includes('dashboard')) return;
 
     const onAdmin = path.includes('admin-dashboard');
@@ -99,13 +95,13 @@ class CallHammerPortal {
     return foundKey ? obj[foundKey] : '';
   }
 
-  // ✅ NEW: Normalizer for Admin Joins
+  // ✅ Company Key Normalizer for Joins (removes spaces/punctuation/case)
   normalizeCompanyKey(str) {
     if (!str) return 'unknown';
     return str.toString().toLowerCase().replace(/[^a-z0-9]/g, '').trim();
   }
 
-  // ✅ FIX: date-only parsing without timezone shifting (Preserved your logic)
+  // ✅ Date-only parsing without timezone shifting
   parseDateSafe(value) {
     if (!value) return null;
 
@@ -118,7 +114,7 @@ class CallHammerPortal {
       const y = parseInt(isoMatch[1], 10);
       const m = parseInt(isoMatch[2], 10) - 1;
       const d = parseInt(isoMatch[3], 10);
-      const dt = new Date(y, m, d, 12, 0, 0); // noon local avoids shifting
+      const dt = new Date(y, m, d, 12, 0, 0);
       return isNaN(dt.getTime()) ? null : dt;
     }
 
@@ -128,11 +124,10 @@ class CallHammerPortal {
       const m = parseInt(slashMatch[1], 10) - 1;
       const d = parseInt(slashMatch[2], 10);
       const y = parseInt(slashMatch[3], 10);
-      const dt = new Date(y, m, d, 12, 0, 0); // noon local avoids shifting
+      const dt = new Date(y, m, d, 12, 0, 0);
       return isNaN(dt.getTime()) ? null : dt;
     }
 
-    // Fallback (handles "Jan 6, 2026", or date+time strings)
     const d = new Date(raw);
     return isNaN(d.getTime()) ? null : d;
   }
@@ -157,19 +152,19 @@ class CallHammerPortal {
     };
 
     tick();
-    clearInterval(this._mstClockInterval);
+    if (this._mstClockInterval) clearInterval(this._mstClockInterval);
     this._mstClockInterval = setInterval(tick, 1000);
   }
 
   // ------------------------
-  // ✅ ADMIN DASHBOARD FETCH (COMPLETELY FIXED)
+  // ✅ ADMIN DASHBOARD LOGIC
   // ------------------------
   async fetchAdminData(forceRefresh = false) {
-    // 1) QUOTA FIX: Cache for 60 seconds
+    // Cache for 60 seconds to avoid quota/too many calls
     const now = Date.now();
     if (!forceRefresh && this.adminState.clients.length > 0 && (now - this.lastAdminFetch < 60000)) {
-      console.log("Using cached Admin Data (Quota Protection)...");
-      if (window.adminDashboard && window.adminDashboard.refreshDashboard) {
+      console.log("✅ Using cached Admin Data...");
+      if (window.adminDashboard && typeof window.adminDashboard.refreshDashboard === "function") {
         window.adminDashboard.refreshDashboard();
       }
       return;
@@ -188,16 +183,30 @@ class CallHammerPortal {
       }
 
       const result = await response.json();
-      this.lastAdminFetch = Date.now(); // Update timestamp
+      this.lastAdminFetch = Date.now();
 
-      // Support multiple possible response shapes from n8n
-      const rawClients = result.clients || result.Clients || result.CLIENTS || result.data?.clients || [];
-      const rawLeads = result.leads || result.Leads || result.LEADS || result.data?.leads || [];
-      const rawAgents = result.agents || result.Agents || result.AGENTS || result.data?.agents || [];
-      const rawStatuses = result.clientStatuses || result.data?.clientStatuses || []; // Delivery Tracker
-      const rawPackages = result.packages || result.data?.packages || []; // Package Tab
+      // ✅ Support multiple possible response shapes from n8n
+      const rawClients =
+        result.clients || result.Clients || result.CLIENTS ||
+        result.data?.clients || result.data?.Clients || result.data?.CLIENTS || [];
 
-      // ✅ 2) Normalize & Join Data
+      const rawLeads =
+        result.leads || result.Leads || result.LEADS ||
+        result.data?.leads || result.data?.Leads || result.data?.LEADS || [];
+
+      const rawAgents =
+        result.agents || result.Agents || result.AGENTS ||
+        result.data?.agents || result.data?.Agents || result.data?.AGENTS || [];
+
+      // Delivery tracker + packages can come under MANY key names; support more
+      const rawStatuses =
+        result.clientStatuses || result.statuses || result.deliveryTracker || result.client_health ||
+        result.data?.clientStatuses || result.data?.statuses || result.data?.deliveryTracker || result.data?.client_health || [];
+
+      const rawPackages =
+        result.packages || result.leadPackages || result.packageTracker ||
+        result.data?.packages || result.data?.leadPackages || result.data?.packageTracker || [];
+
       this.normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages);
 
       console.log("📊 Admin State Ready:", {
@@ -206,7 +215,6 @@ class CallHammerPortal {
         agents: this.adminState.agents.length
       });
 
-      // ✅ Trigger Admin Dashboard UI
       if (window.adminDashboard && typeof window.adminDashboard.refreshDashboard === "function") {
         window.adminDashboard.refreshDashboard();
       } else {
@@ -218,122 +226,167 @@ class CallHammerPortal {
     }
   }
 
-  // ✅ NEW: Central Normalization & Joining Logic (Fixes Admin Headers)
+  // ✅ Central Normalization & Joining Logic
   normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages) {
-    
-    // -- Step A: Create Lookup Maps for Joins --
+    // Store raws (debug / future use)
+    this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
+    this.adminState.rawPackages = Array.isArray(rawPackages) ? rawPackages : [];
+
+    // --- Status Map (Delivery Tracker) ---
     const statusMap = {};
-    rawStatuses.forEach(row => {
-      const key = this.normalizeCompanyKey(row['Roofing Company'] || row['Company Name']);
-      statusMap[key] = row; 
+    (Array.isArray(rawStatuses) ? rawStatuses : []).forEach(row => {
+      const key = this.normalizeCompanyKey(
+        row?.['Roofing Company'] ||
+        row?.['Company Name'] ||
+        row?.['COMPANY NAME'] ||
+        row?.['Client'] ||
+        row?.['Client Name']
+      );
+      if (key && key !== 'unknown') statusMap[key] = row;
     });
 
+    // --- Package Map (Lead Package Tab / Tracker) ---
     const packageMap = {};
-    rawPackages.forEach(row => {
-      const key = this.normalizeCompanyKey(row['Roofing Company Name'] || row['Company Name']);
-      packageMap[key] = row;
+    (Array.isArray(rawPackages) ? rawPackages : []).forEach(row => {
+      const key = this.normalizeCompanyKey(
+        row?.['Roofing Company'] ||
+        row?.['Roofing Company Name'] ||
+        row?.['Company Name'] ||
+        row?.['COMPANY NAME'] ||
+        row?.['Client'] ||
+        row?.['Client Name']
+      );
+      if (key && key !== 'unknown') packageMap[key] = row;
     });
 
-    // -- Step B: Map Clients (Fixing "Unnamed") --
-    this.adminState.clients = rawClients.map(c => {
-      const compName = c['COMPANY NAME'] || c['Company Name'] || c['name'] || 'Unnamed';
+    // --- Clients (Client Code List) ---
+    this.adminState.clients = (Array.isArray(rawClients) ? rawClients : []).map(c => {
+      const compName =
+        c?.['COMPANY NAME'] ||
+        c?.['Company Name'] ||
+        c?.['Roofing Company'] ||
+        c?.['name'] ||
+        c?.['Client'] ||
+        'Unnamed';
+
       const key = this.normalizeCompanyKey(compName);
-      
+
       const statusRow = statusMap[key] || {};
       const packageRow = packageMap[key] || {};
 
       return {
+        // Client display
         clientName: compName,
-        codeName: c['CODE NAME'] || c['Code'] || 'N/A',
-        location: c['Add location here'] || c['Location'] || 'Remote', 
-        status: statusRow['Client Status'] || statusRow['Status'] || 'Not Started',
-        package: packageRow['Package'] || packageRow['Lead Package'] || 'Standard',
-        leadsPurchased: packageRow['Leads Purchased'] || 0
+        codeName: c?.['CODE NAME'] || c?.['Code Name'] || c?.['Code'] || 'N/A',
+        location: c?.['Add location here'] || c?.['Location'] || c?.['City'] || 'Remote',
+
+        // Joined fields
+        status:
+          statusRow?.['Client Status'] ||
+          statusRow?.['Status'] ||
+          statusRow?.['CLIENT STATUS'] ||
+          'Not Started',
+
+        package:
+          packageRow?.['Package'] ||
+          packageRow?.['Lead Package'] ||
+          packageRow?.['LEAD PACKAGE'] ||
+          'Standard',
+
+        leadsPurchased:
+          Number(packageRow?.['Leads Purchased'] || packageRow?.['Leads'] || packageRow?.['LEADS PURCHASED'] || 0) || 0,
+
+        // Keep raw join rows if dashboard wants them later
+        _statusRow: statusRow,
+        _packageRow: packageRow
       };
     });
 
-    // -- Step C: Map Agents (Fixing Disappearing Names) --
-    this.adminState.agents = rawAgents.map(a => ({
-      employeeName: a['Employee Name'] || a['Name'] || 'Unknown Agent',
-      role: a['Role'] || 'Agent',
-      employmentStatus: a['Employment_Status'] || a['Status'] || 'Active',
-      email: a['Email'] || a['Email Address'] || ''
+    // --- Agents (Agent Master List) ---
+    this.adminState.agents = (Array.isArray(rawAgents) ? rawAgents : []).map(a => ({
+      employeeName: a?.['Employee Name'] || a?.['Name'] || a?.['Appointment Coordinator Name'] || 'Unknown Agent',
+      role: (a?.['Role'] || 'Agent'),
+      employmentStatus: a?.['Employment_Status'] || a?.['Employment Status'] || a?.['Status'] || 'Active',
+      email: a?.['Email'] || a?.['Email Address'] || ''
     }));
 
-    // -- Step D: Store Raw Leads
-    this.adminState.leads = rawLeads;
+    // --- Leads (Raw Leads Tab) ---
+    this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
   }
 
-  // ✅ NEW: Compute Team Performance from RAW LEADS (Fixes Efficiency Stats)
+  // ✅ Compute Team Performance from RAW LEADS (uses Payroll Week for "this-week")
   calculateAdminTeamStats(timeFilter = 'today') {
-    const stats = {}; 
+    const stats = {};
 
-    // 1. Initialize stats with ALL agents from Master List
-    this.adminState.agents.forEach(agent => {
-      stats[agent.employeeName] = { 
-        name: agent.employeeName, 
-        total: 0, 
-        confirmed: 0, 
+    // 1) Initialize with all agents from master list
+    (this.adminState.agents || []).forEach(agent => {
+      stats[agent.employeeName] = {
+        name: agent.employeeName,
+        total: 0,
+        confirmed: 0,
         rejected: 0,
         pending: 0
       };
     });
 
-    // 2. Define Date Range
+    // 2) Date Ranges
     const now = new Date();
-    const startOfDay = new Date(now.setHours(0,0,0,0));
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
-    startOfWeek.setHours(0,0,0,0);
-    
-    const startOfMonth = new Date(); 
-    startOfMonth.setDate(now.getDate() - 30);
-    startOfMonth.setHours(0,0,0,0);
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
 
-    // 3. Process Leads
-    this.adminState.leads.forEach(lead => {
-      const coordinator = lead['Appointment Coordinator Name'] || lead['Setter'] || 'Unknown';
-      
-      const dateStr = lead['Date Submitted'] || lead['Date'];
+    // IMPORTANT: align "this-week" with MST Sat–Fri payroll week
+    const payrollWeek = this.getPayrollWeekRange();
+
+    const startOf30Days = new Date();
+    startOf30Days.setDate(startOf30Days.getDate() - 30);
+    startOf30Days.setHours(0, 0, 0, 0);
+
+    // 3) Process leads
+    (this.adminState.leads || []).forEach(lead => {
+      const coordinator =
+        lead?.['Appointment Coordinator Name'] ||
+        lead?.['Setter'] ||
+        lead?.['Agent'] ||
+        lead?.['Agent Name'] ||
+        'Unknown';
+
+      const dateStr = lead?.['Date Submitted'] || lead?.['Date'] || lead?.['Submitted'] || '';
       const leadDate = this.parseDateSafe(dateStr);
       if (!leadDate) return;
 
       let include = false;
       if (timeFilter === 'today' && leadDate >= startOfDay) include = true;
-      else if (timeFilter === 'this-week' && leadDate >= startOfWeek) include = true;
-      else if (timeFilter === '30-days' && leadDate >= startOfMonth) include = true;
+      else if (timeFilter === 'this-week' && leadDate >= payrollWeek.start && leadDate <= payrollWeek.end) include = true;
+      else if (timeFilter === '30-days' && leadDate >= startOf30Days) include = true;
       else if (timeFilter === 'all') include = true;
 
-      if (include) {
-        if (!stats[coordinator]) {
-          stats[coordinator] = { name: coordinator, total: 0, confirmed: 0, rejected: 0, pending: 0 };
-        }
+      if (!include) return;
 
-        const s = (lead['Status'] || '').toLowerCase();
-        stats[coordinator].total++;
+      if (!stats[coordinator]) {
+        stats[coordinator] = { name: coordinator, total: 0, confirmed: 0, rejected: 0, pending: 0 };
+      }
 
-        if (s === 'confirmed' || s === 'approved') {
-          stats[coordinator].confirmed++;
-        } else if (s.includes('reject') || s.includes('decline') || s.includes('cancel') || s.includes('credit')) {
-          stats[coordinator].rejected++;
-        } else {
-          stats[coordinator].pending++;
-        }
+      const s = (lead?.['Status'] || '').toString().toLowerCase();
+      stats[coordinator].total++;
+
+      if (s === 'confirmed' || s === 'approved') {
+        stats[coordinator].confirmed++;
+      } else if (s.includes('reject') || s.includes('decline') || s.includes('cancel') || s.includes('credit')) {
+        stats[coordinator].rejected++;
+      } else {
+        stats[coordinator].pending++;
       }
     });
 
-    // 4. Return Array
+    // 4) Convert to array + efficiency
     return Object.values(stats).map(agent => {
       const efficiency = agent.total > 0 ? (agent.confirmed / agent.total) * 100 : 0;
-      return {
-        ...agent,
-        efficiency: efficiency.toFixed(1) + '%'
-      };
+      return { ...agent, efficiency: efficiency.toFixed(1) + '%' };
     });
   }
 
   // ------------------------
-  // Weekly Payroll -> Worked Hours (MST Sat–Fri)
+  // Payroll & Date Logic (ORIGINAL)
   // ------------------------
   getPayrollWeekRangeFor(date) {
     const mstDate = this.toMST(date);
@@ -441,10 +494,10 @@ class CallHammerPortal {
       myRow['hours'] ??
       0;
 
-    const n = parseHours(totalHoursCandidate);
-    return n;
+    return parseHours(totalHoursCandidate);
   }
 
+  // Convert a Date to MST wall-clock (as a Date object shifted from local time)
   toMST(date) {
     const d = new Date(date);
     const mstOffset = -7 * 60;
@@ -452,6 +505,7 @@ class CallHammerPortal {
     return new Date(d.getTime() + (mstOffset + localOffset) * 60000);
   }
 
+  // Payroll week start for a given date (Saturday 00:00 MST)
   getPayrollWeekStart(date) {
     const mstDate = this.toMST(date);
     const dayOfWeek = mstDate.getDay(); // Sun=0 ... Sat=6
@@ -546,7 +600,7 @@ class CallHammerPortal {
     }
   }
 
-  // ✅ NEW: Team Leader dashboard fetch (does not affect agent dashboard)
+  // TL Dashboard Fetch
   async fetchTeamLeaderDashboardData() {
     if (!this.currentUser) return null;
 
@@ -561,7 +615,6 @@ class CallHammerPortal {
       });
 
       const result = await response.json();
-
       if (result.status === "success") return result;
 
       console.error("TL Fetch Failed:", result);
@@ -573,14 +626,14 @@ class CallHammerPortal {
   }
 
   // ------------------------
-  // Incentives
+  // Incentives (ORIGINAL)
   // ------------------------
   calculateIncentives(confirmedN, cancelRate) {
     const isHighPerf = cancelRate < 25;
     let total = 0;
 
-    if (confirmedN >= 6) total += 50;
-    if (confirmedN >= 8) total += isHighPerf ? 50 : 30;
+    if (confirmedN >= 6) total += 50; // 6th confirmed
+    if (confirmedN >= 8) total += isHighPerf ? 50 : 30; // 8th confirmed
 
     if (confirmedN >= 9) {
       const count9to12 = Math.min(confirmedN, 12) - 8;
@@ -655,7 +708,7 @@ class CallHammerPortal {
   }
 
   // ------------------------
-  // Dashboard UI
+  // Dashboard UI (Agent)
   // ------------------------
   updateDashboardUI(leads) {
     const getVal = (obj, key) => this.normalizeKey(obj, key) || '';
@@ -812,7 +865,7 @@ class CallHammerPortal {
   }
 
   // ------------------------
-  // Charts
+  // Charts (ORIGINAL)
   // ------------------------
   updateCharts() {
     const chartA = document.getElementById('appointmentsChart');
@@ -896,6 +949,9 @@ class CallHammerPortal {
     return this.getPayrollWeekKey(d);
   }
 
+  // ------------------------
+  // Profile
+  // ------------------------
   updateProfileUI() {
     if (!this.currentUser) return;
     const u = this.currentUser;
@@ -917,6 +973,9 @@ class CallHammerPortal {
     }
   }
 
+  // ------------------------
+  // Auth / Session
+  // ------------------------
   async login(email, password) {
     try {
       const res = await fetch(this.webhooks.login, {
