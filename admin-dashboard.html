@@ -287,24 +287,18 @@
             refreshDashboard: () => {
                 const state = window.portal.adminState;
                 if (!state || !state.clients) {
-                    console.warn("Refresh called but state is empty.");
-                    return;
+                    console.log("⏳ Waiting for admin data..."); 
+                    return; 
                 }
 
-                console.log("⚡ UI Refresh Triggered. Clients:", state.clients.length);
+                console.log(`⚡ UI Update: ${state.clients.length} Clients, ${state.leads.length} Leads`);
 
-                // 1. Update Overview Cards
-                this.renderPulse(state.leads || []);
-                
-                // 2. Render Tables
-                this.renderClientHealth(state.clients || []);
-                this.updatePerf(this.perfPeriod);
-                
-                // 3. Render Clients View
-                this.renderClientCards(state.clients || []);
-                
-                // 4. Render Leads View
-                this.renderLeads(state.leads || []);
+                // We use try-catch blocks so if one section fails, the others still load
+                try { this.renderPulse(state.leads || []); } catch(e) { console.error("Pulse Error:", e); }
+                try { this.renderClientHealth(state.clients || []); } catch(e) { console.error("Client Table Error:", e); }
+                try { this.updatePerf(this.perfPeriod); } catch(e) { console.error("Perf Error:", e); }
+                try { this.renderClientCards(state.clients || []); } catch(e) { console.error("Client Cards Error:", e); }
+                try { this.renderLeads(state.leads || []); } catch(e) { console.error("Leads Table Error:", e); }
             },
 
             // --- RENDERERS ---
@@ -312,13 +306,20 @@
             renderPulse: (leads) => {
                 const today = new Date().toDateString();
                 const todayLeads = leads.filter(l => {
-                    const d = window.portal.parseDateSafe(l["Date Submitted"]);
+                    // Try multiple common date formats
+                    const dStr = l["Date Submitted"] || l["DATE SUBMITTED"] || l["Date"] || l["DATE"];
+                    const d = window.portal.parseDateSafe(dStr);
                     return d && d.toDateString() === today;
                 });
                 
-                const confirmed = todayLeads.filter(l => window.portal.isConfirmedStatus(l.Status));
+                const confirmed = todayLeads.filter(l => window.portal.isConfirmedStatus(l.Status || l.STATUS));
                 const value = confirmed.length * 50; 
-                const pending = leads.filter(l => (l.Status||"").toLowerCase().includes('pending'));
+                
+                // Count pending
+                const pending = leads.filter(l => {
+                    const s = (l.Status || l.STATUS || "").toLowerCase();
+                    return s.includes('pending');
+                });
 
                 document.getElementById('pulse-profit').textContent = window.portal.formatCurrency(value);
                 document.getElementById('pulse-pending').textContent = pending.length;
@@ -327,21 +328,28 @@
             renderClientHealth: (clients) => {
                 const tbody = document.getElementById('client-health-body');
                 if (!clients || clients.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No clients found in database.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No clients found.</td></tr>';
                     return;
                 }
 
                 tbody.innerHTML = clients.map(c => {
-                    const status = c.Status || "Active"; 
+                    // === MAPPING FIX: Matches your Google Sheet Headers ===
+                    const name = c["COMPANY NAME"] || c["Client Name"] || "Unnamed";
+                    const code = c["CODE NAME"] || c["Code"] || "-";
+                    const status = c["STATUS"] || "Active"; 
+                    // Using "AREA CODES" as location since "City" is empty in your sheet
+                    const location = c["AREA CODES TO CALL"] || c["City"] || "Remote"; 
+
                     let dotClass = "st-healthy";
-                    if(status === 'Inactive') dotClass = "st-risk";
+                    if(status.toString().toUpperCase() === 'INACTIVE') dotClass = "st-risk";
+                    if(status.toString().toUpperCase() === 'BLACKLISTED') dotClass = "st-critical";
                     
                     return `
                         <tr class="hover:bg-gray-50">
                             <td class="p-4"><div class="status-container"><span class="status-dot ${dotClass}"></span></div></td>
-                            <td class="p-4 font-bold text-gray-900">${c.Name || c["Client Name"] || "Unnamed"}</td>
-                            <td class="p-4 text-gray-500">${c.Code || "-"}</td>
-                            <td class="p-4 text-gray-500">${c.City || ""}, ${c.State || ""}</td>
+                            <td class="p-4 font-bold text-gray-900">${name}</td>
+                            <td class="p-4 text-gray-500">${code}</td>
+                            <td class="p-4 text-gray-500 max-w-[150px] truncate" title="${location}">${location}</td>
                         </tr>
                     `;
                 }).join('');
@@ -374,16 +382,18 @@
                 if(period === 'month') filterDate.setDate(now.getDate() - 30);
 
                 tbody.innerHTML = agents.map(agent => {
-                    const name = agent["Employee Name"] || agent.name || "Unknown";
+                    const name = agent["Employee Name"] || agent["EMPLOYEE NAME"] || agent.name || "Unknown";
+                    
                     const agentLeads = leads.filter(l => {
-                        const lName = (l.Agent || l["Appointment Coordinator"] || "").toLowerCase();
-                        const lDate = window.portal.parseDateSafe(l["Date Submitted"]);
-                        return lName.includes(name.toLowerCase()) && lDate >= filterDate;
+                        const lAgent = l.Agent || l.AGENT || l["Appointment Coordinator"] || "";
+                        const dStr = l["Date Submitted"] || l["DATE SUBMITTED"] || l["Date"];
+                        const lDate = window.portal.parseDateSafe(dStr);
+                        return lAgent.toLowerCase().includes(name.toLowerCase()) && lDate >= filterDate;
                     });
 
                     const total = agentLeads.length;
-                    const confirmed = agentLeads.filter(l => window.portal.isConfirmedStatus(l.Status)).length;
-                    const rejected = agentLeads.filter(l => (l.Status||"").toLowerCase().includes('reject')).length;
+                    const confirmed = agentLeads.filter(l => window.portal.isConfirmedStatus(l.Status || l.STATUS)).length;
+                    const rejected = agentLeads.filter(l => (l.Status || l.STATUS || "").toLowerCase().includes('reject')).length;
                     const eff = total > 0 ? Math.round((confirmed / total) * 100) : 0;
 
                     return `
@@ -401,24 +411,32 @@
             renderClientCards: (clients) => {
                 const container = document.getElementById('client-cards-container');
                 if(!clients.length) return;
-                container.innerHTML = clients.map(c => `
+                
+                container.innerHTML = clients.map(c => {
+                    const name = c["COMPANY NAME"] || c["Client Name"] || "Unnamed";
+                    const code = c["CODE NAME"] || "NO CODE";
+                    const location = c["AREA CODES TO CALL"] || c["City"] || "Remote";
+
+                    return `
                     <div class="card-hover bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
                         <div>
                             <div class="flex justify-between items-start mb-4">
                                 <div class="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center font-bold text-gray-400 border border-gray-200">
-                                    ${(c.Name || c["Client Name"] || "C").substring(0,2).toUpperCase()}
+                                    ${name.substring(0,2).toUpperCase()}
                                 </div>
                                 <span class="badge-in px-2 py-1 rounded text-[10px] font-bold uppercase">Active</span>
                             </div>
-                            <h3 class="font-bold text-gray-900 text-lg">${c.Name || c["Client Name"] || "Unnamed"}</h3>
-                            <p class="text-xs text-gray-500 mt-1"><i class="fa-solid fa-location-dot mr-1"></i> ${c.City || ""}, ${c.State || ""}</p>
+                            <h3 class="font-bold text-gray-900 text-lg">${name}</h3>
+                            <p class="text-xs text-gray-500 mt-1 max-h-10 overflow-hidden text-ellipsis">
+                                <i class="fa-solid fa-phone mr-1"></i> ${c.PHONE || c.Phone || "No Phone"}
+                            </p>
                         </div>
                         <div class="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center">
-                            <span class="text-xs font-bold text-gray-400">${c.Code || "NO CODE"}</span>
+                            <span class="text-xs font-bold text-gray-400">${code}</span>
                             <button class="text-xs text-yellow-600 font-bold hover:underline">View Details</button>
                         </div>
                     </div>
-                `).join('');
+                `}).join('');
             },
 
             renderLeads: (leads) => {
@@ -428,19 +446,26 @@
                     return;
                 }
                 tbody.innerHTML = leads.map(l => {
+                    // Try multiple casing options for headers
+                    const status = l.Status || l.STATUS || "New";
+                    const date = l["Date Submitted"] || l["DATE SUBMITTED"] || l["Date"] || "-";
+                    const homeowner = l["Homeowner Name"] || l["HOMEOWNER NAME"] || l["Homeowner"] || "Unknown";
+                    const agent = l.Agent || l.AGENT || "-";
+                    const client = l.Client || l.CLIENT || "-";
+
                     let statusColor = "text-gray-600 bg-gray-100";
-                    const s = (l.Status||"").toLowerCase();
+                    const s = status.toLowerCase();
                     if(s.includes('confirm')) statusColor = "text-emerald-700 bg-emerald-100";
                     if(s.includes('reject')) statusColor = "text-red-700 bg-red-100";
                     if(s.includes('pending')) statusColor = "text-yellow-700 bg-yellow-100";
 
                     return `
                     <tr class="hover:bg-gray-50 transition">
-                        <td class="p-4 text-gray-500">${l["Date Submitted"] || "-"}</td>
-                        <td class="p-4 font-bold text-gray-900">${l["Homeowner Name"] || "Unknown"}</td>
-                        <td class="p-4 text-gray-500">${l.Agent || "-"}</td>
-                        <td class="p-4 text-gray-500">${l.Client || "-"}</td>
-                        <td class="p-4"><span class="px-2 py-1 rounded text-xs font-bold uppercase ${statusColor}">${l.Status || "New"}</span></td>
+                        <td class="p-4 text-gray-500">${date}</td>
+                        <td class="p-4 font-bold text-gray-900">${homeowner}</td>
+                        <td class="p-4 text-gray-500">${agent}</td>
+                        <td class="p-4 text-gray-500">${client}</td>
+                        <td class="p-4"><span class="px-2 py-1 rounded text-xs font-bold uppercase ${statusColor}">${status}</span></td>
                     </tr>`;
                 }).join('');
             },
@@ -448,7 +473,7 @@
             filterLeads: (status) => {
                 const allLeads = window.portal.adminState.leads;
                 if(status === 'all') { AdminDashboard.renderLeads(allLeads); } 
-                else { AdminDashboard.renderLeads(allLeads.filter(l => (l.Status||"").toLowerCase().includes(status))); }
+                else { AdminDashboard.renderLeads(allLeads.filter(l => (l.Status||l.STATUS||"").toLowerCase().includes(status))); }
             },
             
             nav: (viewId, linkEl) => {
@@ -462,27 +487,10 @@
         window.adminDashboard = AdminDashboard;
         window.Admin = AdminDashboard; 
 
-        // AUTO-FIX: Wait 1 second, then force load if still stuck on "Loading..."
+        // Auto-Trigger Data Load on Start
         setTimeout(() => {
-            if(document.getElementById('client-health-body').innerText.includes('Loading')) {
-                console.log("⚠️ Data taking too long. Attempting auto-fix...");
-                
-                // 1. Mock session if missing (Fixes "Not Logged In" error)
-                if(!localStorage.getItem('callHammerSession')) {
-                    console.log("🔧 Creating Debug Admin Session");
-                    localStorage.setItem("callHammerSession", JSON.stringify({
-                        user: { name: "Debug Admin", role: "admin", email: "admin@debug.com" },
-                        expiresAt: Date.now() + 86400000 
-                    }));
-                    if(window.portal) window.portal.checkExistingSession();
-                }
-
-                // 2. Force Fetch (Fixes "Hook didn't fire" error)
-                if(window.portal) window.portal.fetchAdminData();
-            }
-        }, 1000);
+             console.log("🚀 Starting System...");
+             if(window.portal) window.portal.fetchAdminData();
+        }, 500);
     </script>
     <script src="main.js"></script>
-
-</body>
-</html>
