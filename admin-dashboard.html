@@ -1,496 +1,550 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CHL Command Center</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CHL Command Center</title>
 
-    <style>
-        * { font-family: 'Inter', sans-serif; }
-        body { background-color: #F9FAFB; color: #111827; }
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-        .sidebar { background: linear-gradient(180deg, #374151 0%, #111827 100%); transition: all 0.3s; }
-        .nav-item { transition: all 0.2s; border-left: 4px solid transparent; cursor: pointer; color: #D1D5DB; }
-        .nav-item:hover { background: rgba(251, 191, 36, 0.1); color: #FBBF24; }
-        .nav-item.active { background: rgba(251, 191, 36, 0.15); color: #FBBF24; border-left-color: #FBBF24; font-weight: 600; }
+  <style>
+    * { font-family: 'Inter', sans-serif; }
+    body { background-color: #F9FAFB; color: #111827; }
 
-        .btn-primary { background: #F59E0B; color: #111827; font-weight: 700; transition: all 0.2s; }
-        .btn-primary:hover { background: #D97706; transform: translateY(-1px); }
+    .sidebar { background: linear-gradient(180deg, #374151 0%, #111827 100%); transition: all 0.3s; }
+    .nav-item { transition: all 0.2s; border-left: 4px solid transparent; cursor: pointer; color: #D1D5DB; }
+    .nav-item:hover { background: rgba(251, 191, 36, 0.1); color: #FBBF24; }
+    .nav-item.active { background: rgba(251, 191, 36, 0.15); color: #FBBF24; border-left-color: #FBBF24; font-weight: 600; }
 
-        .status-container { position: relative; display: inline-flex; align-items: center; }
-        .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; cursor: help; }
-        .st-critical { background-color: #EF4444; box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2); }
-        .st-risk { background-color: #F59E0B; }
-        .st-healthy { background-color: #10B981; }
-        .st-new { background-color: #3B82F6; }
-        .st-bottleneck { background-color: #A855F7; }
+    .btn-primary { background: #F59E0B; color: #111827; font-weight: 700; transition: all 0.2s; }
+    .btn-primary:hover { background: #D97706; transform: translateY(-1px); }
 
-        .tooltip-text {
-            visibility: hidden; width: 220px; background-color: #111827; color: #fff; text-align: left;
-            border-radius: 8px; padding: 10px; position: absolute; z-index: 50; bottom: 135%; left: 50%;
-            margin-left: -110px; opacity: 0; transition: opacity 0.2s; font-size: 11px; font-weight: 500;
-            pointer-events: none; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); border: 1px solid #374151;
-        }
-        .tooltip-text::after {
-            content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px;
-            border-width: 5px; border-style: solid; border-color: #111827 transparent transparent transparent;
-        }
-        .status-container:hover .tooltip-text { visibility: visible; opacity: 1; }
+    .status-container { position: relative; display: inline-flex; align-items: center; }
+    .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; cursor: help; }
+    .st-critical { background-color: #EF4444; box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2); }
+    .st-risk { background-color: #F59E0B; }
+    .st-healthy { background-color: #10B981; }
+    .st-new { background-color: #3B82F6; }
+    .st-bottleneck { background-color: #A855F7; }
 
-        .badge-in { background: #DCFCE7; color: #166534; border: 1px solid #BBF7D0; }
-        .badge-break { background: #FEF9C3; color: #854D0E; border: 1px solid #FEF08A; }
-        .badge-off { background: #F3F4F6; color: #6B7280; border: 1px solid #E5E7EB; }
+    .tooltip-text {
+      visibility: hidden; width: 220px; background-color: #111827; color: #fff; text-align: left;
+      border-radius: 8px; padding: 10px; position: absolute; z-index: 50; bottom: 135%; left: 50%;
+      margin-left: -110px; opacity: 0; transition: opacity 0.2s; font-size: 11px; font-weight: 500;
+      pointer-events: none; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); border: 1px solid #374151;
+    }
+    .tooltip-text::after {
+      content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px;
+      border-width: 5px; border-style: solid; border-color: #111827 transparent transparent transparent;
+    }
+    .status-container:hover .tooltip-text { visibility: visible; opacity: 1; }
 
-        .view-section { display: none; animation: fadeIn 0.3s ease-in-out; }
-        .view-section.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    .badge-in { background: #DCFCE7; color: #166534; border: 1px solid #BBF7D0; }
+    .badge-break { background: #FEF9C3; color: #854D0E; border: 1px solid #FEF08A; }
+    .badge-off { background: #F3F4F6; color: #6B7280; border: 1px solid #E5E7EB; }
 
-        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,0,0,0.05); border-color: #FBBF24; transition: all 0.2s; }
+    .view-section { display: none; animation: fadeIn 0.3s ease-in-out; }
+    .view-section.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
-    </style>
+    .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,0,0,0.05); border-color: #FBBF24; transition: all 0.2s; }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+  </style>
 </head>
+
 <body class="h-screen flex overflow-hidden">
+  <aside class="sidebar w-64 flex-shrink-0 hidden lg:flex flex-col">
+    <div class="h-16 flex items-center px-6 border-b border-gray-700">
+      <div class="w-8 h-8 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-lg flex items-center justify-center text-gray-900 font-bold mr-3 shadow-lg shadow-yellow-500/20">CH</div>
+      <span class="font-bold text-white tracking-tight">COMMAND CENTER</span>
+    </div>
 
-    <aside class="sidebar w-64 flex-shrink-0 hidden lg:flex flex-col">
-        <div class="h-16 flex items-center px-6 border-b border-gray-700">
-            <div class="w-8 h-8 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-lg flex items-center justify-center text-gray-900 font-bold mr-3 shadow-lg shadow-yellow-500/20">CH</div>
-            <span class="font-bold text-white tracking-tight">COMMAND CENTER</span>
+    <div class="flex-1 overflow-y-auto py-6 space-y-8">
+      <div>
+        <div class="px-6 mb-2 text-[10px] font-bold uppercase text-gray-400 tracking-wider">Operations</div>
+        <nav class="space-y-1">
+          <a href="#overview" class="nav-item active flex items-center px-6 py-3 text-sm" onclick="Admin.nav('overview', this)">
+            <i class="fa-solid fa-satellite-dish w-5 text-center"></i> Overview
+          </a>
+          <a href="#clients" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('clients', this)">
+            <i class="fa-solid fa-building w-5 text-center"></i> Passbook Clients
+          </a>
+          <a href="#leads" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('leads', this)">
+            <i class="fa-solid fa-list-check w-5 text-center"></i> Leads Tracker
+          </a>
+        </nav>
+      </div>
+
+      <div>
+        <div class="px-6 mb-2 text-[10px] font-bold uppercase text-gray-400 tracking-wider">Management</div>
+        <nav class="space-y-1">
+          <a href="#" class="nav-item flex items-center px-6 py-3 text-sm opacity-50 cursor-not-allowed">
+            <i class="fa-solid fa-file-invoice-dollar w-5 text-center"></i> Payroll & Finance
+          </a>
+          <a href="#" class="nav-item flex items-center px-6 py-3 text-sm opacity-50 cursor-not-allowed">
+            <i class="fa-solid fa-users-gear w-5 text-center"></i> HR & Agents
+          </a>
+        </nav>
+      </div>
+    </div>
+
+    <div class="p-4 border-t border-gray-700 bg-gray-800/50">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-gray-700 to-gray-600 flex items-center justify-center text-xs font-bold text-white border border-gray-500">AD</div>
+        <div>
+          <p class="text-xs font-bold text-white">Admin Access</p>
+          <button onclick="portal.logout()" class="text-[10px] text-gray-400 hover:text-yellow-400 uppercase font-bold tracking-wide transition-colors">Log Out</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+    <div class="lg:hidden h-16 bg-white border-b flex items-center justify-between px-4">
+      <span class="font-bold text-gray-800 flex items-center gap-2">
+        <div class="w-6 h-6 bg-yellow-500 rounded flex items-center justify-center text-xs text-black">CH</div> Admin
+      </span>
+      <button class="text-gray-500"><i class="fa-solid fa-bars text-xl"></i></button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-6 lg:p-8" id="main-scroll">
+      <div id="view-overview" class="view-section active">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+          <div>
+            <h1 class="text-3xl font-bold text-gray-900">Mission Control</h1>
+            <p class="text-sm text-gray-500 mt-1">Daily decision support & system health.</p>
+          </div>
+          <div class="flex gap-4">
+            <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
+              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Est. Value (Today)</p>
+              <p class="text-lg font-bold text-emerald-600 mt-1" id="pulse-profit">$0.00</p>
+            </div>
+            <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
+              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pending</p>
+              <p class="text-lg font-bold text-yellow-500 mt-1" id="pulse-pending">0</p>
+            </div>
+          </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto py-6 space-y-8">
-            <div>
-                <div class="px-6 mb-2 text-[10px] font-bold uppercase text-gray-400 tracking-wider">Operations</div>
-                <nav class="space-y-1">
-                    <a href="#overview" class="nav-item active flex items-center px-6 py-3 text-sm" onclick="Admin.nav('overview', this)">
-                        <i class="fa-solid fa-satellite-dish w-5 text-center"></i> Overview
-                    </a>
-                    <a href="#clients" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('clients', this)">
-                        <i class="fa-solid fa-building w-5 text-center"></i> Passbook Clients
-                    </a>
-                    <a href="#leads" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('leads', this)">
-                        <i class="fa-solid fa-list-check w-5 text-center"></i> Leads Tracker
-                    </a>
-                </nav>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col h-[480px]">
+            <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
+              <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                <i class="fa-solid fa-heart-pulse text-red-500"></i> Client Health Monitor
+              </h3>
+              <div class="flex gap-3 text-[10px] uppercase font-bold text-gray-500">
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500"></span> Critical</span>
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Healthy</span>
+              </div>
             </div>
 
-            <div>
-                <div class="px-6 mb-2 text-[10px] font-bold uppercase text-gray-400 tracking-wider">Management</div>
-                <nav class="space-y-1">
-                    <a href="#" class="nav-item flex items-center px-6 py-3 text-sm opacity-50 cursor-not-allowed">
-                        <i class="fa-solid fa-file-invoice-dollar w-5 text-center"></i> Payroll & Finance
-                    </a>
-                    <a href="#" class="nav-item flex items-center px-6 py-3 text-sm opacity-50 cursor-not-allowed">
-                        <i class="fa-solid fa-users-gear w-5 text-center"></i> HR & Agents
-                    </a>
-                </nav>
+            <div class="flex-1 overflow-auto">
+              <table class="w-full text-left border-collapse">
+                <thead class="bg-white sticky top-0 z-10 shadow-sm">
+                  <tr>
+                    <th class="p-4 text-xs font-bold text-gray-400 uppercase w-10">Status</th>
+                    <th class="p-4 text-xs font-bold text-gray-400 uppercase">Client Name</th>
+                    <th class="p-4 text-xs font-bold text-gray-400 uppercase">Code</th>
+                    <th class="p-4 text-xs font-bold text-gray-400 uppercase">Location</th>
+                    <th class="p-4 text-xs font-bold text-gray-400 uppercase">Package</th>
+                  </tr>
+                </thead>
+                <tbody id="client-health-body" class="text-sm divide-y divide-gray-50">
+                  <tr><td colspan="5" class="p-6 text-center text-gray-400 italic">Loading clients...</td></tr>
+                </tbody>
+              </table>
             </div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col h-[480px]">
+            <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
+              <h3 class="font-bold text-gray-900 text-sm">Live Floor Status</h3>
+              <span class="text-[10px] bg-white border border-gray-200 text-gray-500 px-2 py-1 rounded font-bold uppercase tracking-wider">Basic</span>
+            </div>
+            <div class="flex-1 overflow-auto p-3 space-y-2" id="live-floor-list">
+              <div class="p-4 text-center text-xs text-gray-400">
+                Live Time Tracker available in Phase 2.<br>
+                Currently tracking Agent production via Leads.
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="p-4 border-t border-gray-700 bg-gray-800/50">
-            <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-gray-700 to-gray-600 flex items-center justify-center text-xs font-bold text-white border border-gray-500">AD</div>
-                <div>
-                    <p class="text-xs font-bold text-white">Admin Access</p>
-                    <button onclick="portal.logout()" class="text-[10px] text-gray-400 hover:text-yellow-400 uppercase font-bold tracking-wide transition-colors">Log Out</button>
-                </div>
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm mb-8">
+          <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-gray-50/50 rounded-t-2xl">
+            <h3 class="font-bold text-gray-900 flex items-center gap-2">
+              <i class="fa-solid fa-users-viewfinder text-yellow-500"></i> Team Performance
+            </h3>
+            <div class="flex bg-gray-200 p-1 rounded-lg">
+              <button onclick="Admin.updatePerf('today', this)" class="perf-btn px-4 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
+              <button onclick="Admin.updatePerf('week', this)" class="perf-btn px-4 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
+              <button onclick="Admin.updatePerf('month', this)" class="perf-btn px-4 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">30 Days</button>
             </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+                <tr>
+                  <th class="p-4">Agent Name</th>
+                  <th class="p-4 text-center">Total Leads</th>
+                  <th class="p-4 text-center text-emerald-600">Confirmed</th>
+                  <th class="p-4 text-center text-red-500">Rejected</th>
+                  <th class="p-4 text-center">Efficiency</th>
+                </tr>
+              </thead>
+              <tbody id="agent-perf-body" class="divide-y divide-gray-50">
+                <tr><td colspan="6" class="p-6 text-center text-gray-400 italic">Calculating performance...</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-    </aside>
+      </div>
 
-    <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
-        <div class="lg:hidden h-16 bg-white border-b flex items-center justify-between px-4">
-            <span class="font-bold text-gray-800 flex items-center gap-2">
-                <div class="w-6 h-6 bg-yellow-500 rounded flex items-center justify-center text-xs text-black">CH</div> Admin
-            </span>
-            <button class="text-gray-500"><i class="fa-solid fa-bars text-xl"></i></button>
+      <div id="view-clients" class="view-section">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-2xl font-bold text-gray-900">Passbook Clients</h2>
+          <button class="btn-primary px-5 py-2.5 rounded-xl text-sm shadow-lg shadow-yellow-500/20">
+            <i class="fa-solid fa-plus mr-2"></i> Add Client
+          </button>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-6 lg:p-8" id="main-scroll">
+        <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm mb-6 flex flex-wrap gap-4 items-center">
+          <div class="flex-1 min-w-[200px] relative">
+            <i class="fa-solid fa-search absolute left-3 top-3 text-gray-400"></i>
+            <input id="client-search" type="text" placeholder="Search Name, Code..." class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400">
+          </div>
 
-            <div id="view-overview" class="view-section active">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
-                    <div>
-                        <h1 class="text-3xl font-bold text-gray-900">Mission Control</h1>
-                        <p class="text-sm text-gray-500 mt-1">Daily decision support & system health.</p>
-                    </div>
-                    <div class="flex gap-4">
-                        <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
-                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Est. Value (Today)</p>
-                            <p class="text-lg font-bold text-emerald-600 mt-1" id="pulse-profit">$0.00</p>
-                        </div>
-                        <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
-                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pending</p>
-                            <p class="text-lg font-bold text-yellow-500 mt-1" id="pulse-pending">0</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-
-                    <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col h-[480px]">
-                        <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
-                            <h3 class="font-bold text-gray-900 flex items-center gap-2">
-                                <i class="fa-solid fa-heart-pulse text-red-500"></i> Client Health Monitor
-                            </h3>
-                            <div class="flex gap-3 text-[10px] uppercase font-bold text-gray-500">
-                                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500"></span> Critical</span>
-                                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Healthy</span>
-                            </div>
-                        </div>
-                        <div class="flex-1 overflow-auto">
-                            <table class="w-full text-left border-collapse">
-                                <thead class="bg-white sticky top-0 z-10 shadow-sm">
-                                    <tr>
-                                        <th class="p-4 text-xs font-bold text-gray-400 uppercase w-10">Status</th>
-                                        <th class="p-4 text-xs font-bold text-gray-400 uppercase">Client Name</th>
-                                        <th class="p-4 text-xs font-bold text-gray-400 uppercase">Code</th>
-                                        <th class="p-4 text-xs font-bold text-gray-400 uppercase">Location</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="client-health-body" class="text-sm divide-y divide-gray-50">
-                                    <tr><td colspan="5" class="p-6 text-center text-gray-400 italic">Loading clients...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col h-[480px]">
-                        <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
-                            <h3 class="font-bold text-gray-900 text-sm">Live Floor Status</h3>
-                            <span class="text-[10px] bg-white border border-gray-200 text-gray-500 px-2 py-1 rounded font-bold uppercase tracking-wider">Basic</span>
-                        </div>
-                        <div class="flex-1 overflow-auto p-3 space-y-2" id="live-floor-list">
-                            <div class="p-4 text-center text-xs text-gray-400">
-                                Live Time Tracker available in Phase 2.<br>
-                                Currently tracking Agent production via Leads.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm mb-8">
-                    <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-gray-50/50 rounded-t-2xl">
-                        <h3 class="font-bold text-gray-900 flex items-center gap-2">
-                            <i class="fa-solid fa-users-viewfinder text-yellow-500"></i> Team Performance
-                        </h3>
-                        <div class="flex bg-gray-200 p-1 rounded-lg">
-                            <button onclick="Admin.updatePerf('today', this)" class="perf-btn px-4 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
-                            <button onclick="Admin.updatePerf('week', this)" class="perf-btn px-4 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
-                            <button onclick="Admin.updatePerf('month', this)" class="perf-btn px-4 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">30 Days</button>
-                        </div>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-sm">
-                            <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
-                                <tr>
-                                    <th class="p-4">Agent Name</th>
-                                    <th class="p-4 text-center">Total Leads</th>
-                                    <th class="p-4 text-center text-emerald-600">Confirmed</th>
-                                    <th class="p-4 text-center text-red-500">Rejected</th>
-                                    <th class="p-4 text-center">Efficiency</th>
-                                </tr>
-                            </thead>
-                            <tbody id="agent-perf-body" class="divide-y divide-gray-50">
-                                <tr><td colspan="6" class="p-6 text-center text-gray-400 italic">Calculating performance...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div id="view-clients" class="view-section">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900">Passbook Clients</h2>
-                    <button class="btn-primary px-5 py-2.5 rounded-xl text-sm shadow-lg shadow-yellow-500/20">
-                        <i class="fa-solid fa-plus mr-2"></i> Add Client
-                    </button>
-                </div>
-
-                <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm mb-6 flex flex-wrap gap-4 items-center">
-                    <div class="flex-1 min-w-[200px] relative">
-                        <i class="fa-solid fa-search absolute left-3 top-3 text-gray-400"></i>
-                        <input id="client-search" type="text" placeholder="Search Name, Code..." class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400">
-                    </div>
-
-                    <button onclick="document.getElementById('storm-tool-panel').classList.toggle('hidden')" class="bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-100 transition">
-                        <i class="fa-solid fa-cloud-bolt mr-2"></i> Storm Tool
-                    </button>
-                </div>
-
-                <div id="storm-tool-panel" class="hidden bg-white p-6 rounded-2xl border-2 border-red-100 shadow-xl mb-6 relative">
-                    <h3 class="font-bold text-red-600 mb-2 flex items-center gap-2"><i class="fa-solid fa-triangle-exclamation"></i> Storm Impact Analysis</h3>
-                    <p class="text-xs text-gray-500 mb-4">Find clients within 100 miles of severe weather.</p>
-                    <div class="flex gap-4">
-                        <input type="text" placeholder="Enter City, State (e.g. Dallas, TX)" class="flex-1 border rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-red-200 outline-none">
-                        <button class="bg-red-600 text-white font-bold px-6 py-2 rounded-lg text-sm hover:bg-red-700 shadow-lg shadow-red-500/20">Check Impact</button>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="client-cards-container">
-                    <div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">
-                        Waiting for admin data...
-                    </div>
-                </div>
-            </div>
-
-            <div id="view-leads" class="view-section">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900">Leads Master Record</h2>
-                    <button class="bg-white border border-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-50 hover:text-gray-900">
-                        <i class="fa-solid fa-download mr-2"></i> Export CSV
-                    </button>
-                </div>
-
-                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div class="p-4 border-b border-gray-100 flex gap-4 overflow-x-auto bg-gray-50/50">
-                        <select id="lead-status-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm min-w-[150px] bg-white" onchange="Admin.filterLeads(this.value)">
-                            <option value="all">All Statuses</option>
-                            <option value="confirmed">Confirmed</option>
-                            <option value="approved">Approved</option>
-                            <option value="rejected">Rejected</option>
-                            <option value="pending">Pending</option>
-                            <option value="cancelled">Cancelled</option>
-                        </select>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-sm whitespace-nowrap">
-                            <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
-                                <tr>
-                                    <th class="p-4">Date</th>
-                                    <th class="p-4">Homeowner</th>
-                                    <th class="p-4">Agent</th>
-                                    <th class="p-4">Client</th>
-                                    <th class="p-4">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="leads-table-body" class="divide-y divide-gray-50">
-                                <tr><td colspan="5" class="p-6 text-center text-gray-400">Loading leads...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+          <button onclick="document.getElementById('storm-tool-panel').classList.toggle('hidden')" class="bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-100 transition">
+            <i class="fa-solid fa-cloud-bolt mr-2"></i> Storm Tool
+          </button>
         </div>
-    </main>
 
-    <script>
-        const AdminDashboard = {
-            perfPeriod: 'today',
+        <div id="storm-tool-panel" class="hidden bg-white p-6 rounded-2xl border-2 border-red-100 shadow-xl mb-6 relative">
+          <h3 class="font-bold text-red-600 mb-2 flex items-center gap-2"><i class="fa-solid fa-triangle-exclamation"></i> Storm Impact Analysis</h3>
+          <p class="text-xs text-gray-500 mb-4">Find clients within 100 miles of severe weather.</p>
+          <div class="flex gap-4">
+            <input type="text" placeholder="Enter City, State (e.g. Dallas, TX)" class="flex-1 border rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-red-200 outline-none">
+            <button class="bg-red-600 text-white font-bold px-6 py-2 rounded-lg text-sm hover:bg-red-700 shadow-lg shadow-red-500/20">Check Impact</button>
+          </div>
+        </div>
 
-            // Called by main.js when data arrives
-            refreshDashboard: () => {
-                const state = window.portal.adminState;
-                if (!state || !state.clients) {
-                    console.log("⏳ Waiting for admin data..."); 
-                    return; 
-                }
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="client-cards-container">
+          <div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">
+            Waiting for admin data...
+          </div>
+        </div>
+      </div>
 
-                console.log(`⚡ UI Update: ${state.clients.length} Clients, ${state.leads.length} Leads`);
+      <div id="view-leads" class="view-section">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-2xl font-bold text-gray-900">Leads Master Record</h2>
+          <button class="bg-white border border-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-50 hover:text-gray-900">
+            <i class="fa-solid fa-download mr-2"></i> Export CSV
+          </button>
+        </div>
 
-                // We use try-catch blocks so if one section fails, the others still load
-                try { this.renderPulse(state.leads || []); } catch(e) { console.error("Pulse Error:", e); }
-                try { this.renderClientHealth(state.clients || []); } catch(e) { console.error("Client Table Error:", e); }
-                try { this.updatePerf(this.perfPeriod); } catch(e) { console.error("Perf Error:", e); }
-                try { this.renderClientCards(state.clients || []); } catch(e) { console.error("Client Cards Error:", e); }
-                try { this.renderLeads(state.leads || []); } catch(e) { console.error("Leads Table Error:", e); }
-            },
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div class="p-4 border-b border-gray-100 flex gap-4 overflow-x-auto bg-gray-50/50">
+            <select id="lead-status-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm min-w-[150px] bg-white" onchange="Admin.filterLeads(this.value)">
+              <option value="all">All Statuses</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+              <option value="pending">Pending</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm whitespace-nowrap">
+              <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+                <tr>
+                  <th class="p-4">Date</th>
+                  <th class="p-4">Homeowner</th>
+                  <th class="p-4">Agent</th>
+                  <th class="p-4">Client</th>
+                  <th class="p-4">Status</th>
+                </tr>
+              </thead>
+              <tbody id="leads-table-body" class="divide-y divide-gray-50">
+                <tr><td colspan="5" class="p-6 text-center text-gray-400">Loading leads...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
 
-            // --- RENDERERS ---
+  <script>
+    // -------------- AdminDashboard (fixed this-binding + mappings) --------------
+    const AdminDashboard = {
+      perfPeriod: 'today',
 
-            renderPulse: (leads) => {
-                const today = new Date().toDateString();
-                const todayLeads = leads.filter(l => {
-                    // Try multiple common date formats
-                    const dStr = l["Date Submitted"] || l["DATE SUBMITTED"] || l["Date"] || l["DATE"];
-                    const d = window.portal.parseDateSafe(dStr);
-                    return d && d.toDateString() === today;
-                });
-                
-                const confirmed = todayLeads.filter(l => window.portal.isConfirmedStatus(l.Status || l.STATUS));
-                const value = confirmed.length * 50; 
-                
-                // Count pending
-                const pending = leads.filter(l => {
-                    const s = (l.Status || l.STATUS || "").toLowerCase();
-                    return s.includes('pending');
-                });
+      getState() {
+        return (window.portal && window.portal.adminState) ? window.portal.adminState : null;
+      },
 
-                document.getElementById('pulse-profit').textContent = window.portal.formatCurrency(value);
-                document.getElementById('pulse-pending').textContent = pending.length;
-            },
+      refreshDashboard() {
+        const state = this.getState();
+        if (!state) {
+          console.log("⏳ Waiting for portal/adminState...");
+          return;
+        }
 
-            renderClientHealth: (clients) => {
-                const tbody = document.getElementById('client-health-body');
-                if (!clients || clients.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No clients found.</td></tr>';
-                    return;
-                }
+        const clients = Array.isArray(state.clients) ? state.clients : [];
+        const leads   = Array.isArray(state.leads) ? state.leads : [];
+        const agents  = Array.isArray(state.agents) ? state.agents : [];
 
-                tbody.innerHTML = clients.map(c => {
-                    // === MAPPING FIX: Matches your Google Sheet Headers ===
-                    const name = c["COMPANY NAME"] || c["Client Name"] || "Unnamed";
-                    const code = c["CODE NAME"] || c["Code"] || "-";
-                    const status = c["STATUS"] || "Active"; 
-                    // Using "AREA CODES" as location since "City" is empty in your sheet
-                    const location = c["AREA CODES TO CALL"] || c["City"] || "Remote"; 
+        console.log(`⚡ UI Update: ${clients.length} Clients, ${leads.length} Leads, ${agents.length} Agents`);
 
-                    let dotClass = "st-healthy";
-                    if(status.toString().toUpperCase() === 'INACTIVE') dotClass = "st-risk";
-                    if(status.toString().toUpperCase() === 'BLACKLISTED') dotClass = "st-critical";
-                    
-                    return `
-                        <tr class="hover:bg-gray-50">
-                            <td class="p-4"><div class="status-container"><span class="status-dot ${dotClass}"></span></div></td>
-                            <td class="p-4 font-bold text-gray-900">${name}</td>
-                            <td class="p-4 text-gray-500">${code}</td>
-                            <td class="p-4 text-gray-500 max-w-[150px] truncate" title="${location}">${location}</td>
-                        </tr>
-                    `;
-                }).join('');
-            },
+        try { this.renderPulse(leads); } catch(e) { console.error("Pulse Error:", e); }
+        try { this.renderClientHealth(clients); } catch(e) { console.error("Client Health Error:", e); }
+        try { this.updatePerf(this.perfPeriod); } catch(e) { console.error("Perf Error:", e); }
+        try { this.renderClientCards(clients); } catch(e) { console.error("Client Cards Error:", e); }
+        try { this.renderLeads(leads); } catch(e) { console.error("Leads Table Error:", e); }
+      },
 
-            updatePerf: (period, btnElement) => {
-                this.perfPeriod = period;
-                if(btnElement) {
-                    document.querySelectorAll('.perf-btn').forEach(b => {
-                        b.classList.remove('bg-white', 'shadow', 'text-gray-900');
-                        b.classList.add('text-gray-500');
-                    });
-                    btnElement.classList.add('bg-white', 'shadow', 'text-gray-900');
-                    btnElement.classList.remove('text-gray-500');
-                }
+      pick(obj, keys, fallback = "") {
+        for (const k of keys) {
+          if (obj && obj[k] != null && String(obj[k]).trim() !== "") return obj[k];
+        }
+        return fallback;
+      },
 
-                const agents = window.portal.adminState.agents || [];
-                const leads = window.portal.adminState.leads || [];
-                const tbody = document.getElementById('agent-perf-body');
+      normalizeClientStatus(v) {
+        const s = String(v || "").trim().toUpperCase();
+        if (s.includes("CRITICAL")) return "CRITICAL";
+        if (s.includes("RISK")) return "AT RISK";
+        if (s.includes("HEALTHY")) return "HEALTHY";
+        if (s.includes("NOT STARTED")) return "NOT STARTED";
+        if (s.includes("NEW")) return "NEW";
+        return s || "UNKNOWN";
+      },
 
-                if (agents.length === 0) {
-                     tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-gray-400 italic">No agents found.</td></tr>';
-                     return;
-                }
+      statusDotClass(clientStatus) {
+        if (clientStatus === "CRITICAL") return "st-critical";
+        if (clientStatus === "AT RISK") return "st-risk";
+        if (clientStatus === "HEALTHY") return "st-healthy";
+        if (clientStatus === "NEW") return "st-new";
+        if (clientStatus === "NOT STARTED") return "st-bottleneck";
+        return "st-bottleneck";
+      },
 
-                const now = new Date();
-                const filterDate = new Date();
-                if(period === 'today') filterDate.setHours(0,0,0,0);
-                if(period === 'week') filterDate.setDate(now.getDate() - 7);
-                if(period === 'month') filterDate.setDate(now.getDate() - 30);
+      packageBadgeClass(pkgStatus) {
+        const s = String(pkgStatus || "").toUpperCase();
+        if (s.includes("PAUSE")) return "bg-red-100 text-red-700 border border-red-200";
+        if (s.includes("ACTIVE")) return "bg-emerald-100 text-emerald-700 border border-emerald-200";
+        if (s.includes("COMPLETED")) return "bg-gray-100 text-gray-700 border border-gray-200";
+        return "bg-blue-100 text-blue-700 border border-blue-200";
+      },
 
-                tbody.innerHTML = agents.map(agent => {
-                    const name = agent["Employee Name"] || agent["EMPLOYEE NAME"] || agent.name || "Unknown";
-                    
-                    const agentLeads = leads.filter(l => {
-                        const lAgent = l.Agent || l.AGENT || l["Appointment Coordinator"] || "";
-                        const dStr = l["Date Submitted"] || l["DATE SUBMITTED"] || l["Date"];
-                        const lDate = window.portal.parseDateSafe(dStr);
-                        return lAgent.toLowerCase().includes(name.toLowerCase()) && lDate >= filterDate;
-                    });
+      renderPulse(leads) {
+        const today = new Date().toDateString();
+        const todayLeads = (leads || []).filter(l => {
+          const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
+          const d = window.portal.parseDateSafe(dStr);
+          return d && d.toDateString() === today;
+        });
 
-                    const total = agentLeads.length;
-                    const confirmed = agentLeads.filter(l => window.portal.isConfirmedStatus(l.Status || l.STATUS)).length;
-                    const rejected = agentLeads.filter(l => (l.Status || l.STATUS || "").toLowerCase().includes('reject')).length;
-                    const eff = total > 0 ? Math.round((confirmed / total) * 100) : 0;
+        const confirmed = todayLeads.filter(l => window.portal.isConfirmedStatus(this.pick(l, ["Status","STATUS"], "")));
+        const value = confirmed.length * 50;
 
-                    return `
-                        <tr>
-                            <td class="p-4 font-bold text-gray-900">${name}</td>
-                            <td class="p-4 text-center text-gray-600">${total}</td>
-                            <td class="p-4 text-center text-emerald-600 font-bold bg-emerald-50 rounded">${confirmed}</td>
-                            <td class="p-4 text-center text-red-500">${rejected}</td>
-                            <td class="p-4 text-center text-gray-600">${eff}%</td>
-                        </tr>
-                    `;
-                }).join('');
-            },
+        const pending = (leads || []).filter(l => String(this.pick(l, ["Status","STATUS"], "")).toLowerCase().includes("pending"));
 
-            renderClientCards: (clients) => {
-                const container = document.getElementById('client-cards-container');
-                if(!clients.length) return;
-                
-                container.innerHTML = clients.map(c => {
-                    const name = c["COMPANY NAME"] || c["Client Name"] || "Unnamed";
-                    const code = c["CODE NAME"] || "NO CODE";
-                    const location = c["AREA CODES TO CALL"] || c["City"] || "Remote";
+        document.getElementById('pulse-profit').textContent = window.portal.formatCurrency(value);
+        document.getElementById('pulse-pending').textContent = pending.length;
+      },
 
-                    return `
-                    <div class="card-hover bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
-                        <div>
-                            <div class="flex justify-between items-start mb-4">
-                                <div class="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center font-bold text-gray-400 border border-gray-200">
-                                    ${name.substring(0,2).toUpperCase()}
-                                </div>
-                                <span class="badge-in px-2 py-1 rounded text-[10px] font-bold uppercase">Active</span>
-                            </div>
-                            <h3 class="font-bold text-gray-900 text-lg">${name}</h3>
-                            <p class="text-xs text-gray-500 mt-1 max-h-10 overflow-hidden text-ellipsis">
-                                <i class="fa-solid fa-phone mr-1"></i> ${c.PHONE || c.Phone || "No Phone"}
-                            </p>
-                        </div>
-                        <div class="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center">
-                            <span class="text-xs font-bold text-gray-400">${code}</span>
-                            <button class="text-xs text-yellow-600 font-bold hover:underline">View Details</button>
-                        </div>
-                    </div>
-                `}).join('');
-            },
+      renderClientHealth(clients) {
+        const tbody = document.getElementById('client-health-body');
 
-            renderLeads: (leads) => {
-                const tbody = document.getElementById('leads-table-body');
-                if(!leads.length) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400">No leads recorded.</td></tr>';
-                    return;
-                }
-                tbody.innerHTML = leads.map(l => {
-                    // Try multiple casing options for headers
-                    const status = l.Status || l.STATUS || "New";
-                    const date = l["Date Submitted"] || l["DATE SUBMITTED"] || l["Date"] || "-";
-                    const homeowner = l["Homeowner Name"] || l["HOMEOWNER NAME"] || l["Homeowner"] || "Unknown";
-                    const agent = l.Agent || l.AGENT || "-";
-                    const client = l.Client || l.CLIENT || "-";
+        if (!clients || clients.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No clients found.</td></tr>';
+          return;
+        }
 
-                    let statusColor = "text-gray-600 bg-gray-100";
-                    const s = status.toLowerCase();
-                    if(s.includes('confirm')) statusColor = "text-emerald-700 bg-emerald-100";
-                    if(s.includes('reject')) statusColor = "text-red-700 bg-red-100";
-                    if(s.includes('pending')) statusColor = "text-yellow-700 bg-yellow-100";
+        tbody.innerHTML = clients.map(c => {
+          // From CLIENT STATUS sheet screenshot:
+          // Roofing Company | CITY STATE | CLIENT NAME | ... | Client Status
+          const name = this.pick(c, ["Roofing Company","ROOFING COMPANY","CLIENT NAME","Client Name","Company Name"], "Unnamed");
+          const location = this.pick(c, ["CITY STATE","City State","Location","CITY","STATE"], "Remote");
+          const rawClientStatus = this.pick(c, ["Client Status","CLIENT STATUS","Status","STATUS"], "UNKNOWN");
+          const clientStatus = this.normalizeClientStatus(rawClientStatus);
 
-                    return `
-                    <tr class="hover:bg-gray-50 transition">
-                        <td class="p-4 text-gray-500">${date}</td>
-                        <td class="p-4 font-bold text-gray-900">${homeowner}</td>
-                        <td class="p-4 text-gray-500">${agent}</td>
-                        <td class="p-4 text-gray-500">${client}</td>
-                        <td class="p-4"><span class="px-2 py-1 rounded text-xs font-bold uppercase ${statusColor}">${status}</span></td>
-                    </tr>`;
-                }).join('');
-            },
-            
-            filterLeads: (status) => {
-                const allLeads = window.portal.adminState.leads;
-                if(status === 'all') { AdminDashboard.renderLeads(allLeads); } 
-                else { AdminDashboard.renderLeads(allLeads.filter(l => (l.Status||l.STATUS||"").toLowerCase().includes(status))); }
-            },
-            
-            nav: (viewId, linkEl) => {
-                document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-                document.getElementById('view-' + viewId).classList.add('active');
-                document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-                linkEl.classList.add('active');
-            }
-        };
+          // From Lead Package sheet:
+          // Status column contains e.g. "PAUSE CAMPAIGN"
+          const pkgStatus = this.pick(c, ["Package Status","PACKAGE STATUS","Lead Package Status","LEAD PACKAGE STATUS","Package","PACKAGE"], "—");
 
-        window.adminDashboard = AdminDashboard;
-        window.Admin = AdminDashboard; 
+          const dotClass = this.statusDotClass(clientStatus);
+          const code = (String(name).replace(/[^A-Za-z0-9]/g,'').substring(0,6) || "—").toUpperCase();
 
-        // Auto-Trigger Data Load on Start
-        setTimeout(() => {
-             console.log("🚀 Starting System...");
-             if(window.portal) window.portal.fetchAdminData();
-        }, 500);
-    </script>
-    <script src="main.js"></script>
+          return `
+            <tr class="hover:bg-gray-50">
+              <td class="p-4">
+                <div class="status-container">
+                  <span class="status-dot ${dotClass}"></span>
+                </div>
+              </td>
+              <td class="p-4 font-bold text-gray-900">${name}</td>
+              <td class="p-4 text-gray-500">${code}</td>
+              <td class="p-4 text-gray-500 max-w-[150px] truncate" title="${location}">${location}</td>
+              <td class="p-4">
+                <span class="px-2 py-1 rounded text-[10px] font-bold uppercase ${this.packageBadgeClass(pkgStatus)}">
+                  ${String(pkgStatus)}
+                </span>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      },
+
+      updatePerf(period, btnElement) {
+        this.perfPeriod = period;
+
+        if (btnElement) {
+          document.querySelectorAll('.perf-btn').forEach(b => {
+            b.classList.remove('bg-white', 'shadow', 'text-gray-900');
+            b.classList.add('text-gray-500');
+          });
+          btnElement.classList.add('bg-white', 'shadow', 'text-gray-900');
+          btnElement.classList.remove('text-gray-500');
+        }
+
+        const state = this.getState();
+        const agents = (state && state.agents) ? state.agents : [];
+        const leads  = (state && state.leads) ? state.leads : [];
+        const tbody = document.getElementById('agent-perf-body');
+
+        if (!agents.length) {
+          tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-gray-400 italic">No agents found.</td></tr>';
+          return;
+        }
+
+        const now = new Date();
+        const filterDate = new Date();
+        if (period === 'today') filterDate.setHours(0,0,0,0);
+        if (period === 'week') filterDate.setDate(now.getDate() - 7);
+        if (period === 'month') filterDate.setDate(now.getDate() - 30);
+
+        tbody.innerHTML = agents.map(agent => {
+          const name = this.pick(agent, ["Employee Name","EMPLOYEE NAME","name","Name"], "Unknown");
+
+          const agentLeads = leads.filter(l => {
+            const lAgent = this.pick(l, ["Appointment Coord","Appointment Coordinator","Agent","AGENT"], "");
+            const dStr   = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date"], "");
+            const lDate  = window.portal.parseDateSafe(dStr);
+            return String(lAgent).toLowerCase().includes(String(name).toLowerCase()) && lDate && lDate >= filterDate;
+          });
+
+          const total = agentLeads.length;
+          const confirmed = agentLeads.filter(l => window.portal.isConfirmedStatus(this.pick(l, ["Status","STATUS"], ""))).length;
+          const rejected  = agentLeads.filter(l => String(this.pick(l, ["Status","STATUS"], "")).toLowerCase().includes("reject")).length;
+          const eff = total > 0 ? Math.round((confirmed / total) * 100) : 0;
+
+          return `
+            <tr>
+              <td class="p-4 font-bold text-gray-900">${name}</td>
+              <td class="p-4 text-center text-gray-600">${total}</td>
+              <td class="p-4 text-center text-emerald-600 font-bold bg-emerald-50 rounded">${confirmed}</td>
+              <td class="p-4 text-center text-red-500">${rejected}</td>
+              <td class="p-4 text-center text-gray-600">${eff}%</td>
+            </tr>
+          `;
+        }).join('');
+      },
+
+      renderClientCards(clients) {
+        const container = document.getElementById('client-cards-container');
+        if (!clients || !clients.length) return;
+
+        container.innerHTML = clients.map(c => {
+          const name = this.pick(c, ["Roofing Company","ROOFING COMPANY","CLIENT NAME","Client Name","Company Name"], "Unnamed");
+          const pkgStatus = this.pick(c, ["Package Status","PACKAGE STATUS","Lead Package Status","Package"], "—");
+
+          return `
+            <div class="card-hover bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+              <div>
+                <div class="flex justify-between items-start mb-4">
+                  <div class="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center font-bold text-gray-400 border border-gray-200">
+                    ${String(name).substring(0,2).toUpperCase()}
+                  </div>
+                  <span class="px-2 py-1 rounded text-[10px] font-bold uppercase ${this.packageBadgeClass(pkgStatus)}">
+                    ${String(pkgStatus)}
+                  </span>
+                </div>
+                <h3 class="font-bold text-gray-900 text-lg">${name}</h3>
+                <p class="text-xs text-gray-500 mt-1 max-h-10 overflow-hidden text-ellipsis">
+                  <i class="fa-solid fa-circle-info mr-1"></i> Mapped from Google Sheets
+                </p>
+              </div>
+              <div class="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center">
+                <span class="text-xs font-bold text-gray-400">—</span>
+                <button class="text-xs text-yellow-600 font-bold hover:underline">View Details</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      },
+
+      renderLeads(leads) {
+        const tbody = document.getElementById('leads-table-body');
+
+        if (!leads || !leads.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400">No leads recorded.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = leads.map(l => {
+          const status = this.pick(l, ["Status","STATUS"], "New");
+          const date = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date"], "-");
+          const homeowner = this.pick(l, ["Homeowner Name(s)","Homeowner Name","HOMEOWNER NAME","Homeowner"], "Unknown");
+          const agent = this.pick(l, ["Appointment Coord","Appointment Coordinator","Agent","AGENT"], "-");
+          const client = this.pick(l, ["Company Name","CLIENT","Client"], "-");
+
+          let statusColor = "text-gray-600 bg-gray-100";
+          const s = String(status).toLowerCase();
+          if (s.includes('approve') || s.includes('confirm')) statusColor = "text-emerald-700 bg-emerald-100";
+          if (s.includes('reject')) statusColor = "text-red-700 bg-red-100";
+          if (s.includes('pending')) statusColor = "text-yellow-700 bg-yellow-100";
+
+          return `
+            <tr class="hover:bg-gray-50 transition">
+              <td class="p-4 text-gray-500">${date}</td>
+              <td class="p-4 font-bold text-gray-900">${homeowner}</td>
+              <td class="p-4 text-gray-500">${agent}</td>
+              <td class="p-4 text-gray-500">${client}</td>
+              <td class="p-4">
+                <span class="px-2 py-1 rounded text-xs font-bold uppercase ${statusColor}">${status}</span>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      },
+
+      filterLeads(status) {
+        const state = this.getState();
+        const allLeads = (state && state.leads) ? state.leads : [];
+        if (status === 'all') this.renderLeads(allLeads);
+        else this.renderLeads(allLeads.filter(l => String(this.pick(l, ["Status","STATUS"], "")).toLowerCase().includes(status)));
+      },
+
+      nav(viewId, linkEl) {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        document.getElementById('view-' + viewId).classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        linkEl.classList.add('active');
+      }
+    };
+
+    window.adminDashboard = AdminDashboard;
+    window.Admin = AdminDashboard;
+  </script>
+
+  <script src="main.js"></script>
+</body>
+</html>
