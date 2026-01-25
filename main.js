@@ -1,7 +1,7 @@
 /**
- * CALL HAMMER LEADS - MAIN PORTAL LOGIC (CLEAN + ALIGNED)
+ * CALL HAMMER LEADS - MAIN PORTAL LOGIC (ADMIN FIXED + ALIGNED)
  * - Works with your existing dashboards (Agent / Team Leader / Admin)
- * - Works with your n8n workflows shown in your screenshots
+ * - Uses the Admin webhook path shown in your screenshots: /webhook/dashboard-data
  */
 
 class CallHammerPortal {
@@ -14,15 +14,20 @@ class CallHammerPortal {
     this.employeeList = [];
     this.timeOffHistory = [];
 
+    // Admin store
+    this.adminState = {
+      clients: [],
+      leads: [],
+      agents: []
+    };
+
     // Charts holder (some dashboards call portal.charts?.xxx?.resize())
     this.charts = {};
 
-    // ✅ Your real webhooks
+    // ✅ Your real webhooks (updated admin one)
     this.webhooks = {
       login: "https://automate.callhammerleads.com/webhook/agent-login",
       fetchData: "https://automate.callhammerleads.com/webhook/fetch-agent-data",
-
-      // IMPORTANT: Replace this with the Production URL from your “CHL Admin Backend” workflow webhook node
       fetchAdminData: "https://automate.callhammerleads.com/webhook/dashboard-data"
     };
 
@@ -38,9 +43,9 @@ class CallHammerPortal {
 
     const path = (window.location.pathname || "").toLowerCase();
 
-    // If on admin dashboard
+    // Admin dashboard route
     if (path.includes("admin-dashboard")) {
-      if (this.currentUser && this.currentUser.role === "admin") {
+      if (this.currentUser && (this.currentUser.role || "").toLowerCase() === "admin") {
         this.fetchAdminData();
         setInterval(() => this.fetchAdminData(), 300000); // every 5 mins
       } else {
@@ -49,7 +54,7 @@ class CallHammerPortal {
       return;
     }
 
-    // If on agent or team leader dashboards
+    // Agent / Team Leader route
     if (
       (path.includes("agent-dashboard") || path.includes("team-leader-dashboard")) &&
       this.currentUser
@@ -73,7 +78,7 @@ class CallHammerPortal {
 
       const result = await res.json();
 
-      // ✅ Accept both shapes: {status:"success"} OR {success:true}
+      // ✅ Accept multiple "success" shapes
       const ok =
         result?.status === "success" ||
         result?.success === true ||
@@ -84,7 +89,7 @@ class CallHammerPortal {
         return;
       }
 
-      // ✅ Accept either result.user or result.data.user, etc.
+      // ✅ Accept either result.user or nested data
       const u = result.user || result.data?.user || result.data || {};
 
       // Normalize role naming
@@ -172,7 +177,7 @@ class CallHammerPortal {
         return;
       }
 
-      // pull from multiple possible keys
+      // Pull from multiple possible keys
       const leads = result.leads || result.leadsData || result.data?.leads || [];
       const employees = result.employees || result.employeeList || result.data?.employees || [];
       const timeOff = result.timeOffHistory || result.timeoff || result.data?.timeOffHistory || [];
@@ -194,10 +199,10 @@ class CallHammerPortal {
     if (!Array.isArray(leads)) return [];
 
     return leads.map((l) => {
-      // Handle both “nice keys” and weird keys safely
       const status = l["Status"] || l.status || "";
       const dateSubmitted = l["Date Submitted"] || l.dateSubmitted || l.date || "";
       const homeowner = l["Homeowner Name"] || l.homeowner || l["Homeowner Name(s)"] || "";
+
       const agent =
         l.Agent ||
         l.agent ||
@@ -206,7 +211,6 @@ class CallHammerPortal {
         l["Agent Name"] ||
         "";
 
-      // Return same object but guaranteed keys exist
       return {
         ...l,
         Agent: agent,
@@ -229,7 +233,6 @@ class CallHammerPortal {
     if (typeof this.renderLeadsTable === "function") {
       this.renderLeadsTable(this.leadsData);
     } else {
-      // basic fallback
       const body = document.getElementById("leads-table-body");
       if (body) {
         body.innerHTML = this.leadsData
@@ -252,32 +255,51 @@ class CallHammerPortal {
   }
 
   // =========================================================
-  // ADMIN FETCH
+  // ADMIN FETCH (FIXED)
   // =========================================================
   async fetchAdminData() {
     try {
-      const response = await fetch(this.webhooks.fetchAdminData, { method: "GET" });
-      if (!response.ok) return;
+      // cache-buster prevents stale cached responses
+      const url = this.webhooks.fetchAdminData + "?t=" + Date.now();
+
+      const response = await fetch(url, { method: "GET" });
+      if (!response.ok) {
+        console.warn("Admin webhook failed:", response.status, response.statusText);
+        return;
+      }
 
       const result = await response.json();
-      // Expecting {clients:[], leads:[], agents:[]} or similar
-      // Store them where admin dashboard code can use them:
+
+      // Accept either {clients,leads,agents} or {json:{clients,leads,agents}}
+      const data = result?.json ? result.json : result;
+
       this.adminState = {
-        clients: result.clients || [],
-        leads: result.leads || [],
-        agents: result.agents || []
+        clients: Array.isArray(data?.clients) ? data.clients : [],
+        leads: Array.isArray(data?.leads) ? data.leads : [],
+        agents: Array.isArray(data?.agents) ? data.agents : []
       };
 
-      // If your admin dashboard uses window.adminDashboard.refreshDashboard(),
-      // then set portal.leadsData and portal.employeeList to keep it working:
-      this.leadsData = this.normalizeLeads(this.adminState.leads || []);
-      this.employeeList = this.adminState.agents || this.employeeList;
+      // Keep these populated so admin UI can reuse
+      this.leadsData = this.normalizeLeads(this.adminState.leads);
+      this.employeeList = this.adminState.agents;
 
+      // If your admin dashboard has a refresh function, trigger it
       if (window.adminDashboard && typeof window.adminDashboard.refreshDashboard === "function") {
         window.adminDashboard.refreshDashboard();
       }
+
+      // Basic fallback: if there's a leads table, show first rows
+      if (document.getElementById("leads-table-body")) {
+        this.renderLeadsTable(this.leadsData.slice(0, 100));
+      }
+
+      console.log("✅ Admin data loaded:", {
+        clients: this.adminState.clients.length,
+        leads: this.adminState.leads.length,
+        agents: this.adminState.agents.length
+      });
     } catch (e) {
-      console.warn("Admin data loading...");
+      console.warn("Admin data loading error:", e);
     }
   }
 
@@ -302,20 +324,18 @@ class CallHammerPortal {
   }
 
   normalizeKey(obj, key) {
-    // dashboard helper: tries exact key, then case-insensitive match
     if (!obj || !key) return "";
     if (obj[key] != null) return obj[key];
-
     const k = key.toLowerCase();
     const found = Object.keys(obj).find((x) => x.toLowerCase() === k);
     return found ? obj[found] : "";
   }
 
-  // Simple status helpers for TL dashboard logic
   isConfirmedStatus(status) {
     const s = (status || "").toString().toLowerCase().trim();
     return s === "confirmed";
   }
+
   isCancelledLikeStatus(status) {
     const s = (status || "").toString().toLowerCase();
     return s.includes("cancel");
@@ -338,8 +358,6 @@ class CallHammerPortal {
   }
 
   handleFilterChange(filterValue) {
-    // If your TL dashboard calls this, keep it simple:
-    // For now: just store filteredLeads based on timeframe if you want later
     this.currentFilter = filterValue;
     this.filteredLeads = this.leadsData;
   }
@@ -350,7 +368,12 @@ class CallHammerPortal {
     const roleEl = document.getElementById("nav-user-role");
 
     if (nameEl) nameEl.textContent = this.currentUser.name || "User";
-    if (roleEl) roleEl.textContent = (this.currentUser.role || "agent").toString().replace("_", " ").toUpperCase();
+    if (roleEl) {
+      roleEl.textContent = (this.currentUser.role || "agent")
+        .toString()
+        .replace("_", " ")
+        .toUpperCase();
+    }
   }
 
   // =========================================================
