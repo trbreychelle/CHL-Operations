@@ -32,7 +32,7 @@ class CallHammerPortal {
             fetchTLData: 'https://automate.callhammerleads.com/webhook/fetch-tl-data',
             
             // 4. NEW ADMIN DATA WORKFLOW (You still need to create this one!)
-            fetchAdminData: 'https://automate.callhammerleads.com/webhook-test/dashboard-data' 
+            fetchAdminData: 'https://automate.callhammerleads.com/webhook/dashboard-data' 
         };
 
         this.init();
