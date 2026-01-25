@@ -1,162 +1,420 @@
-/**
- * CALL HAMMER LEADS - MAIN PORTAL LOGIC (ADMIN FIXED + ALIGNED)
- * - Works with your existing dashboards (Agent / Team Leader / Admin)
- * - Uses the Admin webhook path shown in your screenshots: /webhook/dashboard-data
- */
-
+// Call Hammer Leads - Unified Application Logic
 class CallHammerPortal {
   constructor() {
     this.currentUser = null;
-
-    // Shared stores used by dashboards
     this.leadsData = [];
-    this.filteredLeads = [];
     this.employeeList = [];
-    this.timeOffHistory = [];
+    this.filteredLeads = [];
+    this.currentFilter = 'this-week';
 
-    // Admin store
+    // ✅ NEW (optional TL/admin datasets from n8n)
+    this.weeklyPayroll = [];
+    this.timeTracker = [];
+
+    // ✅ Admin dashboard datasets
     this.adminState = {
       clients: [],
       leads: [],
       agents: []
     };
 
-    // Charts holder (some dashboards call portal.charts?.xxx?.resize())
-    this.charts = {};
+    this.charts = {
+      appointments: null,
+      incentives: null
+    };
 
-    // ✅ Your real webhooks (updated admin one)
     this.webhooks = {
-      login: "https://automate.callhammerleads.com/webhook/agent-login",
-      fetchData: "https://automate.callhammerleads.com/webhook/fetch-agent-data",
-      fetchAdminData: "https://automate.callhammerleads.com/webhook/dashboard-data"
+      login: 'https://automate.callhammerleads.com/webhook/agent-login',
+      fetchData: 'https://automate.callhammerleads.com/webhook/fetch-agent-data',
+      fetchTLData: 'https://automate.callhammerleads.com/webhook/fetch-tl-data',
+      fetchAdminData: 'https://automate.callhammerleads.com/webhook/dashboard-data',
+      timeOffRequest: 'https://automate.callhammerleads.com/webhook/timeoff-request',
+      changePassword: 'https://automate.callhammerleads.com/webhook/change-password',
+      manageEmployee: 'https://automate.callhammerleads.com/webhook/manage-employee'
     };
 
     this.init();
   }
 
-  // =========================================================
-  // INIT + ROUTING
-  // =========================================================
   init() {
     this.checkExistingSession();
+    this.enforceRoleRouting(); // ✅ NEW (prevents wrong page access)
     this.bindEvents();
 
-    const path = (window.location.pathname || "").toLowerCase();
+    // ✅ Agent / TL dashboard behavior
+    if (this.currentUser && window.location.pathname.includes('dashboard')) {
+      this.fetchAllData();
+      this.updateProfileUI();
+      this.startMSTClock();
 
-    // Admin dashboard route
-    if (path.includes("admin-dashboard")) {
-      if (this.currentUser && (this.currentUser.role || "").toLowerCase() === "admin") {
-        this.fetchAdminData();
-        setInterval(() => this.fetchAdminData(), 300000); // every 5 mins
-      } else {
-        window.location.href = "index.html";
+      if (this.currentUser.role === 'admin') {
+        document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+      } else if (this.currentUser.role === 'team_leader') {
+        document.querySelectorAll('.tl-only').forEach(el => el.classList.remove('hidden'));
       }
-      return;
     }
 
-    // Agent / Team Leader route
-    if (
-      (path.includes("agent-dashboard") || path.includes("team-leader-dashboard")) &&
-      this.currentUser
-    ) {
-      this.fetchAllData();
-      this.updateNavUI();
-      return;
+    // ✅ Admin Dashboard behavior (separate fetch so it doesn't interfere)
+    if (window.location.pathname.includes('admin-dashboard')) {
+      // auto load admin dashboard data
+      setTimeout(() => {
+        this.fetchAdminData();
+      }, 500);
     }
   }
 
-  // =========================================================
-  // AUTH
-  // =========================================================
-  async login(email, password) {
+  // ✅ NEW: Role-based routing guard (minimal, non-breaking)
+  enforceRoleRouting() {
+    if (!this.currentUser) return;
+
+    const path = (window.location.pathname || '').toLowerCase();
+    const role = (this.currentUser.role || 'agent').toLowerCase();
+
+    const onAdmin = path.includes('admin-dashboard');
+    const onAgent = path.includes('agent-dashboard');
+    const onTL = path.includes('team-leader-dashboard');
+    const onAnyDashboard = path.includes('dashboard');
+
+    if (!onAnyDashboard) return;
+
+    if (role === 'admin' && !onAdmin) window.location.href = 'admin-dashboard.html';
+    else if (role === 'team_leader' && !onTL) window.location.href = 'team-leader-dashboard.html';
+    else if (role === 'agent' && !onAgent) window.location.href = 'agent-dashboard.html';
+  }
+
+  // ------------------------
+  // Helpers
+  // ------------------------
+  normalizeKey(obj, key) {
+    if (!obj) return '';
+    const foundKey = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
+    return foundKey ? obj[foundKey] : '';
+  }
+
+  // ✅ FIX: date-only parsing without timezone shifting (prevents wrong weekly counts)
+  parseDateSafe(value) {
+    if (!value) return null;
+
+    const raw = value.toString().trim();
+    if (!raw) return null;
+
+    // YYYY-MM-DD
+    const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoMatch) {
+      const y = parseInt(isoMatch[1], 10);
+      const m = parseInt(isoMatch[2], 10) - 1;
+      const d = parseInt(isoMatch[3], 10);
+      const dt = new Date(y, m, d, 12, 0, 0); // noon local avoids shifting
+      return isNaN(dt.getTime()) ? null : dt;
+    }
+
+    // M/D/YYYY or MM/DD/YYYY
+    const slashMatch = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (slashMatch) {
+      const m = parseInt(slashMatch[1], 10) - 1;
+      const d = parseInt(slashMatch[2], 10);
+      const y = parseInt(slashMatch[3], 10);
+      const dt = new Date(y, m, d, 12, 0, 0); // noon local avoids shifting
+      return isNaN(dt.getTime()) ? null : dt;
+    }
+
+    // Fallback (handles "Jan 6, 2026", or date+time strings)
+    const d = new Date(raw);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  formatDateShort(d) {
+    if (!d) return '';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  // --- MST Clock Helpers ---
+  formatMSTTime(date = new Date()) {
+    const mst = this.toMST(date);
+    return mst.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  startMSTClock() {
+    const el = document.getElementById('mst-clock');
+    if (!el) return;
+
+    const tick = () => {
+      el.textContent = `${this.formatMSTTime()} MST`;
+    };
+
+    tick();
+    clearInterval(this._mstClockInterval);
+    this._mstClockInterval = setInterval(tick, 1000);
+  }
+
+  // ------------------------
+  // ✅ ADMIN DASHBOARD FETCH (NEW)
+  // ------------------------
+  async fetchAdminData() {
     try {
-      const res = await fetch(this.webhooks.login, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
+      console.log("📡 Fetching Admin Dashboard Data...");
+
+      const response = await fetch(this.webhooks.fetchAdminData, {
+        method: "GET",
+        headers: { "Accept": "application/json" }
       });
 
-      const result = await res.json();
-
-      // ✅ Accept multiple "success" shapes
-      const ok =
-        result?.status === "success" ||
-        result?.success === true ||
-        result?.ok === true;
-
-      if (!ok) {
-        alert("Login failed: " + (result?.message || "Invalid credentials"));
-        return;
+      if (!response.ok) {
+        throw new Error(`Admin Data Error: HTTP ${response.status}`);
       }
 
-      // ✅ Accept either result.user or nested data
-      const u = result.user || result.data?.user || result.data || {};
+      const result = await response.json();
+      console.log("✅ Admin Dashboard Raw Result:", result);
 
-      // Normalize role naming
-      let role = (u.Role || u.role || "agent").toString().toLowerCase();
-      if (role === "team leader") role = "team_leader";
-      if (role === "teamlead") role = "team_leader";
-      if (role === "team-leader") role = "team_leader";
+      // Support multiple possible response shapes from n8n
+      const clients = result.clients || result.Clients || result.CLIENTS || result.data?.clients || [];
+      const leads = result.leads || result.Leads || result.LEADS || result.data?.leads || [];
+      const agents = result.agents || result.Agents || result.AGENTS || result.data?.agents || [];
 
-      const userObj = {
-        name: u["Employee Name"] || u.name || "User",
-        role: role,
-        email: u.Email || u.email || email,
-        managerEmail: u["Manager_Email"] || u.managerEmail || "",
-        baseRate: u["Base Rate"] || u.baseRate || "",
-        weeklyHours: u["Weekly Hours"] || u.weeklyHours || "",
-        startDate: u["Start Date"] || u.startDate || "",
-        position: u["Position"] || u.position || ""
+      this.adminState = {
+        clients: Array.isArray(clients) ? clients : [],
+        leads: Array.isArray(leads) ? leads : [],
+        agents: Array.isArray(agents) ? agents : []
       };
 
-      localStorage.setItem(
-        "callHammerSession",
-        JSON.stringify({ user: userObj, expiresAt: Date.now() + 86400000 })
-      );
+      console.log("📊 Admin State Ready:", {
+        clients: this.adminState.clients.length,
+        leads: this.adminState.leads.length,
+        agents: this.adminState.agents.length
+      });
 
-      // Redirect based on role
-      if (userObj.role === "admin") {
-        window.location.href = "admin-dashboard.html";
-      } else if (userObj.role === "team_leader") {
-        window.location.href = "team-leader-dashboard.html";
+      // ✅ Trigger Admin Dashboard UI
+      if (window.adminDashboard && typeof window.adminDashboard.refreshDashboard === "function") {
+        window.adminDashboard.refreshDashboard();
       } else {
-        window.location.href = "agent-dashboard.html";
+        console.warn("⚠️ adminDashboard.refreshDashboard not found.");
       }
+
     } catch (err) {
-      console.error("Login Error", err);
-      alert("Network error. Please try again.");
+      console.error("❌ fetchAdminData failed:", err);
     }
   }
 
-  logout() {
-    localStorage.removeItem("callHammerSession");
-    window.location.href = "index.html";
+  // ------------------------
+  // Weekly Payroll -> Worked Hours (MST Sat–Fri)
+  // ------------------------
+  getPayrollWeekRangeFor(date) {
+    const mstDate = this.toMST(date);
+    const dayOfWeek = mstDate.getDay(); // Sun=0 ... Sat=6
+    const start = new Date(mstDate);
+    const diffToSat = (dayOfWeek === 6) ? 0 : (dayOfWeek + 1);
+    start.setDate(mstDate.getDate() - diffToSat);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+
+    return { start, end };
   }
 
-  checkExistingSession() {
-    const session = localStorage.getItem("callHammerSession");
-    if (!session) return;
+  getPayrollWeekRange() {
+    const now = new Date();
+    const mstOffset = -7 * 60;
+    const localOffset = now.getTimezoneOffset();
+    const mstNow = new Date(now.getTime() + (mstOffset + localOffset) * 60000);
 
-    try {
-      const data = JSON.parse(session);
-      if (data.expiresAt > Date.now()) {
-        this.currentUser = data.user;
-      } else {
-        localStorage.removeItem("callHammerSession");
+    const dayOfWeek = mstNow.getDay(); // Sun=0 ... Sat=6
+    const start = new Date(mstNow);
+    const diffToSat = (dayOfWeek === 6) ? 0 : (dayOfWeek + 1);
+
+    start.setDate(mstNow.getDate() - diffToSat);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+
+    return { start, end };
+  }
+
+  getPreviousPayrollWeekRange() {
+    const cur = this.getPayrollWeekRange();
+    const start = new Date(cur.start);
+    const end = new Date(cur.end);
+    start.setDate(start.getDate() - 7);
+    end.setDate(end.getDate() - 7);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
+
+  computeWorkedHoursFromWeeklyPayroll(rangeStart, rangeEnd) {
+    const rows = Array.isArray(this.weeklyPayroll) ? this.weeklyPayroll : [];
+    if (!rows.length || !this.currentUser) return 0;
+
+    const myEmail = (this.currentUser.email || '').toLowerCase().trim();
+    const myName = (this.currentUser.name || '').toLowerCase().trim();
+
+    const parseHours = (v) => {
+      const n = parseFloat((v ?? '').toString().replace(/[^\d.]/g, ''));
+      return isNaN(n) ? 0 : n;
+    };
+
+    const objRows = rows.filter(r => r && typeof r === 'object' && !Array.isArray(r));
+    if (!objRows.length) return 0;
+
+    const getPossibleEmail = (r) =>
+      (r.Email || r.email || r['Agent Email'] || r['Employee Email'] || r['Email Address'] || '').toString().toLowerCase().trim();
+
+    const getPossibleName = (r) =>
+      (r['Agent Name'] || r['Employee Name'] || r['Name'] || r.name || '').toString().toLowerCase().trim();
+
+    const myRow = objRows.find(r => {
+      const rowEmail = getPossibleEmail(r);
+      const rowName = getPossibleName(r);
+      const emailMatch = myEmail && rowEmail && myEmail === rowEmail;
+      const nameMatch = myName && rowName && (rowName.includes(myName) || myName.includes(rowName));
+      return emailMatch || nameMatch;
+    });
+
+    if (!myRow) return 0;
+
+    let total = 0;
+    let foundAnyDateColumns = false;
+
+    for (const [k, v] of Object.entries(myRow)) {
+      const key = (k || '').toString().trim();
+      if (!key) continue;
+
+      const keyDate = this.parseDateSafe(key);
+      if (!keyDate) continue;
+
+      foundAnyDateColumns = true;
+
+      const mstK = this.toMST(keyDate);
+      if (mstK >= rangeStart && mstK <= rangeEnd) {
+        total += parseHours(v);
       }
-    } catch (e) {
-      localStorage.removeItem("callHammerSession");
     }
+
+    if (foundAnyDateColumns) return total;
+
+    const totalHoursCandidate =
+      myRow['Total Hours'] ??
+      myRow['TOTAL HOURS'] ??
+      myRow['TotalHours'] ??
+      myRow['total_hours'] ??
+      myRow['Hours'] ??
+      myRow['hours'] ??
+      0;
+
+    const n = parseHours(totalHoursCandidate);
+    return n;
   }
 
-  // =========================================================
-  // FETCH (AGENT + TL)
-  // =========================================================
+  toMST(date) {
+    const d = new Date(date);
+    const mstOffset = -7 * 60;
+    const localOffset = d.getTimezoneOffset();
+    return new Date(d.getTime() + (mstOffset + localOffset) * 60000);
+  }
+
+  getPayrollWeekStart(date) {
+    const mstDate = this.toMST(date);
+    const dayOfWeek = mstDate.getDay(); // Sun=0 ... Sat=6
+    const start = new Date(mstDate);
+    const diffToSat = (dayOfWeek === 6) ? 0 : (dayOfWeek + 1);
+    start.setDate(mstDate.getDate() - diffToSat);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  }
+
+  getPayrollWeekKey(date) {
+    const start = this.getPayrollWeekStart(date);
+    return start.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+  }
+
+  isConfirmedStatus(status) {
+    const s = (status || '').toString().trim().toLowerCase();
+    return s === 'confirmed';
+  }
+
+  isCancelledLikeStatus(status) {
+    const s = (status || '').toString().toLowerCase();
+    return s.includes('cancel') || s.includes('credited') || s.includes('rejected') || s.includes('declined');
+  }
+
+  // ------------------------
+  // Data Fetch (AGENT)
+  // ------------------------
   async fetchAllData() {
     if (!this.currentUser) return;
 
     try {
       const response = await fetch(this.webhooks.fetchData, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: this.currentUser.email,
+          role: this.currentUser.role
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.status === "success") {
+        this.leadsData = Array.isArray(result.leads) ? result.leads : [];
+        this.employeeList = Array.isArray(result.employeeList) ? result.employeeList : [];
+
+        this.weeklyPayroll = Array.isArray(result.weeklyPayroll) ? result.weeklyPayroll : [];
+        this.timeTracker = Array.isArray(result.timeTracker) ? result.timeTracker : [];
+
+        if (result.profile) {
+          const p = result.profile;
+
+          this.currentUser = {
+            ...this.currentUser,
+            name: p['Employee Name'] || this.currentUser.name,
+            email: p['Email'] || this.currentUser.email,
+            role: (p['Role'] || this.currentUser.role || 'agent').toLowerCase(),
+            baseRate: p['Base Rate'] || this.currentUser.baseRate,
+            weeklyHours: p['Weekly Hours'] || this.currentUser.weeklyHours,
+            startDate: p['Start Date'] || this.currentUser.startDate,
+            position: p['Position'] || this.currentUser.position,
+            managerEmail: p['Manager_Email'] || p['Manager Email'] || this.currentUser.managerEmail,
+            employmentStatus: p['Employment_Status'] || p['Employment Status'] || this.currentUser.employmentStatus,
+            paymentStatus: p['Payment Status'] || this.currentUser.paymentStatus
+          };
+
+          const session = localStorage.getItem('callHammerSession');
+          if (session) {
+            const s = JSON.parse(session);
+            s.user = this.currentUser;
+            localStorage.setItem('callHammerSession', JSON.stringify(s));
+          }
+
+          this.updateProfileUI();
+          this.enforceRoleRouting();
+        }
+
+        if (result.timeOffHistory) {
+          this.renderTimeOffHistory(result.timeOffHistory);
+        }
+
+        this.handleFilterChange(this.currentFilter);
+        this.updateCharts();
+
+        if (window.teamLeadDashboard && typeof window.teamLeadDashboard.refresh === 'function') {
+          window.teamLeadDashboard.refresh();
+        }
+      }
+    } catch (error) {
+      console.error('Data Sync Error:', error);
+    }
+  }
+
+  // ✅ NEW: Team Leader dashboard fetch (does not affect agent dashboard)
+  async fetchTeamLeaderDashboardData() {
+    if (!this.currentUser) return null;
+
+    try {
+      const response = await fetch(this.webhooks.fetchTLData, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -167,230 +425,458 @@ class CallHammerPortal {
 
       const result = await response.json();
 
-      const ok =
-        result?.status === "success" ||
-        result?.success === true ||
-        result?.ok === true;
+      if (result.status === "success") return result;
 
-      if (!ok) {
-        console.warn("fetchAllData failed:", result);
-        return;
-      }
-
-      // Pull from multiple possible keys
-      const leads = result.leads || result.leadsData || result.data?.leads || [];
-      const employees = result.employees || result.employeeList || result.data?.employees || [];
-      const timeOff = result.timeOffHistory || result.timeoff || result.data?.timeOffHistory || [];
-
-      // Normalize leads for ALL dashboards
-      this.leadsData = this.normalizeLeads(leads);
-      this.filteredLeads = this.leadsData; // default
-      this.employeeList = Array.isArray(employees) ? employees : [];
-      this.timeOffHistory = Array.isArray(timeOff) ? timeOff : [];
-
-      // Render UI depending on page
-      this.updateAgentOrTLUI();
-    } catch (error) {
-      console.error("fetchAllData error:", error);
+      console.error("TL Fetch Failed:", result);
+      return null;
+    } catch (err) {
+      console.error("TL Fetch Network Error:", err);
+      return null;
     }
   }
 
-  normalizeLeads(leads) {
-    if (!Array.isArray(leads)) return [];
+  // ------------------------
+  // Incentives
+  // ------------------------
+  calculateIncentives(confirmedN, cancelRate) {
+    const isHighPerf = cancelRate < 25;
+    let total = 0;
 
-    return leads.map((l) => {
-      const status = l["Status"] || l.status || "";
-      const dateSubmitted = l["Date Submitted"] || l.dateSubmitted || l.date || "";
-      const homeowner = l["Homeowner Name"] || l.homeowner || l["Homeowner Name(s)"] || "";
+    if (confirmedN >= 6) total += 50;
+    if (confirmedN >= 8) total += isHighPerf ? 50 : 30;
 
-      const agent =
-        l.Agent ||
-        l.agent ||
-        l["Appointment Coordinator Name"] ||
-        l["Appointment Coordinator"] ||
-        l["Agent Name"] ||
-        "";
+    if (confirmedN >= 9) {
+      const count9to12 = Math.min(confirmedN, 12) - 8;
+      total += count9to12 * (isHighPerf ? 17 : 15);
+    }
 
-      return {
-        ...l,
-        Agent: agent,
-        Status: status,
-        "Date Submitted": dateSubmitted,
-        "Homeowner Name": homeowner
-      };
+    if (confirmedN >= 13) {
+      total += (confirmedN - 12) * (isHighPerf ? 27 : 25);
+    }
+
+    return total;
+  }
+
+  buildPayrollWeekBucketsFromLeads(leads) {
+    const getVal = (obj, key) => this.normalizeKey(obj, key) || '';
+    const buckets = {};
+
+    for (const lead of leads) {
+      const date = this.parseDateSafe(getVal(lead, 'Date Submitted'));
+      if (!date) continue;
+
+      const weekKey = this.getPayrollWeekKey(date);
+      if (!buckets[weekKey]) {
+        buckets[weekKey] = {
+          weekKey,
+          weekStart: this.getPayrollWeekStart(date),
+          submitted: 0,
+          confirmed: 0,
+          cancelled: 0,
+          cancelRate: 0,
+          incentives: 0
+        };
+      }
+
+      const status = getVal(lead, 'Status');
+      buckets[weekKey].submitted += 1;
+      if (this.isConfirmedStatus(status)) buckets[weekKey].confirmed += 1;
+      if (this.isCancelledLikeStatus(status)) buckets[weekKey].cancelled += 1;
+    }
+
+    for (const k of Object.keys(buckets)) {
+      const w = buckets[k];
+      w.cancelRate = w.submitted > 0 ? (w.cancelled / w.submitted) * 100 : 0;
+      w.incentives = this.calculateIncentives(w.confirmed, w.cancelRate);
+    }
+
+    return buckets;
+  }
+
+  computeMonthlyIncentiveStatus() {
+    const buckets = this.buildPayrollWeekBucketsFromLeads(this.leadsData);
+    const keys = Object.keys(buckets).sort((a, b) => (buckets[a].weekStart - buckets[b].weekStart));
+    const last4 = keys.slice(-4).map(k => buckets[k]);
+
+    const hits = last4.filter(w => w.confirmed >= 8 && w.cancelRate < 25).length;
+    const qualified = last4.length === 4 ? hits >= 3 : false;
+
+    return { qualified, hits, weeksConsidered: last4.length, needed: 3 };
+  }
+
+  computeMonthlyRaffleStatus() {
+    const buckets = this.buildPayrollWeekBucketsFromLeads(this.leadsData);
+    const weeks = Object.values(buckets).sort((a, b) => a.weekStart - b.weekStart);
+
+    const eligibleWeeks = weeks.filter(w => w.confirmed >= 8 && w.cancelRate < 20);
+    const totalEligibleWeeks = eligibleWeeks.length;
+
+    const entriesEarned = Math.floor(totalEligibleWeeks / 4);
+    const progress = totalEligibleWeeks % 4;
+
+    return { eligibleNow: false, progress, needed: 4, entriesEarned };
+  }
+
+  // ------------------------
+  // Dashboard UI
+  // ------------------------
+  updateDashboardUI(leads) {
+    const getVal = (obj, key) => this.normalizeKey(obj, key) || '';
+
+    const payrollRange = this.getPayrollWeekRange();
+    const payrollLeads = this.leadsData.filter(l => {
+      const subDate = this.parseDateSafe(getVal(l, 'Date Submitted'));
+      return subDate && subDate >= payrollRange.start && subDate <= payrollRange.end;
+    });
+
+    const payrollConfirmed = payrollLeads.filter(l => this.isConfirmedStatus(getVal(l, 'Status')));
+
+    const payrollTotal = payrollLeads.length;
+    const payrollCancelled = payrollLeads.filter(l => this.isCancelledLikeStatus(getVal(l, 'Status'))).length;
+    const payrollCancelRate = payrollTotal > 0 ? (payrollCancelled / payrollTotal) * 100 : 0;
+
+    const currentIncentives = this.calculateIncentives(payrollConfirmed.length, payrollCancelRate);
+
+    const totalRaw = leads.length;
+    const cancelledCount = leads.filter(l => this.isCancelledLikeStatus(getVal(l, 'Status'))).length;
+    const rate = totalRaw > 0 ? ((cancelledCount / totalRaw) * 100).toFixed(1) : "0.0";
+
+    if (document.getElementById('stat-appointments')) document.getElementById('stat-appointments').textContent = totalRaw;
+    if (document.getElementById('stat-cancel-rate')) document.getElementById('stat-cancel-rate').textContent = `${rate}%`;
+    if (document.getElementById('stat-incentives')) document.getElementById('stat-incentives').textContent = this.formatCurrency(currentIncentives);
+
+    const hoursRange = (this.currentFilter === 'previous-week')
+      ? this.getPreviousPayrollWeekRange()
+      : this.getPayrollWeekRange();
+
+    const workedHours = this.computeWorkedHoursFromWeeklyPayroll(hoursRange.start, hoursRange.end);
+
+    const statHoursEl = document.getElementById('stat-hours');
+    if (statHoursEl) statHoursEl.textContent = `${(workedHours || 0).toFixed(2)} hrs`;
+
+    this.renderLeadsTable(leads);
+  }
+
+  renderLeadsTable(leads) {
+    const body = document.getElementById('leads-table-body');
+    if (!body) return;
+
+    body.innerHTML = leads.map(l => {
+      const date = l['Date Submitted'] || this.normalizeKey(l, 'Date Submitted') || 'N/A';
+      const homeowner = l['Homeowner Name(s)'] || l['Homeowner Name'] || this.normalizeKey(l, 'Homeowner Name(s)') || 'N/A';
+      const status = l['Status'] || this.normalizeKey(l, 'Status') || 'Pending';
+
+      return `
+        <tr class="hover:bg-gray-50">
+          <td class="px-6 py-4 text-sm text-gray-600">${date}</td>
+          <td class="px-6 py-4 font-bold text-gray-900">${homeowner}</td>
+          <td class="px-6 py-4">
+            <span class="px-3 py-1 rounded-full text-xs font-bold ${this.getStatusStyle(status)} uppercase">
+              ${status}
+            </span>
+          </td>
+        </tr>
+      `;
+    }).join('') || `<tr><td class="px-6 py-6 text-sm text-gray-500" colspan="3">No leads found.</td></tr>`;
+  }
+
+  getStatusStyle(status) {
+    const s = (status || '').toLowerCase();
+    if (s === 'approved') return 'bg-green-100 text-green-700';
+    if (s === 'confirmed') return 'bg-green-100 text-green-700';
+    if (s.includes('cancel') || s.includes('reject') || s.includes('credited') || s.includes('declined')) return 'bg-red-100 text-red-700';
+    return 'bg-yellow-100 text-yellow-700';
+  }
+
+  renderTimeOffHistory(history) {
+    const container = document.getElementById('timeoff-history-list');
+    if (!container) return;
+
+    const rows = Array.isArray(history) ? history : [];
+
+    rows.sort((a, b) => {
+      const ad = this.parseDateSafe(a['Start Date'] || a.startDate) || new Date(0);
+      const bd = this.parseDateSafe(b['Start Date'] || b.startDate) || new Date(0);
+      return bd - ad;
+    });
+
+    container.innerHTML = rows.map(req => {
+      const start = req['Start Date'] || req.startDate || '';
+      const end = req['End Date'] || req.endDate || '';
+      const reason = req['Reason'] || req.Reason || req.reason || 'Leave Request';
+      const status = (req['Status'] || req.status || 'Pending').toString();
+
+      const badge = (() => {
+        const s = status.toLowerCase();
+        if (s.includes('approve')) return 'bg-green-100 text-green-700';
+        if (s.includes('decline') || s.includes('reject')) return 'bg-red-100 text-red-700';
+        return 'bg-yellow-100 text-yellow-700';
+      })();
+
+      return `
+        <div class="p-3 bg-white rounded-lg border border-gray-100 shadow-sm">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[10px] font-bold text-gray-400 uppercase">${start} — ${end}</span>
+            <span class="px-2 py-1 rounded-full text-[10px] font-bold ${badge}">${status}</span>
+          </div>
+          <p class="text-xs text-gray-700 font-semibold">${reason}</p>
+        </div>
+      `;
+    }).join('') || `<p class="text-xs text-gray-400 italic">No history found.</p>`;
+  }
+
+  handleFilterChange(value) {
+    this.currentFilter = value;
+    const now = new Date();
+    let filtered = this.leadsData;
+
+    const getSubmittedDate = (l) => this.parseDateSafe(l['Date Submitted'] || this.normalizeKey(l, 'Date Submitted'));
+
+    if (value === 'this-week') {
+      const range = this.getPayrollWeekRange();
+      filtered = this.leadsData.filter(l => {
+        const d = getSubmittedDate(l);
+        return d && d >= range.start && d <= range.end;
+      });
+    } else if (value === 'previous-week') {
+      const range = this.getPreviousPayrollWeekRange();
+      filtered = this.leadsData.filter(l => {
+        const d = getSubmittedDate(l);
+        return d && d >= range.start && d <= range.end;
+      });
+    } else if (value === '30-days') {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(now.getDate() - 30);
+      filtered = this.leadsData.filter(l => {
+        const d = getSubmittedDate(l);
+        return d && d >= thirtyDaysAgo;
+      });
+    } else if (value === '4-weeks') {
+      const d0 = new Date();
+      d0.setDate(now.getDate() - 28);
+      filtered = this.leadsData.filter(l => {
+        const d = getSubmittedDate(l);
+        return d && d >= d0;
+      });
+    } else if (value === '6-weeks') {
+      const d0 = new Date();
+      d0.setDate(now.getDate() - 42);
+      filtered = this.leadsData.filter(l => {
+        const d = getSubmittedDate(l);
+        return d && d >= d0;
+      });
+    } else if (value === 'all-time') {
+      filtered = this.leadsData;
+    }
+
+    this.filteredLeads = filtered;
+    this.updateDashboardUI(filtered);
+    this.updateCharts();
+  }
+
+  // ------------------------
+  // Charts
+  // ------------------------
+  updateCharts() {
+    const chartA = document.getElementById('appointmentsChart');
+    const chartI = document.getElementById('incentivesChart');
+    if (!chartA || !chartI) return;
+
+    if (!this.charts.appointments) this.charts.appointments = echarts.init(chartA);
+    if (!this.charts.incentives) this.charts.incentives = echarts.init(chartI);
+
+    const buckets = this.buildWeeklyBuckets(8);
+
+    for (const lead of this.leadsData) {
+      const date = this.parseDateSafe(lead['Date Submitted'] || this.normalizeKey(lead, 'Date Submitted'));
+      if (!date) continue;
+
+      const weekKey = this.getWeekKey(date);
+      if (!buckets[weekKey]) continue;
+
+      const status = (lead['Status'] || this.normalizeKey(lead, 'Status') || '').toString().toLowerCase();
+
+      buckets[weekKey].submitted += 1;
+      if (status === 'confirmed') buckets[weekKey].confirmed += 1;
+      if (status.includes('cancel') || status.includes('reject') || status.includes('declined') || status.includes('credited')) buckets[weekKey].cancelled += 1;
+    }
+
+    for (const k of Object.keys(buckets)) {
+      const week = buckets[k];
+      const cancelRate = week.submitted > 0 ? (week.cancelled / week.submitted) * 100 : 0;
+      week.incentives = this.calculateIncentives(week.confirmed, cancelRate);
+    }
+
+    const labels = Object.keys(buckets).sort();
+    const confirmedSeries = labels.map(k => buckets[k].confirmed);
+    const submittedSeries = labels.map(k => buckets[k].submitted);
+    const incentiveSeries = labels.map(k => buckets[k].incentives);
+
+    this.charts.appointments.setOption({
+      tooltip: { trigger: 'axis' },
+      xAxis: { type: 'category', data: labels },
+      yAxis: { type: 'value' },
+      series: [
+        { name: 'Submitted', type: 'line', data: submittedSeries, smooth: true },
+        { name: 'Confirmed', type: 'line', data: confirmedSeries, smooth: true }
+      ]
+    }, true);
+
+    this.charts.incentives.setOption({
+      tooltip: { trigger: 'axis' },
+      xAxis: { type: 'category', data: labels },
+      yAxis: { type: 'value' },
+      series: [
+        { name: 'Incentives', type: 'bar', data: incentiveSeries }
+      ]
+    }, true);
+
+    window.addEventListener('resize', () => {
+      this.charts?.appointments?.resize();
+      this.charts?.incentives?.resize();
     });
   }
 
-  updateAgentOrTLUI() {
-    // Update common stats if present
-    const statAppointments = document.getElementById("stat-appointments");
-    if (statAppointments) statAppointments.textContent = this.leadsData.length;
+  buildWeeklyBuckets(weeksBack = 8) {
+    const out = {};
+    const now = new Date();
 
-    // Update nav user display
-    this.updateNavUI();
-
-    // If table exists, render leads table
-    if (typeof this.renderLeadsTable === "function") {
-      this.renderLeadsTable(this.leadsData);
-    } else {
-      const body = document.getElementById("leads-table-body");
-      if (body) {
-        body.innerHTML = this.leadsData
-          .map(
-            (l) =>
-              `<tr>
-                <td class="px-6 py-4 text-sm text-gray-600">${l["Date Submitted"] || ""}</td>
-                <td class="px-6 py-4 text-sm font-bold text-gray-900">${l["Homeowner Name"] || ""}</td>
-                <td class="px-6 py-4 text-sm text-gray-600">${l["Status"] || ""}</td>
-              </tr>`
-          )
-          .join("");
-      }
+    for (let w = weeksBack - 1; w >= 0; w--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - (w * 7));
+      const start = this.getWeekStart(d);
+      const label = start.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+      out[label] = { submitted: 0, confirmed: 0, cancelled: 0, incentives: 0 };
     }
-
-    // If TL dashboard has its own refresh hook, call it
-    if (window.teamLeadDashboard && typeof window.teamLeadDashboard.refresh === "function") {
-      window.teamLeadDashboard.refresh();
-    }
+    return out;
   }
 
-  // =========================================================
-  // ADMIN FETCH (FIXED)
-  // =========================================================
-  async fetchAdminData() {
-    try {
-      // cache-buster prevents stale cached responses
-      const url = this.webhooks.fetchAdminData + "?t=" + Date.now();
-
-      const response = await fetch(url, { method: "GET" });
-      if (!response.ok) {
-        console.warn("Admin webhook failed:", response.status, response.statusText);
-        return;
-      }
-
-      const result = await response.json();
-
-      // Accept either {clients,leads,agents} or {json:{clients,leads,agents}}
-      const data = result?.json ? result.json : result;
-
-      this.adminState = {
-        clients: Array.isArray(data?.clients) ? data.clients : [],
-        leads: Array.isArray(data?.leads) ? data.leads : [],
-        agents: Array.isArray(data?.agents) ? data.agents : []
-      };
-
-      // Keep these populated so admin UI can reuse
-      this.leadsData = this.normalizeLeads(this.adminState.leads);
-      this.employeeList = this.adminState.agents;
-
-      // If your admin dashboard has a refresh function, trigger it
-      if (window.adminDashboard && typeof window.adminDashboard.refreshDashboard === "function") {
-        window.adminDashboard.refreshDashboard();
-      }
-
-      // Basic fallback: if there's a leads table, show first rows
-      if (document.getElementById("leads-table-body")) {
-        this.renderLeadsTable(this.leadsData.slice(0, 100));
-      }
-
-      console.log("✅ Admin data loaded:", {
-        clients: this.adminState.clients.length,
-        leads: this.adminState.leads.length,
-        agents: this.adminState.agents.length
-      });
-    } catch (e) {
-      console.warn("Admin data loading error:", e);
-    }
+  getWeekStart(d) {
+    return this.getPayrollWeekStart(d);
   }
 
-  // =========================================================
-  // HELPERS used by dashboards
-  // =========================================================
-  renderLeadsTable(leads) {
-    const tbody = document.getElementById("leads-table-body");
-    if (!tbody) return;
-
-    tbody.innerHTML = (leads || [])
-      .map(
-        (l) => `
-        <tr class="hover:bg-gray-50">
-          <td class="px-6 py-4 text-sm text-gray-600">${l["Date Submitted"] || ""}</td>
-          <td class="px-6 py-4 text-sm font-bold text-gray-900">${l["Homeowner Name"] || ""}</td>
-          <td class="px-6 py-4 text-sm text-gray-600">${l["Status"] || ""}</td>
-        </tr>
-      `
-      )
-      .join("");
+  getWeekKey(d) {
+    return this.getPayrollWeekKey(d);
   }
 
-  normalizeKey(obj, key) {
-    if (!obj || !key) return "";
-    if (obj[key] != null) return obj[key];
-    const k = key.toLowerCase();
-    const found = Object.keys(obj).find((x) => x.toLowerCase() === k);
-    return found ? obj[found] : "";
-  }
-
-  isConfirmedStatus(status) {
-    const s = (status || "").toString().toLowerCase().trim();
-    return s === "confirmed";
-  }
-
-  isCancelledLikeStatus(status) {
-    const s = (status || "").toString().toLowerCase();
-    return s.includes("cancel");
-  }
-
-  parseDateSafe(val) {
-    if (!val) return null;
-    const d = new Date(val);
-    return isNaN(d.getTime()) ? null : d;
-  }
-
-  formatDateShort(dateObj) {
-    if (!dateObj) return "—";
-    return dateObj.toLocaleDateString();
-  }
-
-  formatCurrency(n) {
-    const num = Number(n) || 0;
-    return num.toLocaleString("en-US", { style: "currency", currency: "USD" });
-  }
-
-  handleFilterChange(filterValue) {
-    this.currentFilter = filterValue;
-    this.filteredLeads = this.leadsData;
-  }
-
-  updateNavUI() {
+  updateProfileUI() {
     if (!this.currentUser) return;
-    const nameEl = document.getElementById("nav-user-name");
-    const roleEl = document.getElementById("nav-user-role");
+    const u = this.currentUser;
 
-    if (nameEl) nameEl.textContent = this.currentUser.name || "User";
-    if (roleEl) {
-      roleEl.textContent = (this.currentUser.role || "agent")
-        .toString()
-        .replace("_", " ")
-        .toUpperCase();
+    const map = {
+      'profileName': u.name || 'N/A',
+      'profileEmail': u.email || 'N/A',
+      'profilePosition': (u.position || u.role || 'Agent'),
+      'profileRate': this.formatCurrency(u.baseRate),
+      'nav-user-name': u.name || 'Loading...',
+      'nav-user-role': (u.role || 'agent').toUpperCase(),
+      'profileHours': u.weeklyHours || 0,
+      'profileStartDate': u.startDate || 'N/A'
+    };
+
+    for (const [id, val] of Object.entries(map)) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val;
     }
   }
 
-  // =========================================================
-  // EVENTS
-  // =========================================================
+  async login(email, password) {
+    try {
+      const res = await fetch(this.webhooks.login, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const result = await res.json();
+
+      if (result.status === "success") {
+        const userObj = {
+          name: result.user['Employee Name'],
+          role: (result.user.Role || 'agent').toLowerCase(),
+          email,
+          baseRate: result.user['Base Rate'],
+          weeklyHours: result.user['Weekly Hours'],
+          startDate: result.user['Start Date'],
+          position: result.user['Position']
+        };
+
+        localStorage.setItem('callHammerSession', JSON.stringify({ user: userObj, expiresAt: Date.now() + 86400000 }));
+
+        const role = userObj.role;
+        if (role === 'admin') window.location.href = 'admin-dashboard.html';
+        else if (role === 'team_leader') window.location.href = 'team-leader-dashboard.html';
+        else window.location.href = 'agent-dashboard.html';
+      } else {
+        alert("Login failed");
+      }
+    } catch (err) {
+      alert("Network error");
+    }
+  }
+
+  async submitTimeOffRequest(data) {
+    try {
+      const res = await fetch(this.webhooks.timeOffRequest, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...data,
+          email: this.currentUser.email,
+          name: this.currentUser.name
+        })
+      });
+      return res.ok;
+    } catch (err) {
+      return false;
+    }
+  }
+
+  checkExistingSession() {
+    const session = localStorage.getItem('callHammerSession');
+    if (session) {
+      const data = JSON.parse(session);
+      if (data.expiresAt > Date.now()) this.currentUser = data.user;
+    }
+  }
+
   bindEvents() {
-    const loginForm = document.getElementById("loginForm");
+    const loginForm = document.getElementById('loginForm');
     if (loginForm) {
       loginForm.onsubmit = (e) => {
         e.preventDefault();
-        const fd = new FormData(loginForm);
-        this.login(fd.get("email"), fd.get("password"));
+        this.login(new FormData(loginForm).get('email'), new FormData(loginForm).get('password'));
+      };
+    }
+
+    const timeframeSelect = document.getElementById('timeframe-filter');
+    if (timeframeSelect) {
+      timeframeSelect.onchange = (e) => this.handleFilterChange(e.target.value);
+    }
+
+    const statusSelect = document.getElementById('status-filter');
+    if (statusSelect) {
+      statusSelect.onchange = (e) => {
+        const v = (e.target.value || 'all').toLowerCase();
+        let filtered = this.filteredLeads?.length ? this.filteredLeads : this.leadsData;
+
+        if (v !== 'all') {
+          filtered = filtered.filter(l => (l['Status'] || this.normalizeKey(l, 'Status') || '').toString().toLowerCase() === v);
+        }
+        this.renderLeadsTable(filtered);
       };
     }
   }
+
+  formatCurrency(val) {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val || 0);
+  }
+
+  logout() {
+    localStorage.removeItem('callHammerSession');
+    window.location.href = 'index.html';
+  }
 }
 
-// Create global portal
 const portal = new CallHammerPortal();
 window.portal = portal;
