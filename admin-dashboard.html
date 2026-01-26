@@ -299,11 +299,35 @@
           <div class="border-t border-gray-100 p-5 bg-gray-50/40">
             <div class="flex items-center justify-between mb-3">
               <h4 class="font-bold text-gray-900 flex items-center gap-2">
-                <i class="fa-solid fa-trophy text-yellow-500"></i> Top 10 Agents (by Total Leads)
-              </h4>
+  <i class="fa-solid fa-trophy text-yellow-500"></i> Top 10 Agents (Qualified Leads Only)
+</h4>
               <span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider" id="top10-label">—</span>
             </div>
+<div class="mt-5">
+  <div class="flex items-center justify-between mb-3">
+    <h4 class="font-bold text-gray-900 flex items-center gap-2">
+      <i class="fa-solid fa-arrow-down-wide-short text-red-500"></i> Bottom 5 Agents (Lowest Leads Set)
+    </h4>
+    <span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider" id="bottom5-label">—</span>
+  </div>
 
+  <div class="overflow-x-auto bg-white rounded-2xl border border-gray-100">
+    <table class="w-full text-left text-sm">
+      <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+        <tr>
+          <th class="p-4">Agent</th>
+          <th class="p-4 text-center">Total</th>
+          <th class="p-4 text-center text-emerald-600">Qualified</th>
+          <th class="p-4 text-center text-red-500">Unqualified</th>
+          <th class="p-4 text-center">Efficiency</th>
+        </tr>
+      </thead>
+      <tbody id="bottom5-body" class="divide-y divide-gray-50">
+        <tr><td colspan="5" class="p-6 text-center text-gray-400 italic">Calculating...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
             <div class="overflow-x-auto bg-white rounded-2xl border border-gray-100">
               <table class="w-full text-left text-sm">
                 <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
