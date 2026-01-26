@@ -281,28 +281,12 @@
   </main>
 
   <script>
-  // -------------- AdminDashboard (FIXED: mapping + case-insensitive + correct lead keys) --------------
+  // -------------- AdminDashboard (FIXED mappings for normalized adminState.clients) --------------
   const AdminDashboard = {
     perfPeriod: 'today',
 
     getState() {
       return (window.portal && window.portal.adminState) ? window.portal.adminState : null;
-    },
-
-    // ✅ Case-insensitive picker (works with any header casing)
-    pickCI(obj, keys, fallback = "") {
-      if (!obj) return fallback;
-
-      const map = {};
-      Object.keys(obj).forEach(k => {
-        map[String(k).toLowerCase().trim()] = obj[k];
-      });
-
-      for (const k of keys) {
-        const v = map[String(k).toLowerCase().trim()];
-        if (v != null && String(v).trim() !== "") return v;
-      }
-      return fallback;
     },
 
     refreshDashboard() {
@@ -325,7 +309,15 @@
       try { this.renderLeads(leads); } catch(e) { console.error("Leads Table Error:", e); }
     },
 
-    // ✅ Normalize status labels for dots
+    // ✅ smarter pick: tries multiple keys + ignores empty strings
+    pick(obj, keys, fallback = "") {
+      for (const k of keys) {
+        const v = obj?.[k];
+        if (v !== undefined && v !== null && String(v).trim() !== "") return v;
+      }
+      return fallback;
+    },
+
     normalizeClientStatus(v) {
       const s = String(v || "").trim().toUpperCase();
       if (s.includes("CRITICAL")) return "CRITICAL";
@@ -353,97 +345,73 @@
       return "bg-blue-100 text-blue-700 border border-blue-200";
     },
 
-    // ✅ Pulse uses RAW LEADS correctly
+    // ✅ top tiles
     renderPulse(leads) {
       const today = new Date().toDateString();
 
       const todayLeads = (leads || []).filter(l => {
-        const dStr = this.pickCI(l, ["Date Submitted", "DATE SUBMITTED", "Date", "DATE"], "");
-        const d = window.portal.parseDateSafe(dStr);
-        return d && d.toDateString() === today;
+        const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
+        const d = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+        return d && !isNaN(d.getTime()) && d.toDateString() === today;
       });
 
-      const confirmed = todayLeads.filter(l =>
-        window.portal.isConfirmedStatus(this.pickCI(l, ["Status", "STATUS"], ""))
-      );
+      const confirmed = todayLeads.filter(l => {
+        const st = this.pick(l, ["Status","STATUS"], "");
+        return window.portal?.isConfirmedStatus ? window.portal.isConfirmedStatus(st) : String(st).toLowerCase() === "confirmed";
+      });
 
       const value = confirmed.length * 50;
 
       const pending = (leads || []).filter(l =>
-        String(this.pickCI(l, ["Status", "STATUS"], "")).toLowerCase().includes("pending")
+        String(this.pick(l, ["Status","STATUS"], "")).toLowerCase().includes("pending")
       );
 
-      document.getElementById('pulse-profit').textContent = window.portal.formatCurrency(value);
+      document.getElementById('pulse-profit').textContent =
+        window.portal?.formatCurrency ? window.portal.formatCurrency(value) : `$${value.toFixed(2)}`;
+
       document.getElementById('pulse-pending').textContent = pending.length;
     },
 
-    // ✅ FIXED: Client Health Monitor reads your normalized + raw keys
-   renderClientHealth(clients) {
-  const tbody = document.getElementById('client-health-body');
+    // ✅ FIXED: reads from normalized keys first (client_name/code/location/package/status)
+    renderClientHealth(clients) {
+      const tbody = document.getElementById('client-health-body');
 
-  if (!clients || clients.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No clients found.</td></tr>';
-    return;
-  }
+      if (!clients || clients.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No clients found.</td></tr>';
+        return;
+      }
 
-  tbody.innerHTML = clients.map(c => {
-    const name = this.pickCI(
-      c,
-      ["clientName", "client_name", "Roofing Company", "COMPANY NAME", "Company Name", "client_name"],
-      "Unnamed"
-    );
+      tbody.innerHTML = clients.map(c => {
+        // ✅ normalized keys from main.js
+        const name = this.pick(c, ["client_name","clientName","Company Name","Roofing Company"], "Unnamed");
+        const code = this.pick(c, ["code","codeName","CODE","CODE NAME"], "N/A");
+        const location = this.pick(c, ["location","CITY STATE","City State","Location"], "—");
+        const rawClientStatus = this.pick(c, ["status","Client Status","CLIENT STATUS","Status"], "UNKNOWN");
+        const clientStatus = this.normalizeClientStatus(rawClientStatus);
+        const pkg = this.pick(c, ["package","Package","Lead Package"], "—");
 
-    // ✅ CODE (your main.js uses codeName)
-    const code = this.pickCI(
-      c,
-      ["codeName", "code_name", "code", "CODE NAME", "Code Name", "CODE"],
-      "—"
-    );
+        const dotClass = this.statusDotClass(clientStatus);
 
-    // ✅ LOCATION (your main.js uses location)
-    const location = this.pickCI(
-      c,
-      ["location", "cityState", "CITY STATE", "Add location here", "Location"],
-      "—"
-    );
+        return `
+          <tr class="hover:bg-gray-50">
+            <td class="p-4">
+              <div class="status-container">
+                <span class="status-dot ${dotClass}"></span>
+              </div>
+            </td>
+            <td class="p-4 font-bold text-gray-900">${name}</td>
+            <td class="p-4 text-gray-500">${code}</td>
+            <td class="p-4 text-gray-500 max-w-[150px] truncate" title="${location}">${location}</td>
+            <td class="p-4">
+              <span class="px-2 py-1 rounded text-[10px] font-bold uppercase ${this.packageBadgeClass(pkg)}">
+                ${String(pkg)}
+              </span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    },
 
-    const rawClientStatus = this.pickCI(
-      c,
-      ["status", "Client Status", "CLIENT STATUS", "Status", "STATUS"],
-      "UNKNOWN"
-    );
-    const clientStatus = this.normalizeClientStatus(rawClientStatus);
-
-    // ✅ PACKAGE (your main.js uses package)
-    const pkg = this.pickCI(
-      c,
-      ["package", "leadPackage", "Lead Package", "Package", "PACKAGE"],
-      "—"
-    );
-
-    const dotClass = this.statusDotClass(clientStatus);
-
-    return `
-      <tr class="hover:bg-gray-50">
-        <td class="p-4">
-          <div class="status-container">
-            <span class="status-dot ${dotClass}"></span>
-          </div>
-        </td>
-        <td class="p-4 font-bold text-gray-900">${name}</td>
-        <td class="p-4 text-gray-500">${code}</td>
-        <td class="p-4 text-gray-500 max-w-[150px] truncate" title="${location}">${location}</td>
-        <td class="p-4">
-          <span class="px-2 py-1 rounded text-[10px] font-bold uppercase ${this.packageBadgeClass(pkg)}">
-            ${String(pkg)}
-          </span>
-        </td>
-      </tr>
-    `;
-  }).join('');
-},
-
-    // ✅ FIXED: Team performance uses RAW LEADS correct header: "Appointment Coordinator Name"
     updatePerf(period, btnElement) {
       this.perfPeriod = period;
 
@@ -468,33 +436,29 @@
 
       const now = new Date();
       const filterDate = new Date();
-
       if (period === 'today') filterDate.setHours(0,0,0,0);
-      if (period === 'week')  filterDate.setDate(now.getDate() - 7);
+      if (period === 'week') filterDate.setDate(now.getDate() - 7);
       if (period === 'month') filterDate.setDate(now.getDate() - 30);
 
       tbody.innerHTML = agents.map(agent => {
-        const name = this.pickCI(agent, ["employeeName", "Employee Name", "name", "Name"], "Unknown");
+        const name = this.pick(agent, ["employeeName","Employee Name","EMPLOYEE NAME","name","Name"], "Unknown");
 
         const agentLeads = leads.filter(l => {
-          const lAgent = this.pickCI(l, ["Appointment Coordinator Name", "Setter", "Agent", "Agent Name"], "");
-          const dStr   = this.pickCI(l, ["Date Submitted", "Date"], "");
-          const lDate  = window.portal.parseDateSafe(dStr);
-
-          return String(lAgent).toLowerCase().includes(String(name).toLowerCase())
-            && lDate && lDate >= filterDate;
+          const lAgent = this.pick(l, ["Appointment Coordinator Name","Appointment Coord","Appointment Coordinator","Agent","AGENT"], "");
+          const dStr   = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date"], "");
+          const lDate  = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+          return String(lAgent).toLowerCase().includes(String(name).toLowerCase()) && lDate && !isNaN(lDate.getTime()) && lDate >= filterDate;
         });
 
         const total = agentLeads.length;
-
-        const confirmed = agentLeads.filter(l =>
-          window.portal.isConfirmedStatus(this.pickCI(l, ["Status", "STATUS"], ""))
-        ).length;
-
-        const rejected = agentLeads.filter(l => {
-          const s = String(this.pickCI(l, ["Status", "STATUS"], "")).toLowerCase();
-          return s.includes("reject") || s.includes("decline") || s.includes("cancel") || s.includes("credit");
+        const confirmed = agentLeads.filter(l => {
+          const st = this.pick(l, ["Status","STATUS"], "");
+          return window.portal?.isConfirmedStatus ? window.portal.isConfirmedStatus(st) : String(st).toLowerCase() === "confirmed";
         }).length;
+
+        const rejected  = agentLeads.filter(l =>
+          String(this.pick(l, ["Status","STATUS"], "")).toLowerCase().includes("reject")
+        ).length;
 
         const eff = total > 0 ? Math.round((confirmed / total) * 100) : 0;
 
@@ -510,22 +474,14 @@
       }).join('');
     },
 
-    // ✅ FIXED: Client cards show correct name + code + package
+    // ✅ FIXED: client cards also use normalized package/name
     renderClientCards(clients) {
       const container = document.getElementById('client-cards-container');
-      if (!clients || !clients.length) {
-        container.innerHTML = `
-          <div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">
-            No clients found.
-          </div>
-        `;
-        return;
-      }
+      if (!clients || !clients.length) return;
 
       container.innerHTML = clients.map(c => {
-        const name = this.pickCI(c, ["clientName", "client_name", "Roofing Company", "COMPANY NAME", "Company Name"], "Unnamed");
-        const code = this.pickCI(c, ["codeName", "code", "CODE NAME", "Code Name", "Code"], "—");
-        const pkg  = this.pickCI(c, ["package", "Package Status", "Package", "Lead Package"], "—");
+        const name = this.pick(c, ["client_name","clientName","Company Name","Roofing Company"], "Unnamed");
+        const pkg = this.pick(c, ["package","Package","Lead Package"], "—");
 
         return `
           <div class="card-hover bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
@@ -538,13 +494,11 @@
                   ${String(pkg)}
                 </span>
               </div>
-
               <h3 class="font-bold text-gray-900 text-lg">${name}</h3>
-              <p class="text-xs text-gray-500 mt-1">
-                <b>Code:</b> ${code}
+              <p class="text-xs text-gray-500 mt-1 max-h-10 overflow-hidden text-ellipsis">
+                <i class="fa-solid fa-circle-info mr-1"></i> Mapped from Google Sheets
               </p>
             </div>
-
             <div class="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center">
               <span class="text-xs font-bold text-gray-400">—</span>
               <button class="text-xs text-yellow-600 font-bold hover:underline">View Details</button>
@@ -554,7 +508,6 @@
       }).join('');
     },
 
-    // ✅ FIXED: Leads table uses correct RAW LEADS headers
     renderLeads(leads) {
       const tbody = document.getElementById('leads-table-body');
 
@@ -564,16 +517,16 @@
       }
 
       tbody.innerHTML = leads.map(l => {
-        const status = this.pickCI(l, ["Status", "STATUS"], "New");
-        const date = this.pickCI(l, ["Date Submitted", "Date"], "-");
-        const homeowner = this.pickCI(l, ["Homeowner Name(s)", "Homeowner Name", "Homeowner"], "Unknown");
-        const agent = this.pickCI(l, ["Appointment Coordinator Name", "Setter", "Agent", "Agent Name"], "-");
-        const client = this.pickCI(l, ["Company Name", "Client", "Roofing Company"], "-");
+        const status = this.pick(l, ["Status","STATUS"], "New");
+        const date = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date"], "-");
+        const homeowner = this.pick(l, ["Homeowner Name(s)","Homeowner Name","HOMEOWNER NAME","Homeowner"], "Unknown");
+        const agent = this.pick(l, ["Appointment Coordinator Name","Appointment Coord","Appointment Coordinator","Agent","AGENT"], "-");
+        const client = this.pick(l, ["Company Name","CLIENT","Client"], "-");
 
         let statusColor = "text-gray-600 bg-gray-100";
         const s = String(status).toLowerCase();
         if (s.includes('approve') || s.includes('confirm')) statusColor = "text-emerald-700 bg-emerald-100";
-        if (s.includes('reject') || s.includes('decline') || s.includes('cancel') || s.includes('credit')) statusColor = "text-red-700 bg-red-100";
+        if (s.includes('reject')) statusColor = "text-red-700 bg-red-100";
         if (s.includes('pending')) statusColor = "text-yellow-700 bg-yellow-100";
 
         return `
@@ -594,9 +547,7 @@
       const state = this.getState();
       const allLeads = (state && state.leads) ? state.leads : [];
       if (status === 'all') this.renderLeads(allLeads);
-      else this.renderLeads(allLeads.filter(l =>
-        String(this.pickCI(l, ["Status","STATUS"], "")).toLowerCase().includes(status)
-      ));
+      else this.renderLeads(allLeads.filter(l => String(this.pick(l, ["Status","STATUS"], "")).toLowerCase().includes(status)));
     },
 
     nav(viewId, linkEl) {
@@ -610,6 +561,7 @@
   window.adminDashboard = AdminDashboard;
   window.Admin = AdminDashboard;
 </script>
+
 
   <script src="main.js"></script>
 </body>
