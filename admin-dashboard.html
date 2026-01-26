@@ -378,54 +378,70 @@
     },
 
     // ✅ FIXED: Client Health Monitor reads your normalized + raw keys
-    renderClientHealth(clients) {
-      const tbody = document.getElementById('client-health-body');
+   renderClientHealth(clients) {
+  const tbody = document.getElementById('client-health-body');
 
-      if (!clients || clients.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No clients found.</td></tr>';
-        return;
-      }
+  if (!clients || clients.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No clients found.</td></tr>';
+    return;
+  }
 
-      tbody.innerHTML = clients.map(c => {
-        // ✅ supports BOTH normalized (main.js) + raw sheet headers
-        const name = this.pickCI(c, ["clientName", "client_name", "Roofing Company", "COMPANY NAME", "Company Name"], "Unnamed");
-        const code = this.pickCI(c, ["codeName", "code", "CODE NAME", "Code Name", "Code"], "—");
-        const location = this.pickCI(c, ["location", "CITY STATE", "Add location here", "Location"], "Remote");
+  tbody.innerHTML = clients.map(c => {
+    const name = this.pickCI(
+      c,
+      ["clientName", "client_name", "Roofing Company", "COMPANY NAME", "Company Name", "client_name"],
+      "Unnamed"
+    );
 
-        const rawClientStatus = this.pickCI(c, ["status", "Client Status", "CLIENT STATUS", "Status", "STATUS"], "UNKNOWN");
-        const clientStatus = this.normalizeClientStatus(rawClientStatus);
+    // ✅ CODE (your main.js uses codeName)
+    const code = this.pickCI(
+      c,
+      ["codeName", "code_name", "code", "CODE NAME", "Code Name", "CODE"],
+      "—"
+    );
 
-        const pkgStatus = this.pickCI(
-          c,
-          ["package", "Package Status", "PACKAGE STATUS", "Lead Package", "Package"],
-          "—"
-        );
+    // ✅ LOCATION (your main.js uses location)
+    const location = this.pickCI(
+      c,
+      ["location", "cityState", "CITY STATE", "Add location here", "Location"],
+      "—"
+    );
 
-        const dotClass = this.statusDotClass(clientStatus);
+    const rawClientStatus = this.pickCI(
+      c,
+      ["status", "Client Status", "CLIENT STATUS", "Status", "STATUS"],
+      "UNKNOWN"
+    );
+    const clientStatus = this.normalizeClientStatus(rawClientStatus);
 
-        return `
-          <tr class="hover:bg-gray-50">
-            <td class="p-4">
-              <div class="status-container">
-                <span class="status-dot ${dotClass}"></span>
-                <span class="tooltip-text">
-                  <div><b>Status:</b> ${clientStatus}</div>
-                  <div><b>Package:</b> ${String(pkgStatus)}</div>
-                </span>
-              </div>
-            </td>
-            <td class="p-4 font-bold text-gray-900">${name}</td>
-            <td class="p-4 text-gray-500">${code}</td>
-            <td class="p-4 text-gray-500 max-w-[150px] truncate" title="${location}">${location}</td>
-            <td class="p-4">
-              <span class="px-2 py-1 rounded text-[10px] font-bold uppercase ${this.packageBadgeClass(pkgStatus)}">
-                ${String(pkgStatus)}
-              </span>
-            </td>
-          </tr>
-        `;
-      }).join('');
-    },
+    // ✅ PACKAGE (your main.js uses package)
+    const pkg = this.pickCI(
+      c,
+      ["package", "leadPackage", "Lead Package", "Package", "PACKAGE"],
+      "—"
+    );
+
+    const dotClass = this.statusDotClass(clientStatus);
+
+    return `
+      <tr class="hover:bg-gray-50">
+        <td class="p-4">
+          <div class="status-container">
+            <span class="status-dot ${dotClass}"></span>
+          </div>
+        </td>
+        <td class="p-4 font-bold text-gray-900">${name}</td>
+        <td class="p-4 text-gray-500">${code}</td>
+        <td class="p-4 text-gray-500 max-w-[150px] truncate" title="${location}">${location}</td>
+        <td class="p-4">
+          <span class="px-2 py-1 rounded text-[10px] font-bold uppercase ${this.packageBadgeClass(pkg)}">
+            ${String(pkg)}
+          </span>
+        </td>
+      </tr>
+    `;
+  }).join('');
+},
 
     // ✅ FIXED: Team performance uses RAW LEADS correct header: "Appointment Coordinator Name"
     updatePerf(period, btnElement) {
