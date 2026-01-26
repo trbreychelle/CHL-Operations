@@ -72,7 +72,6 @@ class CallHammerPortal {
     if (onAdminDashboard) {
       document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
       setTimeout(() => this.fetchAdminData(false), 300);
-      // Manual refresh if needed: window.portal.fetchAdminData(true)
     }
   }
 
@@ -113,6 +112,14 @@ class CallHammerPortal {
     return fallback;
   }
 
+  // numbers that might come as strings
+  toNumberSafe(v, fallback = 0) {
+    if (v === null || v === undefined) return fallback;
+    if (typeof v === 'number') return isNaN(v) ? fallback : v;
+    const n = parseFloat(String(v).replace(/[^\d.-]/g, ''));
+    return isNaN(n) ? fallback : n;
+  }
+
   // join key for company names (removes punctuation/spaces, case-insensitive)
   normalizeCompanyKey(str) {
     if (!str) return 'unknown';
@@ -149,11 +156,6 @@ class CallHammerPortal {
     // Fallback
     const d = new Date(raw);
     return isNaN(d.getTime()) ? null : d;
-  }
-
-  formatDateShort(d) {
-    if (!d) return '';
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
   // --- MST Clock Helpers ---
@@ -204,17 +206,14 @@ class CallHammerPortal {
       const result = await response.json();
       this.lastAdminFetch = Date.now();
 
-      // ✅ IMPORTANT: your webhook may return { status:"success", healthMonitor:[...] }
-      // so we MUST check both result and result.data
+      // ✅ IMPORTANT: support {status:"success", healthMonitor:[...]} AND {data:{...}}
       const dataRoot = result?.data || result || {};
 
-      // ✅ Prefer healthMonitor if present (this is what your Network tab shows)
       const rawHealthMonitor =
         dataRoot.healthMonitor ||
         result.healthMonitor ||
         [];
 
-      // Other optional shapes (if you later add them back in n8n)
       const rawClients =
         dataRoot.clients || dataRoot.Clients || dataRoot.CLIENTS ||
         result.clients || result.Clients || result.CLIENTS || [];
@@ -235,18 +234,17 @@ class CallHammerPortal {
         dataRoot.packages || dataRoot.leadPackages || dataRoot.Packages ||
         result.packages || result.leadPackages || result.Packages || [];
 
-      // ✅ If healthMonitor exists, use it to populate Client Health Monitor immediately
+      // ✅ If healthMonitor exists, use it for Client Health Monitor
       if (Array.isArray(rawHealthMonitor) && rawHealthMonitor.length > 0) {
         this.normalizeAdminFromHealthMonitor(rawHealthMonitor);
 
-        // Still store these if present (won't break anything)
+        // still store these if present
         this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
         this.adminState.agents = Array.isArray(rawAgents) ? rawAgents : [];
         this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
         this.adminState.rawPackages = Array.isArray(rawPackages) ? rawPackages : [];
-
       } else {
-        // Fallback to your previous join-based normalization
+        // fallback join-based
         this.normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages);
       }
 
@@ -264,7 +262,6 @@ class CallHammerPortal {
   }
 
   triggerAdminRefresh() {
-    // Admin dashboard UI script should read from window.portal.adminState
     if (window.adminDashboard && typeof window.adminDashboard.refreshDashboard === 'function') {
       window.adminDashboard.refreshDashboard();
     } else {
@@ -272,46 +269,51 @@ class CallHammerPortal {
     }
   }
 
-  // ✅ NEW: normalize directly from webhook `healthMonitor`
+  // ✅ FIX: output BOTH snake_case + camelCase so UI never shows "Unnamed"
   normalizeAdminFromHealthMonitor(rows) {
     const list = Array.isArray(rows) ? rows : [];
 
     this.adminState.clients = list.map(r => {
-      const clientName = this.getAny(r, ['client_name', 'clientName', 'CLIENT NAME', 'Company Name', 'Roofing Company'], 'Unnamed');
-      const codeName = this.getAny(r, ['code', 'code_name', 'CODE', 'CODE NAME'], 'N/A');
-      const location = this.getAny(r, ['location', 'CITY STATE', 'Location'], 'Remote');
+      const client_name = this.getAny(r, ['client_name', 'clientName', 'CLIENT NAME', 'Company Name', 'Roofing Company'], 'Unnamed');
+      const code = this.getAny(r, ['code', 'code_name', 'CODE', 'CODE NAME', 'codeName'], 'N/A');
+      const location = this.getAny(r, ['location', 'Location', 'CITY STATE'], 'Remote');
       const status = this.getAny(r, ['status', 'Client Status', 'CLIENT STATUS'], 'NOT STARTED');
       const pkg = this.getAny(r, ['package', 'Package', 'Lead Package'], '');
 
-      const lastLeadReceived = this.getAny(r, ['last_lead_received', 'Last Lead Received'], '');
-      const hoursSinceLastLead = this.getAny(r, ['hours_since_last_lead', 'Hours Since Last Lead'], '');
-      const leadsToday = this.getAny(r, ['leads_today', 'Leads Today'], 0);
-      const leadsYesterday = this.getAny(r, ['leads_yesterday', 'Leads Yesterday'], 0);
+      const last_lead_received = this.getAny(r, ['last_lead_received', 'Last Lead Received'], '');
+      const hours_since_last_lead = this.toNumberSafe(this.getAny(r, ['hours_since_last_lead', 'Hours Since Last Lead'], 0), 0);
+      const leads_today = this.toNumberSafe(this.getAny(r, ['leads_today', 'Leads Today'], 0), 0);
+      const leads_yesterday = this.toNumberSafe(this.getAny(r, ['leads_yesterday', 'Leads Yesterday'], 0), 0);
 
       return {
-        clientName,
-        codeName,
-        // ✅ this gives you "Company (Client 007)" style for UI if you want it
-        clientNameWithCode: (codeName && codeName !== 'N/A') ? `${clientName} (${codeName})` : clientName,
+        // ✅ snake_case (UI most likely expects these)
+        client_name,
+        code,
         location,
         status,
         package: pkg,
+        last_lead_received,
+        hours_since_last_lead,
+        leads_today,
+        leads_yesterday,
 
-        // extra fields (safe)
-        lastLeadReceived,
-        hoursSinceLastLead,
-        leadsToday,
-        leadsYesterday
+        // ✅ camelCase (your JS logic might use these)
+        clientName: client_name,
+        codeName: code,
+        clientNameWithCode: (code && code !== 'N/A') ? `${client_name} (${code})` : client_name,
+        lastLeadReceived: last_lead_received,
+        hoursSinceLastLead: hours_since_last_lead,
+        leadsToday: leads_today,
+        leadsYesterday: leads_yesterday
       };
     });
   }
 
+  // Fallback join-based normalization (also outputs aliases)
   normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages) {
-    // Keep raw for debugging
     this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
     this.adminState.rawPackages = Array.isArray(rawPackages) ? rawPackages : [];
 
-    // --- Build lookup maps for joins (Status + Package) ---
     const statusMap = {};
     (Array.isArray(rawStatuses) ? rawStatuses : []).forEach(row => {
       const company = this.getAny(row, ['Roofing Company', 'Company Name', 'COMPANY NAME', 'Client', 'CLIENT NAME'], '');
@@ -328,7 +330,6 @@ class CallHammerPortal {
       packageMap[key] = row;
     });
 
-    // --- Normalize Clients (from CLIENT CODE LIST) ---
     const clientsArr = Array.isArray(rawClients) ? rawClients : [];
     this.adminState.clients = clientsArr.map(c => {
       const companyName = this.getAny(c, ['COMPANY NAME', 'Company Name', 'Company', 'Roofing Company'], 'Unnamed');
@@ -348,17 +349,25 @@ class CallHammerPortal {
       const joinedPackage = this.getAny(pRow, ['Package', 'Lead Package', 'PACKAGE'], '');
 
       const lastLeadReceived = this.getAny(sRow, ['Last Lead Received'], '');
-      const hoursSinceLastLead = this.getAny(sRow, ['Hours Since Last Lead'], '');
-      const leadsToday = this.getAny(sRow, ['Leads Today'], '');
-      const leadsYesterday = this.getAny(sRow, ['Leads Yesterday'], '');
+      const hoursSinceLastLead = this.toNumberSafe(this.getAny(sRow, ['Hours Since Last Lead'], 0), 0);
+      const leadsToday = this.toNumberSafe(this.getAny(sRow, ['Leads Today'], 0), 0);
+      const leadsYesterday = this.toNumberSafe(this.getAny(sRow, ['Leads Yesterday'], 0), 0);
 
+      // ✅ output both naming styles
       return {
-        clientName: companyName,
-        codeName,
-        clientNameWithCode: codeName && codeName !== 'N/A' ? `${companyName} (${codeName})` : companyName,
+        client_name: companyName,
+        code: codeName,
         location,
         status: joinedStatus || 'NOT STARTED',
         package: joinedPackage || '',
+        last_lead_received: lastLeadReceived,
+        hours_since_last_lead: hoursSinceLastLead,
+        leads_today: leadsToday,
+        leads_yesterday: leadsYesterday,
+
+        clientName: companyName,
+        codeName,
+        clientNameWithCode: codeName && codeName !== 'N/A' ? `${companyName} (${codeName})` : companyName,
         lastLeadReceived,
         hoursSinceLastLead,
         leadsToday,
@@ -366,7 +375,6 @@ class CallHammerPortal {
       };
     });
 
-    // --- Normalize Agents (from AGENT_MASTER) ---
     const agentsArr = Array.isArray(rawAgents) ? rawAgents : [];
     this.adminState.agents = agentsArr.map(a => ({
       employeeName: this.getAny(a, ['Employee Name', 'Name', 'AGENT NAME', 'Agent Name'], 'Unknown'),
@@ -377,12 +385,10 @@ class CallHammerPortal {
       paymentStatus: this.getAny(a, ['Payment Status'], '')
     }));
 
-    // --- Raw Leads (from RAW LEADS tab) ---
     this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
   }
 
   // ✅ ADMIN: compute Team Performance from RAW LEADS + Agent Master
-  // timeFilter: 'today' | 'this-week' | '30-days' | 'all'
   calculateAdminTeamStats(timeFilter = 'today') {
     const stats = {};
 
@@ -390,7 +396,6 @@ class CallHammerPortal {
       const name = (a.employeeName || '').trim() || 'Unknown';
       const emp = (a.employmentStatus || '').toLowerCase();
       if (emp && emp.includes('offboard')) return;
-
       stats[name] = { name, total: 0, confirmed: 0, rejected: 0, pending: 0 };
     });
 
@@ -648,160 +653,28 @@ class CallHammerPortal {
     }
   }
 
-  // Team Leader dashboard fetch (does not affect agent dashboard)
-  async fetchTeamLeaderDashboardData() {
-    if (!this.currentUser) return null;
+  // ------------------------
+  // Basic UI helpers (agent)
+  // ------------------------
+  updateProfileUI() {
+    if (!this.currentUser) return;
+    const u = this.currentUser;
 
-    try {
-      const response = await fetch(this.webhooks.fetchTLData, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: this.currentUser.email,
-          role: this.currentUser.role
-        })
-      });
+    const map = {
+      'profileName': u.name || 'N/A',
+      'profileEmail': u.email || 'N/A',
+      'profilePosition': (u.position || u.role || 'Agent'),
+      'profileRate': this.formatCurrency(u.baseRate),
+      'nav-user-name': u.name || 'Loading...',
+      'nav-user-role': (u.role || 'agent').toUpperCase(),
+      'profileHours': u.weeklyHours || 0,
+      'profileStartDate': u.startDate || 'N/A'
+    };
 
-      const result = await response.json();
-      if (result.status === "success") return result;
-
-      console.error("TL Fetch Failed:", result);
-      return null;
-    } catch (err) {
-      console.error("TL Fetch Network Error:", err);
-      return null;
+    for (const [id, val] of Object.entries(map)) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val;
     }
-  }
-
-  // ------------------------
-  // Incentives
-  // ------------------------
-  calculateIncentives(confirmedN, cancelRate) {
-    const isHighPerf = cancelRate < 25;
-    let total = 0;
-
-    if (confirmedN >= 6) total += 50;
-    if (confirmedN >= 8) total += isHighPerf ? 50 : 30;
-
-    if (confirmedN >= 9) {
-      const count9to12 = Math.min(confirmedN, 12) - 8;
-      total += count9to12 * (isHighPerf ? 17 : 15);
-    }
-
-    if (confirmedN >= 13) {
-      total += (confirmedN - 12) * (isHighPerf ? 27 : 25);
-    }
-
-    return total;
-  }
-
-  // ------------------------
-  // Agent Dashboard UI
-  // ------------------------
-  updateDashboardUI(leads) {
-    const getVal = (obj, key) => this.normalizeKey(obj, key) || '';
-
-    const payrollRange = this.getPayrollWeekRange();
-    const payrollLeads = this.leadsData.filter(l => {
-      const subDate = this.parseDateSafe(getVal(l, 'Date Submitted'));
-      return subDate && subDate >= payrollRange.start && subDate <= payrollRange.end;
-    });
-
-    const payrollConfirmed = payrollLeads.filter(l => this.isConfirmedStatus(getVal(l, 'Status')));
-    const payrollTotal = payrollLeads.length;
-    const payrollCancelled = payrollLeads.filter(l => this.isCancelledLikeStatus(getVal(l, 'Status'))).length;
-    const payrollCancelRate = payrollTotal > 0 ? (payrollCancelled / payrollTotal) * 100 : 0;
-    const currentIncentives = this.calculateIncentives(payrollConfirmed.length, payrollCancelRate);
-
-    const totalRaw = leads.length;
-    const cancelledCount = leads.filter(l => this.isCancelledLikeStatus(getVal(l, 'Status'))).length;
-    const rate = totalRaw > 0 ? ((cancelledCount / totalRaw) * 100).toFixed(1) : "0.0";
-
-    const elA = document.getElementById('stat-appointments');
-    const elR = document.getElementById('stat-cancel-rate');
-    const elI = document.getElementById('stat-incentives');
-
-    if (elA) elA.textContent = totalRaw;
-    if (elR) elR.textContent = `${rate}%`;
-    if (elI) elI.textContent = this.formatCurrency(currentIncentives);
-
-    const hoursRange = (this.currentFilter === 'previous-week')
-      ? this.getPreviousPayrollWeekRange()
-      : this.getPayrollWeekRange();
-
-    const workedHours = this.computeWorkedHoursFromWeeklyPayroll(hoursRange.start, hoursRange.end);
-    const statHoursEl = document.getElementById('stat-hours');
-    if (statHoursEl) statHoursEl.textContent = `${(workedHours || 0).toFixed(2)} hrs`;
-
-    this.renderLeadsTable(leads);
-  }
-
-  renderLeadsTable(leads) {
-    const body = document.getElementById('leads-table-body');
-    if (!body) return;
-
-    body.innerHTML = leads.map(l => {
-      const date = l['Date Submitted'] || this.normalizeKey(l, 'Date Submitted') || 'N/A';
-      const homeowner = l['Homeowner Name(s)'] || l['Homeowner Name'] || this.normalizeKey(l, 'Homeowner Name(s)') || 'N/A';
-      const status = l['Status'] || this.normalizeKey(l, 'Status') || 'Pending';
-
-      return `
-        <tr class="hover:bg-gray-50">
-          <td class="px-6 py-4 text-sm text-gray-600">${date}</td>
-          <td class="px-6 py-4 font-bold text-gray-900">${homeowner}</td>
-          <td class="px-6 py-4">
-            <span class="px-3 py-1 rounded-full text-xs font-bold ${this.getStatusStyle(status)} uppercase">
-              ${status}
-            </span>
-          </td>
-        </tr>
-      `;
-    }).join('') || `<tr><td class="px-6 py-6 text-sm text-gray-500" colspan="3">No leads found.</td></tr>`;
-  }
-
-  getStatusStyle(status) {
-    const s = (status || '').toLowerCase();
-    if (s === 'approved') return 'bg-green-100 text-green-700';
-    if (s === 'confirmed') return 'bg-green-100 text-green-700';
-    if (s.includes('cancel') || s.includes('reject') || s.includes('credited') || s.includes('declined')) return 'bg-red-100 text-red-700';
-    return 'bg-yellow-100 text-yellow-700';
-  }
-
-  renderTimeOffHistory(history) {
-    const container = document.getElementById('timeoff-history-list');
-    if (!container) return;
-
-    const rows = Array.isArray(history) ? history : [];
-
-    rows.sort((a, b) => {
-      const ad = this.parseDateSafe(a['Start Date'] || a.startDate) || new Date(0);
-      const bd = this.parseDateSafe(b['Start Date'] || b.startDate) || new Date(0);
-      return bd - ad;
-    });
-
-    container.innerHTML = rows.map(req => {
-      const start = req['Start Date'] || req.startDate || '';
-      const end = req['End Date'] || req.endDate || '';
-      const reason = req['Reason'] || req.Reason || req.reason || 'Leave Request';
-      const status = (req['Status'] || req.status || 'Pending').toString();
-
-      const badge = (() => {
-        const s = status.toLowerCase();
-        if (s.includes('approve')) return 'bg-green-100 text-green-700';
-        if (s.includes('decline') || s.includes('reject')) return 'bg-red-100 text-red-700';
-        return 'bg-yellow-100 text-yellow-700';
-      })();
-
-      return `
-        <div class="p-3 bg-white rounded-lg border border-gray-100 shadow-sm">
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-[10px] font-bold text-gray-400 uppercase">${start} — ${end}</span>
-            <span class="px-2 py-1 rounded-full text-[10px] font-bold ${badge}">${status}</span>
-          </div>
-          <p class="text-xs text-gray-700 font-semibold">${reason}</p>
-        </div>
-      `;
-    }).join('') || `<p class="text-xs text-gray-400 italic">No history found.</p>`;
   }
 
   handleFilterChange(value) {
@@ -849,112 +722,40 @@ class CallHammerPortal {
     }
 
     this.filteredLeads = filtered;
-    this.updateDashboardUI(filtered);
-    this.updateCharts();
+    if (typeof this.updateDashboardUI === 'function') this.updateDashboardUI(filtered);
+    if (typeof this.updateCharts === 'function') this.updateCharts();
   }
 
-  // ------------------------
-  // Charts
-  // ------------------------
-  updateCharts() {
-    const chartA = document.getElementById('appointmentsChart');
-    const chartI = document.getElementById('incentivesChart');
-    if (!chartA || !chartI) return;
-
-    if (!this.charts.appointments) this.charts.appointments = echarts.init(chartA);
-    if (!this.charts.incentives) this.charts.incentives = echarts.init(chartI);
-
-    const buckets = this.buildWeeklyBuckets(8);
-
-    for (const lead of this.leadsData) {
-      const date = this.parseDateSafe(lead['Date Submitted'] || this.normalizeKey(lead, 'Date Submitted'));
-      if (!date) continue;
-
-      const weekKey = this.getWeekKey(date);
-      if (!buckets[weekKey]) continue;
-
-      const status = (lead['Status'] || this.normalizeKey(lead, 'Status') || '').toString().toLowerCase();
-
-      buckets[weekKey].submitted += 1;
-      if (status === 'confirmed') buckets[weekKey].confirmed += 1;
-      if (status.includes('cancel') || status.includes('reject') || status.includes('declined') || status.includes('credited')) buckets[weekKey].cancelled += 1;
+  bindEvents() {
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+      loginForm.onsubmit = (e) => {
+        e.preventDefault();
+        this.login(new FormData(loginForm).get('email'), new FormData(loginForm).get('password'));
+      };
     }
 
-    for (const k of Object.keys(buckets)) {
-      const week = buckets[k];
-      const cancelRate = week.submitted > 0 ? (week.cancelled / week.submitted) * 100 : 0;
-      week.incentives = this.calculateIncentives(week.confirmed, cancelRate);
+    const timeframeSelect = document.getElementById('timeframe-filter');
+    if (timeframeSelect) {
+      timeframeSelect.onchange = (e) => this.handleFilterChange(e.target.value);
     }
 
-    const labels = Object.keys(buckets).sort();
-    const confirmedSeries = labels.map(k => buckets[k].confirmed);
-    const submittedSeries = labels.map(k => buckets[k].submitted);
-    const incentiveSeries = labels.map(k => buckets[k].incentives);
+    const statusSelect = document.getElementById('status-filter');
+    if (statusSelect) {
+      statusSelect.onchange = (e) => {
+        const v = (e.target.value || 'all').toLowerCase();
+        let filtered = this.filteredLeads?.length ? this.filteredLeads : this.leadsData;
 
-    this.charts.appointments.setOption({
-      tooltip: { trigger: 'axis' },
-      xAxis: { type: 'category', data: labels },
-      yAxis: { type: 'value' },
-      series: [
-        { name: 'Submitted', type: 'line', data: submittedSeries, smooth: true },
-        { name: 'Confirmed', type: 'line', data: confirmedSeries, smooth: true }
-      ]
-    }, true);
-
-    this.charts.incentives.setOption({
-      tooltip: { trigger: 'axis' },
-      xAxis: { type: 'category', data: labels },
-      yAxis: { type: 'value' },
-      series: [
-        { name: 'Incentives', type: 'bar', data: incentiveSeries }
-      ]
-    }, true);
-
-    window.addEventListener('resize', () => {
-      this.charts?.appointments?.resize();
-      this.charts?.incentives?.resize();
-    });
+        if (v !== 'all') {
+          filtered = filtered.filter(l => (l['Status'] || this.normalizeKey(l, 'Status') || '').toString().toLowerCase() === v);
+        }
+        if (typeof this.renderLeadsTable === 'function') this.renderLeadsTable(filtered);
+      };
+    }
   }
 
-  buildWeeklyBuckets(weeksBack = 8) {
-    const out = {};
-    const now = new Date();
-
-    for (let w = weeksBack - 1; w >= 0; w--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - (w * 7));
-      const start = this.getWeekStart(d);
-      const label = start.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
-      out[label] = { submitted: 0, confirmed: 0, cancelled: 0, incentives: 0 };
-    }
-    return out;
-  }
-
-  getWeekStart(d) { return this.getPayrollWeekStart(d); }
-  getWeekKey(d) { return this.getPayrollWeekKey(d); }
-
-  // ------------------------
-  // Profile / Auth / Session
-  // ------------------------
-  updateProfileUI() {
-    if (!this.currentUser) return;
-    const u = this.currentUser;
-
-    const map = {
-      'profileName': u.name || 'N/A',
-      'profileEmail': u.email || 'N/A',
-      'profilePosition': (u.position || u.role || 'Agent'),
-      'profileRate': this.formatCurrency(u.baseRate),
-      'nav-user-name': u.name || 'Loading...',
-      'nav-user-role': (u.role || 'agent').toUpperCase(),
-      'profileHours': u.weeklyHours || 0,
-      'profileStartDate': u.startDate || 'N/A'
-    };
-
-    for (const [id, val] of Object.entries(map)) {
-      const el = document.getElementById(id);
-      if (el) el.textContent = val;
-    }
+  formatCurrency(val) {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val || 0);
   }
 
   async login(email, password) {
@@ -1015,38 +816,6 @@ class CallHammerPortal {
       const data = JSON.parse(session);
       if (data.expiresAt > Date.now()) this.currentUser = data.user;
     }
-  }
-
-  bindEvents() {
-    const loginForm = document.getElementById('loginForm');
-    if (loginForm) {
-      loginForm.onsubmit = (e) => {
-        e.preventDefault();
-        this.login(new FormData(loginForm).get('email'), new FormData(loginForm).get('password'));
-      };
-    }
-
-    const timeframeSelect = document.getElementById('timeframe-filter');
-    if (timeframeSelect) {
-      timeframeSelect.onchange = (e) => this.handleFilterChange(e.target.value);
-    }
-
-    const statusSelect = document.getElementById('status-filter');
-    if (statusSelect) {
-      statusSelect.onchange = (e) => {
-        const v = (e.target.value || 'all').toLowerCase();
-        let filtered = this.filteredLeads?.length ? this.filteredLeads : this.leadsData;
-
-        if (v !== 'all') {
-          filtered = filtered.filter(l => (l['Status'] || this.normalizeKey(l, 'Status') || '').toString().toLowerCase() === v);
-        }
-        this.renderLeadsTable(filtered);
-      };
-    }
-  }
-
-  formatCurrency(val) {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val || 0);
   }
 
   logout() {
