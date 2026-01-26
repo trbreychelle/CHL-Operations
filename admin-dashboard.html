@@ -179,8 +179,8 @@
             </div>
           </div>
 
-          <!-- ✅ Changed: show ~5 rows then scroll -->
-          <div class="max-h-[320px] overflow-y-auto overflow-x-auto">
+          <!-- ✅ CHANGE: fixed height so ~5 rows show, with scrollbar -->
+          <div class="flex-1 overflow-y-auto max-h-[320px]">
             <table class="w-full text-left border-collapse">
               <thead class="bg-white sticky top-0 z-10 shadow-sm">
                 <tr>
@@ -457,19 +457,16 @@
         return map;
       },
 
-      // ✅ Client Status tab headers:
-      // Roofing Company | CITY STATE | CLIENT NAME | Last Lead Received | Hours Since Last Lead | Leads Today | Leads Yesterday | Client Status
       extractCityState(c) {
-        // ✅ UPDATED: supports city_state / cityState from main.js normalization
         const v = this.pick(c, [
-          "city_state",
-          "cityState",
           "CITY STATE",
           "CITY, STATE",
           "City, State",
           "City State",
           "City/State",
           "CITYSTATE",
+          "city_state",
+          "cityState",
           "Location",
           "location"
         ], "—");
@@ -511,10 +508,9 @@
       },
 
       extractCode(c) {
-        // ✅ UPDATED: supports code_name directly from main.js normalization
         const direct = this.pick(c, [
-          "code_name",
           "CODE NAME", "Code Name", "codeName", "CODE", "code",
+          "code_name",
           "Client Code", "CLIENT CODE", "Client ID", "ClientID"
         ], "");
         if (direct && String(direct).trim() !== "") return String(direct).trim();
@@ -760,7 +756,6 @@
         }).join("");
       },
 
-      // ---------- Team Performance (unchanged) ----------
       updatePerf(period, btnElement) {
         this.perfPeriod = period;
 
