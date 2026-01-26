@@ -37,6 +37,7 @@ class CallHammerPortal {
 
     this.init();
   }
+
   // ------------------------
   // ✅ Login + Session helpers
   // ------------------------
@@ -84,30 +85,24 @@ class CallHammerPortal {
     const result = await res.json();
 
     // ✅ Support multiple response shapes
-    // Expected possibilities:
-    // 1) { success:true, user:{...} }
-    // 2) { status:"success", user:{...} }
-    // 3) { data:{ user:{...} } }
-    // 4) { user:{...} }
     const user =
       result?.user ||
       result?.data?.user ||
       result?.data?.profile ||
       result?.profile ||
+      result?.data ||
       null;
 
-    if (!user) {
+    if (!user || typeof user !== 'object') {
       console.error('Login response:', result);
       throw new Error('Login failed: user record missing in response.');
     }
 
-    // Ensure role exists
     user.role = user.role || user.Role || user.position || user.Position || 'agent';
     user.email = user.email || cleanEmail;
 
     this.saveSession(user);
 
-    // ✅ Always route after login
     const target = this.routeByRole(user.role);
     window.location.href = target;
   }
@@ -122,7 +117,7 @@ class CallHammerPortal {
 
     try {
       await this.loginWithCredentials(email, password);
-      return true; // loginWithCredentials redirects, so this is just a safety return
+      return true; // loginWithCredentials redirects
     } catch (err) {
       console.error('Query param login failed:', err);
       return false;
@@ -155,7 +150,7 @@ class CallHammerPortal {
     if (btn) btn.addEventListener('click', run);
   }
 
-  // ✅ Override logout to always clear session then go to index
+  // ✅ SINGLE logout (do NOT duplicate this)
   logout() {
     this.clearSession();
     window.location.href = 'index.html';
@@ -166,23 +161,25 @@ class CallHammerPortal {
   // ------------------------
   init() {
     this.checkExistingSession();
-        // ✅ If we are on index.html, support:
-    // - query param login (?email=...&password=...)
-    // - login form binding
+
     const path = (window.location.pathname || '').toLowerCase();
-    const onIndex = path.endsWith('index.html') || path.endsWith('/') || path === '';
+    const onIndex = path.endsWith('index.html') || path.endsWith('/') || path === '' || path.endsWith('/index');
 
+    // If user is on index page and already has a session, route them away
+    if (onIndex && this.currentUser) {
+      window.location.href = this.routeByRole(this.currentUser.role);
+      return;
+    }
+
+    // If on index, bind form + query-param login
     if (onIndex) {
-      // bind login form if it exists
       this.bindLoginForm();
-
-      // attempt query param login if provided
       this.tryLoginFromQueryParams();
     }
+
     this.enforceRoleRouting();
     this.bindEvents();
 
-    const path = (window.location.pathname || '').toLowerCase();
     const onAnyDashboard = path.includes('dashboard');
     const onAdminDashboard = path.includes('admin-dashboard');
 
@@ -241,11 +238,6 @@ class CallHammerPortal {
 
   bindEvents() {
     // keep safe – admin dashboard HTML uses portal.logout()
-  }
-
-  logout() {
-    try { localStorage.removeItem('ch_session'); } catch (e) {}
-    window.location.href = 'index.html';
   }
 
   // ------------------------
@@ -364,7 +356,6 @@ class CallHammerPortal {
     d.setHours(0, 0, 0, 0);
 
     // JS getDay(): Sun=0 ... Sat=6
-    // We want Saturday start -> 6
     const day = d.getDay();
     const diffToSat = (day - 6 + 7) % 7; // days since last Saturday
     d.setDate(d.getDate() - diffToSat);
@@ -413,13 +404,9 @@ class CallHammerPortal {
       const result = await response.json();
       this.lastAdminFetch = Date.now();
 
-      // ✅ IMPORTANT: support {status:"success", healthMonitor:[...]} AND {data:{...}}
       const dataRoot = result?.data || result || {};
 
-      const rawHealthMonitor =
-        dataRoot.healthMonitor ||
-        result.healthMonitor ||
-        [];
+      const rawHealthMonitor = dataRoot.healthMonitor || result.healthMonitor || [];
 
       const rawClients =
         dataRoot.clients || dataRoot.Clients || dataRoot.CLIENTS ||
@@ -441,17 +428,14 @@ class CallHammerPortal {
         dataRoot.packages || dataRoot.leadPackages || dataRoot.Packages ||
         result.packages || result.leadPackages || result.Packages || [];
 
-      // ✅ If healthMonitor exists, use it for Client Health Monitor
       if (Array.isArray(rawHealthMonitor) && rawHealthMonitor.length > 0) {
         this.normalizeAdminFromHealthMonitor(rawHealthMonitor);
 
-        // still store these if present
         this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
         this.adminState.agents = Array.isArray(rawAgents) ? rawAgents : [];
         this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
         this.adminState.rawPackages = Array.isArray(rawPackages) ? rawPackages : [];
       } else {
-        // fallback join-based
         this.normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages);
       }
 
@@ -476,7 +460,6 @@ class CallHammerPortal {
     }
   }
 
-  // ✅ ADMIN: normalize from healthMonitor
   normalizeAdminFromHealthMonitor(rows) {
     const list = Array.isArray(rows) ? rows : [];
 
@@ -491,7 +474,6 @@ class CallHammerPortal {
       );
 
       const cityState = this.getAny(r, ['city_state', 'CITY STATE', 'City State', 'location', 'Location'], 'Remote');
-
       const clientName = this.getAny(r, ['client_name', 'CLIENT NAME', 'Client Name'], '—');
 
       const lastLeadReceived = this.getAny(r, ['last_lead_received', 'Last Lead Received'], '');
@@ -524,16 +506,13 @@ class CallHammerPortal {
     });
   }
 
-  // Fallback join-based normalization
   normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages) {
     this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
     this.adminState.rawPackages = Array.isArray(rawPackages) ? rawPackages : [];
 
-    // store raw leads/agents too
     this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
     this.adminState.agents = Array.isArray(rawAgents) ? rawAgents : [];
 
-    // basic fallback: keep clients as-is but normalize minimal fields if needed
     const clientsArr = Array.isArray(rawClients) ? rawClients : [];
     this.adminState.clients = clientsArr.map(c => ({
       status: this.getAny(c, ['STATUS', 'Status', 'Client Status', 'CLIENT STATUS'], 'NOT STARTED'),
