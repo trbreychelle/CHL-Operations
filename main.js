@@ -18,7 +18,8 @@ class CallHammerPortal {
       leads: [],         // raw leads (RAW LEADS tab)
       agents: [],        // normalized from AGENT_MASTER
       rawStatuses: [],   // raw client status rows (Client Lead Delivery Tracker)
-      rawPackages: []    // raw package rows (Lead Package tab)
+      rawPackages: [],   // raw package rows (Lead Package tab)
+      clientCodeList: [] // ✅ NEW: raw client code list rows (MASTER LEAD RECORD -> CLIENT CODE LIST)
     };
 
     // Cache to avoid Google Sheets quota/too-many-requests issues
@@ -234,18 +235,26 @@ class CallHammerPortal {
         dataRoot.packages || dataRoot.leadPackages || dataRoot.Packages ||
         result.packages || result.leadPackages || result.Packages || [];
 
+      // ✅ NEW: Client Code List tab (MASTER LEAD RECORD -> CLIENT CODE LIST)
+      const rawClientCodeList =
+        dataRoot.clientCodeList || dataRoot.client_code_list || dataRoot.codeList || dataRoot.codes ||
+        result.clientCodeList || result.client_code_list || result.codeList || result.codes || [];
+
       // ✅ If healthMonitor exists, use it for Client Health Monitor
       if (Array.isArray(rawHealthMonitor) && rawHealthMonitor.length > 0) {
-        this.normalizeAdminFromHealthMonitor(rawHealthMonitor);
+        // ✅ ENRICH from Client Status + Client Code List if healthMonitor is missing fields
+        this.normalizeAdminFromHealthMonitor(rawHealthMonitor, rawStatuses, rawClientCodeList);
 
         // still store these if present
         this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
         this.adminState.agents = Array.isArray(rawAgents) ? rawAgents : [];
         this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
         this.adminState.rawPackages = Array.isArray(rawPackages) ? rawPackages : [];
+        this.adminState.clientCodeList = Array.isArray(rawClientCodeList) ? rawClientCodeList : [];
       } else {
         // fallback join-based
         this.normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages);
+        this.adminState.clientCodeList = Array.isArray(rawClientCodeList) ? rawClientCodeList : [];
       }
 
       console.log('✅ Admin State Ready:', {
@@ -269,69 +278,137 @@ class CallHammerPortal {
     }
   }
 
-  // ✅ ADMIN: normalize from healthMonitor (now includes code_name + roofing_company + city_state + package stats)
-normalizeAdminFromHealthMonitor(rows) {
-  const list = Array.isArray(rows) ? rows : [];
+  // ✅ ADMIN: normalize from healthMonitor (ENRICHED using Client Status + Client Code List)
+  normalizeAdminFromHealthMonitor(rows, rawStatuses = [], rawClientCodeList = []) {
+    const list = Array.isArray(rows) ? rows : [];
 
-  this.adminState.clients = list.map(r => {
-    // source fields (from n8n)
-    const status = this.getAny(r, ['status', 'Client Status', 'CLIENT STATUS'], 'NOT STARTED');
-    const codeName = this.getAny(r, ['code_name', 'codeName', 'CODE NAME', 'CODE', 'code'], 'N/A');
+    // map: normalized company -> {city_state, client_name, last_lead_received, hours_since_last_lead, leads_today, leads_yesterday, status}
+    const statusMap = new Map();
+    (Array.isArray(rawStatuses) ? rawStatuses : []).forEach(r => {
+      const company = this.getAny(r, ['Roofing Company', 'ROOFING COMPANY', 'Company Name', 'COMPANY NAME'], '');
+      const key = this.normalizeCompanyKey(company);
+      if (!key || key === 'unknown') return;
 
-    const roofingCompany = this.getAny(
-      r,
-      ['roofing_company', 'Roofing Company', 'Roofing Company Name', 'Company Name', 'COMPANY NAME'],
-      '—'
-    );
+      const city = this.getAny(r, ['CITY STATE', 'City State', 'City, State', 'City/State'], '');
+      const client = this.getAny(r, ['CLIENT NAME', 'Client Name'], '');
+      const lastLead = this.getAny(r, ['Last Lead Received', 'LAST LEAD RECEIVED'], '');
+      const hoursSince = this.toNumberSafe(this.getAny(r, ['Hours Since Last Lead', 'HOURS SINCE LAST LEAD'], 0), 0);
+      const today = this.toNumberSafe(this.getAny(r, ['Leads Today', 'LEADS TODAY'], 0), 0);
+      const yday = this.toNumberSafe(this.getAny(r, ['Leads Yesterday', 'LEADS YESTERDAY'], 0), 0);
+      const st = this.getAny(r, ['Client Status', 'CLIENT STATUS'], '');
 
-    const cityState = this.getAny(r, ['city_state', 'CITY STATE', 'City State', 'location', 'Location'], 'Remote');
+      statusMap.set(key, {
+        city_state: city,
+        client_name: client,
+        last_lead_received: lastLead,
+        hours_since_last_lead: hoursSince,
+        leads_today: today,
+        leads_yesterday: yday,
+        status: st
+      });
+    });
 
-    const clientName = this.getAny(r, ['client_name', 'CLIENT NAME', 'Client Name'], '—');
+    // map: normalized company -> code_name (MASTER LEAD RECORD -> CLIENT CODE LIST)
+    const codeMap = new Map();
+    (Array.isArray(rawClientCodeList) ? rawClientCodeList : []).forEach(r => {
+      const company = this.getAny(r, ['COMPANY NAME', 'Company Name', 'company_name'], '');
+      const code = this.getAny(r, ['CODE NAME', 'Code Name', 'code_name', 'CODE', 'code'], '');
+      const key = this.normalizeCompanyKey(company);
+      if (!key || key === 'unknown') return;
+      if (code && String(code).trim() !== '') codeMap.set(key, String(code).trim());
+    });
 
-    const lastLeadReceived = this.getAny(r, ['last_lead_received', 'Last Lead Received'], '');
-    const hoursSinceLastLead = this.toNumberSafe(this.getAny(r, ['hours_since_last_lead', 'Hours Since Last Lead'], 0), 0);
-    const leadsToday = this.toNumberSafe(this.getAny(r, ['leads_today', 'Leads Today'], 0), 0);
-    const leadsYesterday = this.toNumberSafe(this.getAny(r, ['leads_yesterday', 'Leads Yesterday'], 0), 0);
+    this.adminState.clients = list.map(r => {
+      // from n8n payload (if present)
+      const status = this.getAny(r, ['status', 'Client Status', 'CLIENT STATUS'], '');
 
-    const purchasedLeads = this.toNumberSafe(this.getAny(r, ['purchased_leads', 'Purchased Leads'], 0), 0);
-    const owedLeads = this.toNumberSafe(this.getAny(r, ['owed_leads', 'Owed Leads'], 0), 0);
-    const packageStatus = this.getAny(r, ['package_status', 'Package Status', 'Status'], '');
-    const purchaseDate = this.getAny(r, ['purchase_date', 'Purchase Date'], '');
+      const roofingCompany = this.getAny(
+        r,
+        ['roofing_company', 'Roofing Company', 'Roofing Company Name', 'Company Name', 'COMPANY NAME'],
+        '—'
+      );
 
-    return {
-      // ✅ snake_case for easy HTML use
-      status,
-      code_name: codeName,
-      roofing_company: roofingCompany,
-      city_state: cityState,
-      client_name: clientName,
+      const key = this.normalizeCompanyKey(roofingCompany);
+      const enriched = statusMap.get(key) || {};
 
-      last_lead_received: lastLeadReceived,
-      hours_since_last_lead: hoursSinceLastLead,
-      leads_today: leadsToday,
-      leads_yesterday: leadsYesterday,
+      // ✅ Prefer payload values, else use Client Status tab values
+      const cityState =
+        this.getAny(r, ['city_state', 'CITY STATE', 'City State', 'location', 'Location'], '') ||
+        enriched.city_state ||
+        '—';
 
-      purchased_leads: purchasedLeads,
-      owed_leads: owedLeads,
-      package_status: packageStatus,
-      purchase_date: purchaseDate,
+      const clientName =
+        this.getAny(r, ['client_name', 'CLIENT NAME', 'Client Name'], '') ||
+        enriched.client_name ||
+        '—';
 
-      // ✅ camelCase aliases (safe for any other JS)
-      clientName,
-      codeName,
-      roofingCompany,
-      cityState,
-      lastLeadReceived,
-      hoursSinceLastLead,
-      leadsToday,
-      leadsYesterday,
-      purchasedLeads,
-      owedLeads,
-      packageStatus,
-      purchaseDate
-    };
-  });
-}
+      const codeName =
+        this.getAny(r, ['code_name', 'codeName', 'CODE NAME', 'CODE', 'code'], '') ||
+        codeMap.get(key) ||
+        'N/A';
+
+      const lastLeadReceived =
+        this.getAny(r, ['last_lead_received', 'Last Lead Received'], '') ||
+        enriched.last_lead_received ||
+        '';
+
+      const hoursSinceLastLead =
+        this.toNumberSafe(this.getAny(r, ['hours_since_last_lead', 'Hours Since Last Lead'], ''), NaN);
+      const finalHoursSince =
+        Number.isFinite(hoursSinceLastLead) ? hoursSinceLastLead : (enriched.hours_since_last_lead ?? 0);
+
+      const leadsToday =
+        this.toNumberSafe(this.getAny(r, ['leads_today', 'Leads Today'], ''), NaN);
+      const finalLeadsToday =
+        Number.isFinite(leadsToday) ? leadsToday : (enriched.leads_today ?? 0);
+
+      const leadsYesterday =
+        this.toNumberSafe(this.getAny(r, ['leads_yesterday', 'Leads Yesterday'], ''), NaN);
+      const finalLeadsYesterday =
+        Number.isFinite(leadsYesterday) ? leadsYesterday : (enriched.leads_yesterday ?? 0);
+
+      const purchasedLeads = this.toNumberSafe(this.getAny(r, ['purchased_leads', 'Purchased Leads'], 0), 0);
+      const owedLeads = this.toNumberSafe(this.getAny(r, ['owed_leads', 'Owed Leads'], 0), 0);
+      const packageStatus = this.getAny(r, ['package_status', 'Package Status', 'Status'], '');
+      const purchaseDate = this.getAny(r, ['purchase_date', 'Purchase Date'], '');
+
+      // ✅ If status missing in healthMonitor, use Client Status tab
+      const finalStatus = status || enriched.status || 'NOT STARTED';
+
+      return {
+        // ✅ snake_case for easy HTML use
+        status: finalStatus,
+        code_name: codeName,
+        roofing_company: roofingCompany,
+        city_state: cityState,
+        client_name: clientName,
+
+        last_lead_received: lastLeadReceived,
+        hours_since_last_lead: finalHoursSince,
+        leads_today: finalLeadsToday,
+        leads_yesterday: finalLeadsYesterday,
+
+        purchased_leads: purchasedLeads,
+        owed_leads: owedLeads,
+        package_status: packageStatus,
+        purchase_date: purchaseDate,
+
+        // ✅ camelCase aliases (safe for any other JS)
+        clientName,
+        codeName,
+        roofingCompany,
+        cityState,
+        lastLeadReceived,
+        hoursSinceLastLead: finalHoursSince,
+        leadsToday: finalLeadsToday,
+        leadsYesterday: finalLeadsYesterday,
+        purchasedLeads,
+        owedLeads,
+        packageStatus,
+        purchaseDate
+      };
+    });
+  }
 
   // Fallback join-based normalization (also outputs aliases)
   normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages) {
