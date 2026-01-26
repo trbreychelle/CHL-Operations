@@ -12,13 +12,18 @@ class CallHammerPortal {
     this.weeklyPayroll = [];
     this.timeTracker = [];
 
-    // Admin datasets (normalized + raw)
+    // ✅ Admin datasets (normalized + raw)
     this.adminState = {
       clients: [],       // normalized for Client Health Monitor
       leads: [],         // raw leads (RAW LEADS tab)
       agents: [],        // normalized from AGENT_MASTER
       rawStatuses: [],   // raw client status rows (Client Lead Delivery Tracker)
-      rawPackages: []    // raw package rows (Lead Package tab)
+      rawPackages: [],   // raw package rows (Lead Package tab)
+      rawCodeList: [],   // ✅ raw client code list rows (CLIENT CODE LIST tab)
+
+      // ✅ aliases for UI (safe / convenient)
+      clientCodeList: [],
+      leadPackage: []
     };
 
     // Cache to avoid Google Sheets quota/too-many-requests issues
@@ -81,7 +86,6 @@ class CallHammerPortal {
     const path = (window.location.pathname || '').toLowerCase();
     const role = (this.currentUser.role || 'agent').toLowerCase();
 
-    // only guard dashboard routes
     if (!path.includes('dashboard')) return;
 
     const onAdmin = path.includes('admin-dashboard');
@@ -102,7 +106,6 @@ class CallHammerPortal {
     return foundKey ? obj[foundKey] : '';
   }
 
-  // robust getter: try many header spellings
   getAny(obj, keys, fallback = '') {
     if (!obj) return fallback;
     for (const k of keys) {
@@ -112,7 +115,7 @@ class CallHammerPortal {
     return fallback;
   }
 
-  // numbers that might come as strings
+  toNumberSafe(v, fallback
   toNumberSafe(v, fallback = 0) {
     if (v === null || v === undefined) return fallback;
     if (typeof v === 'number') return isNaN(v) ? fallback : v;
@@ -234,6 +237,19 @@ class CallHammerPortal {
         dataRoot.packages || dataRoot.leadPackages || dataRoot.Packages ||
         result.packages || result.leadPackages || result.Packages || [];
 
+      // ✅ NEW: Client Code List tab rows (CODE NAME / COMPANY NAME)
+      const rawCodeList =
+        dataRoot.clientCodeList || dataRoot.codeList || dataRoot.clientCodes || dataRoot.codes ||
+        result.clientCodeList || result.codeList || result.clientCodes || result.codes ||
+        [];
+
+      // store raw always (so enrichment can use it)
+      this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
+      this.adminState.rawPackages = Array.isArray(rawPackages) ? rawPackages : [];
+      this.adminState.rawCodeList = Array.isArray(rawCodeList) ? rawCodeList : [];
+      this.adminState.clientCodeList = this.adminState.rawCodeList; // alias
+      this.adminState.leadPackage = this.adminState.rawPackages;    // alias
+
       // ✅ If healthMonitor exists, use it for Client Health Monitor
       if (Array.isArray(rawHealthMonitor) && rawHealthMonitor.length > 0) {
         this.normalizeAdminFromHealthMonitor(rawHealthMonitor);
@@ -241,12 +257,13 @@ class CallHammerPortal {
         // still store these if present
         this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
         this.adminState.agents = Array.isArray(rawAgents) ? rawAgents : [];
-        this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
-        this.adminState.rawPackages = Array.isArray(rawPackages) ? rawPackages : [];
       } else {
         // fallback join-based
         this.normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages);
       }
+
+      // ✅ NEW: Always enrich client rows using Code List + Status sheet if fields missing
+      this.enrichAdminClientsFromLookups();
 
       console.log('✅ Admin State Ready:', {
         clients: this.adminState.clients.length,
@@ -269,71 +286,131 @@ class CallHammerPortal {
     }
   }
 
-  // ✅ ADMIN: normalize from healthMonitor (now includes code_name + roofing_company + city_state + package stats)
-normalizeAdminFromHealthMonitor(rows) {
-  const list = Array.isArray(rows) ? rows : [];
+  // ✅ NEW: Build lookup maps & fill missing CODE / CITY STATE / CLIENT NAME
+  enrichAdminClientsFromLookups() {
+    const codeRows = Array.isArray(this.adminState.rawCodeList) ? this.adminState.rawCodeList : [];
+    const statusRows = Array.isArray(this.adminState.rawStatuses) ? this.adminState.rawStatuses : [];
 
-  this.adminState.clients = list.map(r => {
-    // source fields (from n8n)
-    const status = this.getAny(r, ['status', 'Client Status', 'CLIENT STATUS'], 'NOT STARTED');
-    const codeName = this.getAny(r, ['code_name', 'codeName', 'CODE NAME', 'CODE', 'code'], 'N/A');
+    // Build COMPANY -> CODE map from CLIENT CODE LIST
+    const codeMap = {};
+    codeRows.forEach(r => {
+      const company = this.getAny(r, ['COMPANY NAME', 'Company Name', 'company name', 'Company', 'Roofing Company'], '');
+      const code = this.getAny(r, ['CODE NAME', 'Code Name', 'code name', 'CODE', 'code'], '');
+      const key = this.normalizeCompanyKey(company);
+      if (!key || key === 'unknown') return;
+      if (code && !codeMap[key]) codeMap[key] = code;
+    });
 
-    const roofingCompany = this.getAny(
-      r,
-      ['roofing_company', 'Roofing Company', 'Roofing Company Name', 'Company Name', 'COMPANY NAME'],
-      '—'
-    );
+    // Build COMPANY -> {CITY STATE, CLIENT NAME} map from CLIENT STATUS sheet
+    const statusMap = {};
+    statusRows.forEach(r => {
+      const company = this.getAny(r, ['Roofing Company', 'ROOFING COMPANY', 'Company Name', 'COMPANY NAME'], '');
+      const key = this.normalizeCompanyKey(company);
+      if (!key || key === 'unknown') return;
 
-    const cityState = this.getAny(r, ['city_state', 'CITY STATE', 'City State', 'location', 'Location'], 'Remote');
+      const cityState = this.getAny(r, ['CITY STATE', 'City State', 'City, State', 'Location', 'location'], '');
+      const clientName = this.getAny(r, ['CLIENT NAME', 'Client Name', 'client name'], '');
+      if (!statusMap[key]) statusMap[key] = {};
+      if (cityState && !statusMap[key].city_state) statusMap[key].city_state = cityState;
+      if (clientName && !statusMap[key].client_name) statusMap[key].client_name = clientName;
+    });
 
-    const clientName = this.getAny(r, ['client_name', 'CLIENT NAME', 'Client Name'], '—');
+    // Apply enrichment
+    this.adminState.clients = (Array.isArray(this.adminState.clients) ? this.adminState.clients : []).map(c => {
+      const company = this.getAny(c, ['roofing_company','roofingCompany','Roofing Company','Company Name','COMPANY NAME','client_name','clientName'], '');
+      const key = this.normalizeCompanyKey(company);
 
-    const lastLeadReceived = this.getAny(r, ['last_lead_received', 'Last Lead Received'], '');
-    const hoursSinceLastLead = this.toNumberSafe(this.getAny(r, ['hours_since_last_lead', 'Hours Since Last Lead'], 0), 0);
-    const leadsToday = this.toNumberSafe(this.getAny(r, ['leads_today', 'Leads Today'], 0), 0);
-    const leadsYesterday = this.toNumberSafe(this.getAny(r, ['leads_yesterday', 'Leads Yesterday'], 0), 0);
+      // fill code
+      const currentCode =
+        this.getAny(c, ['code_name','codeName','CODE NAME','CODE','code'], 'N/A');
+      const fixedCode = (currentCode && currentCode !== 'N/A') ? currentCode : (codeMap[key] || currentCode || 'N/A');
 
-    const purchasedLeads = this.toNumberSafe(this.getAny(r, ['purchased_leads', 'Purchased Leads'], 0), 0);
-    const owedLeads = this.toNumberSafe(this.getAny(r, ['owed_leads', 'Owed Leads'], 0), 0);
-    const packageStatus = this.getAny(r, ['package_status', 'Package Status', 'Status'], '');
-    const purchaseDate = this.getAny(r, ['purchase_date', 'Purchase Date'], '');
+      // fill city/state
+      const currentCity =
+        this.getAny(c, ['city_state','cityState','CITY STATE','City State','Location','location'], '');
+      const fixedCity = (currentCity && currentCity !== 'Remote' && currentCity !== '—') ? currentCity : (statusMap[key]?.city_state || currentCity || 'Remote');
 
-    return {
-      // ✅ snake_case for easy HTML use
-      status,
-      code_name: codeName,
-      roofing_company: roofingCompany,
-      city_state: cityState,
-      client_name: clientName,
+      // fill client name
+      const currentClient =
+        this.getAny(c, ['client_name','clientName','CLIENT NAME','Client Name'], '');
+      const fixedClient = (currentClient && currentClient !== '—') ? currentClient : (statusMap[key]?.client_name || currentClient || '—');
 
-      last_lead_received: lastLeadReceived,
-      hours_since_last_lead: hoursSinceLastLead,
-      leads_today: leadsToday,
-      leads_yesterday: leadsYesterday,
+      return {
+        ...c,
+        code_name: fixedCode,
+        city_state: fixedCity,
+        client_name: fixedClient,
 
-      purchased_leads: purchasedLeads,
-      owed_leads: owedLeads,
-      package_status: packageStatus,
-      purchase_date: purchaseDate,
+        // keep camelCase aliases consistent for UI
+        codeName: fixedCode,
+        cityState: fixedCity,
+        clientName: fixedClient
+      };
+    });
+  }
 
-      // ✅ camelCase aliases (safe for any other JS)
-      clientName,
-      codeName,
-      roofingCompany,
-      cityState,
-      lastLeadReceived,
-      hoursSinceLastLead,
-      leadsToday,
-      leadsYesterday,
-      purchasedLeads,
-      owedLeads,
-      packageStatus,
-      purchaseDate
-    };
-  });
-}
+  // ✅ ADMIN: normalize from healthMonitor
+  normalizeAdminFromHealthMonitor(rows) {
+    const list = Array.isArray(rows) ? rows : [];
 
-  // Fallback join-based normalization (also outputs aliases)
+    this.adminState.clients = list.map(r => {
+      const status = this.getAny(r, ['status', 'Client Status', 'CLIENT STATUS'], 'NOT STARTED');
+      const codeName = this.getAny(r, ['code_name', 'codeName', 'CODE NAME', 'CODE', 'code'], 'N/A');
+
+      const roofingCompany = this.getAny(
+        r,
+        ['roofing_company', 'Roofing Company', 'Roofing Company Name', 'Company Name', 'COMPANY NAME'],
+        '—'
+      );
+
+      const cityState = this.getAny(r, ['city_state', 'CITY STATE', 'City State', 'location', 'Location'], 'Remote');
+      const clientName = this.getAny(r, ['client_name', 'CLIENT NAME', 'Client Name'], '—');
+
+      const lastLeadReceived = this.getAny(r, ['last_lead_received', 'Last Lead Received'], '');
+      const hoursSinceLastLead = this.toNumberSafe(this.getAny(r, ['hours_since_last_lead', 'Hours Since Last Lead'], 0), 0);
+      const leadsToday = this.toNumberSafe(this.getAny(r, ['leads_today', 'Leads Today'], 0), 0);
+      const leadsYesterday = this.toNumberSafe(this.getAny(r, ['leads_yesterday', 'Leads Yesterday'], 0), 0);
+
+      const purchasedLeads = this.toNumberSafe(this.getAny(r, ['purchased_leads', 'Purchased Leads'], 0), 0);
+      const owedLeads = this.toNumberSafe(this.getAny(r, ['owed_leads', 'Owed Leads'], 0), 0);
+      const packageStatus = this.getAny(r, ['package_status', 'Package Status', 'Status'], '');
+      const purchaseDate = this.getAny(r, ['purchase_date', 'Purchase Date'], '');
+
+      return {
+        status,
+        code_name: codeName,
+        roofing_company: roofingCompany,
+        city_state: cityState,
+        client_name: clientName,
+
+        last_lead_received: lastLeadReceived,
+        hours_since_last_lead: hoursSinceLastLead,
+        leads_today: leadsToday,
+        leads_yesterday: leadsYesterday,
+
+        purchased_leads: purchasedLeads,
+        owed_leads: owedLeads,
+        package_status: packageStatus,
+        purchase_date: purchaseDate,
+
+        // camelCase aliases
+        clientName,
+        codeName,
+        roofingCompany,
+        cityState,
+        lastLeadReceived,
+        hoursSinceLastLead,
+        leadsToday,
+        leadsYesterday,
+        purchasedLeads,
+        owedLeads,
+        packageStatus,
+        purchaseDate
+      };
+    });
+  }
+
+  // Fallback join-based normalization (unchanged logic)
   normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages) {
     this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
     this.adminState.rawPackages = Array.isArray(rawPackages) ? rawPackages : [];
@@ -377,7 +454,6 @@ normalizeAdminFromHealthMonitor(rows) {
       const leadsToday = this.toNumberSafe(this.getAny(sRow, ['Leads Today'], 0), 0);
       const leadsYesterday = this.toNumberSafe(this.getAny(sRow, ['Leads Yesterday'], 0), 0);
 
-      // ✅ output both naming styles
       return {
         client_name: companyName,
         code: codeName,
@@ -412,7 +488,7 @@ normalizeAdminFromHealthMonitor(rows) {
     this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
   }
 
-  // ✅ ADMIN: compute Team Performance from RAW LEADS + Agent Master
+  // ✅ ADMIN: compute Team Performance from RAW LEADS + Agent Master (unchanged)
   calculateAdminTeamStats(timeFilter = 'today') {
     const stats = {};
 
@@ -473,7 +549,7 @@ normalizeAdminFromHealthMonitor(rows) {
   }
 
   // ------------------------
-  // Payroll Week Helpers (Agent/TL)
+  // Payroll Week Helpers (Agent/TL) (unchanged)
   // ------------------------
   getPayrollWeekRangeFor(date) {
     const mstDate = this.toMST(date);
@@ -598,7 +674,7 @@ normalizeAdminFromHealthMonitor(rows) {
   }
 
   // ------------------------
-  // Status helpers
+  // Status helpers (unchanged)
   // ------------------------
   isConfirmedStatus(status) {
     const s = (status || '').toString().trim().toLowerCase();
@@ -611,7 +687,7 @@ normalizeAdminFromHealthMonitor(rows) {
   }
 
   // ------------------------
-  // Data Fetch (AGENT)
+  // Data Fetch (AGENT) (unchanged)
   // ------------------------
   async fetchAllData() {
     if (!this.currentUser) return;
@@ -678,7 +754,7 @@ normalizeAdminFromHealthMonitor(rows) {
   }
 
   // ------------------------
-  // Basic UI helpers (agent)
+  // Basic UI helpers (agent) (unchanged)
   // ------------------------
   updateProfileUI() {
     if (!this.currentUser) return;
