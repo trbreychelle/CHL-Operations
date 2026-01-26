@@ -66,7 +66,9 @@ class CallHammerPortal {
     const cleanEmail = String(email || '').trim();
     const cleanPassword = String(password || '').trim();
 
-    if (!cleanEmail || !cleanPassword) throw new Error('Missing email or password.');
+    if (!cleanEmail || !cleanPassword) {
+      throw new Error('Missing email or password.');
+    }
 
     const res = await fetch(this.webhooks.login, {
       method: 'POST',
@@ -74,7 +76,9 @@ class CallHammerPortal {
       body: JSON.stringify({ email: cleanEmail, password: cleanPassword })
     });
 
-    if (!res.ok) throw new Error(`Login failed (HTTP ${res.status}).`);
+    if (!res.ok) {
+      throw new Error(`Login failed (HTTP ${res.status}).`);
+    }
 
     const result = await res.json();
 
@@ -84,8 +88,8 @@ class CallHammerPortal {
       result?.data?.user ||
       result?.data?.profile ||
       result?.profile ||
-      (result?.data && typeof result.data === 'object' ? result.data : null) ||
-      (typeof result === 'object' ? result : null);
+      result?.data ||
+      null;
 
     if (!user || typeof user !== 'object') {
       console.error('Login response:', result);
@@ -100,65 +104,84 @@ class CallHammerPortal {
     window.location.href = this.routeByRole(user.role);
   }
 
-  tryLoginFromQueryParams() {
+  async tryLoginFromQueryParams() {
     const params = new URLSearchParams(window.location.search || '');
     const email = params.get('email');
     const password = params.get('password');
-    if (!email || !password) return;
 
-    // fire and forget (it will redirect on success)
-    this.loginWithCredentials(email, password).catch(err => {
+    if (!email || !password) return false;
+
+    try {
+      await this.loginWithCredentials(email, password);
+      return true;
+    } catch (err) {
       console.error('Query param login failed:', err);
-    });
+      return false;
+    }
   }
 
+  // ✅ Binds to YOUR index.html IDs: loginForm/email/password/loginButton/loginError/loginSpinner/loginText
   bindIndexLoginForm() {
-    // ✅ matches YOUR index.html IDs
     const form = document.getElementById('loginForm');
+    if (!form) return;
+
     const emailEl = document.getElementById('email');
     const passEl = document.getElementById('password');
-
-    const errorBox = document.getElementById('loginError');
-    const errorText = errorBox ? errorBox.querySelector('p') : null;
-
     const btn = document.getElementById('loginButton');
+
+    const errWrap = document.getElementById('loginError');
+    const errText = errWrap ? errWrap.querySelector('p') : null;
+
     const spinner = document.getElementById('loginSpinner');
     const loginText = document.getElementById('loginText');
 
-    if (!form || !emailEl || !passEl) return;
-
-    const setLoading = (on) => {
-      if (btn) btn.disabled = !!on;
-      if (spinner) spinner.classList.toggle('hidden', !on);
-      if (loginText) loginText.classList.toggle('hidden', !!on);
+    const setLoading = (isLoading) => {
+      if (btn) btn.disabled = !!isLoading;
+      if (spinner) spinner.classList.toggle('hidden', !isLoading);
+      if (loginText) loginText.classList.toggle('hidden', !!isLoading);
     };
 
     const showError = (msg) => {
-      if (!errorBox) return;
-      errorBox.classList.remove('hidden');
-      if (errorText) errorText.textContent = msg || 'Login failed.';
-      errorBox.classList.add('error-shake');
-      setTimeout(() => errorBox.classList.remove('error-shake'), 600);
+      if (!errWrap) return;
+      errWrap.classList.remove('hidden');
+      if (errText) errText.textContent = msg || 'Login failed. Please try again.';
+      // little shake if you want
+      errWrap.classList.add('error-shake');
+      setTimeout(() => errWrap.classList.remove('error-shake'), 600);
     };
 
     const clearError = () => {
-      if (!errorBox) return;
-      errorBox.classList.add('hidden');
-      if (errorText) errorText.textContent = '';
+      if (!errWrap) return;
+      errWrap.classList.add('hidden');
+      if (errText) errText.textContent = '';
     };
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
+    const run = async (e) => {
+      if (e) e.preventDefault();
       clearError();
-      setLoading(true);
+
+      const email = emailEl ? emailEl.value : '';
+      const password = passEl ? passEl.value : '';
+
       try {
-        await this.loginWithCredentials(emailEl.value, passEl.value);
+        setLoading(true);
+        await this.loginWithCredentials(email, password);
       } catch (err) {
         console.error(err);
-        showError(err.message || 'Login failed. Please try again.');
+        showError(err?.message || 'Login failed. Please try again.');
+      } finally {
         setLoading(false);
       }
-    });
+    };
+
+    form.addEventListener('submit', run);
+    if (btn) btn.addEventListener('click', run);
+  }
+
+  // Override logout: clear session then go to index
+  logout() {
+    this.clearSession();
+    window.location.href = 'index.html';
   }
 
   // ------------------------
@@ -170,17 +193,18 @@ class CallHammerPortal {
     const path = (window.location.pathname || '').toLowerCase();
     const onIndex =
       path.endsWith('index.html') ||
-      path.endsWith('/') ||
+      path === '/' ||
       path === '' ||
-      path.endsWith('/index');
+      path.endsWith('/index') ||
+      path.endsWith('/index.html');
 
-    // ✅ If on index and already logged in, route away immediately
+    // ✅ If already logged in and on index, route immediately
     if (onIndex && this.currentUser) {
       window.location.href = this.routeByRole(this.currentUser.role);
       return;
     }
 
-    // ✅ If on index, bind form + support queryparam login
+    // ✅ If on index, bind form + allow URL param login
     if (onIndex) {
       this.bindIndexLoginForm();
       this.tryLoginFromQueryParams();
@@ -209,13 +233,6 @@ class CallHammerPortal {
     // Admin dashboard (Mission Control / Overview)
     if (onAdminDashboard) {
       document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
-
-      // ✅ Ensure a refresh function exists (fallback uses RAW LEADS)
-      window.adminDashboard = window.adminDashboard || {};
-      if (typeof window.adminDashboard.refreshDashboard !== 'function') {
-        window.adminDashboard.refreshDashboard = () => this.refreshAdminAnalyticsFromRawLeads();
-      }
-
       setTimeout(() => this.fetchAdminData(false), 300);
     }
   }
@@ -256,12 +273,6 @@ class CallHammerPortal {
     // keep safe – admin dashboard HTML uses portal.logout()
   }
 
-  // ✅ logout: clear session then go home
-  logout() {
-    this.clearSession();
-    window.location.href = 'index.html';
-  }
-
   // ------------------------
   // Helpers
   // ------------------------
@@ -295,9 +306,30 @@ class CallHammerPortal {
     return String(str).toLowerCase().replace(/[^a-z0-9]/g, '').trim();
   }
 
-  // ✅ date-only parsing without timezone shifting (prevents wrong weekly counts)
+  // ✅ date-only parsing without timezone shifting + supports Sheets serial numbers
   parseDateSafe(value) {
-    if (!value) return null;
+    if (value === null || value === undefined || value === '') return null;
+
+    // ✅ Google Sheets serial date support
+    // If your Sheets node returns a date as a number (ex: 45231), convert from 1899-12-30
+    if (typeof value === 'number' && isFinite(value)) {
+      // Heuristic: serial dates are usually > 20000
+      if (value > 20000) {
+        const base = new Date(Date.UTC(1899, 11, 30));
+        const ms = base.getTime() + value * 24 * 60 * 60 * 1000;
+        const dt = new Date(ms);
+        return isNaN(dt.getTime()) ? null : dt;
+      }
+      // If it's epoch ms/seconds, try both
+      if (value > 1e12) {
+        const dt = new Date(value);
+        return isNaN(dt.getTime()) ? null : dt;
+      }
+      if (value > 1e9) {
+        const dt = new Date(value * 1000);
+        return isNaN(dt.getTime()) ? null : dt;
+      }
+    }
 
     const raw = value.toString().trim();
     if (!raw) return null;
@@ -318,7 +350,7 @@ class CallHammerPortal {
       const m = parseInt(slashMatch[1], 10) - 1;
       const d = parseInt(slashMatch[2], 10);
       const y = parseInt(slashMatch[3], 10);
-      const dt = new Date(y, m, d, 12, 0, 0); // noon local avoids shifting
+      const dt = new Date(y, m, d, 12, 0, 0);
       return isNaN(dt.getTime()) ? null : dt;
     }
 
@@ -332,12 +364,12 @@ class CallHammerPortal {
   // ------------------------
   isQualifiedStatus(status) {
     const s = String(status || '').trim().toUpperCase();
-    return s.includes('CONFIRM') || s.includes('APPROV') || s.includes('QUALIF');
+    return s.includes('CONFIRM') || s.includes('APPROV');
   }
 
   isUnqualifiedStatus(status) {
     const s = String(status || '').trim().toUpperCase();
-    return s.includes('REJECT') || s.includes('CREDIT') || s.includes('DECLIN') || s.includes('CANCEL') || s.includes('UNQUAL');
+    return s.includes('REJECT') || s.includes('CREDIT') || s.includes('DECLIN') || s.includes('CANCEL');
   }
 
   formatCurrency(v) {
@@ -404,6 +436,136 @@ class CallHammerPortal {
   }
 
   // ------------------------
+  // ✅ ADMIN ANALYTICS FROM RAW LEADS (ADDED)
+  // ------------------------
+  getLeadDateValue(lead) {
+    return this.getAny(lead, [
+      'lead_date', 'Lead Date', 'DATE', 'Date',
+      'created_at', 'Created At', 'timestamp', 'Timestamp',
+      'TimeStamp', 'Submitted At', 'submitted_at',
+      'Appointment Date', 'appointment_date',
+      'Date Submitted', 'date_submitted',
+      'Submission Date', 'submission_date'
+    ], '');
+  }
+
+  getLeadStatusValue(lead) {
+    return this.getAny(lead, [
+      'status', 'Status',
+      'Lead Status', 'LEAD STATUS', 'lead_status',
+      'Disposition', 'disposition'
+    ], '');
+  }
+
+  // which range button is selected on admin dashboard
+  getSelectedAdminRangeKey() {
+    const candidates = Array.from(document.querySelectorAll('button, a'))
+      .filter(el => /today|this week|previous week|4 weeks|6 weeks|all-time/i.test(el.textContent || ''))
+      .filter(el => el.classList.contains('active') || el.getAttribute('aria-current') === 'true' || el.getAttribute('aria-selected') === 'true');
+
+    const text = (candidates[0]?.textContent || 'today').toLowerCase();
+    if (text.includes('all')) return 'all-time';
+    if (text.includes('previous')) return 'previous-week';
+    if (text.includes('6')) return '6-weeks';
+    if (text.includes('4')) return '4-weeks';
+    if (text.includes('this week')) return 'this-week';
+    return 'today';
+  }
+
+  computeAdminDateRange(rangeKey) {
+    const now = new Date();
+
+    const startOfDay = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+    const endOfDay = (d) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
+    const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+
+    const day = now.getDay(); // Sun=0..Sat=6
+    const monday = addDays(startOfDay(now), (day === 0 ? -6 : 1 - day)); // Monday start
+
+    if (rangeKey === 'all-time') return { start: new Date(2000,0,1), end: endOfDay(now) };
+    if (rangeKey === 'today') return { start: startOfDay(now), end: endOfDay(now) };
+    if (rangeKey === 'this-week') return { start: monday, end: endOfDay(now) };
+    if (rangeKey === 'previous-week') {
+      const prevMon = addDays(monday, -7);
+      const prevSun = addDays(prevMon, 6);
+      return { start: prevMon, end: endOfDay(prevSun) };
+    }
+    if (rangeKey === '4-weeks') return { start: addDays(startOfDay(now), -28), end: endOfDay(now) };
+    if (rangeKey === '6-weeks') return { start: addDays(startOfDay(now), -42), end: endOfDay(now) };
+
+    return { start: startOfDay(now), end: endOfDay(now) };
+  }
+
+  setMetricByLabel(labelText, valueText) {
+    // Finds a card that contains the label text and replaces the big number inside it.
+    const label = String(labelText || '').toLowerCase();
+
+    const all = Array.from(document.querySelectorAll('*'))
+      .filter(el => (el.textContent || '').trim().toLowerCase() === label);
+
+    for (const lbl of all) {
+      // common pattern: label is a small text, number is in same card/container
+      let card = lbl.closest('div');
+      for (let i = 0; i < 6 && card; i++) {
+        // try find a big number-like element inside card
+        const candidates = Array.from(card.querySelectorAll('div,span,p,h1,h2,h3'))
+          .filter(x => /\d|%/.test((x.textContent || '').trim()))
+          .sort((a,b) => (b.textContent || '').trim().length - (a.textContent || '').trim().length);
+
+        // better: take the first "big number" near top
+        const big = candidates.find(x => /^[\d,]+(\.\d+)?%?$/.test((x.textContent || '').trim()));
+        if (big) { big.textContent = valueText; return true; }
+
+        card = card.parentElement;
+      }
+    }
+    return false;
+  }
+
+  refreshAdminAnalyticsFromRawLeads() {
+    const leads = Array.isArray(this.adminState.leads) ? this.adminState.leads : [];
+    if (!leads.length) {
+      console.warn('⚠️ No raw leads found in adminState.leads. Check n8n response includes "leads".');
+      return;
+    }
+
+    const rangeKey = this.getSelectedAdminRangeKey();
+    const { start, end } = this.computeAdminDateRange(rangeKey);
+
+    const inRange = leads.filter(l => {
+      const dt = this.parseDateSafe(this.getLeadDateValue(l));
+      if (!dt) return false;
+      return dt >= start && dt <= end;
+    });
+
+    let total = inRange.length;
+    let qualified = 0;
+    let unqualified = 0;
+    let pending = 0;
+
+    for (const l of inRange) {
+      const status = this.getLeadStatusValue(l);
+      if (this.isQualifiedStatus(status)) qualified++;
+      else if (this.isUnqualifiedStatus(status)) unqualified++;
+      else pending++;
+    }
+
+    const denom = qualified + unqualified;
+    const cancelRate = denom > 0 ? Math.round((unqualified / denom) * 100) : 0;
+
+    // ✅ Update metric cards (best-effort by labels)
+    this.setMetricByLabel('TOTAL LEADS', String(total));
+    this.setMetricByLabel('QUALIFIED', String(qualified));
+    this.setMetricByLabel('UNQUALIFIED', String(unqualified));
+    this.setMetricByLabel('PENDING', String(pending));
+    this.setMetricByLabel('CANCELLATION RATE', `${cancelRate}%`);
+
+    console.log('✅ Admin analytics computed from RAW leads:', {
+      rangeKey, start, end, total, qualified, unqualified, pending, cancelRate
+    });
+  }
+
+  // ------------------------
   // ✅ ADMIN: Fetch + Normalize
   // ------------------------
   async fetchAdminData(forceRefresh = false) {
@@ -441,7 +603,6 @@ class CallHammerPortal {
 
       const rawLeads =
         dataRoot.leads || dataRoot.Leads || dataRoot.LEADS ||
-        dataRoot.rawLeads || dataRoot['RAW LEADS'] ||
         result.leads || result.Leads || result.LEADS || [];
 
       const rawAgents =
@@ -477,6 +638,13 @@ class CallHammerPortal {
       });
 
       this.triggerAdminRefresh();
+
+      // ✅ After refresh, compute analytics from RAW leads
+      // (small delay so DOM is ready)
+      setTimeout(() => {
+        try { this.refreshAdminAnalyticsFromRawLeads(); } catch (e) { console.error(e); }
+      }, 150);
+
     } catch (err) {
       console.error('❌ fetchAdminData failed:', err);
       this.triggerAdminRefresh();
@@ -487,9 +655,7 @@ class CallHammerPortal {
     if (window.adminDashboard && typeof window.adminDashboard.refreshDashboard === 'function') {
       window.adminDashboard.refreshDashboard();
     } else {
-      // ✅ fallback: still try to compute from raw leads
-      try { this.refreshAdminAnalyticsFromRawLeads(); } catch (e) {}
-      console.warn('⚠️ adminDashboard.refreshDashboard not found.');
+      console.warn('⚠️ adminDashboard.refreshDashboard not found (OK if your admin UI uses a different function).');
     }
   }
 
@@ -567,190 +733,6 @@ class CallHammerPortal {
       package_status: '',
       purchase_date: ''
     }));
-  }
-
-  // ------------------------
-  // ✅ ADMIN ANALYTICS FROM RAW LEADS (ADDED)
-  // ------------------------
-  refreshAdminAnalyticsFromRawLeads() {
-    const leads = Array.isArray(this.adminState.leads) ? this.adminState.leads : [];
-    if (!leads.length) {
-      console.warn('⚠️ RAW LEADS is empty (adminState.leads). If this is wrong, webhook/dashboard-data is not returning leads.');
-      return;
-    }
-
-    // Range selector: tries to find active pill (Today / This Week / Previous Week / 4 Weeks / 6 Weeks / All-Time)
-    const rangeKey = (() => {
-      const btns = Array.from(document.querySelectorAll('button, a'))
-        .filter(el => /today|this week|previous week|4 weeks|6 weeks|all-time/i.test(el.textContent || ''));
-      const active = btns.find(el =>
-        el.classList.contains('active') ||
-        el.getAttribute('aria-selected') === 'true' ||
-        el.getAttribute('aria-current') === 'true'
-      );
-      const t = (active?.textContent || '').toLowerCase();
-      if (t.includes('all')) return 'all-time';
-      if (t.includes('previous')) return 'previous-week';
-      if (t.includes('6')) return '6-weeks';
-      if (t.includes('4')) return '4-weeks';
-      if (t.includes('this week')) return 'this-week';
-      return 'today';
-    })();
-
-    const startOfDay = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
-    const endOfDay = (d) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
-    const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
-
-    const computeRange = () => {
-      const now = new Date();
-      if (rangeKey === 'all-time') return { start: new Date(2000,0,1), end: endOfDay(now) };
-      if (rangeKey === 'today') return { start: startOfDay(now), end: endOfDay(now) };
-
-      // week Mon..Sun
-      const day = now.getDay(); // Sun=0
-      const diffToMon = (day + 6) % 7;
-      const mon = startOfDay(addDays(now, -diffToMon));
-      const sun = endOfDay(addDays(mon, 6));
-
-      if (rangeKey === 'this-week') return { start: mon, end: sun };
-      if (rangeKey === 'previous-week') {
-        const prevMon = addDays(mon, -7);
-        return { start: prevMon, end: endOfDay(addDays(prevMon, 6)) };
-      }
-      if (rangeKey === '4-weeks') return { start: startOfDay(addDays(now, -28)), end: endOfDay(now) };
-      if (rangeKey === '6-weeks') return { start: startOfDay(addDays(now, -42)), end: endOfDay(now) };
-
-      return { start: startOfDay(now), end: endOfDay(now) };
-    };
-
-    const { start, end } = computeRange();
-
-    const getLeadDate = (lead) => this.getAny(lead, [
-      'lead_date', 'Lead Date', 'DATE', 'Date',
-      'created_at', 'Created At', 'timestamp', 'Timestamp',
-      'appointment_date', 'Appointment Date'
-    ], '');
-
-    const getLeadStatus = (lead) => this.getAny(lead, [
-      'status', 'Status', 'LEAD STATUS', 'Lead Status',
-      'disposition', 'Disposition', 'result', 'Result'
-    ], '');
-
-    const getLeadAgent = (lead) => this.getAny(lead, [
-      'agent', 'Agent', 'AGENT NAME', 'Agent Name',
-      'set_by', 'Set By', 'setter', 'Setter',
-      'agent_email', 'Agent Email', 'email', 'Email'
-    ], 'Unknown');
-
-    const inRange = leads.filter(l => {
-      const dt = this.parseDateSafe(getLeadDate(l));
-      if (!dt) return false;
-      return dt >= start && dt <= end;
-    });
-
-    let total = inRange.length;
-    let qualified = 0;
-    let unqualified = 0;
-    let pending = 0;
-
-    const agentQualified = new Map();
-
-    for (const l of inRange) {
-      const status = getLeadStatus(l);
-      if (this.isQualifiedStatus(status)) {
-        qualified++;
-        const a = String(getLeadAgent(l) || 'Unknown').trim() || 'Unknown';
-        agentQualified.set(a, (agentQualified.get(a) || 0) + 1);
-      } else if (this.isUnqualifiedStatus(status)) {
-        unqualified++;
-      } else {
-        pending++;
-      }
-    }
-
-    const denom = qualified + unqualified;
-    const cancelRate = denom === 0 ? 0 : (unqualified / denom);
-    const cancelPct = `${Math.round(cancelRate * 100)}%`;
-
-    // ✅ Set KPI numbers by finding the label text and updating a nearby number
-    const setKpiByLabel = (labelText, valueText) => {
-      const label = String(labelText).trim().toLowerCase();
-      const els = Array.from(document.querySelectorAll('*'))
-        .filter(el => (el.textContent || '').trim().toLowerCase() === label);
-
-      for (const el of els) {
-        const card = el.closest('div') || el.parentElement;
-        if (!card) continue;
-
-        const candidates = Array.from(card.querySelectorAll('div, span, p, h1, h2, h3'))
-          .filter(x => x !== el)
-          .map(x => ({ el: x, txt: (x.textContent || '').trim() }))
-          .filter(x => x.txt.length <= 20); // avoid big paragraphs
-
-        const num = candidates.find(x => /^[\d,$.%]+$/.test(x.txt));
-        if (num) { num.el.textContent = valueText; return true; }
-      }
-      return false;
-    };
-
-    setKpiByLabel('TOTAL LEADS', String(total));
-    setKpiByLabel('QUALIFIED', String(qualified));
-    setKpiByLabel('UNQUALIFIED', String(unqualified));
-    setKpiByLabel('PENDING', String(pending));
-    setKpiByLabel('CANCELLATION RATE', cancelPct);
-
-    // ✅ Fill Top/Bottom tables if present
-    const fillTableByHeader = (headerContains, rowsHtml) => {
-      const titleEls = Array.from(document.querySelectorAll('*'))
-        .filter(el => (el.textContent || '').toLowerCase().includes(String(headerContains).toLowerCase()))
-        .slice(0, 5);
-
-      for (const t of titleEls) {
-        const block = t.closest('div');
-        const table = block ? block.querySelector('table') : null;
-        const tbody = table ? table.querySelector('tbody') : null;
-        if (tbody) {
-          tbody.innerHTML = rowsHtml;
-          return true;
-        }
-      }
-      return false;
-    };
-
-    const top10 = Array.from(agentQualified.entries())
-      .sort((a,b) => b[1] - a[1])
-      .slice(0, 10);
-
-    const topRows = top10.length ? top10.map(([agent, cnt]) => `
-      <tr class="border-t">
-        <td class="py-3 px-4 text-sm text-gray-900">${agent}</td>
-        <td class="py-3 px-4 text-sm text-gray-900">${cnt}</td>
-        <td class="py-3 px-4 text-sm text-green-600">${cnt}</td>
-        <td class="py-3 px-4 text-sm text-red-600">0</td>
-        <td class="py-3 px-4 text-sm text-gray-600">0%</td>
-      </tr>
-    `).join('') : `<tr><td colspan="5" class="py-6 text-center text-sm text-gray-500">No leads in this period.</td></tr>`;
-
-    const bottom5 = Array.from(agentQualified.entries())
-      .sort((a,b) => a[1] - b[1])
-      .slice(0, 5);
-
-    const bottomRows = bottom5.length ? bottom5.map(([agent, cnt]) => `
-      <tr class="border-t">
-        <td class="py-3 px-4 text-sm text-gray-900">${agent}</td>
-        <td class="py-3 px-4 text-sm text-gray-900">${cnt}</td>
-        <td class="py-3 px-4 text-sm text-green-600">${cnt}</td>
-        <td class="py-3 px-4 text-sm text-red-600">0</td>
-        <td class="py-3 px-4 text-sm text-gray-600">0%</td>
-      </tr>
-    `).join('') : `<tr><td colspan="5" class="py-6 text-center text-sm text-gray-500">No leads in this period.</td></tr>`;
-
-    fillTableByHeader('Top 10 Agents', topRows);
-    fillTableByHeader('Bottom 5 Agents', bottomRows);
-
-    console.log('✅ Admin analytics updated from RAW LEADS', {
-      rangeKey, total, qualified, unqualified, pending, cancelPct
-    });
   }
 }
 
