@@ -14,12 +14,11 @@ class CallHammerPortal {
 
     // Admin datasets (normalized + raw)
     this.adminState = {
-      clients: [],        
-      leads: [],          
-      agents: [],         
-      rawStatuses: [],    
-      rawPackages: [],
-      clientCodeList: [] // ✅ Added storage for Master Code List
+      clients: [],       // normalized for Client Health Monitor
+      leads: [],         // raw leads (RAW LEADS tab)
+      agents: [],        // normalized from AGENT_MASTER
+      rawStatuses: [],   // raw client status rows (Client Lead Delivery Tracker)
+      rawPackages: []    // raw package rows (Lead Package tab)
     };
 
     // Cache to avoid Google Sheets quota/too-many-requests issues
@@ -72,6 +71,8 @@ class CallHammerPortal {
     // Admin dashboard (Mission Control / Overview)
     if (onAdminDashboard) {
       document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+
+      // ✅ CHANGE: force refresh ONCE on load so n8n changes show immediately (no cached N/A)
       setTimeout(() => this.fetchAdminData(true), 300);
     }
   }
@@ -103,6 +104,7 @@ class CallHammerPortal {
     return foundKey ? obj[foundKey] : '';
   }
 
+  // robust getter: try many header spellings
   getAny(obj, keys, fallback = '') {
     if (!obj) return fallback;
     for (const k of keys) {
@@ -112,6 +114,7 @@ class CallHammerPortal {
     return fallback;
   }
 
+  // numbers that might come as strings
   toNumberSafe(v, fallback = 0) {
     if (v === null || v === undefined) return fallback;
     if (typeof v === 'number') return isNaN(v) ? fallback : v;
@@ -119,32 +122,40 @@ class CallHammerPortal {
     return isNaN(n) ? fallback : n;
   }
 
+  // join key for company names (removes punctuation/spaces, case-insensitive)
   normalizeCompanyKey(str) {
     if (!str) return 'unknown';
-    // Remove punctuation, spaces, and make lowercase for matching
-    return String(str).toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]/g, '').trim();
+    return String(str).toLowerCase().replace(/[^a-z0-9]/g, '').trim();
   }
 
+  // ✅ date-only parsing without timezone shifting (prevents wrong weekly counts)
   parseDateSafe(value) {
     if (!value) return null;
+
     const raw = value.toString().trim();
     if (!raw) return null;
+
+    // YYYY-MM-DD
     const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (isoMatch) {
       const y = parseInt(isoMatch[1], 10);
       const m = parseInt(isoMatch[2], 10) - 1;
       const d = parseInt(isoMatch[3], 10);
-      const dt = new Date(y, m, d, 12, 0, 0); 
+      const dt = new Date(y, m, d, 12, 0, 0); // noon local avoids shifting
       return isNaN(dt.getTime()) ? null : dt;
     }
+
+    // M/D/YYYY or MM/DD/YYYY
     const slashMatch = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (slashMatch) {
       const m = parseInt(slashMatch[1], 10) - 1;
       const d = parseInt(slashMatch[2], 10);
       const y = parseInt(slashMatch[3], 10);
-      const dt = new Date(y, m, d, 12, 0, 0); 
+      const dt = new Date(y, m, d, 12, 0, 0); // noon local avoids shifting
       return isNaN(dt.getTime()) ? null : dt;
     }
+
+    // Fallback
     const d = new Date(raw);
     return isNaN(d.getTime()) ? null : d;
   }
@@ -152,7 +163,7 @@ class CallHammerPortal {
   // --- MST Clock Helpers ---
   toMST(date) {
     const d = new Date(date);
-    const mstOffset = -7 * 60; 
+    const mstOffset = -7 * 60; // MST offset minutes
     const localOffset = d.getTimezoneOffset();
     return new Date(d.getTime() + (mstOffset + localOffset) * 60000);
   }
@@ -165,8 +176,10 @@ class CallHammerPortal {
   startMSTClock() {
     const el = document.getElementById('mst-clock');
     if (!el) return;
+
     const tick = () => { el.textContent = `${this.formatMSTTime()} MST`; };
     tick();
+
     clearInterval(this._mstClockInterval);
     this._mstClockInterval = setInterval(tick, 1000);
   }
@@ -176,6 +189,7 @@ class CallHammerPortal {
   // ------------------------
   async fetchAdminData(forceRefresh = false) {
     try {
+      // Cache guard to avoid quota
       const now = Date.now();
       if (!forceRefresh && this.adminState.clients.length > 0 && (now - this.lastAdminFetch) < this.adminCacheMs) {
         console.log('🧠 Using cached admin data (quota guard).');
@@ -194,34 +208,47 @@ class CallHammerPortal {
       const result = await response.json();
       this.lastAdminFetch = Date.now();
 
+      // ✅ IMPORTANT: support {status:"success", healthMonitor:[...]} AND {data:{...}}
       const dataRoot = result?.data || result || {};
 
-      // 1. Master Lead Record (Client Code List)
+      const rawHealthMonitor =
+        dataRoot.healthMonitor ||
+        result.healthMonitor ||
+        [];
+
       const rawClients =
         dataRoot.clients || dataRoot.Clients || dataRoot.CLIENTS ||
         result.clients || result.Clients || result.CLIENTS || [];
 
-      // 2. Leads
       const rawLeads =
         dataRoot.leads || dataRoot.Leads || dataRoot.LEADS ||
         result.leads || result.Leads || result.LEADS || [];
 
-      // 3. Agents
       const rawAgents =
         dataRoot.agents || dataRoot.Agents || dataRoot.AGENTS ||
         result.agents || result.Agents || result.AGENTS || [];
 
-      // 4. Client Status Tracker (Delivery Tracker)
       const rawStatuses =
         dataRoot.clientStatuses || dataRoot.statuses || dataRoot.ClientStatuses ||
         result.clientStatuses || result.statuses || result.ClientStatuses || [];
 
-      // 5. Packages
       const rawPackages =
         dataRoot.packages || dataRoot.leadPackages || dataRoot.Packages ||
         result.packages || result.leadPackages || result.Packages || [];
 
-      this.normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages);
+      // ✅ If healthMonitor exists, use it for Client Health Monitor
+      if (Array.isArray(rawHealthMonitor) && rawHealthMonitor.length > 0) {
+        this.normalizeAdminFromHealthMonitor(rawHealthMonitor);
+
+        // still store these if present
+        this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
+        this.adminState.agents = Array.isArray(rawAgents) ? rawAgents : [];
+        this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
+        this.adminState.rawPackages = Array.isArray(rawPackages) ? rawPackages : [];
+      } else {
+        // fallback join-based
+        this.normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages);
+      }
 
       console.log('✅ Admin State Ready:', {
         clients: this.adminState.clients.length,
@@ -239,62 +266,138 @@ class CallHammerPortal {
   triggerAdminRefresh() {
     if (window.adminDashboard && typeof window.adminDashboard.refreshDashboard === 'function') {
       window.adminDashboard.refreshDashboard();
+    } else {
+      console.warn('⚠️ adminDashboard.refreshDashboard not found (OK if your admin UI uses a different function).');
     }
   }
 
-  // ✅ THIS IS THE LOGIC FIX FOR MASTER RECORD <-> TRACKER CONNECTION
+  // ✅ ADMIN: normalize from healthMonitor (now includes code_name + roofing_company + city_state + package stats)
+  normalizeAdminFromHealthMonitor(rows) {
+    const list = Array.isArray(rows) ? rows : [];
+
+    this.adminState.clients = list.map(r => {
+      // source fields (from n8n)
+      const status = this.getAny(r, ['status', 'Client Status', 'CLIENT STATUS'], 'NOT STARTED');
+      const codeName = this.getAny(r, ['code_name', 'codeName', 'CODE NAME', 'CODE', 'code'], 'N/A');
+
+      const roofingCompany = this.getAny(
+        r,
+        ['roofing_company', 'Roofing Company', 'Roofing Company Name', 'Company Name', 'COMPANY NAME'],
+        '—'
+      );
+
+      const cityState = this.getAny(r, ['city_state', 'CITY STATE', 'City State', 'location', 'Location'], 'Remote');
+
+      const clientName = this.getAny(r, ['client_name', 'CLIENT NAME', 'Client Name'], '—');
+
+      const lastLeadReceived = this.getAny(r, ['last_lead_received', 'Last Lead Received'], '');
+      const hoursSinceLastLead = this.toNumberSafe(this.getAny(r, ['hours_since_last_lead', 'Hours Since Last Lead'], 0), 0);
+      const leadsToday = this.toNumberSafe(this.getAny(r, ['leads_today', 'Leads Today'], 0), 0);
+      const leadsYesterday = this.toNumberSafe(this.getAny(r, ['leads_yesterday', 'Leads Yesterday'], 0), 0);
+
+      const purchasedLeads = this.toNumberSafe(this.getAny(r, ['purchased_leads', 'Purchased Leads'], 0), 0);
+      const owedLeads = this.toNumberSafe(this.getAny(r, ['owed_leads', 'Owed Leads'], 0), 0);
+      const packageStatus = this.getAny(r, ['package_status', 'Package Status', 'Status'], '');
+      const purchaseDate = this.getAny(r, ['purchase_date', 'Purchase Date'], '');
+
+      return {
+        // ✅ snake_case for easy HTML use
+        status,
+        code_name: codeName,
+        roofing_company: roofingCompany,
+        city_state: cityState,
+        client_name: clientName,
+
+        last_lead_received: lastLeadReceived,
+        hours_since_last_lead: hoursSinceLastLead,
+        leads_today: leadsToday,
+        leads_yesterday: leadsYesterday,
+
+        purchased_leads: purchasedLeads,
+        owed_leads: owedLeads,
+        package_status: packageStatus,
+        purchase_date: purchaseDate,
+
+        // ✅ camelCase aliases (safe for any other JS)
+        clientName,
+        codeName,
+        roofingCompany,
+        cityState,
+        lastLeadReceived,
+        hoursSinceLastLead,
+        leadsToday,
+        leadsYesterday,
+        purchasedLeads,
+        owedLeads,
+        packageStatus,
+        purchaseDate
+      };
+    });
+  }
+
+  // Fallback join-based normalization (also outputs aliases)
   normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages) {
-    this.adminState.clientCodeList = Array.isArray(rawClients) ? rawClients : [];
     this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
     this.adminState.rawPackages = Array.isArray(rawPackages) ? rawPackages : [];
-    this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
 
-    // 1. Create Lookup Map from MASTER LEAD RECORD (Company Name -> Code)
-    const codeMap = {};
-    this.adminState.clientCodeList.forEach(row => {
-        // Col A: CODE NAME, Col B: COMPANY NAME
-        const company = this.getAny(row, ['COMPANY NAME', 'Company Name', 'Company'], '');
-        const code = this.getAny(row, ['CODE NAME', 'Code Name', 'CODE', 'Client Code'], '');
-        
-        const key = this.normalizeCompanyKey(company);
-        if (key && key !== 'unknown' && code) {
-            codeMap[key] = code;
-        }
+    const statusMap = {};
+    (Array.isArray(rawStatuses) ? rawStatuses : []).forEach(row => {
+      const company = this.getAny(row, ['Roofing Company', 'Company Name', 'COMPANY NAME', 'Client', 'CLIENT NAME'], '');
+      const key = this.normalizeCompanyKey(company);
+      if (!key || key === 'unknown') return;
+      statusMap[key] = row;
     });
 
-    // 2. Create Lookup Map for Packages
     const packageMap = {};
-    this.adminState.rawPackages.forEach(row => {
+    (Array.isArray(rawPackages) ? rawPackages : []).forEach(row => {
       const company = this.getAny(row, ['Roofing Company Name', 'Roofing Company', 'Company Name', 'COMPANY NAME'], '');
       const key = this.normalizeCompanyKey(company);
       if (!key || key === 'unknown') return;
       packageMap[key] = row;
     });
 
-    // 3. Main Loop: Iterate over the DELIVERY TRACKER (Statuses)
-    // We want the Dashboard to show the Status rows, but matched with the Code.
-    this.adminState.clients = this.adminState.rawStatuses.map(sRow => {
-      // Get Company Name from Tracker
-      const companyName = this.getAny(sRow, ['Roofing Company', 'ROOFING COMPANY', 'Company Name'], 'Unnamed');
+    const clientsArr = Array.isArray(rawClients) ? rawClients : [];
+    this.adminState.clients = clientsArr.map(c => {
+      const companyName = this.getAny(c, ['COMPANY NAME', 'Company Name', 'Company', 'Roofing Company'], 'Unnamed');
+      const codeName = this.getAny(c, ['CODE NAME', 'Code Name', 'CODE', 'Client Code'], 'N/A');
+      const location = this.getAny(c, ['Add location here', 'Location', 'CITY STATE', 'City State'], 'Remote');
       const clientKey = this.normalizeCompanyKey(companyName);
 
-      // LOOKUP CODE using the map
-      const codeName = codeMap[clientKey] || 'N/A';
-
+      const sRow = statusMap[clientKey] || {};
       const pRow = packageMap[clientKey] || {};
 
+      const joinedStatus = this.getAny(
+        sRow,
+        ['Client Status', 'CLIENT STATUS', 'Status'],
+        this.getAny(c, ['STATUS', 'Status'], 'NOT STARTED')
+      );
+
+      const joinedPackage = this.getAny(pRow, ['Package', 'Lead Package', 'PACKAGE'], '');
+
+      const lastLeadReceived = this.getAny(sRow, ['Last Lead Received'], '');
+      const hoursSinceLastLead = this.toNumberSafe(this.getAny(sRow, ['Hours Since Last Lead'], 0), 0);
+      const leadsToday = this.toNumberSafe(this.getAny(sRow, ['Leads Today'], 0), 0);
+      const leadsYesterday = this.toNumberSafe(this.getAny(sRow, ['Leads Yesterday'], 0), 0);
+
+      // ✅ output both naming styles
       return {
-        roofing_company: companyName,
+        client_name: companyName,
         code: codeName,
-        status: this.getAny(sRow, ['Client Status', 'CLIENT STATUS', 'Status'], 'NOT STARTED'),
-        location: this.getAny(sRow, ['CITY STATE', 'City State', 'Location'], 'Remote'),
-        client_name: this.getAny(sRow, ['CLIENT NAME', 'Client Name'], '—'),
-        last_lead_received: this.getAny(sRow, ['Last Lead Received'], ''),
-        hours_since_last_lead: this.toNumberSafe(this.getAny(sRow, ['Hours Since Last Lead'], 0), 0),
-        leads_today: this.toNumberSafe(this.getAny(sRow, ['Leads Today'], 0), 0),
-        leads_yesterday: this.toNumberSafe(this.getAny(sRow, ['Leads Yesterday'], 0), 0),
-        purchased_leads: this.toNumberSafe(this.getAny(pRow, ['Purchased Leads'], 0), 0),
-        owed_leads: this.toNumberSafe(this.getAny(pRow, ['Owed Leads'], 0), 0)
+        location,
+        status: joinedStatus || 'NOT STARTED',
+        package: joinedPackage || '',
+        last_lead_received: lastLeadReceived,
+        hours_since_last_lead: hoursSinceLastLead,
+        leads_today: leadsToday,
+        leads_yesterday: leadsYesterday,
+
+        clientName: companyName,
+        codeName,
+        clientNameWithCode: codeName && codeName !== 'N/A' ? `${companyName} (${codeName})` : companyName,
+        lastLeadReceived,
+        hoursSinceLastLead,
+        leadsToday,
+        leadsYesterday
       };
     });
 
@@ -307,14 +410,76 @@ class CallHammerPortal {
       employmentStatus: this.getAny(a, ['Employment_Status', 'Employment Status', 'Status'], 'Active'),
       paymentStatus: this.getAny(a, ['Payment Status'], '')
     }));
+
+    this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
+  }
+
+  // ✅ ADMIN: compute Team Performance from RAW LEADS + Agent Master
+  calculateAdminTeamStats(timeFilter = 'today') {
+    const stats = {};
+
+    (this.adminState.agents || []).forEach(a => {
+      const name = (a.employeeName || '').trim() || 'Unknown';
+      const emp = (a.employmentStatus || '').toLowerCase();
+      if (emp && emp.includes('offboard')) return;
+      stats[name] = { name, total: 0, confirmed: 0, rejected: 0, pending: 0 };
+    });
+
+    const leads = Array.isArray(this.adminState.leads) ? this.adminState.leads : [];
+    if (!leads.length) return Object.values(stats);
+
+    const now = new Date();
+    const startOfDay = new Date(now); startOfDay.setHours(0, 0, 0, 0);
+
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const startOf30 = new Date(now);
+    startOf30.setDate(now.getDate() - 30);
+    startOf30.setHours(0, 0, 0, 0);
+
+    for (const lead of leads) {
+      const coordinator = String(
+        this.getAny(lead, ['Appointment Coordinator Name', 'Setter', 'Agent', 'Agent Name'], 'Unknown')
+      ).trim() || 'Unknown';
+
+      const dateStr = this.getAny(lead, ['Date Submitted', 'Date', 'Submitted Date'], '');
+      const leadDate = this.parseDateSafe(dateStr);
+      if (!leadDate) continue;
+
+      let include = false;
+      if (timeFilter === 'today') include = leadDate >= startOfDay;
+      else if (timeFilter === 'this-week') include = leadDate >= startOfWeek;
+      else if (timeFilter === '30-days') include = leadDate >= startOf30;
+      else if (timeFilter === 'all') include = true;
+
+      if (!include) continue;
+
+      if (!stats[coordinator]) {
+        stats[coordinator] = { name: coordinator, total: 0, confirmed: 0, rejected: 0, pending: 0 };
+      }
+
+      const status = String(this.getAny(lead, ['Status'], '')).toLowerCase();
+      stats[coordinator].total += 1;
+
+      if (status === 'confirmed' || status === 'approved') stats[coordinator].confirmed += 1;
+      else if (status.includes('reject') || status.includes('decline') || status.includes('cancel') || status.includes('credit')) stats[coordinator].rejected += 1;
+      else stats[coordinator].pending += 1;
+    }
+
+    return Object.values(stats).map(a => {
+      const efficiency = a.total > 0 ? (a.confirmed / a.total) * 100 : 0;
+      return { ...a, efficiency: `${efficiency.toFixed(0)}%` };
+    });
   }
 
   // ------------------------
-  // Payroll Week Helpers
+  // Payroll Week Helpers (Agent/TL)
   // ------------------------
   getPayrollWeekRangeFor(date) {
     const mstDate = this.toMST(date);
-    const dayOfWeek = mstDate.getDay(); 
+    const dayOfWeek = mstDate.getDay(); // Sun=0 ... Sat=6
     const start = new Date(mstDate);
     const diffToSat = (dayOfWeek === 6) ? 0 : (dayOfWeek + 1);
     start.setDate(mstDate.getDate() - diffToSat);
@@ -333,7 +498,7 @@ class CallHammerPortal {
     const localOffset = now.getTimezoneOffset();
     const mstNow = new Date(now.getTime() + (mstOffset + localOffset) * 60000);
 
-    const dayOfWeek = mstNow.getDay();
+    const dayOfWeek = mstNow.getDay(); // Sun=0 ... Sat=6
     const start = new Date(mstNow);
     const diffToSat = (dayOfWeek === 6) ? 0 : (dayOfWeek + 1);
 
@@ -356,6 +521,21 @@ class CallHammerPortal {
     start.setHours(0, 0, 0, 0);
     end.setHours(23, 59, 59, 999);
     return { start, end };
+  }
+
+  getPayrollWeekStart(date) {
+    const mstDate = this.toMST(date);
+    const dayOfWeek = mstDate.getDay(); // Sun=0 ... Sat=6
+    const start = new Date(mstDate);
+    const diffToSat = (dayOfWeek === 6) ? 0 : (dayOfWeek + 1);
+    start.setDate(mstDate.getDate() - diffToSat);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  }
+
+  getPayrollWeekKey(date) {
+    const start = this.getPayrollWeekStart(date);
+    return start.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
   }
 
   computeWorkedHoursFromWeeklyPayroll(rangeStart, rangeEnd) {
@@ -395,9 +575,12 @@ class CallHammerPortal {
     for (const [k, v] of Object.entries(myRow)) {
       const key = (k || '').toString().trim();
       if (!key) continue;
+
       const keyDate = this.parseDateSafe(key);
       if (!keyDate) continue;
+
       foundAnyDateColumns = true;
+
       const mstK = this.toMST(keyDate);
       if (mstK >= rangeStart && mstK <= rangeEnd) total += parseHours(v);
     }
@@ -405,17 +588,33 @@ class CallHammerPortal {
     if (foundAnyDateColumns) return total;
 
     const totalHoursCandidate =
-      myRow['Total Hours'] ?? myRow['TOTAL HOURS'] ?? myRow['TotalHours'] ??
-      myRow['total_hours'] ?? myRow['Hours'] ?? myRow['hours'] ?? 0;
+      myRow['Total Hours'] ??
+      myRow['TOTAL HOURS'] ??
+      myRow['TotalHours'] ??
+      myRow['total_hours'] ??
+      myRow['Hours'] ??
+      myRow['hours'] ??
+      0;
 
     return parseHours(totalHoursCandidate);
   }
 
+  // ------------------------
+  // Status helpers
+  // ------------------------
   isConfirmedStatus(status) {
     const s = (status || '').toString().trim().toLowerCase();
     return s === 'confirmed';
   }
 
+  isCancelledLikeStatus(status) {
+    const s = (status || '').toString().toLowerCase();
+    return s.includes('cancel') || s.includes('credited') || s.includes('rejected') || s.includes('declined');
+  }
+
+  // ------------------------
+  // Data Fetch (AGENT)
+  // ------------------------
   async fetchAllData() {
     if (!this.currentUser) return;
 
@@ -434,11 +633,13 @@ class CallHammerPortal {
       if (result.status === "success") {
         this.leadsData = Array.isArray(result.leads) ? result.leads : [];
         this.employeeList = Array.isArray(result.employeeList) ? result.employeeList : [];
+
         this.weeklyPayroll = Array.isArray(result.weeklyPayroll) ? result.weeklyPayroll : [];
         this.timeTracker = Array.isArray(result.timeTracker) ? result.timeTracker : [];
 
         if (result.profile) {
           const p = result.profile;
+
           this.currentUser = {
             ...this.currentUser,
             name: p['Employee Name'] || this.currentUser.name,
@@ -478,9 +679,13 @@ class CallHammerPortal {
     }
   }
 
+  // ------------------------
+  // Basic UI helpers (agent)
+  // ------------------------
   updateProfileUI() {
     if (!this.currentUser) return;
     const u = this.currentUser;
+
     const map = {
       'profileName': u.name || 'N/A',
       'profileEmail': u.email || 'N/A',
@@ -491,6 +696,7 @@ class CallHammerPortal {
       'profileHours': u.weeklyHours || 0,
       'profileStartDate': u.startDate || 'N/A'
     };
+
     for (const [id, val] of Object.entries(map)) {
       const el = document.getElementById(id);
       if (el) el.textContent = val;
@@ -565,6 +771,7 @@ class CallHammerPortal {
       statusSelect.onchange = (e) => {
         const v = (e.target.value || 'all').toLowerCase();
         let filtered = this.filteredLeads?.length ? this.filteredLeads : this.leadsData;
+
         if (v !== 'all') {
           filtered = filtered.filter(l => (l['Status'] || this.normalizeKey(l, 'Status') || '').toString().toLowerCase() === v);
         }
@@ -584,7 +791,9 @@ class CallHammerPortal {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
+
       const result = await res.json();
+
       if (result.status === "success") {
         const userObj = {
           name: result.user['Employee Name'],
@@ -595,7 +804,9 @@ class CallHammerPortal {
           startDate: result.user['Start Date'],
           position: result.user['Position']
         };
+
         localStorage.setItem('callHammerSession', JSON.stringify({ user: userObj, expiresAt: Date.now() + 86400000 }));
+
         const role = userObj.role;
         if (role === 'admin') window.location.href = 'admin-dashboard.html';
         else if (role === 'team_leader') window.location.href = 'team-leader-dashboard.html';
@@ -613,7 +824,11 @@ class CallHammerPortal {
       const res = await fetch(this.webhooks.timeOffRequest, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, email: this.currentUser.email, name: this.currentUser.name })
+        body: JSON.stringify({
+          ...data,
+          email: this.currentUser.email,
+          name: this.currentUser.name
+        })
       });
       return res.ok;
     } catch (err) {
