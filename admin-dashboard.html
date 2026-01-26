@@ -181,13 +181,14 @@
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase">City, State</th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase">Client Name</th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase">Last Lead Received</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Package (Owed/Purchased)</th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Hours Since</th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Leads Today</th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Leads Yesterday</th>
                 </tr>
               </thead>
               <tbody id="client-health-body" class="text-sm divide-y divide-gray-50">
-                <tr><td colspan="9" class="p-6 text-center text-gray-400 italic">Loading clients...</td></tr>
+                <tr><td colspan="10" class="p-6 text-center text-gray-400 italic">Loading clients...</td></tr>
               </tbody>
             </table>
           </div>
@@ -312,7 +313,7 @@
   </main>
 
   <script>
-    // -------------- AdminDashboard (FIXED mappings for normalized adminState.clients) --------------
+    // -------------- AdminDashboard --------------
     const AdminDashboard = {
       perfPeriod: 'today',
 
@@ -395,12 +396,12 @@
         document.getElementById('pulse-pending').textContent = pending.length;
       },
 
-      // ✅ Client Health Monitor render (9 columns)
+      // ✅ Client Health Monitor render (NOW 10 columns + uses correct keys)
       renderClientHealth(clients) {
         const tbody = document.getElementById('client-health-body');
 
         if (!clients || clients.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-gray-400 italic">No clients found.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-gray-400 italic">No clients found.</td></tr>';
           return;
         }
 
@@ -409,15 +410,31 @@
           const clientStatus = this.normalizeClientStatus(rawStatus);
           const dotClass = this.statusDotClass(clientStatus);
 
-          const code = this.pick(c, ["code","codeName","CODE","CODE NAME"], "—");
-          const roofingCompany = this.pick(c, ["roofing_company","Roofing Company","Roofing Company Name","Company Name","COMPANY NAME"], "—");
-          const location = this.pick(c, ["location","CITY STATE","City State","Location"], "—");
+          // ✅ IMPORTANT: read CODE from code_name (n8n output)
+          const code = this.pick(c, ["code_name","codeName","code","CODE NAME","CODE"], "—");
+
+          // ✅ Roofing Company (n8n output uses roofing_company)
+          const roofingCompany = this.pick(
+            c,
+            ["roofing_company","roofingCompany","Roofing Company","Roofing Company Name","Company Name","COMPANY NAME"],
+            "—"
+          );
+
+          // ✅ City/State (n8n output uses city_state)
+          const location = this.pick(c, ["city_state","cityState","CITY STATE","City State","location","Location"], "—");
+
+          // ✅ Client Name (n8n output uses client_name)
           const clientName = this.pick(c, ["client_name","clientName","CLIENT NAME","Client Name"], "—");
 
-          const lastLead = this.pick(c, ["last_lead_received","Last Lead Received"], "—");
-          const hoursSince = this.pick(c, ["hours_since_last_lead","Hours Since Last Lead"], 0);
-          const leadsToday = this.pick(c, ["leads_today","Leads Today"], 0);
-          const leadsYesterday = this.pick(c, ["leads_yesterday","Leads Yesterday"], 0);
+          const lastLead = this.pick(c, ["last_lead_received","lastLeadReceived","Last Lead Received"], "—");
+
+          // ✅ Package: owed / purchased
+          const owed = Number(this.pick(c, ["owed_leads","owedLeads","Owed Leads"], 0)) || 0;
+          const purchased = Number(this.pick(c, ["purchased_leads","purchasedLeads","Purchased Leads"], 0)) || 0;
+
+          const hoursSince = this.pick(c, ["hours_since_last_lead","hoursSinceLastLead","Hours Since Last Lead"], 0);
+          const leadsToday = this.pick(c, ["leads_today","leadsToday","Leads Today"], 0);
+          const leadsYesterday = this.pick(c, ["leads_yesterday","leadsYesterday","Leads Yesterday"], 0);
 
           return `
             <tr class="hover:bg-gray-50">
@@ -443,6 +460,10 @@
               </td>
 
               <td class="p-4 text-gray-500">${lastLead}</td>
+
+              <td class="p-4 text-center text-gray-800 font-bold">
+                ${owed} / ${purchased}
+              </td>
 
               <td class="p-4 text-center text-gray-700 font-semibold">${hoursSince}</td>
               <td class="p-4 text-center text-gray-700 font-semibold">${leadsToday}</td>
