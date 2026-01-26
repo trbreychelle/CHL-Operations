@@ -9,6 +9,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+  <!-- ✅ ADDED: Chart.js for Team Analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <style>
     * { font-family: 'Inter', sans-serif; }
     body { background-color: #F9FAFB; color: #111827; }
@@ -51,6 +54,12 @@
     th.sortable { cursor: pointer; user-select: none; }
     th.sortable:hover { background: rgba(17,24,39,0.02); }
     .sort-icon { font-size: 10px; margin-left: 6px; color: #9CA3AF; }
+
+    /* ✅ small polish for KPI tiles inside analytics */
+    .kpi-tile { background: #fff; border: 1px solid #F3F4F6; border-radius: 16px; padding: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+    .kpi-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .12em; color: #9CA3AF; }
+    .kpi-value { font-size: 20px; font-weight: 800; margin-top: 6px; color: #111827; }
+    .kpi-sub { font-size: 12px; font-weight: 600; margin-top: 2px; color: #6B7280; }
   </style>
 </head>
 
@@ -179,8 +188,7 @@
             </div>
           </div>
 
-          <!-- ✅ CHANGE: show only ~5 rows then scroll -->
-          <div class="flex-1 overflow-auto" style="max-height: 340px;">
+          <div class="flex-1 overflow-auto">
             <table class="w-full text-left border-collapse">
               <thead class="bg-white sticky top-0 z-10 shadow-sm">
                 <tr>
@@ -229,6 +237,92 @@
           </div>
         </div>
 
+        <!-- ✅ ADDED: TEAM ANALYTICS (GRAPH + TOP 10) -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8 overflow-hidden">
+          <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-gray-50/50">
+            <h3 class="font-bold text-gray-900 flex items-center gap-2">
+              <i class="fa-solid fa-chart-column text-yellow-500"></i> Team Performance Analytics
+            </h3>
+
+            <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
+              <button onclick="Admin.setAnalyticsPeriod('today', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
+              <button onclick="Admin.setAnalyticsPeriod('this-week', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
+              <button onclick="Admin.setAnalyticsPeriod('previous-week', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Previous Week</button>
+              <button onclick="Admin.setAnalyticsPeriod('4-weeks', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">4 Weeks</button>
+              <button onclick="Admin.setAnalyticsPeriod('6-weeks', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">6 Weeks</button>
+              <button onclick="Admin.setAnalyticsPeriod('all-time', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
+            </div>
+          </div>
+
+          <div class="p-5">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-5">
+              <div class="kpi-tile">
+                <div class="kpi-label">Total Leads</div>
+                <div class="kpi-value" id="kpi-total">0</div>
+                <div class="kpi-sub" id="kpi-range">—</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">Qualified</div>
+                <div class="kpi-value text-emerald-600" id="kpi-qualified">0</div>
+                <div class="kpi-sub">Confirmed / Approved</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">Unqualified</div>
+                <div class="kpi-value text-red-500" id="kpi-unqualified">0</div>
+                <div class="kpi-sub">Rejected / Credited</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">Pending</div>
+                <div class="kpi-value text-yellow-600" id="kpi-pending">0</div>
+                <div class="kpi-sub">Needs review</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">Efficiency</div>
+                <div class="kpi-value" id="kpi-eff">0%</div>
+                <div class="kpi-sub">Qualified / Total</div>
+              </div>
+            </div>
+
+            <div class="bg-white border border-gray-100 rounded-2xl p-4">
+              <div class="flex items-center justify-between mb-2">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Trend (stacked)</p>
+                <p class="text-xs text-gray-400" id="trend-grain">—</p>
+              </div>
+              <div class="w-full overflow-x-auto">
+                <div class="min-w-[720px]">
+                  <canvas id="team-analytics-chart" height="110"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="border-t border-gray-100 p-5 bg-gray-50/40">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="font-bold text-gray-900 flex items-center gap-2">
+                <i class="fa-solid fa-trophy text-yellow-500"></i> Top 10 Agents (by Total Leads)
+              </h4>
+              <span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider" id="top10-label">—</span>
+            </div>
+
+            <div class="overflow-x-auto bg-white rounded-2xl border border-gray-100">
+              <table class="w-full text-left text-sm">
+                <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+                  <tr>
+                    <th class="p-4">Agent</th>
+                    <th class="p-4 text-center">Total</th>
+                    <th class="p-4 text-center text-emerald-600">Qualified</th>
+                    <th class="p-4 text-center text-red-500">Unqualified</th>
+                    <th class="p-4 text-center">Efficiency</th>
+                  </tr>
+                </thead>
+                <tbody id="top10-body" class="divide-y divide-gray-50">
+                  <tr><td colspan="5" class="p-6 text-center text-gray-400 italic">Calculating...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <!-- Optional blocks remain -->
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8">
           <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
@@ -241,15 +335,19 @@
           </div>
         </div>
 
+        <!-- ✅ UPDATED: Team Performance card supports all periods + qualified/unqualified naming -->
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm mb-8">
           <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-gray-50/50 rounded-t-2xl">
             <h3 class="font-bold text-gray-900 flex items-center gap-2">
-              <i class="fa-solid fa-users-viewfinder text-yellow-500"></i> Team Performance
+              <i class="fa-solid fa-users-viewfinder text-yellow-500"></i> Team Performance (All Agents)
             </h3>
-            <div class="flex bg-gray-200 p-1 rounded-lg">
-              <button onclick="Admin.updatePerf('today', this)" class="perf-btn px-4 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
-              <button onclick="Admin.updatePerf('week', this)" class="perf-btn px-4 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
-              <button onclick="Admin.updatePerf('month', this)" class="perf-btn px-4 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">30 Days</button>
+            <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
+              <button onclick="Admin.updatePerf('today', this)" class="perf-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
+              <button onclick="Admin.updatePerf('this-week', this)" class="perf-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
+              <button onclick="Admin.updatePerf('previous-week', this)" class="perf-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Previous Week</button>
+              <button onclick="Admin.updatePerf('4-weeks', this)" class="perf-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">4 Weeks</button>
+              <button onclick="Admin.updatePerf('6-weeks', this)" class="perf-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">6 Weeks</button>
+              <button onclick="Admin.updatePerf('all-time', this)" class="perf-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
             </div>
           </div>
           <div class="overflow-x-auto">
@@ -258,13 +356,13 @@
                 <tr>
                   <th class="p-4">Agent Name</th>
                   <th class="p-4 text-center">Total Leads</th>
-                  <th class="p-4 text-center text-emerald-600">Confirmed</th>
-                  <th class="p-4 text-center text-red-500">Rejected</th>
+                  <th class="p-4 text-center text-emerald-600">Qualified</th>
+                  <th class="p-4 text-center text-red-500">Unqualified</th>
                   <th class="p-4 text-center">Efficiency</th>
                 </tr>
               </thead>
               <tbody id="agent-perf-body" class="divide-y divide-gray-50">
-                <tr><td colspan="6" class="p-6 text-center text-gray-400 italic">Calculating performance...</td></tr>
+                <tr><td colspan="5" class="p-6 text-center text-gray-400 italic">Calculating performance...</td></tr>
               </tbody>
             </table>
           </div>
@@ -310,6 +408,7 @@
   <script>
     const AdminDashboard = {
       perfPeriod: 'today',
+      analyticsPeriod: 'today',
 
       // Table dataset cache for sorting/filtering
       clientHealthRaw: [],
@@ -319,6 +418,9 @@
       // built maps (company -> code / package)
       _companyToCodeMap: null,
       _companyToPackageMap: null,
+
+      // chart instance
+      _analyticsChart: null,
 
       getState() {
         return (window.portal && window.portal.adminState) ? window.portal.adminState : null;
@@ -347,6 +449,9 @@
           this.setupFilters(this.clientHealthRaw);
           this.applyClientHealthFilters(); // renders the table view
         } catch(e) { console.error("Client Health Error:", e); }
+
+        // ✅ analytics block
+        try { this.updateAnalytics(this.analyticsPeriod); } catch(e) { console.error("Analytics Error:", e); }
 
         try { this.updatePerf(this.perfPeriod); } catch(e) { console.error("Perf Error:", e); }
         try { this.renderClientCards(clients); } catch(e) { console.error("Client Cards Error:", e); }
@@ -452,26 +557,23 @@
 
           const key = this.normalizeCompanyName(company);
           if (!key) return;
-          // keep latest/first; if duplicates, we can sum — but default keep the first non-zero.
           if (!map.has(key)) map.set(key, { purchased, owed });
         });
         return map;
       },
 
-      // ✅ FIX: include snake_case + camelCase coming from main.js normalization
       extractCityState(c) {
-        return this.pick(c, [
+        const v = this.pick(c, [
           "CITY STATE",
           "CITY, STATE",
           "City, State",
           "City State",
           "City/State",
           "CITYSTATE",
-          "city_state",   // ✅ added
-          "cityState",    // ✅ added
           "Location",
           "location"
         ], "—");
+        return v;
       },
 
       extractClientName(c) {
@@ -491,7 +593,6 @@
           "Roofing Company Name",
           "ROOFING COMPANY",
           "roofing_company",
-          "roofingCompany",
           "Company Name",
           "COMPANY NAME"
         ], "—");
@@ -509,12 +610,9 @@
         return this._companyToCodeMap.get(key) || "N/A";
       },
 
-      // ✅ FIX: include code_name + codeName
       extractCode(c) {
         const direct = this.pick(c, [
-          "CODE NAME", "Code Name", "codeName",
-          "code_name",   // ✅ added
-          "CODE", "code",
+          "CODE NAME", "Code Name", "codeName", "code_name", "CODE", "code",
           "Client Code", "CLIENT CODE", "Client ID", "ClientID"
         ], "");
         if (direct && String(direct).trim() !== "") return String(direct).trim();
@@ -526,7 +624,7 @@
       normalizeClientStatus(v) {
         const s = String(v || "").trim().toUpperCase();
         if (s.includes("CRITICAL")) return "CRITICAL";
-        if (s.includes("YELLOW") || s.includes("RISK")) return "AT RISK";
+        if (s.includes("YELLOW") || s.includes("RISK") || s.includes("AT RISK")) return "AT RISK";
         if (s.includes("GREEN") || s.includes("HEALTHY")) return "HEALTHY";
         if (s.includes("NOT STARTED") || s.includes("BLUE")) return "NOT STARTED";
         return s || "UNKNOWN";
@@ -581,7 +679,9 @@
 
         const confirmed = todayLeads.filter(l => {
           const st = this.pick(l, ["Status","STATUS"], "");
-          return window.portal?.isConfirmedStatus ? window.portal.isConfirmedStatus(st) : String(st).toLowerCase() === "confirmed";
+          return window.portal?.isQualifiedStatus
+            ? window.portal.isQualifiedStatus(st)
+            : (String(st).toLowerCase() === "confirmed" || String(st).toLowerCase() === "approved");
         });
 
         const value = confirmed.length * 50;
@@ -631,12 +731,18 @@
         });
       },
 
+      // ✅ UPDATED: always include all 4 status options
       setupFilters(rows) {
         const statusSel = document.getElementById("health-filter-status");
         const citySel = document.getElementById("health-filter-city");
 
-        const statuses = [...new Set(rows.map(r => r.status))].sort();
-        statusSel.innerHTML = `<option value="all">All Status</option>` + statuses.map(s => `<option value="${s}">${s}</option>`).join("");
+        const alwaysStatuses = ["CRITICAL", "AT RISK", "HEALTHY", "NOT STARTED"];
+        const foundStatuses = [...new Set(rows.map(r => r.status))].filter(Boolean);
+        const statuses = [...new Set([...alwaysStatuses, ...foundStatuses])];
+
+        statusSel.innerHTML =
+          `<option value="all">All Status</option>` +
+          statuses.map(s => `<option value="${s}">${s}</option>`).join("");
 
         const cities = [...new Set(rows.map(r => r.cityState).filter(Boolean))].sort();
         citySel.innerHTML = `<option value="all">All City/State</option>` + cities.map(s => `<option value="${s}">${s}</option>`).join("");
@@ -760,6 +866,266 @@
         }).join("");
       },
 
+      // ===========================
+      // ✅ TEAM ANALYTICS (GRAPH + TOP 10)
+      // ===========================
+      setAnalyticsPeriod(period, btnElement) {
+        this.analyticsPeriod = period;
+
+        if (btnElement) {
+          document.querySelectorAll('.analytics-btn').forEach(b => {
+            b.classList.remove('bg-white', 'shadow', 'text-gray-900');
+            b.classList.add('text-gray-500');
+          });
+          btnElement.classList.add('bg-white', 'shadow', 'text-gray-900');
+          btnElement.classList.remove('text-gray-500');
+        }
+
+        this.updateAnalytics(period);
+      },
+
+      // MST-safe: create MST "start of day"
+      _startOfMSTDay(date) {
+        const mst = window.portal?.toMST ? window.portal.toMST(date) : new Date(date);
+        const d = new Date(mst);
+        d.setHours(0,0,0,0);
+        return d;
+      },
+
+      _endOfMSTDay(date) {
+        const mst = window.portal?.toMST ? window.portal.toMST(date) : new Date(date);
+        const d = new Date(mst);
+        d.setHours(23,59,59,999);
+        return d;
+      },
+
+      getRangeFor(period, leads) {
+        const now = new Date();
+
+        // Prefer portal payroll week (Sat-Fri) since your dashboards already use it
+        const payrollThis = window.portal?.getPayrollWeekRange ? window.portal.getPayrollWeekRange() : null;
+        const payrollPrev = window.portal?.getPreviousPayrollWeekRange ? window.portal.getPreviousPayrollWeekRange() : null;
+
+        if (period === "today") {
+          const start = this._startOfMSTDay(now);
+          const end = this._endOfMSTDay(now);
+          return { start, end, grain: "day", label: "Today" };
+        }
+
+        if (period === "this-week" && payrollThis) {
+          return { start: payrollThis.start, end: payrollThis.end, grain: "day", label: "This Week" };
+        }
+
+        if (period === "previous-week" && payrollPrev) {
+          return { start: payrollPrev.start, end: payrollPrev.end, grain: "day", label: "Previous Week" };
+        }
+
+        if (period === "4-weeks") {
+          const end = payrollThis ? payrollThis.end : this._endOfMSTDay(now);
+          const start = new Date(end);
+          start.setDate(start.getDate() - 27);
+          start.setHours(0,0,0,0);
+          return { start, end, grain: "week", label: "Last 4 Weeks" };
+        }
+
+        if (period === "6-weeks") {
+          const end = payrollThis ? payrollThis.end : this._endOfMSTDay(now);
+          const start = new Date(end);
+          start.setDate(start.getDate() - 41);
+          start.setHours(0,0,0,0);
+          return { start, end, grain: "week", label: "Last 6 Weeks" };
+        }
+
+        // all-time
+        if (period === "all-time") {
+          const all = Array.isArray(leads) ? leads : [];
+          let min = null;
+          for (const l of all) {
+            const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
+            const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+            if (!dt || isNaN(dt.getTime())) continue;
+            const mst = window.portal?.toMST ? window.portal.toMST(dt) : dt;
+            if (!min || mst < min) min = mst;
+          }
+          const start = min ? this._startOfMSTDay(min) : this._startOfMSTDay(now);
+          const end = payrollThis ? payrollThis.end : this._endOfMSTDay(now);
+          return { start, end, grain: "month", label: "All-Time" };
+        }
+
+        // fallback
+        const start = this._startOfMSTDay(now);
+        const end = this._endOfMSTDay(now);
+        return { start, end, grain: "day", label: "Today" };
+      },
+
+      isQualified(st) {
+        if (window.portal?.isQualifiedStatus) return window.portal.isQualifiedStatus(st);
+        const s = String(st || "").toLowerCase();
+        return s === "confirmed" || s === "approved";
+      },
+
+      isUnqualified(st) {
+        if (window.portal?.isUnqualifiedStatus) return window.portal.isUnqualifiedStatus(st);
+        const s = String(st || "").toLowerCase();
+        return s.includes("reject") || s.includes("decline") || s.includes("cancel") || s.includes("credit");
+      },
+
+      // get bucket key for trend chart
+      bucketKeyFor(date, grain) {
+        const d = window.portal?.toMST ? window.portal.toMST(date) : new Date(date);
+
+        if (grain === "day") {
+          return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+        }
+
+        if (grain === "week") {
+          // bucket by payroll week start (Sat)
+          const start = window.portal?.getPayrollWeekStart ? window.portal.getPayrollWeekStart(d) : new Date(d);
+          return start.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+        }
+
+        // month
+        return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      },
+
+      updateAnalytics(period) {
+        const state = this.getState();
+        const leads = (state && state.leads) ? state.leads : [];
+
+        const { start, end, grain, label } = this.getRangeFor(period, leads);
+        document.getElementById("kpi-range").textContent = `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
+        document.getElementById("top10-label").textContent = label;
+
+        // aggregate totals + trend
+        let total = 0, qualified = 0, unqualified = 0, pending = 0;
+
+        const trend = new Map(); // key -> {q,u,p}
+        const agentAgg = new Map(); // agent -> {total,q,u}
+
+        const within = (dt) => dt >= start && dt <= end;
+
+        for (const l of (leads || [])) {
+          const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
+          const dtRaw = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+          if (!dtRaw || isNaN(dtRaw.getTime())) continue;
+
+          const dt = window.portal?.toMST ? window.portal.toMST(dtRaw) : dtRaw;
+          if (!within(dt)) continue;
+
+          const st = this.pick(l, ["Status","STATUS"], "");
+          const agent = String(this.pick(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent","Agent Name","AGENT"], "Unknown")).trim() || "Unknown";
+
+          total += 1;
+
+          const bKey = this.bucketKeyFor(dt, grain);
+          if (!trend.has(bKey)) trend.set(bKey, { qualified: 0, unqualified: 0, pending: 0 });
+          const bucket = trend.get(bKey);
+
+          const a = agentAgg.get(agent) || { name: agent, total: 0, qualified: 0, unqualified: 0 };
+          a.total += 1;
+
+          if (this.isQualified(st)) {
+            qualified += 1;
+            bucket.qualified += 1;
+            a.qualified += 1;
+          } else if (this.isUnqualified(st)) {
+            unqualified += 1;
+            bucket.unqualified += 1;
+            a.unqualified += 1;
+          } else {
+            pending += 1;
+            bucket.pending += 1;
+          }
+
+          agentAgg.set(agent, a);
+        }
+
+        const eff = total > 0 ? Math.round((qualified / total) * 100) : 0;
+
+        document.getElementById("kpi-total").textContent = total;
+        document.getElementById("kpi-qualified").textContent = qualified;
+        document.getElementById("kpi-unqualified").textContent = unqualified;
+        document.getElementById("kpi-pending").textContent = pending;
+        document.getElementById("kpi-eff").textContent = `${eff}%`;
+        document.getElementById("trend-grain").textContent =
+          grain === "day" ? "Daily buckets" : (grain === "week" ? "Weekly buckets" : "Monthly buckets");
+
+        // trend chart data (sorted by time-ish; works because our labels are consistent format)
+        const labels = Array.from(trend.keys());
+        // Sort labels by actual date by reconstructing approximate dates:
+        labels.sort((a,b) => {
+          // Try parse label as date in current year (best-effort)
+          const da = new Date(a + " " + new Date().getFullYear());
+          const db = new Date(b + " " + new Date().getFullYear());
+          return da - db;
+        });
+
+        const qData = labels.map(k => trend.get(k)?.qualified || 0);
+        const uData = labels.map(k => trend.get(k)?.unqualified || 0);
+        const pData = labels.map(k => trend.get(k)?.pending || 0);
+
+        this.renderAnalyticsChart(labels, qData, uData, pData);
+
+        // top 10 table
+        const top = Array.from(agentAgg.values())
+          .sort((a,b) => b.total - a.total)
+          .slice(0, 10);
+
+        const tb = document.getElementById("top10-body");
+        if (!top.length) {
+          tb.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No leads in this period.</td></tr>`;
+        } else {
+          tb.innerHTML = top.map(a => {
+            const e = a.total > 0 ? Math.round((a.qualified / a.total) * 100) : 0;
+            return `
+              <tr>
+                <td class="p-4 font-bold text-gray-900">${a.name}</td>
+                <td class="p-4 text-center text-gray-600 font-semibold">${a.total}</td>
+                <td class="p-4 text-center text-emerald-600 font-bold">${a.qualified}</td>
+                <td class="p-4 text-center text-red-500 font-bold">${a.unqualified}</td>
+                <td class="p-4 text-center text-gray-600 font-semibold">${e}%</td>
+              </tr>
+            `;
+          }).join("");
+        }
+      },
+
+      renderAnalyticsChart(labels, qualifiedArr, unqualifiedArr, pendingArr) {
+        const ctx = document.getElementById("team-analytics-chart");
+        if (!ctx || typeof Chart === "undefined") return;
+
+        if (this._analyticsChart) {
+          this._analyticsChart.destroy();
+          this._analyticsChart = null;
+        }
+
+        this._analyticsChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [
+              { label: 'Qualified', data: qualifiedArr, stack: 'stack1' },
+              { label: 'Unqualified', data: unqualifiedArr, stack: 'stack1' },
+              { label: 'Pending', data: pendingArr, stack: 'stack1' },
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'top' },
+              tooltip: { mode: 'index', intersect: false }
+            },
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+              x: { stacked: true, grid: { display: false } },
+              y: { stacked: true, beginAtZero: true }
+            }
+          }
+        });
+      },
+
+      // ---------- Team Performance (All Agents) ----------
       updatePerf(period, btnElement) {
         this.perfPeriod = period;
 
@@ -778,45 +1144,46 @@
         const tbody = document.getElementById('agent-perf-body');
 
         if (!agents.length) {
-          tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-gray-400 italic">No agents found.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No agents found.</td></tr>';
           return;
         }
 
-        const now = new Date();
-        const filterDate = new Date();
-        if (period === 'today') filterDate.setHours(0,0,0,0);
-        if (period === 'week') filterDate.setDate(now.getDate() - 7);
-        if (period === 'month') filterDate.setDate(now.getDate() - 30);
+        const { start, end } = this.getRangeFor(period, leads);
 
         tbody.innerHTML = agents.map(agent => {
           const name = this.pick(agent, ["employeeName","Employee Name","EMPLOYEE NAME","name","Name"], "Unknown");
 
-          const agentLeads = leads.filter(l => {
-            const lAgent = this.pick(l, ["Appointment Coordinator Name","Appointment Coord","Appointment Coordinator","Agent","AGENT"], "");
+          const agentLeads = (leads || []).filter(l => {
+            const lAgent = this.pick(l, ["Appointment Coordinator Name","Appointment Coord","Appointment Coordinator","Setter","Agent","AGENT"], "");
             const dStr   = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date"], "");
-            const lDate  = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
-            return String(lAgent).toLowerCase().includes(String(name).toLowerCase()) && lDate && !isNaN(lDate.getTime()) && lDate >= filterDate;
+            const dtRaw  = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+            if (!dtRaw || isNaN(dtRaw.getTime())) return false;
+            const dt = window.portal?.toMST ? window.portal.toMST(dtRaw) : dtRaw;
+
+            return String(lAgent).toLowerCase().includes(String(name).toLowerCase()) && dt >= start && dt <= end;
           });
 
           const total = agentLeads.length;
-          const confirmed = agentLeads.filter(l => {
+
+          const qualified = agentLeads.filter(l => {
             const st = this.pick(l, ["Status","STATUS"], "");
-            return window.portal?.isConfirmedStatus ? window.portal.isConfirmedStatus(st) : String(st).toLowerCase() === "confirmed";
+            return this.isQualified(st);
           }).length;
 
-          const rejected  = agentLeads.filter(l =>
-            String(this.pick(l, ["Status","STATUS"], "")).toLowerCase().includes("reject")
-          ).length;
+          const unqualified = agentLeads.filter(l => {
+            const st = this.pick(l, ["Status","STATUS"], "");
+            return this.isUnqualified(st);
+          }).length;
 
-          const eff = total > 0 ? Math.round((confirmed / total) * 100) : 0;
+          const eff = total > 0 ? Math.round((qualified / total) * 100) : 0;
 
           return `
             <tr>
               <td class="p-4 font-bold text-gray-900">${name}</td>
               <td class="p-4 text-center text-gray-600">${total}</td>
-              <td class="p-4 text-center text-emerald-600 font-bold bg-emerald-50 rounded">${confirmed}</td>
-              <td class="p-4 text-center text-red-500">${rejected}</td>
-              <td class="p-4 text-center text-gray-600">${eff}%</td>
+              <td class="p-4 text-center text-emerald-600 font-bold bg-emerald-50 rounded">${qualified}</td>
+              <td class="p-4 text-center text-red-500 font-bold bg-red-50 rounded">${unqualified}</td>
+              <td class="p-4 text-center text-gray-600 font-semibold">${eff}%</td>
             </tr>
           `;
         }).join('');
@@ -854,13 +1221,13 @@
           const status = this.pick(l, ["Status","STATUS"], "New");
           const date = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date"], "-");
           const homeowner = this.pick(l, ["Homeowner Name(s)","Homeowner Name","HOMEOWNER NAME","Homeowner"], "Unknown");
-          const agent = this.pick(l, ["Appointment Coordinator Name","Appointment Coord","Appointment Coordinator","Agent","AGENT"], "-");
+          const agent = this.pick(l, ["Appointment Coordinator Name","Appointment Coord","Appointment Coordinator","Setter","Agent","AGENT"], "-");
           const client = this.pick(l, ["Company Name","CLIENT","Client"], "-");
 
           let statusColor = "text-gray-600 bg-gray-100";
           const s = String(status).toLowerCase();
           if (s.includes('approve') || s.includes('confirm')) statusColor = "text-emerald-700 bg-emerald-100";
-          if (s.includes('reject')) statusColor = "text-red-700 bg-red-100";
+          if (s.includes('reject') || s.includes('credit')) statusColor = "text-red-700 bg-red-100";
           if (s.includes('pending')) statusColor = "text-yellow-700 bg-yellow-100";
 
           return `
