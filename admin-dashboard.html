@@ -206,7 +206,6 @@
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="clientName">Client Name <span class="sort-icon" id="sort-clientName">↕</span></th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase">Last Lead Received</th>
 
-                  <!-- ✅ NEW columns requested -->
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase">Purchase Date</th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase">Package Status</th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Qualified</th>
@@ -234,18 +233,58 @@
               <i class="fa-solid fa-chart-column text-yellow-500"></i> Team Performance Analytics
             </h3>
 
-            <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
-              <button onclick="Admin.setAnalyticsPeriod('today', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
-              <button onclick="Admin.setAnalyticsPeriod('this-week', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
-              <button onclick="Admin.setAnalyticsPeriod('previous-week', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Previous Week</button>
-              <button onclick="Admin.setAnalyticsPeriod('4-weeks', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">4 Weeks</button>
-              <button onclick="Admin.setAnalyticsPeriod('6-weeks', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">6 Weeks</button>
-              <button onclick="Admin.setAnalyticsPeriod('all-time', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
+            <!-- ✅ Presets + Custom Calendar -->
+            <div class="flex items-center gap-2 flex-wrap">
+              <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
+                <button onclick="Admin.setAnalyticsPeriod('today', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
+                <button onclick="Admin.setAnalyticsPeriod('this-week', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
+                <button onclick="Admin.setAnalyticsPeriod('previous-week', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Previous Week</button>
+                <button onclick="Admin.setAnalyticsPeriod('4-weeks', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">4 Weeks</button>
+                <button onclick="Admin.setAnalyticsPeriod('6-weeks', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">6 Weeks</button>
+                <button onclick="Admin.setAnalyticsPeriod('all-time', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
+              </div>
+
+              <div class="relative">
+                <button id="custom-range-toggle"
+                        class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                  <i class="fa-regular fa-calendar"></i> Custom
+                </button>
+
+                <div id="custom-range-popover"
+                     class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                  <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">
+                    Custom Timeframe
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+                      <input id="custom-start" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
+                    </div>
+                    <div>
+                      <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+                      <input id="custom-end" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
+                    </div>
+                  </div>
+
+                  <div class="flex justify-end gap-2 mt-3">
+                    <button id="custom-clear"
+                            class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
+                      Clear
+                    </button>
+                    <button id="custom-apply"
+                            class="px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">
+                      Apply
+                    </button>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
 
           <div class="p-5">
-            <!-- ✅ UPDATED: 6 KPI tiles (added QC Rejected, split Credited) -->
+            <!-- ✅ UPDATED: QC Rejected BEFORE Qualified -->
             <div class="grid grid-cols-1 md:grid-cols-6 gap-3 mb-5">
               <div class="kpi-tile">
                 <div class="kpi-label">Total Leads</div>
@@ -254,15 +293,15 @@
               </div>
 
               <div class="kpi-tile">
-                <div class="kpi-label">Qualified</div>
-                <div class="kpi-value text-emerald-600" id="kpi-qualified">0</div>
-                <div class="kpi-sub">Confirmed / Approved</div>
-              </div>
-
-              <div class="kpi-tile">
                 <div class="kpi-label">QC Rejected</div>
                 <div class="kpi-value text-red-500" id="kpi-qc-rejected">0</div>
                 <div class="kpi-sub">Rejected</div>
+              </div>
+
+              <div class="kpi-tile">
+                <div class="kpi-label">Qualified</div>
+                <div class="kpi-value text-emerald-600" id="kpi-qualified">0</div>
+                <div class="kpi-sub">Confirmed / Approved</div>
               </div>
 
               <div class="kpi-tile">
@@ -297,14 +336,14 @@
             </div>
           </div>
 
-          <!-- ✅ TOP 10 + BOTTOM 5 (kept as-is layout/headers) -->
+          <!-- ✅ TOP 10 + BOTTOM 5 -->
           <div class="border-t border-gray-100 p-5 bg-gray-50/40 space-y-6">
 
             <!-- TOP 10 -->
             <div>
               <div class="flex items-center justify-between mb-3">
                 <h4 class="font-bold text-gray-900 flex items-center gap-2">
-                  <i class="fa-solid fa-trophy text-yellow-500"></i> Top 10 Agents (Qualified Leads Only)
+                  <i class="fa-solid fa-trophy text-yellow-500"></i> Top 10 Agents
                 </h4>
                 <span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider" id="top10-label">—</span>
               </div>
@@ -315,13 +354,15 @@
                     <tr>
                       <th class="p-4">Agent</th>
                       <th class="p-4 text-center">Total</th>
+                      <th class="p-4 text-center text-red-500">QC Rejected</th>
                       <th class="p-4 text-center text-emerald-600">Qualified</th>
-                      <th class="p-4 text-center text-red-500">Unqualified</th>
+                      <th class="p-4 text-center text-red-500">Credited</th>
+                      <th class="p-4 text-center text-yellow-600">Pending</th>
                       <th class="p-4 text-center">Cancellation Rate</th>
                     </tr>
                   </thead>
                   <tbody id="top10-body" class="divide-y divide-gray-50">
-                    <tr><td colspan="5" class="p-6 text-center text-gray-400 italic">Calculating...</td></tr>
+                    <tr><td colspan="7" class="p-6 text-center text-gray-400 italic">Calculating...</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -331,7 +372,7 @@
             <div>
               <div class="flex items-center justify-between mb-3">
                 <h4 class="font-bold text-gray-900 flex items-center gap-2">
-                  <i class="fa-solid fa-arrow-down-wide-short text-red-500"></i> Bottom 5 Agents (Lowest Leads Set)
+                  <i class="fa-solid fa-arrow-down-wide-short text-red-500"></i> Bottom 5 Agents (≤ 5 Total Leads)
                 </h4>
                 <span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider" id="bottom5-label">—</span>
               </div>
@@ -342,13 +383,15 @@
                     <tr>
                       <th class="p-4">Agent</th>
                       <th class="p-4 text-center">Total</th>
+                      <th class="p-4 text-center text-red-500">QC Rejected</th>
                       <th class="p-4 text-center text-emerald-600">Qualified</th>
-                      <th class="p-4 text-center text-red-500">Unqualified</th>
+                      <th class="p-4 text-center text-red-500">Credited</th>
+                      <th class="p-4 text-center text-yellow-600">Pending</th>
                       <th class="p-4 text-center">Cancellation Rate</th>
                     </tr>
                   </thead>
                   <tbody id="bottom5-body" class="divide-y divide-gray-50">
-                    <tr><td colspan="5" class="p-6 text-center text-gray-400 italic">Calculating...</td></tr>
+                    <tr><td colspan="7" class="p-6 text-center text-gray-400 italic">Calculating...</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -357,7 +400,7 @@
           </div>
         </div>
 
-        <!-- Team Performance table (unchanged but will still show properly) -->
+        <!-- Team Performance table (unchanged) -->
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm mb-8">
           <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-gray-50/50 rounded-t-2xl">
             <h3 class="font-bold text-gray-900 flex items-center gap-2">
@@ -442,8 +485,12 @@
 
       _analyticsChart: null,
 
-      // ✅ NEW: lead counts per company (qualified/credited)
+      // ✅ improved lead counts (by company + by code)
       _leadCountsByCompany: null,
+      _leadCountsByCode: null,
+
+      // ✅ custom range
+      _customRange: { active: false, start: null, end: null },
 
       getState() {
         return (window.portal && window.portal.adminState) ? window.portal.adminState : null;
@@ -460,8 +507,10 @@
         this._companyToCodeMap = null;
         this._companyToPackageMap = null;
 
-        // ✅ NEW: build counts before health normalization
-        this._leadCountsByCompany = this.buildLeadCountsByCompany(leads);
+        // ✅ build counts before health normalization
+        const counts = this.buildLeadCounts(leads);
+        this._leadCountsByCompany = counts.byCompany;
+        this._leadCountsByCode = counts.byCode;
 
         try { this.renderPulse(leads); } catch(e) {}
         try {
@@ -493,7 +542,11 @@
           .trim();
       },
 
-      // ✅ NEW: Sold-By mapping persisted locally
+      normalizeCode(code) {
+        return String(code || "").toLowerCase().replace(/\s+/g, "").trim();
+      },
+
+      // ✅ Sold-By mapping persisted locally
       getSoldByForClient(code) {
         try {
           const raw = localStorage.getItem("ch_soldby_map");
@@ -529,9 +582,7 @@
 
       extractRoofingCompany(c) {
         return this.pick(c, [
-          // ✅ healthMonitor normalized
           "roofing_company",
-          // fallback (sheet-style)
           "Roofing Company",
           "Roofing Company Name",
           "ROOFING COMPANY",
@@ -542,9 +593,7 @@
 
       extractCityState(c) {
         return this.pick(c, [
-          // ✅ healthMonitor normalized
           "city_state",
-          // fallback
           "CITY STATE",
           "CITY, STATE",
           "City, State",
@@ -556,9 +605,7 @@
 
       extractClientName(c) {
         return this.pick(c, [
-          // ✅ healthMonitor normalized
           "client_name",
-          // fallback
           "CLIENT NAME",
           "Client Name",
           "client_name",
@@ -570,9 +617,7 @@
 
       extractCode(c) {
         return this.pick(c, [
-          // ✅ healthMonitor normalized
           "code_name",
-          // fallback
           "CODE NAME",
           "Code Name",
           "codeName",
@@ -586,33 +631,38 @@
         ], "N/A");
       },
 
-      // ✅ NEW: Build qualified/credited counts per company from RAW LEADS
-      buildLeadCountsByCompany(leads) {
-        const map = new Map();
+      // ✅ Build counts by company AND by code (helps fix weird client numbers)
+      buildLeadCounts(leads) {
+        const byCompany = new Map();
+        const byCode = new Map();
+
         for (const l of (leads || [])) {
           const company = this.pick(l, ["Company Name","COMPANY NAME","Client"], "");
-          const key = this.normalizeCompanyName(company);
-          if (!key) continue;
+          const companyKey = this.normalizeCompanyName(company);
+
+          const leadCode = this.pick(l, ["Client Code","CLIENT CODE","Code Name","CODE NAME","Code","CODE"], "");
+          const codeKey = this.normalizeCode(leadCode);
 
           const st = this.pick(l, ["Status","STATUS"], "");
 
-          const row = map.get(key) || { qualified: 0, credited: 0 };
-          if (this.isQualified(st)) row.qualified += 1;
-          else if (this.isCredited(st)) row.credited += 1; // ✅ credited ONLY
-          map.set(key, row);
+          const bump = (map, key) => {
+            if (!key) return;
+            const row = map.get(key) || { qualified: 0, credited: 0 };
+            if (this.isQualified(st)) row.qualified += 1;
+            else if (this.isCredited(st)) row.credited += 1;
+            map.set(key, row);
+          };
+
+          bump(byCompany, companyKey);
+          bump(byCode, codeKey);
         }
-        return map;
+
+        return { byCompany, byCode };
       },
 
       normalizeClientHealthRows(clients) {
         return (clients || []).map(c => {
-          const rawStatus = this.pick(c, [
-            // ✅ healthMonitor normalized
-            "status",
-            // fallback
-            "Client Status","CLIENT STATUS","Status","STATUS","status"
-          ], "UNKNOWN");
-
+          const rawStatus = this.pick(c, ["status","Client Status","CLIENT STATUS","Status","STATUS","status"], "UNKNOWN");
           const clientStatus = this.normalizeClientStatus(rawStatus);
 
           const roofingCompany = this.extractRoofingCompany(c);
@@ -620,57 +670,29 @@
           const cityState = this.extractCityState(c);
           const clientName = this.extractClientName(c);
 
-          const lastLead = this.pick(c, [
-            // ✅ healthMonitor normalized
-            "last_lead_received",
-            // fallback
-            "Last Lead Received","last_lead_received"
-          ], "—");
+          const lastLead = this.pick(c, ["last_lead_received","Last Lead Received","last_lead_received"], "—");
 
-          const hoursSince = Number(this.pick(c, [
-            // ✅ healthMonitor normalized
-            "hours_since_last_lead",
-            // fallback
-            "Hours Since Last Lead","Hours Since","hours_since_last_lead"
-          ], 0)) || 0;
+          const hoursSince = Number(this.pick(c, ["hours_since_last_lead","Hours Since Last Lead","Hours Since","hours_since_last_lead"], 0)) || 0;
+          const leadsToday = Number(this.pick(c, ["leads_today","Leads Today","leads_today"], 0)) || 0;
+          const leadsYesterday = Number(this.pick(c, ["leads_yesterday","Leads Yesterday","leads_yesterday"], 0)) || 0;
 
-          const leadsToday = Number(this.pick(c, [
-            // ✅ healthMonitor normalized
-            "leads_today",
-            // fallback
-            "Leads Today","leads_today"
-          ], 0)) || 0;
-
-          const leadsYesterday = Number(this.pick(c, [
-            // ✅ healthMonitor normalized
-            "leads_yesterday",
-            // fallback
-            "Leads Yesterday","leads_yesterday"
-          ], 0)) || 0;
-
-          // ✅ package fields: healthMonitor uses snake_case
-          const owed = Number(this.pick(c, [
-            "owed_leads",
-            "Owed Leads","OWED LEADS","owed_leads","Owed"
-          ], 0)) || 0;
-
-          const purchased = Number(this.pick(c, [
-            "purchased_leads",
-            "Purchased Leads","PURCHASED LEADS","purchased_leads","Purchased"
-          ], 0)) || 0;
+          const owed = Number(this.pick(c, ["owed_leads","Owed Leads","OWED LEADS","owed_leads","Owed"], 0)) || 0;
+          const purchased = Number(this.pick(c, ["purchased_leads","Purchased Leads","PURCHASED LEADS","purchased_leads","Purchased"], 0)) || 0;
 
           const pkgLabel = `${owed} / ${purchased}`;
           const pkgRatio = purchased === 0 ? owed : (owed / purchased);
 
-          // ✅ NEW columns: purchase date + package status
           const purchaseDate = this.pick(c, ["purchase_date","Purchase Date","PURCHASE DATE"], "—");
           const packageStatus = this.pick(c, ["package_status","Package Status","PACKAGE STATUS"], "—");
 
-          // ✅ NEW: Qualified/Credited by company (based on RAW LEADS Company Name)
+          // ✅ counts lookup: try CODE first, then company name
+          const codeKey = this.normalizeCode(code);
           const companyKey = this.normalizeCompanyName(roofingCompany);
-          const counts = this._leadCountsByCompany?.get(companyKey) || { qualified: 0, credited: 0 };
 
-          // ✅ NEW: Sold By dropdown (Hammer/CHL)
+          const countsByCode = this._leadCountsByCode?.get(codeKey) || null;
+          const countsByCompany = this._leadCountsByCompany?.get(companyKey) || null;
+          const counts = countsByCode || countsByCompany || { qualified: 0, credited: 0 };
+
           const soldBy = this.getSoldByForClient(code);
 
           return {
@@ -733,6 +755,53 @@
               this.applyClientHealthFilters();
             });
           });
+
+          // ✅ Custom range popover handlers (added)
+          const toggle = document.getElementById("custom-range-toggle");
+          const pop = document.getElementById("custom-range-popover");
+          const apply = document.getElementById("custom-apply");
+          const clear = document.getElementById("custom-clear");
+
+          if (toggle && pop && apply && clear && !this._customBound) {
+            this._customBound = true;
+
+            toggle.addEventListener("click", (e) => {
+              e.preventDefault();
+              pop.classList.toggle("hidden");
+            });
+
+            document.addEventListener("click", (e) => {
+              if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
+                pop.classList.add("hidden");
+              }
+            });
+
+            apply.addEventListener("click", () => {
+              const s = document.getElementById("custom-start").value;
+              const e = document.getElementById("custom-end").value;
+              if (!s || !e) return;
+
+              this._customRange.active = true;
+              this._customRange.start = s;
+              this._customRange.end = e;
+
+              // use period marker, but preserve preset buttons
+              this.analyticsPeriod = "custom";
+              pop.classList.add("hidden");
+              this.updateAnalytics(this.analyticsPeriod);
+            });
+
+            clear.addEventListener("click", () => {
+              document.getElementById("custom-start").value = "";
+              document.getElementById("custom-end").value = "";
+              this._customRange.active = false;
+              this._customRange.start = null;
+              this._customRange.end = null;
+              pop.classList.add("hidden");
+              // keep current preset period
+              this.updateAnalytics(this.analyticsPeriod === "custom" ? "today" : this.analyticsPeriod);
+            });
+          }
         }
       },
 
@@ -804,7 +873,6 @@
               <td class="p-4 text-gray-700 max-w-[220px] truncate" title="${r.clientName}">${r.clientName}</td>
               <td class="p-4 text-gray-500">${r.lastLead}</td>
 
-              <!-- ✅ NEW columns -->
               <td class="p-4 text-gray-500">${r.purchaseDate}</td>
               <td class="p-4 text-gray-500">${r.packageStatus}</td>
               <td class="p-4 text-center text-emerald-600 font-bold">${r.qualifiedCount}</td>
@@ -825,7 +893,6 @@
           `;
         }).join("");
 
-        // ✅ bind Sold By change handlers
         tbody.querySelectorAll('select[data-soldby-code]').forEach(sel => {
           sel.addEventListener('change', (e) => {
             const code = e.target.getAttribute('data-soldby-code');
@@ -833,7 +900,6 @@
 
             this.setSoldByForClient(code, val);
 
-            // keep in-memory row updated too
             const row = this.clientHealthRaw.find(x => x.code === code);
             if (row) row.soldBy = val;
           });
@@ -843,7 +909,6 @@
       renderPulse(leads) {
         const today = new Date().toDateString();
 
-        // ✅ FIX: RAW LEADS header is "Date Submitted"
         const todayLeads = (leads || []).filter(l => {
           const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
           const d = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
@@ -868,6 +933,13 @@
       setAnalyticsPeriod(period, btnElement) {
         this.analyticsPeriod = period;
 
+        // ✅ if preset clicked, disable custom
+        if (period !== "custom") {
+          this._customRange.active = false;
+          this._customRange.start = null;
+          this._customRange.end = null;
+        }
+
         if (btnElement) {
           document.querySelectorAll('.analytics-btn').forEach(b => {
             b.classList.remove('bg-white', 'shadow', 'text-gray-900');
@@ -887,6 +959,15 @@
 
         const startOfDay = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
         const endOfDay = (d) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
+
+        // ✅ custom timeframe
+        if (period === "custom" && this._customRange.active && this._customRange.start && this._customRange.end) {
+          const s = new Date(this._customRange.start + "T00:00:00");
+          const e = new Date(this._customRange.end + "T23:59:59");
+          const start = startOfDay(s);
+          const end = endOfDay(e);
+          return { start, end, grain: "day", label: "Custom Range" };
+        }
 
         if (period === "today") return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "Today" };
         if (period === "this-week" && payrollThis) return { start: payrollThis.start, end: payrollThis.end, grain: "day", label: "This Week" };
@@ -918,19 +999,16 @@
         return { start, end, grain: "month", label: "All-Time" };
       },
 
-      // ✅ Status rules (UPDATED)
       isQualified(st) {
         const s = String(st || "").toLowerCase();
         return s.includes("confirm") || s.includes("approve");
       },
 
-      // ✅ NEW: QC Rejected only
       isRejected(st) {
         const s = String(st || "").toLowerCase();
         return s.includes("reject");
       },
 
-      // ✅ UPDATED: Credited only (no rejected here)
       isCredited(st) {
         const s = String(st || "").toLowerCase();
         return s.includes("credit");
@@ -939,6 +1017,105 @@
       isPendingReview(st) {
         const s = String(st || "").toLowerCase();
         return s.includes("pending");
+      },
+
+      // ✅ Chart helpers
+      _fmtDateKey(d) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth()+1).padStart(2,"0");
+        const day = String(d.getDate()).padStart(2,"0");
+        return `${y}-${m}-${day}`;
+      },
+
+      _fmtWeekKey(d) {
+        // week bucket by Monday
+        const x = new Date(d);
+        const day = x.getDay(); // 0..6 (Sun..Sat)
+        const diff = (day === 0 ? -6 : 1) - day; // to Monday
+        x.setDate(x.getDate() + diff);
+        x.setHours(0,0,0,0);
+        return this._fmtDateKey(x);
+      },
+
+      _buildBuckets(start, end, grain) {
+        const buckets = [];
+        const cursor = new Date(start);
+        cursor.setHours(0,0,0,0);
+
+        if (grain === "day") {
+          while (cursor <= end) {
+            buckets.push(this._fmtDateKey(cursor));
+            cursor.setDate(cursor.getDate() + 1);
+          }
+          return buckets;
+        }
+
+        if (grain === "week") {
+          // start at week key of start
+          const wkStartKey = this._fmtWeekKey(cursor);
+          let wkCursor = new Date(wkStartKey + "T00:00:00");
+          while (wkCursor <= end) {
+            buckets.push(this._fmtDateKey(wkCursor));
+            wkCursor.setDate(wkCursor.getDate() + 7);
+          }
+          return buckets;
+        }
+
+        // month (all-time): bucket by YYYY-MM
+        const mcur = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+        const mend = new Date(end.getFullYear(), end.getMonth(), 1);
+        while (mcur <= mend) {
+          const y = mcur.getFullYear();
+          const m = String(mcur.getMonth()+1).padStart(2,"0");
+          buckets.push(`${y}-${m}`);
+          mcur.setMonth(mcur.getMonth() + 1);
+        }
+        return buckets;
+      },
+
+      _bucketKeyFor(dt, grain) {
+        if (grain === "day") return this._fmtDateKey(dt);
+        if (grain === "week") return this._fmtDateKey(new Date(this._fmtWeekKey(dt) + "T00:00:00"));
+        // month
+        const y = dt.getFullYear();
+        const m = String(dt.getMonth()+1).padStart(2,"0");
+        return `${y}-${m}`;
+      },
+
+      _renderAnalyticsChart(labels, series) {
+        const ctx = document.getElementById("team-analytics-chart");
+        if (!ctx) return;
+
+        if (this._analyticsChart) {
+          try { this._analyticsChart.destroy(); } catch(e) {}
+          this._analyticsChart = null;
+        }
+
+        this._analyticsChart = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels,
+            datasets: [
+              { label: "Qualified", data: series.qualified, stack: "stack" },
+              { label: "QC Rejected", data: series.rejected, stack: "stack" },
+              { label: "Credited", data: series.credited, stack: "stack" },
+              { label: "Pending", data: series.pending, stack: "stack" },
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: "top" },
+              tooltip: { mode: "index", intersect: false }
+            },
+            interaction: { mode: "index", intersect: false },
+            scales: {
+              x: { stacked: true, grid: { display: false } },
+              y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } }
+            }
+          }
+        });
       },
 
       updateAnalytics(period) {
@@ -951,13 +1128,21 @@
         document.getElementById("top10-label").textContent = label;
         document.getElementById("bottom5-label").textContent = label;
 
-        // ✅ UPDATED COUNTERS
+        document.getElementById("trend-grain").textContent =
+          grain === "day" ? "Daily" : (grain === "week" ? "Weekly" : "Monthly");
+
         let total = 0, qualified = 0, rejected = 0, credited = 0, pending = 0;
 
         const agentAgg = new Map();
 
+        // ✅ trend buckets
+        const buckets = this._buildBuckets(start, end, grain);
+        const seriesMap = new Map();
+        for (const b of buckets) {
+          seriesMap.set(b, { qualified: 0, rejected: 0, credited: 0, pending: 0 });
+        }
+
         for (const l of (leads || [])) {
-          // ✅ RAW LEADS header is "Date Submitted"
           const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
           const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
           if (!dt || isNaN(dt.getTime())) continue;
@@ -965,7 +1150,6 @@
 
           const st = this.pick(l, ["Status","STATUS"], "");
 
-          // ✅ RAW LEADS header: Appointment Coordinator Name
           const agent = String(this.pick(l, [
             "Appointment Coordinator Name",
             "Appointment Coordinator",
@@ -977,23 +1161,29 @@
 
           total += 1;
 
-          const a = agentAgg.get(agent) || { name: agent, total: 0, qualified: 0, rejected: 0, credited: 0 };
+          const a = agentAgg.get(agent) || { name: agent, total: 0, qualified: 0, rejected: 0, credited: 0, pending: 0 };
           a.total += 1;
+
+          const bk = this._bucketKeyFor(dt, grain);
+          const bRow = seriesMap.get(bk) || null;
 
           if (this.isQualified(st)) {
             qualified += 1; a.qualified += 1;
+            if (bRow) bRow.qualified += 1;
           } else if (this.isRejected(st)) {
             rejected += 1; a.rejected += 1;
+            if (bRow) bRow.rejected += 1;
           } else if (this.isCredited(st)) {
             credited += 1; a.credited += 1;
+            if (bRow) bRow.credited += 1;
           } else {
-            pending += 1;
+            pending += 1; a.pending += 1;
+            if (bRow) bRow.pending += 1;
           }
 
           agentAgg.set(agent, a);
         }
 
-        // ✅ cancellation rate = credited / (qualified + credited)
         const denom = qualified + credited;
         const cancelRate = denom > 0 ? Math.round((credited / denom) * 100) : 0;
 
@@ -1004,31 +1194,28 @@
         document.getElementById("kpi-pending").textContent = pending;
         document.getElementById("kpi-cancel").textContent = `${cancelRate}%`;
 
-        // ✅ Top 10 by QUALIFIED ONLY (kept: uses qualified counts)
+        // ✅ Top 10: keep ranking by Qualified (same metric you care about)
         const top = Array.from(agentAgg.values())
           .sort((a,b) => (b.qualified - a.qualified) || (b.total - a.total))
           .slice(0, 10);
 
-        // ✅ Bottom 5 by LOWEST TOTAL leads set (kept)
-        let bottomCandidates = Array.from(agentAgg.values()).filter(a => a.total > 0);
-        if (bottomCandidates.length < 5) bottomCandidates = Array.from(agentAgg.values());
-
+        // ✅ Bottom 5: ONLY agents with total <= 5 (your requirement)
+        const bottomCandidates = Array.from(agentAgg.values()).filter(a => a.total > 0 && a.total <= 5);
         const bottom = bottomCandidates
           .sort((a,b) => (a.total - b.total) || (a.qualified - b.qualified))
           .slice(0, 5);
 
-        // Render tables (kept headers as-is)
         const renderRow = (a) => {
-          // keep old "unqualified" column meaning for this table,
-          // but cancellation rate now matches credited-only.
           const d = a.qualified + a.credited;
           const cr = d > 0 ? Math.round((a.credited / d) * 100) : 0;
           return `
             <tr>
               <td class="p-4 font-bold text-gray-900">${a.name}</td>
               <td class="p-4 text-center text-gray-600 font-semibold">${a.total}</td>
+              <td class="p-4 text-center text-red-500 font-bold">${a.rejected}</td>
               <td class="p-4 text-center text-emerald-600 font-bold">${a.qualified}</td>
               <td class="p-4 text-center text-red-500 font-bold">${a.credited}</td>
+              <td class="p-4 text-center text-yellow-600 font-bold">${a.pending}</td>
               <td class="p-4 text-center text-gray-600 font-semibold">${cr}%</td>
             </tr>
           `;
@@ -1037,15 +1224,25 @@
         const topBody = document.getElementById("top10-body");
         topBody.innerHTML = top.length
           ? top.map(renderRow).join("")
-          : `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No leads in this period.</td></tr>`;
+          : `<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No leads in this period.</td></tr>`;
 
         const bottomBody = document.getElementById("bottom5-body");
         bottomBody.innerHTML = bottom.length
           ? bottom.map(renderRow).join("")
-          : `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No leads in this period.</td></tr>`;
+          : `<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No agents with ≤ 5 leads in this period.</td></tr>`;
+
+        // ✅ trend chart render
+        const chartLabels = buckets.map(b => b);
+        const series = {
+          qualified: buckets.map(b => seriesMap.get(b)?.qualified || 0),
+          rejected: buckets.map(b => seriesMap.get(b)?.rejected || 0),
+          credited: buckets.map(b => seriesMap.get(b)?.credited || 0),
+          pending: buckets.map(b => seriesMap.get(b)?.pending || 0),
+        };
+        this._renderAnalyticsChart(chartLabels, series);
       },
 
-      // ✅ Team Performance (All Agents) - UPDATED to count credited only for "Unqualified" + cancellation rate
+      // ✅ Team Performance (All Agents) stays as your current logic
       updatePerf(period, btnElement) {
         this.perfPeriod = period;
 
@@ -1084,8 +1281,6 @@
 
           const total = agentLeads.length;
           const qualified = agentLeads.filter(l => this.isQualified(this.pick(l, ["Status","STATUS"], ""))).length;
-
-          // ✅ credited only (rejected not included)
           const credited = agentLeads.filter(l => this.isCredited(this.pick(l, ["Status","STATUS"], ""))).length;
 
           const denom = qualified + credited;
