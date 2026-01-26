@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-  <!-- ✅ ADDED: Chart.js for Team Analytics -->
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
@@ -20,9 +20,6 @@
     .nav-item { transition: all 0.2s; border-left: 4px solid transparent; cursor: pointer; color: #D1D5DB; }
     .nav-item:hover { background: rgba(251, 191, 36, 0.1); color: #FBBF24; }
     .nav-item.active { background: rgba(251, 191, 36, 0.15); color: #FBBF24; border-left-color: #FBBF24; font-weight: 600; }
-
-    .btn-primary { background: #F59E0B; color: #111827; font-weight: 700; transition: all 0.2s; }
-    .btn-primary:hover { background: #D97706; transform: translateY(-1px); }
 
     .status-container { position: relative; display: inline-flex; align-items: center; }
     .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; cursor: help; }
@@ -55,15 +52,22 @@
     th.sortable:hover { background: rgba(17,24,39,0.02); }
     .sort-icon { font-size: 10px; margin-left: 6px; color: #9CA3AF; }
 
-    /* ✅ small polish for KPI tiles inside analytics */
+    /* KPI tiles */
     .kpi-tile { background: #fff; border: 1px solid #F3F4F6; border-radius: 16px; padding: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
     .kpi-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .12em; color: #9CA3AF; }
     .kpi-value { font-size: 20px; font-weight: 800; margin-top: 6px; color: #111827; }
     .kpi-sub { font-size: 12px; font-weight: 600; margin-top: 2px; color: #6B7280; }
+
+    /* ✅ Client Health fixed scroll height */
+    .client-health-scroll {
+      max-height: 315px; /* ~5 rows visible */
+      overflow-y: auto;
+    }
   </style>
 </head>
 
 <body class="h-screen flex overflow-hidden">
+
   <!-- Sidebar -->
   <aside class="sidebar w-64 flex-shrink-0 hidden lg:flex flex-col">
     <div class="h-16 flex items-center px-6 border-b border-gray-700">
@@ -117,11 +121,14 @@
 
       <!-- OVERVIEW -->
       <div id="view-overview" class="view-section active">
+
+        <!-- Top Header -->
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
           <div>
             <h1 class="text-3xl font-bold text-gray-900">Mission Control</h1>
             <p class="text-sm text-gray-500 mt-1">Daily decision support & system health.</p>
           </div>
+
           <div class="flex gap-4">
             <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
               <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Est. Value (Today)</p>
@@ -134,7 +141,7 @@
           </div>
         </div>
 
-        <!-- ✅ FULL WIDTH CLIENT HEALTH -->
+        <!-- ✅ CLIENT HEALTH (5 ROWS + SCROLL) -->
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8">
           <div class="p-5 border-b border-gray-100 flex flex-col gap-3 bg-gray-50/50 rounded-t-2xl">
             <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
@@ -162,7 +169,6 @@
               </div>
             </div>
 
-            <!-- ✅ Search + Filters -->
             <div class="flex flex-col md:flex-row gap-3">
               <div class="flex-1 relative">
                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
@@ -188,45 +194,21 @@
             </div>
           </div>
 
-          <div class="flex-1 overflow-auto">
+          <!-- ✅ scroll wrapper -->
+          <div class="client-health-scroll">
             <table class="w-full text-left border-collapse">
               <thead class="bg-white sticky top-0 z-10 shadow-sm">
                 <tr>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase w-10">Status</th>
-
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="code">
-                    Code <span class="sort-icon" id="sort-code">↕</span>
-                  </th>
-
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="roofingCompany">
-                    Roofing Company <span class="sort-icon" id="sort-roofingCompany">↕</span>
-                  </th>
-
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="cityState">
-                    City, State <span class="sort-icon" id="sort-cityState">↕</span>
-                  </th>
-
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="clientName">
-                    Client Name <span class="sort-icon" id="sort-clientName">↕</span>
-                  </th>
-
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="code">Code <span class="sort-icon" id="sort-code">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="roofingCompany">Roofing Company <span class="sort-icon" id="sort-roofingCompany">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="cityState">City, State <span class="sort-icon" id="sort-cityState">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="clientName">Client Name <span class="sort-icon" id="sort-clientName">↕</span></th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase">Last Lead Received</th>
-
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="packageRatio">
-                    Package (Owed/Purchased) <span class="sort-icon" id="sort-packageRatio">↕</span>
-                  </th>
-
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="hoursSince">
-                    Hours Since <span class="sort-icon" id="sort-hoursSince">↕</span>
-                  </th>
-
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsToday">
-                    Leads Today <span class="sort-icon" id="sort-leadsToday">↕</span>
-                  </th>
-
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsYesterday">
-                    Leads Yesterday <span class="sort-icon" id="sort-leadsYesterday">↕</span>
-                  </th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="packageRatio">Package (Owed/Purchased) <span class="sort-icon" id="sort-packageRatio">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="hoursSince">Hours Since <span class="sort-icon" id="sort-hoursSince">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsToday">Leads Today <span class="sort-icon" id="sort-leadsToday">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsYesterday">Leads Yesterday <span class="sort-icon" id="sort-leadsYesterday">↕</span></th>
                 </tr>
               </thead>
 
@@ -237,7 +219,7 @@
           </div>
         </div>
 
-        <!-- ✅ ADDED: TEAM ANALYTICS (GRAPH + TOP 10) -->
+        <!-- ✅ TEAM ANALYTICS -->
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8 overflow-hidden">
           <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-gray-50/50">
             <h3 class="font-bold text-gray-900 flex items-center gap-2">
@@ -277,9 +259,9 @@
                 <div class="kpi-sub">Needs review</div>
               </div>
               <div class="kpi-tile">
-                <div class="kpi-label">Efficiency</div>
-                <div class="kpi-value" id="kpi-eff">0%</div>
-                <div class="kpi-sub">Qualified / Total</div>
+                <div class="kpi-label">Cancellation Rate</div>
+                <div class="kpi-value" id="kpi-cancel">0%</div>
+                <div class="kpi-sub">Unqualified / (Qualified + Unqualified)</div>
               </div>
             </div>
 
@@ -296,70 +278,67 @@
             </div>
           </div>
 
-          <div class="border-t border-gray-100 p-5 bg-gray-50/40">
-            <div class="flex items-center justify-between mb-3">
-              <h4 class="font-bold text-gray-900 flex items-center gap-2">
-  <i class="fa-solid fa-trophy text-yellow-500"></i> Top 10 Agents (Qualified Leads Only)
-</h4>
-              <span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider" id="top10-label">—</span>
-            </div>
-<div class="mt-5">
-  <div class="flex items-center justify-between mb-3">
-    <h4 class="font-bold text-gray-900 flex items-center gap-2">
-      <i class="fa-solid fa-arrow-down-wide-short text-red-500"></i> Bottom 5 Agents (Lowest Leads Set)
-    </h4>
-    <span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider" id="bottom5-label">—</span>
-  </div>
+          <!-- ✅ TOP 10 + BOTTOM 5 (fixed layout + correct headers) -->
+          <div class="border-t border-gray-100 p-5 bg-gray-50/40 space-y-6">
 
-  <div class="overflow-x-auto bg-white rounded-2xl border border-gray-100">
-    <table class="w-full text-left text-sm">
-      <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
-        <tr>
-          <th class="p-4">Agent</th>
-          <th class="p-4 text-center">Total</th>
-          <th class="p-4 text-center text-emerald-600">Qualified</th>
-          <th class="p-4 text-center text-red-500">Unqualified</th>
-          <th class="p-4 text-center">Efficiency</th>
-        </tr>
-      </thead>
-      <tbody id="bottom5-body" class="divide-y divide-gray-50">
-        <tr><td colspan="5" class="p-6 text-center text-gray-400 italic">Calculating...</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-            <div class="overflow-x-auto bg-white rounded-2xl border border-gray-100">
-              <table class="w-full text-left text-sm">
-                <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
-                  <tr>
-                    <th class="p-4">Agent</th>
-                    <th class="p-4 text-center">Total</th>
-                    <th class="p-4 text-center text-emerald-600">Qualified</th>
-                    <th class="p-4 text-center text-red-500">Unqualified</th>
-                    <th class="p-4 text-center">Efficiency</th>
-                  </tr>
-                </thead>
-                <tbody id="top10-body" class="divide-y divide-gray-50">
-                  <tr><td colspan="5" class="p-6 text-center text-gray-400 italic">Calculating...</td></tr>
-                </tbody>
-              </table>
+            <!-- TOP 10 -->
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="font-bold text-gray-900 flex items-center gap-2">
+                  <i class="fa-solid fa-trophy text-yellow-500"></i> Top 10 Agents (Qualified Leads Only)
+                </h4>
+                <span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider" id="top10-label">—</span>
+              </div>
+
+              <div class="overflow-x-auto bg-white rounded-2xl border border-gray-100">
+                <table class="w-full text-left text-sm">
+                  <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+                    <tr>
+                      <th class="p-4">Agent</th>
+                      <th class="p-4 text-center">Total</th>
+                      <th class="p-4 text-center text-emerald-600">Qualified</th>
+                      <th class="p-4 text-center text-red-500">Unqualified</th>
+                      <th class="p-4 text-center">Cancellation Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody id="top10-body" class="divide-y divide-gray-50">
+                    <tr><td colspan="5" class="p-6 text-center text-gray-400 italic">Calculating...</td></tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
+
+            <!-- BOTTOM 5 -->
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="font-bold text-gray-900 flex items-center gap-2">
+                  <i class="fa-solid fa-arrow-down-wide-short text-red-500"></i> Bottom 5 Agents (Lowest Leads Set)
+                </h4>
+                <span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider" id="bottom5-label">—</span>
+              </div>
+
+              <div class="overflow-x-auto bg-white rounded-2xl border border-gray-100">
+                <table class="w-full text-left text-sm">
+                  <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+                    <tr>
+                      <th class="p-4">Agent</th>
+                      <th class="p-4 text-center">Total</th>
+                      <th class="p-4 text-center text-emerald-600">Qualified</th>
+                      <th class="p-4 text-center text-red-500">Unqualified</th>
+                      <th class="p-4 text-center">Cancellation Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody id="bottom5-body" class="divide-y divide-gray-50">
+                    <tr><td colspan="5" class="p-6 text-center text-gray-400 italic">Calculating...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
           </div>
         </div>
 
-        <!-- Optional blocks remain -->
-        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8">
-          <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
-            <h3 class="font-bold text-gray-900 text-sm">Live Floor Status</h3>
-            <span class="text-[10px] bg-white border border-gray-200 text-gray-500 px-2 py-1 rounded font-bold uppercase tracking-wider">Basic</span>
-          </div>
-          <div class="p-4 text-center text-xs text-gray-400">
-            Live Time Tracker available in Phase 2.<br>
-            Currently tracking Agent production via Leads.
-          </div>
-        </div>
-
-        <!-- ✅ UPDATED: Team Performance card supports all periods + qualified/unqualified naming -->
+        <!-- Team Performance table (unchanged but will still show properly) -->
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm mb-8">
           <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-gray-50/50 rounded-t-2xl">
             <h3 class="font-bold text-gray-900 flex items-center gap-2">
@@ -374,6 +353,7 @@
               <button onclick="Admin.updatePerf('all-time', this)" class="perf-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
             </div>
           </div>
+
           <div class="overflow-x-auto">
             <table class="w-full text-left text-sm">
               <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
@@ -382,7 +362,7 @@
                   <th class="p-4 text-center">Total Leads</th>
                   <th class="p-4 text-center text-emerald-600">Qualified</th>
                   <th class="p-4 text-center text-red-500">Unqualified</th>
-                  <th class="p-4 text-center">Efficiency</th>
+                  <th class="p-4 text-center">Cancellation Rate</th>
                 </tr>
               </thead>
               <tbody id="agent-perf-body" class="divide-y divide-gray-50">
@@ -413,7 +393,7 @@
                 <tr>
                   <th class="p-4">Date</th>
                   <th class="p-4">Homeowner</th>
-                  <th class="p-4">Agent</th>
+                  <th class="p-4">Appointment Coordinator</th>
                   <th class="p-4">Client</th>
                   <th class="p-4">Status</th>
                 </tr>
@@ -434,16 +414,13 @@
       perfPeriod: 'today',
       analyticsPeriod: 'today',
 
-      // Table dataset cache for sorting/filtering
       clientHealthRaw: [],
       clientHealthView: [],
-      sortState: { key: null, dir: 'asc' }, // asc/desc
+      sortState: { key: null, dir: 'asc' },
 
-      // built maps (company -> code / package)
       _companyToCodeMap: null,
       _companyToPackageMap: null,
 
-      // chart instance
       _analyticsChart: null,
 
       getState() {
@@ -452,37 +429,28 @@
 
       refreshDashboard() {
         const state = this.getState();
-        if (!state) {
-          console.log("⏳ Waiting for portal/adminState...");
-          return;
-        }
+        if (!state) return;
 
         const clients = Array.isArray(state.clients) ? state.clients : [];
         const leads   = Array.isArray(state.leads) ? state.leads : [];
         const agents  = Array.isArray(state.agents) ? state.agents : [];
 
-        // reset maps each refresh (in case sheets updated)
         this._companyToCodeMap = null;
         this._companyToPackageMap = null;
 
-        try { this.renderPulse(leads); } catch(e) { console.error("Pulse Error:", e); }
-
-        // ✅ Normalize client health rows first, then render
+        try { this.renderPulse(leads); } catch(e) {}
         try {
           this.clientHealthRaw = this.normalizeClientHealthRows(clients);
           this.setupFilters(this.clientHealthRaw);
-          this.applyClientHealthFilters(); // renders the table view
-        } catch(e) { console.error("Client Health Error:", e); }
+          this.applyClientHealthFilters();
+        } catch(e) {}
 
-        // ✅ analytics block
-        try { this.updateAnalytics(this.analyticsPeriod); } catch(e) { console.error("Analytics Error:", e); }
-
-        try { this.updatePerf(this.perfPeriod); } catch(e) { console.error("Perf Error:", e); }
-        try { this.renderClientCards(clients); } catch(e) { console.error("Client Cards Error:", e); }
-        try { this.renderLeads(leads); } catch(e) { console.error("Leads Table Error:", e); }
+        try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
+        try { this.updatePerf(this.perfPeriod); } catch(e) {}
+        try { this.renderClientCards(clients); } catch(e) {}
+        try { this.renderLeads(leads); } catch(e) {}
       },
 
-      // ✅ smarter pick: tries multiple keys + ignores empty strings
       pick(obj, keys, fallback = "") {
         for (const k of keys) {
           const v = obj?.[k];
@@ -491,7 +459,6 @@
         return fallback;
       },
 
-      // ✅ normalize for matching across sheets (Company Name)
       normalizeCompanyName(name) {
         return String(name || "")
           .toLowerCase()
@@ -499,150 +466,6 @@
           .replace(/[^a-z0-9\s]/g, " ")
           .replace(/\s+/g, " ")
           .trim();
-      },
-
-      // ✅ find a list inside adminState by checking many possible keys (VERY IMPORTANT)
-      findListInState(possibleKeys) {
-        const state = this.getState();
-        if (!state) return [];
-
-        for (const k of possibleKeys) {
-          const v = state[k];
-          if (Array.isArray(v)) return v;
-        }
-
-        // sometimes people store sheets grouped like state.sheets = { ... }
-        const sheets = state.sheets || state.SHEETS || state.data || null;
-        if (sheets && typeof sheets === "object") {
-          for (const k of possibleKeys) {
-            const v = sheets[k];
-            if (Array.isArray(v)) return v;
-          }
-        }
-
-        return [];
-      },
-
-      // ✅ CLIENT CODE LIST tab rows (Company Name -> Code Name)
-      getClientCodeListFromState() {
-        return this.findListInState([
-          "clientCodeList",
-          "client_code_list",
-          "clientCodes",
-          "client_codes",
-          "codeList",
-          "code_list",
-          "codes",
-          "CLIENT_CODE_LIST",
-          "CLIENT CODE LIST",
-          "client code list",
-          "Client Code List",
-          "CLIENT_CODE",
-          "clientCode",
-        ]);
-      },
-
-      // ✅ LEAD PACKAGE tab rows (Purchased Leads / Owed Leads)
-      getLeadPackageListFromState() {
-        return this.findListInState([
-          "leadPackage",
-          "lead_package",
-          "leadPackages",
-          "lead_packages",
-          "packageLedger",
-          "package_ledger",
-          "packages",
-          "Lead Package",
-          "LEAD PACKAGE",
-          "LEAD_PACKAGE",
-          "lead package",
-        ]);
-      },
-
-      buildCompanyToCodeMap(codeRows) {
-        const map = new Map();
-        (codeRows || []).forEach(row => {
-          const company = this.pick(row, ["COMPANY NAME", "Company Name", "company_name"], "");
-          const code    = this.pick(row, ["CODE NAME", "Code Name", "code_name", "CODE", "Code"], "");
-          const key = this.normalizeCompanyName(company);
-          if (!key) return;
-          if (!map.has(key) && String(code).trim() !== "") map.set(key, String(code).trim());
-        });
-        return map;
-      },
-
-      buildCompanyToPackageMap(pkgRows) {
-        const map = new Map();
-        (pkgRows || []).forEach(row => {
-          // Lead Package tab header shows: Roofing Company Name
-          const company = this.pick(row, ["Roofing Company Name", "Roofing Company", "ROOFING COMPANY", "Company Name", "COMPANY NAME"], "");
-          const purchased = Number(this.pick(row, ["Purchased Leads", "PURCHASED LEADS", "Purchased", "PURCHASED"], 0)) || 0;
-          const owed = Number(this.pick(row, ["Owed Leads", "OWED LEADS", "Owed", "OWED"], 0)) || 0;
-
-          const key = this.normalizeCompanyName(company);
-          if (!key) return;
-          if (!map.has(key)) map.set(key, { purchased, owed });
-        });
-        return map;
-      },
-
-      extractCityState(c) {
-        const v = this.pick(c, [
-          "CITY STATE",
-          "CITY, STATE",
-          "City, State",
-          "City State",
-          "City/State",
-          "CITYSTATE",
-          "Location",
-          "location"
-        ], "—");
-        return v;
-      },
-
-      extractClientName(c) {
-        return this.pick(c, [
-          "CLIENT NAME",
-          "Client Name",
-          "client_name",
-          "clientName",
-          "Client",
-          "CLIENT"
-        ], "—");
-      },
-
-      extractRoofingCompany(c) {
-        return this.pick(c, [
-          "Roofing Company",
-          "Roofing Company Name",
-          "ROOFING COMPANY",
-          "roofing_company",
-          "Company Name",
-          "COMPANY NAME"
-        ], "—");
-      },
-
-      extractCodeFromCompanyName(companyName) {
-        const key = this.normalizeCompanyName(companyName);
-        if (!key) return "N/A";
-
-        if (!this._companyToCodeMap) {
-          const codeList = this.getClientCodeListFromState();
-          this._companyToCodeMap = this.buildCompanyToCodeMap(codeList);
-        }
-
-        return this._companyToCodeMap.get(key) || "N/A";
-      },
-
-      extractCode(c) {
-        const direct = this.pick(c, [
-          "CODE NAME", "Code Name", "codeName", "code_name", "CODE", "code",
-          "Client Code", "CLIENT CODE", "Client ID", "ClientID"
-        ], "");
-        if (direct && String(direct).trim() !== "") return String(direct).trim();
-
-        const roofingCompany = this.extractRoofingCompany(c);
-        return this.extractCodeFromCompanyName(roofingCompany);
       },
 
       normalizeClientStatus(v) {
@@ -661,63 +484,17 @@
         return "st-new";
       },
 
-      extractPackageRatio(c, roofingCompanyName) {
-        const directOwed = Number(this.pick(c, ["Owed Leads", "Owed", "OWED LEADS", "owed_leads"], "")) || null;
-        const directPurchased = Number(this.pick(c, ["Purchased Leads", "Purchased", "PURCHASED LEADS", "purchased_leads"], "")) || null;
-
-        let owed = (directOwed !== null && !Number.isNaN(directOwed)) ? directOwed : null;
-        let purchased = (directPurchased !== null && !Number.isNaN(directPurchased)) ? directPurchased : null;
-
-        if (owed === null || purchased === null) {
-          if (!this._companyToPackageMap) {
-            const pkgList = this.getLeadPackageListFromState();
-            this._companyToPackageMap = this.buildCompanyToPackageMap(pkgList);
-          }
-          const key = this.normalizeCompanyName(roofingCompanyName);
-          const pkg = this._companyToPackageMap.get(key);
-          if (pkg) {
-            if (owed === null) owed = Number(pkg.owed) || 0;
-            if (purchased === null) purchased = Number(pkg.purchased) || 0;
-          }
-        }
-
-        owed = Number(owed) || 0;
-        purchased = Number(purchased) || 0;
-
-        return {
-          owed,
-          purchased,
-          label: `${owed} / ${purchased}`,
-          value: purchased === 0 ? owed : (owed / purchased)
-        };
+      extractRoofingCompany(c) {
+        return this.pick(c, ["Roofing Company","Roofing Company Name","roofing_company","Company Name","COMPANY NAME"], "—");
       },
-
-      renderPulse(leads) {
-        const today = new Date().toDateString();
-
-        const todayLeads = (leads || []).filter(l => {
-          const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
-          const d = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
-          return d && !isNaN(d.getTime()) && d.toDateString() === today;
-        });
-
-        const confirmed = todayLeads.filter(l => {
-          const st = this.pick(l, ["Status","STATUS"], "");
-          return window.portal?.isQualifiedStatus
-            ? window.portal.isQualifiedStatus(st)
-            : (String(st).toLowerCase() === "confirmed" || String(st).toLowerCase() === "approved");
-        });
-
-        const value = confirmed.length * 50;
-
-        const pending = (leads || []).filter(l =>
-          String(this.pick(l, ["Status","STATUS"], "")).toLowerCase().includes("pending")
-        );
-
-        document.getElementById('pulse-profit').textContent =
-          window.portal?.formatCurrency ? window.portal.formatCurrency(value) : `$${value.toFixed(2)}`;
-
-        document.getElementById('pulse-pending').textContent = pending.length;
+      extractCityState(c) {
+        return this.pick(c, ["CITY STATE","City State","Location","location"], "—");
+      },
+      extractClientName(c) {
+        return this.pick(c, ["CLIENT NAME","Client Name","client_name","clientName"], "—");
+      },
+      extractCode(c) {
+        return this.pick(c, ["CODE NAME","Code Name","codeName","code_name","CODE","code"], "N/A");
       },
 
       normalizeClientHealthRows(clients) {
@@ -726,17 +503,17 @@
           const clientStatus = this.normalizeClientStatus(rawStatus);
 
           const roofingCompany = this.extractRoofingCompany(c);
-
           const code = this.extractCode(c);
           const cityState = this.extractCityState(c);
           const clientName = this.extractClientName(c);
 
-          const lastLead = this.pick(c, ["Last Lead Received","Last Lead Received ", "last_lead_received"], "—");
-          const hoursSince = Number(this.pick(c, ["Hours Since Last Lead","Hours Since", "hours_since_last_lead"], 0)) || 0;
+          const lastLead = this.pick(c, ["Last Lead Received","last_lead_received"], "—");
+          const hoursSince = Number(this.pick(c, ["Hours Since Last Lead","hours_since_last_lead"], 0)) || 0;
           const leadsToday = Number(this.pick(c, ["Leads Today","leads_today"], 0)) || 0;
           const leadsYesterday = Number(this.pick(c, ["Leads Yesterday","leads_yesterday"], 0)) || 0;
 
-          const pkg = this.extractPackageRatio(c, roofingCompany);
+          const owed = Number(this.pick(c, ["Owed Leads","owed_leads"], 0)) || 0;
+          const purchased = Number(this.pick(c, ["Purchased Leads","purchased_leads"], 0)) || 0;
 
           return {
             _raw: c,
@@ -746,8 +523,8 @@
             cityState,
             clientName,
             lastLead,
-            packageLabel: pkg.label,
-            packageRatio: pkg.value,
+            packageLabel: `${owed} / ${purchased}`,
+            packageRatio: purchased === 0 ? owed : (owed / purchased),
             hoursSince,
             leadsToday,
             leadsYesterday,
@@ -755,7 +532,6 @@
         });
       },
 
-      // ✅ UPDATED: always include all 4 status options
       setupFilters(rows) {
         const statusSel = document.getElementById("health-filter-status");
         const citySel = document.getElementById("health-filter-city");
@@ -830,13 +606,8 @@
           filtered.sort((a,b) => {
             const A = a[key];
             const B = b[key];
-
-            if (typeof A === "number" && typeof B === "number") {
-              return dir === "asc" ? A - B : B - A;
-            }
-            return dir === "asc"
-              ? String(A).localeCompare(String(B))
-              : String(B).localeCompare(String(A));
+            if (typeof A === "number" && typeof B === "number") return dir === "asc" ? A - B : B - A;
+            return dir === "asc" ? String(A).localeCompare(String(B)) : String(B).localeCompare(String(A));
           });
         }
 
@@ -846,7 +617,6 @@
 
       renderClientHealthTable(rows) {
         const tbody = document.getElementById("client-health-body");
-
         if (!rows.length) {
           tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-gray-400 italic">No results found.</td></tr>`;
           return;
@@ -854,7 +624,6 @@
 
         tbody.innerHTML = rows.map(r => {
           const dotClass = this.statusDotClass(r.status);
-
           return `
             <tr class="hover:bg-gray-50">
               <td class="p-4">
@@ -863,25 +632,12 @@
                   <span class="tooltip-text"><b>${r.status}</b></span>
                 </div>
               </td>
-
               <td class="p-4 text-gray-700 font-semibold">${r.code || "N/A"}</td>
-
-              <td class="p-4 font-bold text-gray-900 max-w-[260px] truncate" title="${r.roofingCompany}">
-                ${r.roofingCompany}
-              </td>
-
-              <td class="p-4 text-gray-500 max-w-[170px] truncate" title="${r.cityState}">
-                ${r.cityState}
-              </td>
-
-              <td class="p-4 text-gray-700 max-w-[220px] truncate" title="${r.clientName}">
-                ${r.clientName}
-              </td>
-
+              <td class="p-4 font-bold text-gray-900 max-w-[260px] truncate" title="${r.roofingCompany}">${r.roofingCompany}</td>
+              <td class="p-4 text-gray-500 max-w-[170px] truncate" title="${r.cityState}">${r.cityState}</td>
+              <td class="p-4 text-gray-700 max-w-[220px] truncate" title="${r.clientName}">${r.clientName}</td>
               <td class="p-4 text-gray-500">${r.lastLead}</td>
-
               <td class="p-4 text-center text-gray-900 font-bold">${r.packageLabel}</td>
-
               <td class="p-4 text-center text-gray-700 font-semibold">${r.hoursSince}</td>
               <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsToday}</td>
               <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsYesterday}</td>
@@ -890,9 +646,31 @@
         }).join("");
       },
 
-      // ===========================
-      // ✅ TEAM ANALYTICS (GRAPH + TOP 10)
-      // ===========================
+      renderPulse(leads) {
+        const today = new Date().toDateString();
+
+        // ✅ FIX: RAW LEADS header is "Date Submitted"
+        const todayLeads = (leads || []).filter(l => {
+          const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
+          const d = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+          return d && !isNaN(d.getTime()) && d.toDateString() === today;
+        });
+
+        const confirmed = todayLeads.filter(l => {
+          const st = this.pick(l, ["Status","STATUS"], "");
+          return this.isQualified(st);
+        });
+
+        const value = confirmed.length * 50;
+
+        const pending = (leads || []).filter(l =>
+          String(this.pick(l, ["Status","STATUS"], "")).toLowerCase().includes("pending")
+        );
+
+        document.getElementById('pulse-profit').textContent = `$${value.toFixed(2)}`;
+        document.getElementById('pulse-pending').textContent = pending.length;
+      },
+
       setAnalyticsPeriod(period, btnElement) {
         this.analyticsPeriod = period;
 
@@ -908,108 +686,52 @@
         this.updateAnalytics(period);
       },
 
-      // MST-safe: create MST "start of day"
-      _startOfMSTDay(date) {
-        const mst = window.portal?.toMST ? window.portal.toMST(date) : new Date(date);
-        const d = new Date(mst);
-        d.setHours(0,0,0,0);
-        return d;
-      },
-
-      _endOfMSTDay(date) {
-        const mst = window.portal?.toMST ? window.portal.toMST(date) : new Date(date);
-        const d = new Date(mst);
-        d.setHours(23,59,59,999);
-        return d;
-      },
-
       getRangeFor(period, leads) {
         const now = new Date();
-
-        // Prefer portal payroll week (Sat-Fri) since your dashboards already use it
         const payrollThis = window.portal?.getPayrollWeekRange ? window.portal.getPayrollWeekRange() : null;
         const payrollPrev = window.portal?.getPreviousPayrollWeekRange ? window.portal.getPreviousPayrollWeekRange() : null;
 
-        if (period === "today") {
-          const start = this._startOfMSTDay(now);
-          const end = this._endOfMSTDay(now);
-          return { start, end, grain: "day", label: "Today" };
-        }
+        const startOfDay = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+        const endOfDay = (d) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
 
-        if (period === "this-week" && payrollThis) {
-          return { start: payrollThis.start, end: payrollThis.end, grain: "day", label: "This Week" };
-        }
-
-        if (period === "previous-week" && payrollPrev) {
-          return { start: payrollPrev.start, end: payrollPrev.end, grain: "day", label: "Previous Week" };
-        }
+        if (period === "today") return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "Today" };
+        if (period === "this-week" && payrollThis) return { start: payrollThis.start, end: payrollThis.end, grain: "day", label: "This Week" };
+        if (period === "previous-week" && payrollPrev) return { start: payrollPrev.start, end: payrollPrev.end, grain: "day", label: "Previous Week" };
 
         if (period === "4-weeks") {
-          const end = payrollThis ? payrollThis.end : this._endOfMSTDay(now);
-          const start = new Date(end);
-          start.setDate(start.getDate() - 27);
-          start.setHours(0,0,0,0);
+          const end = payrollThis ? payrollThis.end : endOfDay(now);
+          const start = new Date(end); start.setDate(start.getDate() - 27); start.setHours(0,0,0,0);
           return { start, end, grain: "week", label: "Last 4 Weeks" };
         }
 
         if (period === "6-weeks") {
-          const end = payrollThis ? payrollThis.end : this._endOfMSTDay(now);
-          const start = new Date(end);
-          start.setDate(start.getDate() - 41);
-          start.setHours(0,0,0,0);
+          const end = payrollThis ? payrollThis.end : endOfDay(now);
+          const start = new Date(end); start.setDate(start.getDate() - 41); start.setHours(0,0,0,0);
           return { start, end, grain: "week", label: "Last 6 Weeks" };
         }
 
         // all-time
-        if (period === "all-time") {
-          const all = Array.isArray(leads) ? leads : [];
-          let min = null;
-          for (const l of all) {
-            const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
-            const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
-            if (!dt || isNaN(dt.getTime())) continue;
-            const mst = window.portal?.toMST ? window.portal.toMST(dt) : dt;
-            if (!min || mst < min) min = mst;
-          }
-          const start = min ? this._startOfMSTDay(min) : this._startOfMSTDay(now);
-          const end = payrollThis ? payrollThis.end : this._endOfMSTDay(now);
-          return { start, end, grain: "month", label: "All-Time" };
+        const all = Array.isArray(leads) ? leads : [];
+        let min = null;
+        for (const l of all) {
+          const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED"], "");
+          const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+          if (!dt || isNaN(dt.getTime())) continue;
+          if (!min || dt < min) min = dt;
         }
-
-        // fallback
-        const start = this._startOfMSTDay(now);
-        const end = this._endOfMSTDay(now);
-        return { start, end, grain: "day", label: "Today" };
+        const start = min ? startOfDay(min) : startOfDay(now);
+        const end = payrollThis ? payrollThis.end : endOfDay(now);
+        return { start, end, grain: "month", label: "All-Time" };
       },
 
       isQualified(st) {
-        if (window.portal?.isQualifiedStatus) return window.portal.isQualifiedStatus(st);
         const s = String(st || "").toLowerCase();
-        return s === "confirmed" || s === "approved";
+        return s.includes("confirm") || s.includes("approve");
       },
 
       isUnqualified(st) {
-        if (window.portal?.isUnqualifiedStatus) return window.portal.isUnqualifiedStatus(st);
         const s = String(st || "").toLowerCase();
-        return s.includes("reject") || s.includes("decline") || s.includes("cancel") || s.includes("credit");
-      },
-
-      // get bucket key for trend chart
-      bucketKeyFor(date, grain) {
-        const d = window.portal?.toMST ? window.portal.toMST(date) : new Date(date);
-
-        if (grain === "day") {
-          return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
-        }
-
-        if (grain === "week") {
-          // bucket by payroll week start (Sat)
-          const start = window.portal?.getPayrollWeekStart ? window.portal.getPayrollWeekStart(d) : new Date(d);
-          return start.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
-        }
-
-        // month
-        return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        return s.includes("reject") || s.includes("credit") || s.includes("cancel");
       },
 
       updateAnalytics(period) {
@@ -1017,168 +739,101 @@
         const leads = (state && state.leads) ? state.leads : [];
 
         const { start, end, grain, label } = this.getRangeFor(period, leads);
+
         document.getElementById("kpi-range").textContent = `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
         document.getElementById("top10-label").textContent = label;
+        document.getElementById("bottom5-label").textContent = label;
 
-        // aggregate totals + trend
         let total = 0, qualified = 0, unqualified = 0, pending = 0;
 
-        const trend = new Map(); // key -> {q,u,p}
-        const agentAgg = new Map(); // agent -> {total,q,u}
-
-        const within = (dt) => dt >= start && dt <= end;
+        const agentAgg = new Map();
 
         for (const l of (leads || [])) {
+          // ✅ RAW LEADS header is "Date Submitted"
           const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
-          const dtRaw = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
-          if (!dtRaw || isNaN(dtRaw.getTime())) continue;
-
-          const dt = window.portal?.toMST ? window.portal.toMST(dtRaw) : dtRaw;
-          if (!within(dt)) continue;
+          const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+          if (!dt || isNaN(dt.getTime())) continue;
+          if (dt < start || dt > end) continue;
 
           const st = this.pick(l, ["Status","STATUS"], "");
-          const agent = String(this.pick(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent","Agent Name","AGENT"], "Unknown")).trim() || "Unknown";
+
+          // ✅ RAW LEADS header from your screenshot: Appointment Coordinator Name
+          const agent = String(this.pick(l, [
+            "Appointment Coordinator Name",
+            "Appointment Coordinator",
+            "Setter",
+            "Agent",
+            "Agent Name",
+            "AGENT"
+          ], "Unknown")).trim() || "Unknown";
 
           total += 1;
-
-          const bKey = this.bucketKeyFor(dt, grain);
-          if (!trend.has(bKey)) trend.set(bKey, { qualified: 0, unqualified: 0, pending: 0 });
-          const bucket = trend.get(bKey);
 
           const a = agentAgg.get(agent) || { name: agent, total: 0, qualified: 0, unqualified: 0 };
           a.total += 1;
 
           if (this.isQualified(st)) {
             qualified += 1;
-            bucket.qualified += 1;
             a.qualified += 1;
           } else if (this.isUnqualified(st)) {
             unqualified += 1;
-            bucket.unqualified += 1;
             a.unqualified += 1;
           } else {
             pending += 1;
-            bucket.pending += 1;
           }
 
           agentAgg.set(agent, a);
         }
 
-        const eff = total > 0 ? Math.round((qualified / total) * 100) : 0;
+        const denom = qualified + unqualified;
+        const cancelRate = denom > 0 ? Math.round((unqualified / denom) * 100) : 0;
 
         document.getElementById("kpi-total").textContent = total;
         document.getElementById("kpi-qualified").textContent = qualified;
         document.getElementById("kpi-unqualified").textContent = unqualified;
         document.getElementById("kpi-pending").textContent = pending;
-        document.getElementById("kpi-eff").textContent = `${eff}%`;
-        document.getElementById("trend-grain").textContent =
-          grain === "day" ? "Daily buckets" : (grain === "week" ? "Weekly buckets" : "Monthly buckets");
+        document.getElementById("kpi-cancel").textContent = `${cancelRate}%`;
 
-        // trend chart data (sorted by time-ish; works because our labels are consistent format)
-        const labels = Array.from(trend.keys());
-        // Sort labels by actual date by reconstructing approximate dates:
-        labels.sort((a,b) => {
-          // Try parse label as date in current year (best-effort)
-          const da = new Date(a + " " + new Date().getFullYear());
-          const db = new Date(b + " " + new Date().getFullYear());
-          return da - db;
-        });
+        // ✅ Top 10 by QUALIFIED ONLY
+        const top = Array.from(agentAgg.values())
+          .sort((a,b) => (b.qualified - a.qualified) || (b.total - a.total))
+          .slice(0, 10);
 
-        const qData = labels.map(k => trend.get(k)?.qualified || 0);
-        const uData = labels.map(k => trend.get(k)?.unqualified || 0);
-        const pData = labels.map(k => trend.get(k)?.pending || 0);
+        // ✅ Bottom 5 by LOWEST TOTAL leads set
+        let bottomCandidates = Array.from(agentAgg.values()).filter(a => a.total > 0);
+        if (bottomCandidates.length < 5) bottomCandidates = Array.from(agentAgg.values());
 
-        this.renderAnalyticsChart(labels, qData, uData, pData);
+        const bottom = bottomCandidates
+          .sort((a,b) => (a.total - b.total) || (a.qualified - b.qualified))
+          .slice(0, 5);
 
-        // ✅ Top 10 Agents by QUALIFIED only (CONFIRMED/APPROVED)
-const top = Array.from(agentAgg.values())
-  .sort((a,b) => (b.qualified - a.qualified) || (b.total - a.total))
-  .slice(0, 10);
+        // Render tables
+        const renderRow = (a) => {
+          const d = a.qualified + a.unqualified;
+          const cr = d > 0 ? Math.round((a.unqualified / d) * 100) : 0;
+          return `
+            <tr>
+              <td class="p-4 font-bold text-gray-900">${a.name}</td>
+              <td class="p-4 text-center text-gray-600 font-semibold">${a.total}</td>
+              <td class="p-4 text-center text-emerald-600 font-bold">${a.qualified}</td>
+              <td class="p-4 text-center text-red-500 font-bold">${a.unqualified}</td>
+              <td class="p-4 text-center text-gray-600 font-semibold">${cr}%</td>
+            </tr>
+          `;
+        };
 
-// ✅ Bottom 5 Agents by LOWEST total leads set
-// Prefer agents who actually have data (total > 0). If fewer than 5, include zeros.
-let bottomCandidates = Array.from(agentAgg.values()).filter(a => a.total > 0);
-if (bottomCandidates.length < 5) bottomCandidates = Array.from(agentAgg.values());
+        const topBody = document.getElementById("top10-body");
+        topBody.innerHTML = top.length
+          ? top.map(renderRow).join("")
+          : `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No leads in this period.</td></tr>`;
 
-const bottom = bottomCandidates
-  .sort((a,b) => (a.total - b.total) || (a.qualified - b.qualified))
-  .slice(0, 5);
-
-document.getElementById("bottom5-label").textContent = label;
-        // bottom 5 table render
-const btb = document.getElementById("bottom5-body");
-if (!bottom.length) {
-  btb.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No leads in this period.</td></tr>`;
-} else {
-  btb.innerHTML = bottom.map(a => {
-    const e = a.total > 0 ? Math.round((a.qualified / a.total) * 100) : 0;
-    return `
-      <tr>
-        <td class="p-4 font-bold text-gray-900">${a.name}</td>
-        <td class="p-4 text-center text-gray-600 font-semibold">${a.total}</td>
-        <td class="p-4 text-center text-emerald-600 font-bold">${a.qualified}</td>
-        <td class="p-4 text-center text-red-500 font-bold">${a.unqualified}</td>
-        <td class="p-4 text-center text-gray-600 font-semibold">${e}%</td>
-      </tr>
-    `;
-  }).join("");
-}
-
-        const tb = document.getElementById("top10-body");
-        if (!top.length) {
-          tb.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No leads in this period.</td></tr>`;
-        } else {
-          tb.innerHTML = top.map(a => {
-            const e = a.total > 0 ? Math.round((a.qualified / a.total) * 100) : 0;
-            return `
-              <tr>
-                <td class="p-4 font-bold text-gray-900">${a.name}</td>
-                <td class="p-4 text-center text-gray-600 font-semibold">${a.total}</td>
-                <td class="p-4 text-center text-emerald-600 font-bold">${a.qualified}</td>
-                <td class="p-4 text-center text-red-500 font-bold">${a.unqualified}</td>
-                <td class="p-4 text-center text-gray-600 font-semibold">${e}%</td>
-              </tr>
-            `;
-          }).join("");
-        }
+        const bottomBody = document.getElementById("bottom5-body");
+        bottomBody.innerHTML = bottom.length
+          ? bottom.map(renderRow).join("")
+          : `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No leads in this period.</td></tr>`;
       },
 
-      renderAnalyticsChart(labels, qualifiedArr, unqualifiedArr, pendingArr) {
-        const ctx = document.getElementById("team-analytics-chart");
-        if (!ctx || typeof Chart === "undefined") return;
-
-        if (this._analyticsChart) {
-          this._analyticsChart.destroy();
-          this._analyticsChart = null;
-        }
-
-        this._analyticsChart = new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels,
-            datasets: [
-              { label: 'Qualified', data: qualifiedArr, stack: 'stack1' },
-              { label: 'Unqualified', data: unqualifiedArr, stack: 'stack1' },
-              { label: 'Pending', data: pendingArr, stack: 'stack1' },
-            ]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { position: 'top' },
-              tooltip: { mode: 'index', intersect: false }
-            },
-            interaction: { mode: 'index', intersect: false },
-            scales: {
-              x: { stacked: true, grid: { display: false } },
-              y: { stacked: true, beginAtZero: true }
-            }
-          }
-        });
-      },
-
-      // ---------- Team Performance (All Agents) ----------
+      // ✅ Team Performance (All Agents) uses cancellation rate too
       updatePerf(period, btnElement) {
         this.perfPeriod = period;
 
@@ -1207,36 +862,28 @@ if (!bottom.length) {
           const name = this.pick(agent, ["employeeName","Employee Name","EMPLOYEE NAME","name","Name"], "Unknown");
 
           const agentLeads = (leads || []).filter(l => {
-            const lAgent = this.pick(l, ["Appointment Coordinator Name","Appointment Coord","Appointment Coordinator","Setter","Agent","AGENT"], "");
+            const lAgent = this.pick(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent"], "");
             const dStr   = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date"], "");
-            const dtRaw  = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
-            if (!dtRaw || isNaN(dtRaw.getTime())) return false;
-            const dt = window.portal?.toMST ? window.portal.toMST(dtRaw) : dtRaw;
+            const dt  = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+            if (!dt || isNaN(dt.getTime())) return false;
 
             return String(lAgent).toLowerCase().includes(String(name).toLowerCase()) && dt >= start && dt <= end;
           });
 
           const total = agentLeads.length;
+          const qualified = agentLeads.filter(l => this.isQualified(this.pick(l, ["Status","STATUS"], ""))).length;
+          const unqualified = agentLeads.filter(l => this.isUnqualified(this.pick(l, ["Status","STATUS"], ""))).length;
 
-          const qualified = agentLeads.filter(l => {
-            const st = this.pick(l, ["Status","STATUS"], "");
-            return this.isQualified(st);
-          }).length;
-
-          const unqualified = agentLeads.filter(l => {
-            const st = this.pick(l, ["Status","STATUS"], "");
-            return this.isUnqualified(st);
-          }).length;
-
-          const eff = total > 0 ? Math.round((qualified / total) * 100) : 0;
+          const denom = qualified + unqualified;
+          const cancelRate = denom > 0 ? Math.round((unqualified / denom) * 100) : 0;
 
           return `
             <tr>
               <td class="p-4 font-bold text-gray-900">${name}</td>
               <td class="p-4 text-center text-gray-600">${total}</td>
-              <td class="p-4 text-center text-emerald-600 font-bold bg-emerald-50 rounded">${qualified}</td>
-              <td class="p-4 text-center text-red-500 font-bold bg-red-50 rounded">${unqualified}</td>
-              <td class="p-4 text-center text-gray-600 font-semibold">${eff}%</td>
+              <td class="p-4 text-center text-emerald-600 font-bold">${qualified}</td>
+              <td class="p-4 text-center text-red-500 font-bold">${unqualified}</td>
+              <td class="p-4 text-center text-gray-600 font-semibold">${cancelRate}%</td>
             </tr>
           `;
         }).join('');
@@ -1273,9 +920,11 @@ if (!bottom.length) {
         tbody.innerHTML = leads.map(l => {
           const status = this.pick(l, ["Status","STATUS"], "New");
           const date = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date"], "-");
+
           const homeowner = this.pick(l, ["Homeowner Name(s)","Homeowner Name","HOMEOWNER NAME","Homeowner"], "Unknown");
-          const agent = this.pick(l, ["Appointment Coordinator Name","Appointment Coord","Appointment Coordinator","Setter","Agent","AGENT"], "-");
-          const client = this.pick(l, ["Company Name","CLIENT","Client"], "-");
+
+          const agent = this.pick(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent"], "-");
+          const client = this.pick(l, ["Company Name","COMPANY NAME","Client"], "-");
 
           let statusColor = "text-gray-600 bg-gray-100";
           const s = String(status).toLowerCase();
