@@ -70,14 +70,9 @@ class CallHammerPortal {
 
     // Admin dashboard (Mission Control / Overview)
     if (onAdminDashboard) {
-      // show admin-only blocks
       document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
-
-      // load once (cached)
       setTimeout(() => this.fetchAdminData(false), 300);
-
-      // OPTIONAL: if you have a manual refresh button somewhere, you can call:
-      // window.portal.fetchAdminData(true)
+      // Manual refresh if needed: window.portal.fetchAdminData(true)
     }
   }
 
@@ -209,24 +204,51 @@ class CallHammerPortal {
       const result = await response.json();
       this.lastAdminFetch = Date.now();
 
-      // Support multiple response shapes from n8n
+      // ✅ IMPORTANT: your webhook may return { status:"success", healthMonitor:[...] }
+      // so we MUST check both result and result.data
+      const dataRoot = result?.data || result || {};
+
+      // ✅ Prefer healthMonitor if present (this is what your Network tab shows)
+      const rawHealthMonitor =
+        dataRoot.healthMonitor ||
+        result.healthMonitor ||
+        [];
+
+      // Other optional shapes (if you later add them back in n8n)
       const rawClients =
-        result.clients || result.Clients || result.CLIENTS || result.data?.clients || result.data?.Clients || [];
+        dataRoot.clients || dataRoot.Clients || dataRoot.CLIENTS ||
+        result.clients || result.Clients || result.CLIENTS || [];
 
       const rawLeads =
-        result.leads || result.Leads || result.LEADS || result.data?.leads || result.data?.Leads || [];
+        dataRoot.leads || dataRoot.Leads || dataRoot.LEADS ||
+        result.leads || result.Leads || result.LEADS || [];
 
       const rawAgents =
-        result.agents || result.Agents || result.AGENTS || result.data?.agents || result.data?.Agents || [];
+        dataRoot.agents || dataRoot.Agents || dataRoot.AGENTS ||
+        result.agents || result.Agents || result.AGENTS || [];
 
-      // These may or may not exist depending on your n8n workflow
       const rawStatuses =
-        result.clientStatuses || result.statuses || result.ClientStatuses || result.data?.clientStatuses || result.data?.statuses || [];
+        dataRoot.clientStatuses || dataRoot.statuses || dataRoot.ClientStatuses ||
+        result.clientStatuses || result.statuses || result.ClientStatuses || [];
 
       const rawPackages =
-        result.packages || result.leadPackages || result.Packages || result.data?.packages || result.data?.leadPackages || [];
+        dataRoot.packages || dataRoot.leadPackages || dataRoot.Packages ||
+        result.packages || result.leadPackages || result.Packages || [];
 
-      this.normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages);
+      // ✅ If healthMonitor exists, use it to populate Client Health Monitor immediately
+      if (Array.isArray(rawHealthMonitor) && rawHealthMonitor.length > 0) {
+        this.normalizeAdminFromHealthMonitor(rawHealthMonitor);
+
+        // Still store these if present (won't break anything)
+        this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
+        this.adminState.agents = Array.isArray(rawAgents) ? rawAgents : [];
+        this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
+        this.adminState.rawPackages = Array.isArray(rawPackages) ? rawPackages : [];
+
+      } else {
+        // Fallback to your previous join-based normalization
+        this.normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages);
+      }
 
       console.log('✅ Admin State Ready:', {
         clients: this.adminState.clients.length,
@@ -237,7 +259,7 @@ class CallHammerPortal {
       this.triggerAdminRefresh();
     } catch (err) {
       console.error('❌ fetchAdminData failed:', err);
-      this.triggerAdminRefresh(); // still let UI show empty state if needed
+      this.triggerAdminRefresh();
     }
   }
 
@@ -246,8 +268,42 @@ class CallHammerPortal {
     if (window.adminDashboard && typeof window.adminDashboard.refreshDashboard === 'function') {
       window.adminDashboard.refreshDashboard();
     } else {
-      console.warn('⚠️ adminDashboard.refreshDashboard not found (this is OK if your admin UI script uses a different function).');
+      console.warn('⚠️ adminDashboard.refreshDashboard not found (OK if your admin UI uses a different function).');
     }
+  }
+
+  // ✅ NEW: normalize directly from webhook `healthMonitor`
+  normalizeAdminFromHealthMonitor(rows) {
+    const list = Array.isArray(rows) ? rows : [];
+
+    this.adminState.clients = list.map(r => {
+      const clientName = this.getAny(r, ['client_name', 'clientName', 'CLIENT NAME', 'Company Name', 'Roofing Company'], 'Unnamed');
+      const codeName = this.getAny(r, ['code', 'code_name', 'CODE', 'CODE NAME'], 'N/A');
+      const location = this.getAny(r, ['location', 'CITY STATE', 'Location'], 'Remote');
+      const status = this.getAny(r, ['status', 'Client Status', 'CLIENT STATUS'], 'NOT STARTED');
+      const pkg = this.getAny(r, ['package', 'Package', 'Lead Package'], '');
+
+      const lastLeadReceived = this.getAny(r, ['last_lead_received', 'Last Lead Received'], '');
+      const hoursSinceLastLead = this.getAny(r, ['hours_since_last_lead', 'Hours Since Last Lead'], '');
+      const leadsToday = this.getAny(r, ['leads_today', 'Leads Today'], 0);
+      const leadsYesterday = this.getAny(r, ['leads_yesterday', 'Leads Yesterday'], 0);
+
+      return {
+        clientName,
+        codeName,
+        // ✅ this gives you "Company (Client 007)" style for UI if you want it
+        clientNameWithCode: (codeName && codeName !== 'N/A') ? `${clientName} (${codeName})` : clientName,
+        location,
+        status,
+        package: pkg,
+
+        // extra fields (safe)
+        lastLeadReceived,
+        hoursSinceLastLead,
+        leadsToday,
+        leadsYesterday
+      };
+    });
   }
 
   normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages) {
@@ -273,8 +329,6 @@ class CallHammerPortal {
     });
 
     // --- Normalize Clients (from CLIENT CODE LIST) ---
-    // Expected headers you showed:
-    // CODE NAME, COMPANY NAME, PHONE, AREA CODES TO CALL, EMAIL, WEBSITE, STATUS, Onboarding, Add location here
     const clientsArr = Array.isArray(rawClients) ? rawClients : [];
     this.adminState.clients = clientsArr.map(c => {
       const companyName = this.getAny(c, ['COMPANY NAME', 'Company Name', 'Company', 'Roofing Company'], 'Unnamed');
@@ -282,31 +336,29 @@ class CallHammerPortal {
       const location = this.getAny(c, ['Add location here', 'Location', 'CITY STATE', 'City State'], 'Remote');
       const clientKey = this.normalizeCompanyKey(companyName);
 
-      // Join with delivery tracker/status rows
       const sRow = statusMap[clientKey] || {};
       const pRow = packageMap[clientKey] || {};
 
-      const joinedStatus = this.getAny(sRow, ['Client Status', 'CLIENT STATUS', 'Status'], this.getAny(c, ['STATUS', 'Status'], 'NOT STARTED'));
+      const joinedStatus = this.getAny(
+        sRow,
+        ['Client Status', 'CLIENT STATUS', 'Status'],
+        this.getAny(c, ['STATUS', 'Status'], 'NOT STARTED')
+      );
+
       const joinedPackage = this.getAny(pRow, ['Package', 'Lead Package', 'PACKAGE'], '');
 
-      // If your UI wants last lead + hours since last lead, pull them too
       const lastLeadReceived = this.getAny(sRow, ['Last Lead Received'], '');
       const hoursSinceLastLead = this.getAny(sRow, ['Hours Since Last Lead'], '');
       const leadsToday = this.getAny(sRow, ['Leads Today'], '');
       const leadsYesterday = this.getAny(sRow, ['Leads Yesterday'], '');
 
       return {
-        // fields the table can use
         clientName: companyName,
         codeName,
-        // optional combined label if you want in one column
         clientNameWithCode: codeName && codeName !== 'N/A' ? `${companyName} (${codeName})` : companyName,
-
         location,
         status: joinedStatus || 'NOT STARTED',
         package: joinedPackage || '',
-
-        // optional extra metrics (if your UI shows them)
         lastLeadReceived,
         hoursSinceLastLead,
         leadsToday,
@@ -315,8 +367,6 @@ class CallHammerPortal {
     });
 
     // --- Normalize Agents (from AGENT_MASTER) ---
-    // Expected headers you showed:
-    // Employment_Status, Employee Name, Email, Role, Position, etc.
     const agentsArr = Array.isArray(rawAgents) ? rawAgents : [];
     this.adminState.agents = agentsArr.map(a => ({
       employeeName: this.getAny(a, ['Employee Name', 'Name', 'AGENT NAME', 'Agent Name'], 'Unknown'),
@@ -328,8 +378,6 @@ class CallHammerPortal {
     }));
 
     // --- Raw Leads (from RAW LEADS tab) ---
-    // Headers you confirmed you care about:
-    // Appointment Coordinator Name, Status, Date Submitted, Company Name
     this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
   }
 
@@ -338,20 +386,12 @@ class CallHammerPortal {
   calculateAdminTeamStats(timeFilter = 'today') {
     const stats = {};
 
-    // Seed with agent list so names always show (prevents "No agents found")
     (this.adminState.agents || []).forEach(a => {
       const name = (a.employeeName || '').trim() || 'Unknown';
-      // Optional: only include Active employment status
       const emp = (a.employmentStatus || '').toLowerCase();
       if (emp && emp.includes('offboard')) return;
 
-      stats[name] = {
-        name,
-        total: 0,
-        confirmed: 0,
-        rejected: 0,
-        pending: 0
-      };
+      stats[name] = { name, total: 0, confirmed: 0, rejected: 0, pending: 0 };
     });
 
     const leads = Array.isArray(this.adminState.leads) ? this.adminState.leads : [];
@@ -397,7 +437,6 @@ class CallHammerPortal {
       else stats[coordinator].pending += 1;
     }
 
-    // Return array w/ efficiency
     return Object.values(stats).map(a => {
       const efficiency = a.total > 0 ? (a.confirmed / a.total) * 100 : 0;
       return { ...a, efficiency: `${efficiency.toFixed(0)}%` };
