@@ -48,7 +48,6 @@
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
 
-    /* Sort header UI */
     th.sortable { cursor: pointer; user-select: none; }
     th.sortable:hover { background: rgba(17,24,39,0.02); }
     .sort-icon { font-size: 10px; margin-left: 6px; color: #9CA3AF; }
@@ -314,8 +313,11 @@
       // Table dataset cache for sorting/filtering
       clientHealthRaw: [],
       clientHealthView: [],
-
       sortState: { key: null, dir: 'asc' }, // asc/desc
+
+      // built maps (company -> code / package)
+      _companyToCodeMap: null,
+      _companyToPackageMap: null,
 
       getState() {
         return (window.portal && window.portal.adminState) ? window.portal.adminState : null;
@@ -331,6 +333,10 @@
         const clients = Array.isArray(state.clients) ? state.clients : [];
         const leads   = Array.isArray(state.leads) ? state.leads : [];
         const agents  = Array.isArray(state.agents) ? state.agents : [];
+
+        // reset maps each refresh (in case sheets updated)
+        this._companyToCodeMap = null;
+        this._companyToPackageMap = null;
 
         try { this.renderPulse(leads); } catch(e) { console.error("Pulse Error:", e); }
 
@@ -355,35 +361,169 @@
         return fallback;
       },
 
-      // ✅ IMPORTANT: Your Google Sheet headers are like:
+      // ✅ normalize for matching across sheets (Company Name)
+      normalizeCompanyName(name) {
+        return String(name || "")
+          .toLowerCase()
+          .replace(/&/g, "and")
+          .replace(/[^a-z0-9\s]/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+      },
+
+      // ✅ find a list inside adminState by checking many possible keys (VERY IMPORTANT)
+      findListInState(possibleKeys) {
+        const state = this.getState();
+        if (!state) return [];
+
+        for (const k of possibleKeys) {
+          const v = state[k];
+          if (Array.isArray(v)) return v;
+        }
+
+        // sometimes people store sheets grouped like state.sheets = { ... }
+        const sheets = state.sheets || state.SHEETS || state.data || null;
+        if (sheets && typeof sheets === "object") {
+          for (const k of possibleKeys) {
+            const v = sheets[k];
+            if (Array.isArray(v)) return v;
+          }
+        }
+
+        return [];
+      },
+
+      // ✅ CLIENT CODE LIST tab rows (Company Name -> Code Name)
+      getClientCodeListFromState() {
+        return this.findListInState([
+          "clientCodeList",
+          "client_code_list",
+          "clientCodes",
+          "client_codes",
+          "codeList",
+          "code_list",
+          "codes",
+          "CLIENT_CODE_LIST",
+          "CLIENT CODE LIST",
+          "client code list",
+          "Client Code List",
+          "CLIENT_CODE",
+          "clientCode",
+        ]);
+      },
+
+      // ✅ LEAD PACKAGE tab rows (Purchased Leads / Owed Leads)
+      getLeadPackageListFromState() {
+        return this.findListInState([
+          "leadPackage",
+          "lead_package",
+          "leadPackages",
+          "lead_packages",
+          "packageLedger",
+          "package_ledger",
+          "packages",
+          "Lead Package",
+          "LEAD PACKAGE",
+          "LEAD_PACKAGE",
+          "lead package",
+        ]);
+      },
+
+      buildCompanyToCodeMap(codeRows) {
+        const map = new Map();
+        (codeRows || []).forEach(row => {
+          const company = this.pick(row, ["COMPANY NAME", "Company Name", "company_name"], "");
+          const code    = this.pick(row, ["CODE NAME", "Code Name", "code_name", "CODE", "Code"], "");
+          const key = this.normalizeCompanyName(company);
+          if (!key) return;
+          if (!map.has(key) && String(code).trim() !== "") map.set(key, String(code).trim());
+        });
+        return map;
+      },
+
+      buildCompanyToPackageMap(pkgRows) {
+        const map = new Map();
+        (pkgRows || []).forEach(row => {
+          // Lead Package tab header shows: Roofing Company Name
+          const company = this.pick(row, ["Roofing Company Name", "Roofing Company", "ROOFING COMPANY", "Company Name", "COMPANY NAME"], "");
+          const purchased = Number(this.pick(row, ["Purchased Leads", "PURCHASED LEADS", "Purchased", "PURCHASED"], 0)) || 0;
+          const owed = Number(this.pick(row, ["Owed Leads", "OWED LEADS", "Owed", "OWED"], 0)) || 0;
+
+          const key = this.normalizeCompanyName(company);
+          if (!key) return;
+          // keep latest/first; if duplicates, we can sum — but default keep the first non-zero.
+          if (!map.has(key)) map.set(key, { purchased, owed });
+        });
+        return map;
+      },
+
+      // ✅ IMPORTANT: Your Client Status tab headers are like:
       // Roofing Company | CITY STATE | CLIENT NAME | Client Status
-      // So we MUST include those keys EXACTLY.
+      // We include MANY key variants to survive whatever main.js renamed them to.
       extractCityState(c) {
-        return this.pick(c, [
-          "CITY STATE", "City State", "City, State", "City/State", "Location", "location"
+        // If your UI shows "Remote" right now, it probably comes from a "location" field in main.js.
+        // We try CITY STATE first, then other variants.
+        const v = this.pick(c, [
+          "CITY STATE",
+          "CITY, STATE",
+          "City, State",
+          "City State",
+          "City/State",
+          "CITYSTATE",
+          "Location",
+          "location"
         ], "—");
+
+        // If main.js forces "Remote", but CITY STATE exists in raw row, prefer CITY STATE.
+        // (pick() already prioritizes earlier keys, so this is usually enough.)
+        return v;
       },
 
       extractClientName(c) {
         return this.pick(c, [
-          "CLIENT NAME", "Client Name", "client_name", "clientName"
+          "CLIENT NAME",
+          "Client Name",
+          "client_name",
+          "clientName",
+          "Client",
+          "CLIENT"
         ], "—");
       },
 
       extractRoofingCompany(c) {
         return this.pick(c, [
-          "Roofing Company", "Roofing Company Name", "ROOFING COMPANY", "roofing_company",
-          "Company Name", "COMPANY NAME"
+          "Roofing Company",
+          "Roofing Company Name",
+          "ROOFING COMPANY",
+          "roofing_company",
+          "Company Name",
+          "COMPANY NAME"
         ], "—");
       },
 
+      extractCodeFromCompanyName(companyName) {
+        const key = this.normalizeCompanyName(companyName);
+        if (!key) return "N/A";
+
+        if (!this._companyToCodeMap) {
+          const codeList = this.getClientCodeListFromState();
+          this._companyToCodeMap = this.buildCompanyToCodeMap(codeList);
+        }
+
+        return this._companyToCodeMap.get(key) || "N/A";
+      },
+
       extractCode(c) {
-        // If your code is stored in another sheet, this might be missing in this dataset.
-        // We'll try ALL common code keys.
-        return this.pick(c, [
+        // 1) If code already exists in this dataset, use it
+        const direct = this.pick(c, [
           "CODE NAME", "Code Name", "codeName", "CODE", "code",
           "Client Code", "CLIENT CODE", "Client ID", "ClientID"
-        ], "N/A");
+        ], "");
+        if (direct && String(direct).trim() !== "") return String(direct).trim();
+
+        // 2) Otherwise match by Roofing Company -> CLIENT CODE LIST Company Name
+        const roofingCompany = this.extractRoofingCompany(c);
+        return this.extractCodeFromCompanyName(roofingCompany);
       },
 
       normalizeClientStatus(v) {
@@ -402,10 +542,34 @@
         return "st-new";
       },
 
-      // ✅ Adds Package (Owed/Purchased)
-      extractPackageRatio(c) {
-        const owed = Number(this.pick(c, ["Owed Leads", "Owed", "OWED LEADS", "owed_leads"], 0)) || 0;
-        const purchased = Number(this.pick(c, ["Purchased Leads", "Purchased", "PURCHASED LEADS", "purchased_leads"], 0)) || 0;
+      // ✅ Package owed/purchased:
+      // - First tries to get Owed/Purchased inside the Client Status row
+      // - If missing, matches Roofing Company to the Lead Package tab
+      extractPackageRatio(c, roofingCompanyName) {
+        const directOwed = Number(this.pick(c, ["Owed Leads", "Owed", "OWED LEADS", "owed_leads"], "")) || null;
+        const directPurchased = Number(this.pick(c, ["Purchased Leads", "Purchased", "PURCHASED LEADS", "purchased_leads"], "")) || null;
+
+        let owed = (directOwed !== null && !Number.isNaN(directOwed)) ? directOwed : null;
+        let purchased = (directPurchased !== null && !Number.isNaN(directPurchased)) ? directPurchased : null;
+
+        // If not found directly, map from Lead Package tab
+        if (owed === null || purchased === null) {
+          if (!this._companyToPackageMap) {
+            const pkgList = this.getLeadPackageListFromState();
+            this._companyToPackageMap = this.buildCompanyToPackageMap(pkgList);
+          }
+          const key = this.normalizeCompanyName(roofingCompanyName);
+          const pkg = this._companyToPackageMap.get(key);
+          if (pkg) {
+            if (owed === null) owed = Number(pkg.owed) || 0;
+            if (purchased === null) purchased = Number(pkg.purchased) || 0;
+          }
+        }
+
+        // final fallbacks
+        owed = Number(owed) || 0;
+        purchased = Number(purchased) || 0;
+
         return {
           owed,
           purchased,
@@ -447,8 +611,9 @@
           const rawStatus = this.pick(c, ["Client Status","CLIENT STATUS","Status","status"], "UNKNOWN");
           const clientStatus = this.normalizeClientStatus(rawStatus);
 
-          const code = this.extractCode(c);
           const roofingCompany = this.extractRoofingCompany(c);
+
+          const code = this.extractCode(c);
           const cityState = this.extractCityState(c);
           const clientName = this.extractClientName(c);
 
@@ -457,7 +622,7 @@
           const leadsToday = Number(this.pick(c, ["Leads Today","leads_today"], 0)) || 0;
           const leadsYesterday = Number(this.pick(c, ["Leads Yesterday","leads_yesterday"], 0)) || 0;
 
-          const pkg = this.extractPackageRatio(c);
+          const pkg = this.extractPackageRatio(c, roofingCompany);
 
           return {
             _raw: c,
@@ -480,15 +645,12 @@
         const statusSel = document.getElementById("health-filter-status");
         const citySel = document.getElementById("health-filter-city");
 
-        // Fill status dropdown
         const statuses = [...new Set(rows.map(r => r.status))].sort();
         statusSel.innerHTML = `<option value="all">All Status</option>` + statuses.map(s => `<option value="${s}">${s}</option>`).join("");
 
-        // Fill city dropdown
         const cities = [...new Set(rows.map(r => r.cityState).filter(Boolean))].sort();
         citySel.innerHTML = `<option value="all">All City/State</option>` + cities.map(s => `<option value="${s}">${s}</option>`).join("");
 
-        // listeners once
         if (!this._filtersBound) {
           this._filtersBound = true;
 
@@ -503,7 +665,6 @@
             this.applyClientHealthFilters();
           });
 
-          // header sorting
           document.querySelectorAll("th.sortable").forEach(th => {
             th.addEventListener("click", () => {
               const key = th.getAttribute("data-sort");
@@ -522,9 +683,7 @@
           this.sortState.dir = "asc";
         }
 
-        // reset icons
         document.querySelectorAll(".sort-icon").forEach(i => i.textContent = "↕");
-
         const icon = document.getElementById(`sort-${key}`);
         if (icon) icon.textContent = this.sortState.dir === "asc" ? "↑" : "↓";
       },
@@ -546,19 +705,15 @@
           });
         }
 
-        // sorting
         const { key, dir } = this.sortState;
         if (key) {
           filtered.sort((a,b) => {
             const A = a[key];
             const B = b[key];
 
-            // numeric sort
             if (typeof A === "number" && typeof B === "number") {
               return dir === "asc" ? A - B : B - A;
             }
-
-            // string sort
             return dir === "asc"
               ? String(A).localeCompare(String(B))
               : String(B).localeCompare(String(A));
@@ -684,10 +839,15 @@
 
         container.innerHTML = clients.map(c => {
           const name = this.extractRoofingCompany(c);
+          const code = this.extractCode(c);
+          const city = this.extractCityState(c);
           return `
             <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-              <h3 class="font-bold text-gray-900 text-lg">${name}</h3>
-              <p class="text-xs text-gray-500 mt-1">Mapped from Google Sheets</p>
+              <div class="flex items-center justify-between">
+                <h3 class="font-bold text-gray-900 text-lg">${name}</h3>
+                <span class="text-xs font-bold text-gray-500">${code}</span>
+              </div>
+              <p class="text-xs text-gray-500 mt-1">${city}</p>
             </div>
           `;
         }).join('');
