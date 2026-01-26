@@ -485,52 +485,138 @@
       },
 
       extractRoofingCompany(c) {
-        return this.pick(c, ["Roofing Company","Roofing Company Name","roofing_company","Company Name","COMPANY NAME"], "—");
-      },
-      extractCityState(c) {
-        return this.pick(c, ["CITY STATE","City State","Location","location"], "—");
-      },
-      extractClientName(c) {
-        return this.pick(c, ["CLIENT NAME","Client Name","client_name","clientName"], "—");
-      },
-      extractCode(c) {
-        return this.pick(c, ["CODE NAME","Code Name","codeName","code_name","CODE","code"], "N/A");
-      },
+  return this.pick(c, [
+    // ✅ healthMonitor normalized
+    "roofing_company",
+    // fallback (sheet-style)
+    "Roofing Company",
+    "Roofing Company Name",
+    "ROOFING COMPANY",
+    "Company Name",
+    "COMPANY NAME"
+  ], "—");
+},
+
+extractCityState(c) {
+  return this.pick(c, [
+    // ✅ healthMonitor normalized
+    "city_state",
+    // fallback
+    "CITY STATE",
+    "CITY, STATE",
+    "City, State",
+    "City State",
+    "Location",
+    "location"
+  ], "—");
+},
+
+extractClientName(c) {
+  return this.pick(c, [
+    // ✅ healthMonitor normalized
+    "client_name",
+    // fallback
+    "CLIENT NAME",
+    "Client Name",
+    "client_name",
+    "clientName",
+    "Client",
+    "CLIENT"
+  ], "—");
+},
+
+extractCode(c) {
+  return this.pick(c, [
+    // ✅ healthMonitor normalized
+    "code_name",
+    // fallback
+    "CODE NAME",
+    "Code Name",
+    "codeName",
+    "code_name",
+    "CODE",
+    "code",
+    "Client Code",
+    "CLIENT CODE",
+    "Client ID",
+    "ClientID"
+  ], "N/A");
+},
 
       normalizeClientHealthRows(clients) {
-        return (clients || []).map(c => {
-          const rawStatus = this.pick(c, ["Client Status","CLIENT STATUS","Status","status"], "UNKNOWN");
-          const clientStatus = this.normalizeClientStatus(rawStatus);
+  return (clients || []).map(c => {
+    const rawStatus = this.pick(c, [
+      // ✅ healthMonitor normalized
+      "status",
+      // fallback
+      "Client Status","CLIENT STATUS","Status","STATUS","status"
+    ], "UNKNOWN");
 
-          const roofingCompany = this.extractRoofingCompany(c);
-          const code = this.extractCode(c);
-          const cityState = this.extractCityState(c);
-          const clientName = this.extractClientName(c);
+    const clientStatus = this.normalizeClientStatus(rawStatus);
 
-          const lastLead = this.pick(c, ["Last Lead Received","last_lead_received"], "—");
-          const hoursSince = Number(this.pick(c, ["Hours Since Last Lead","hours_since_last_lead"], 0)) || 0;
-          const leadsToday = Number(this.pick(c, ["Leads Today","leads_today"], 0)) || 0;
-          const leadsYesterday = Number(this.pick(c, ["Leads Yesterday","leads_yesterday"], 0)) || 0;
+    const roofingCompany = this.extractRoofingCompany(c);
+    const code = this.extractCode(c);
+    const cityState = this.extractCityState(c);
+    const clientName = this.extractClientName(c);
 
-          const owed = Number(this.pick(c, ["Owed Leads","owed_leads"], 0)) || 0;
-          const purchased = Number(this.pick(c, ["Purchased Leads","purchased_leads"], 0)) || 0;
+    const lastLead = this.pick(c, [
+      // ✅ healthMonitor normalized
+      "last_lead_received",
+      // fallback
+      "Last Lead Received","last_lead_received"
+    ], "—");
 
-          return {
-            _raw: c,
-            status: clientStatus,
-            code,
-            roofingCompany,
-            cityState,
-            clientName,
-            lastLead,
-            packageLabel: `${owed} / ${purchased}`,
-            packageRatio: purchased === 0 ? owed : (owed / purchased),
-            hoursSince,
-            leadsToday,
-            leadsYesterday,
-          };
-        });
-      },
+    const hoursSince = Number(this.pick(c, [
+      // ✅ healthMonitor normalized
+      "hours_since_last_lead",
+      // fallback
+      "Hours Since Last Lead","Hours Since","hours_since_last_lead"
+    ], 0)) || 0;
+
+    const leadsToday = Number(this.pick(c, [
+      // ✅ healthMonitor normalized
+      "leads_today",
+      // fallback
+      "Leads Today","leads_today"
+    ], 0)) || 0;
+
+    const leadsYesterday = Number(this.pick(c, [
+      // ✅ healthMonitor normalized
+      "leads_yesterday",
+      // fallback
+      "Leads Yesterday","leads_yesterday"
+    ], 0)) || 0;
+
+    // ✅ package fields: healthMonitor uses snake_case
+    const owed = Number(this.pick(c, [
+      "owed_leads",        // ✅ healthMonitor
+      "Owed Leads","OWED LEADS","owed_leads","Owed"
+    ], 0)) || 0;
+
+    const purchased = Number(this.pick(c, [
+      "purchased_leads",   // ✅ healthMonitor
+      "Purchased Leads","PURCHASED LEADS","purchased_leads","Purchased"
+    ], 0)) || 0;
+
+    const pkgLabel = `${owed} / ${purchased}`;
+    const pkgRatio = purchased === 0 ? owed : (owed / purchased);
+
+    return {
+      _raw: c,
+      status: clientStatus,
+      code,
+      roofingCompany,
+      cityState,
+      clientName,
+      lastLead,
+      packageLabel: pkgLabel,
+      packageRatio: pkgRatio,
+      hoursSince,
+      leadsToday,
+      leadsYesterday,
+    };
+  });
+},
 
       setupFilters(rows) {
         const statusSel = document.getElementById("health-filter-status");
