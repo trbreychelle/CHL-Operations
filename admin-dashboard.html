@@ -48,6 +48,7 @@
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
 
+    /* Sort header UI */
     th.sortable { cursor: pointer; user-select: none; }
     th.sortable:hover { background: rgba(17,24,39,0.02); }
     .sort-icon { font-size: 10px; margin-left: 6px; color: #9CA3AF; }
@@ -125,7 +126,7 @@
           </div>
         </div>
 
-        <!-- ✅ FULL WIDTH CLIENT HEALTH -->
+        <!-- ✅ CLIENT HEALTH -->
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8">
           <div class="p-5 border-b border-gray-100 flex flex-col gap-3 bg-gray-50/50 rounded-t-2xl">
             <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
@@ -228,7 +229,7 @@
           </div>
         </div>
 
-        <!-- Optional blocks remain -->
+        <!-- Live Floor Status -->
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8">
           <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
             <h3 class="font-bold text-gray-900 text-sm">Live Floor Status</h3>
@@ -240,6 +241,7 @@
           </div>
         </div>
 
+        <!-- Team Performance -->
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm mb-8">
           <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-gray-50/50 rounded-t-2xl">
             <h3 class="font-bold text-gray-900 flex items-center gap-2">
@@ -310,14 +312,9 @@
     const AdminDashboard = {
       perfPeriod: 'today',
 
-      // Table dataset cache for sorting/filtering
       clientHealthRaw: [],
       clientHealthView: [],
-      sortState: { key: null, dir: 'asc' }, // asc/desc
-
-      // built maps (company -> code / package)
-      _companyToCodeMap: null,
-      _companyToPackageMap: null,
+      sortState: { key: null, dir: 'asc' },
 
       getState() {
         return (window.portal && window.portal.adminState) ? window.portal.adminState : null;
@@ -325,34 +322,26 @@
 
       refreshDashboard() {
         const state = this.getState();
-        if (!state) {
-          console.log("⏳ Waiting for portal/adminState...");
-          return;
-        }
+        if (!state) return;
 
         const clients = Array.isArray(state.clients) ? state.clients : [];
         const leads   = Array.isArray(state.leads) ? state.leads : [];
         const agents  = Array.isArray(state.agents) ? state.agents : [];
 
-        // reset maps each refresh (in case sheets updated)
-        this._companyToCodeMap = null;
-        this._companyToPackageMap = null;
+        try { this.renderPulse(leads); } catch(e) { console.error(e); }
 
-        try { this.renderPulse(leads); } catch(e) { console.error("Pulse Error:", e); }
-
-        // ✅ Normalize client health rows first, then render
+        // ✅ Use normalized portal clients directly (they are enriched in main.js)
         try {
           this.clientHealthRaw = this.normalizeClientHealthRows(clients);
           this.setupFilters(this.clientHealthRaw);
-          this.applyClientHealthFilters(); // renders the table view
-        } catch(e) { console.error("Client Health Error:", e); }
+          this.applyClientHealthFilters();
+        } catch(e) { console.error(e); }
 
-        try { this.updatePerf(this.perfPeriod); } catch(e) { console.error("Perf Error:", e); }
-        try { this.renderClientCards(clients); } catch(e) { console.error("Client Cards Error:", e); }
-        try { this.renderLeads(leads); } catch(e) { console.error("Leads Table Error:", e); }
+        try { this.updatePerf(this.perfPeriod); } catch(e) { console.error(e); }
+        try { this.renderClientCards(clients); } catch(e) { console.error(e); }
+        try { this.renderLeads(leads); } catch(e) { console.error(e); }
       },
 
-      // ✅ smarter pick: tries multiple keys + ignores empty strings
       pick(obj, keys, fallback = "") {
         for (const k of keys) {
           const v = obj?.[k];
@@ -361,176 +350,11 @@
         return fallback;
       },
 
-      // ✅ normalize for matching across sheets (Company Name)
-      normalizeCompanyName(name) {
-        return String(name || "")
-          .toLowerCase()
-          .replace(/&/g, "and")
-          .replace(/[^a-z0-9\s]/g, " ")
-          .replace(/\s+/g, " ")
-          .trim();
-      },
-
-      // ✅ find a list inside adminState by checking many possible keys (VERY IMPORTANT)
-      findListInState(possibleKeys) {
-        const state = this.getState();
-        if (!state) return [];
-
-        for (const k of possibleKeys) {
-          const v = state[k];
-          if (Array.isArray(v)) return v;
-        }
-
-        // sometimes people store sheets grouped like state.sheets = { ... }
-        const sheets = state.sheets || state.SHEETS || state.data || null;
-        if (sheets && typeof sheets === "object") {
-          for (const k of possibleKeys) {
-            const v = sheets[k];
-            if (Array.isArray(v)) return v;
-          }
-        }
-
-        return [];
-      },
-
-      // ✅ CLIENT CODE LIST tab rows (Company Name -> Code Name)
-      getClientCodeListFromState() {
-        return this.findListInState([
-          "clientCodeList",
-          "client_code_list",
-          "clientCodes",
-          "client_codes",
-          "codeList",
-          "code_list",
-          "codes",
-          "CLIENT_CODE_LIST",
-          "CLIENT CODE LIST",
-          "client code list",
-          "Client Code List",
-          "CLIENT_CODE",
-          "clientCode",
-        ]);
-      },
-
-      // ✅ LEAD PACKAGE tab rows (Purchased Leads / Owed Leads)
-      getLeadPackageListFromState() {
-        return this.findListInState([
-          "leadPackage",
-          "lead_package",
-          "leadPackages",
-          "lead_packages",
-          "packageLedger",
-          "package_ledger",
-          "packages",
-          "Lead Package",
-          "LEAD PACKAGE",
-          "LEAD_PACKAGE",
-          "lead package",
-        ]);
-      },
-
-      buildCompanyToCodeMap(codeRows) {
-        const map = new Map();
-        (codeRows || []).forEach(row => {
-          const company = this.pick(row, ["COMPANY NAME", "Company Name", "company_name"], "");
-          const code    = this.pick(row, ["CODE NAME", "Code Name", "code_name", "CODE", "Code"], "");
-          const key = this.normalizeCompanyName(company);
-          if (!key) return;
-          if (!map.has(key) && String(code).trim() !== "") map.set(key, String(code).trim());
-        });
-        return map;
-      },
-
-      buildCompanyToPackageMap(pkgRows) {
-        const map = new Map();
-        (pkgRows || []).forEach(row => {
-          // Lead Package tab header shows: Roofing Company Name
-          const company = this.pick(row, ["Roofing Company Name", "Roofing Company", "ROOFING COMPANY", "Company Name", "COMPANY NAME"], "");
-          const purchased = Number(this.pick(row, ["Purchased Leads", "PURCHASED LEADS", "Purchased", "PURCHASED"], 0)) || 0;
-          const owed = Number(this.pick(row, ["Owed Leads", "OWED LEADS", "Owed", "OWED"], 0)) || 0;
-
-          const key = this.normalizeCompanyName(company);
-          if (!key) return;
-          // keep latest/first; if duplicates, we can sum — but default keep the first non-zero.
-          if (!map.has(key)) map.set(key, { purchased, owed });
-        });
-        return map;
-      },
-
-      // ✅ IMPORTANT: Your Client Status tab headers are like:
-      // Roofing Company | CITY STATE | CLIENT NAME | Client Status
-      // We include MANY key variants to survive whatever main.js renamed them to.
-      extractCityState(c) {
-        // If your UI shows "Remote" right now, it probably comes from a "location" field in main.js.
-        // We try CITY STATE first, then other variants.
-        const v = this.pick(c, [
-          "CITY STATE",
-          "CITY, STATE",
-          "City, State",
-          "City State",
-          "City/State",
-          "CITYSTATE",
-          "Location",
-          "location"
-        ], "—");
-
-        // If main.js forces "Remote", but CITY STATE exists in raw row, prefer CITY STATE.
-        // (pick() already prioritizes earlier keys, so this is usually enough.)
-        return v;
-      },
-
-      extractClientName(c) {
-        return this.pick(c, [
-          "CLIENT NAME",
-          "Client Name",
-          "client_name",
-          "clientName",
-          "Client",
-          "CLIENT"
-        ], "—");
-      },
-
-      extractRoofingCompany(c) {
-        return this.pick(c, [
-          "Roofing Company",
-          "Roofing Company Name",
-          "ROOFING COMPANY",
-          "roofing_company",
-          "Company Name",
-          "COMPANY NAME"
-        ], "—");
-      },
-
-      extractCodeFromCompanyName(companyName) {
-        const key = this.normalizeCompanyName(companyName);
-        if (!key) return "N/A";
-
-        if (!this._companyToCodeMap) {
-          const codeList = this.getClientCodeListFromState();
-          this._companyToCodeMap = this.buildCompanyToCodeMap(codeList);
-        }
-
-        return this._companyToCodeMap.get(key) || "N/A";
-      },
-
-      extractCode(c) {
-        // 1) If code already exists in this dataset, use it
-        const direct = this.pick(c, [
-          "CODE NAME", "Code Name", "codeName", "CODE", "code",
-          "Client Code", "CLIENT CODE", "Client ID", "ClientID"
-        ], "");
-        if (direct && String(direct).trim() !== "") return String(direct).trim();
-
-        // 2) Otherwise match by Roofing Company -> CLIENT CODE LIST Company Name
-        const roofingCompany = this.extractRoofingCompany(c);
-        return this.extractCodeFromCompanyName(roofingCompany);
-      },
-
       normalizeClientStatus(v) {
         const s = String(v || "").trim().toUpperCase();
-        if (s.includes("CRITICAL")) return "CRITICAL";
-        if (s.includes("YELLOW") || s.includes("RISK")) return "AT RISK";
-        if (s.includes("GREEN") || s.includes("HEALTHY")) return "HEALTHY";
+        if (s.includes("CRITICAL") || s.includes("RED")) return "CRITICAL";
+        if (s.includes("RISK") || s.includes("YELLOW")) return "AT RISK";
+        if (s.includes("HEALTHY") || s.includes("GREEN")) return "HEALTHY";
         if (s.includes("NOT STARTED") || s.includes("BLUE")) return "NOT STARTED";
         return s || "UNKNOWN";
       },
@@ -542,46 +366,8 @@
         return "st-new";
       },
 
-      // ✅ Package owed/purchased:
-      // - First tries to get Owed/Purchased inside the Client Status row
-      // - If missing, matches Roofing Company to the Lead Package tab
-      extractPackageRatio(c, roofingCompanyName) {
-        const directOwed = Number(this.pick(c, ["Owed Leads", "Owed", "OWED LEADS", "owed_leads"], "")) || null;
-        const directPurchased = Number(this.pick(c, ["Purchased Leads", "Purchased", "PURCHASED LEADS", "purchased_leads"], "")) || null;
-
-        let owed = (directOwed !== null && !Number.isNaN(directOwed)) ? directOwed : null;
-        let purchased = (directPurchased !== null && !Number.isNaN(directPurchased)) ? directPurchased : null;
-
-        // If not found directly, map from Lead Package tab
-        if (owed === null || purchased === null) {
-          if (!this._companyToPackageMap) {
-            const pkgList = this.getLeadPackageListFromState();
-            this._companyToPackageMap = this.buildCompanyToPackageMap(pkgList);
-          }
-          const key = this.normalizeCompanyName(roofingCompanyName);
-          const pkg = this._companyToPackageMap.get(key);
-          if (pkg) {
-            if (owed === null) owed = Number(pkg.owed) || 0;
-            if (purchased === null) purchased = Number(pkg.purchased) || 0;
-          }
-        }
-
-        // final fallbacks
-        owed = Number(owed) || 0;
-        purchased = Number(purchased) || 0;
-
-        return {
-          owed,
-          purchased,
-          label: `${owed} / ${purchased}`,
-          value: purchased === 0 ? owed : (owed / purchased)
-        };
-      },
-
-      // ✅ top tiles
       renderPulse(leads) {
         const today = new Date().toDateString();
-
         const todayLeads = (leads || []).filter(l => {
           const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
           const d = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
@@ -594,49 +380,45 @@
         });
 
         const value = confirmed.length * 50;
+        const pending = (leads || []).filter(l => String(this.pick(l, ["Status","STATUS"], "")).toLowerCase().includes("pending"));
 
-        const pending = (leads || []).filter(l =>
-          String(this.pick(l, ["Status","STATUS"], "")).toLowerCase().includes("pending")
-        );
-
-        document.getElementById('pulse-profit').textContent =
-          window.portal?.formatCurrency ? window.portal.formatCurrency(value) : `$${value.toFixed(2)}`;
-
+        document.getElementById('pulse-profit').textContent = window.portal?.formatCurrency ? window.portal.formatCurrency(value) : `$${value.toFixed(2)}`;
         document.getElementById('pulse-pending').textContent = pending.length;
       },
 
-      // ✅ Normalize to a clean row object for sorting/filtering
+      // ✅ reads BOTH snake_case + camelCase coming from portal normalization
       normalizeClientHealthRows(clients) {
         return (clients || []).map(c => {
-          const rawStatus = this.pick(c, ["Client Status","CLIENT STATUS","Status","status"], "UNKNOWN");
-          const clientStatus = this.normalizeClientStatus(rawStatus);
+          const status = this.normalizeClientStatus(this.pick(c, ["status","Client Status","CLIENT STATUS"], "NOT STARTED"));
 
-          const roofingCompany = this.extractRoofingCompany(c);
+          const code = this.pick(c, ["code_name","codeName","CODE NAME","CODE","code"], "N/A");
+          const roofingCompany = this.pick(c, ["roofing_company","roofingCompany","Roofing Company","Company Name","COMPANY NAME"], "—");
+          const cityState = this.pick(c, ["city_state","cityState","CITY STATE","City State","City, State","Location","location"], "Remote");
+          const clientName = this.pick(c, ["client_name","clientName","CLIENT NAME","Client Name"], "—");
 
-          const code = this.extractCode(c);
-          const cityState = this.extractCityState(c);
-          const clientName = this.extractClientName(c);
+          const lastLead = this.pick(c, ["last_lead_received","lastLeadReceived","Last Lead Received"], "—");
+          const hoursSince = Number(this.pick(c, ["hours_since_last_lead","hoursSinceLastLead","Hours Since Last Lead","Hours Since"], 0)) || 0;
+          const leadsToday = Number(this.pick(c, ["leads_today","leadsToday","Leads Today"], 0)) || 0;
+          const leadsYesterday = Number(this.pick(c, ["leads_yesterday","leadsYesterday","Leads Yesterday"], 0)) || 0;
 
-          const lastLead = this.pick(c, ["Last Lead Received","Last Lead Received ", "last_lead_received"], "—");
-          const hoursSince = Number(this.pick(c, ["Hours Since Last Lead","Hours Since", "hours_since_last_lead"], 0)) || 0;
-          const leadsToday = Number(this.pick(c, ["Leads Today","leads_today"], 0)) || 0;
-          const leadsYesterday = Number(this.pick(c, ["Leads Yesterday","leads_yesterday"], 0)) || 0;
+          const owed = Number(this.pick(c, ["owed_leads","owedLeads","Owed Leads","OWED LEADS"], 0)) || 0;
+          const purchased = Number(this.pick(c, ["purchased_leads","purchasedLeads","Purchased Leads","PURCHASED LEADS"], 0)) || 0;
 
-          const pkg = this.extractPackageRatio(c, roofingCompany);
+          const packageLabel = `${owed} / ${purchased}`;
+          const packageRatio = (purchased === 0) ? owed : (owed / purchased);
 
           return {
-            _raw: c,
-            status: clientStatus,
+            status,
             code,
             roofingCompany,
             cityState,
             clientName,
             lastLead,
-            packageLabel: pkg.label,
-            packageRatio: pkg.value,
+            packageLabel,
+            packageRatio,
             hoursSince,
             leadsToday,
-            leadsYesterday,
+            leadsYesterday
           };
         });
       },
@@ -676,12 +458,8 @@
       },
 
       toggleSort(key) {
-        if (this.sortState.key === key) {
-          this.sortState.dir = this.sortState.dir === "asc" ? "desc" : "asc";
-        } else {
-          this.sortState.key = key;
-          this.sortState.dir = "asc";
-        }
+        if (this.sortState.key === key) this.sortState.dir = this.sortState.dir === "asc" ? "desc" : "asc";
+        else { this.sortState.key = key; this.sortState.dir = "asc"; }
 
         document.querySelectorAll(".sort-icon").forEach(i => i.textContent = "↕");
         const icon = document.getElementById(`sort-${key}`);
@@ -699,24 +477,15 @@
         if (city !== "all") filtered = filtered.filter(r => r.cityState === city);
 
         if (q) {
-          filtered = filtered.filter(r => {
-            const hay = `${r.code} ${r.roofingCompany} ${r.cityState} ${r.clientName}`.toLowerCase();
-            return hay.includes(q);
-          });
+          filtered = filtered.filter(r => (`${r.code} ${r.roofingCompany} ${r.cityState} ${r.clientName}`).toLowerCase().includes(q));
         }
 
         const { key, dir } = this.sortState;
         if (key) {
           filtered.sort((a,b) => {
-            const A = a[key];
-            const B = b[key];
-
-            if (typeof A === "number" && typeof B === "number") {
-              return dir === "asc" ? A - B : B - A;
-            }
-            return dir === "asc"
-              ? String(A).localeCompare(String(B))
-              : String(B).localeCompare(String(A));
+            const A = a[key], B = b[key];
+            if (typeof A === "number" && typeof B === "number") return dir === "asc" ? A - B : B - A;
+            return dir === "asc" ? String(A).localeCompare(String(B)) : String(B).localeCompare(String(A));
           });
         }
 
@@ -726,7 +495,6 @@
 
       renderClientHealthTable(rows) {
         const tbody = document.getElementById("client-health-body");
-
         if (!rows.length) {
           tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-gray-400 italic">No results found.</td></tr>`;
           return;
@@ -734,7 +502,6 @@
 
         tbody.innerHTML = rows.map(r => {
           const dotClass = this.statusDotClass(r.status);
-
           return `
             <tr class="hover:bg-gray-50">
               <td class="p-4">
@@ -743,25 +510,12 @@
                   <span class="tooltip-text"><b>${r.status}</b></span>
                 </div>
               </td>
-
               <td class="p-4 text-gray-700 font-semibold">${r.code || "N/A"}</td>
-
-              <td class="p-4 font-bold text-gray-900 max-w-[260px] truncate" title="${r.roofingCompany}">
-                ${r.roofingCompany}
-              </td>
-
-              <td class="p-4 text-gray-500 max-w-[170px] truncate" title="${r.cityState}">
-                ${r.cityState}
-              </td>
-
-              <td class="p-4 text-gray-700 max-w-[220px] truncate" title="${r.clientName}">
-                ${r.clientName}
-              </td>
-
+              <td class="p-4 font-bold text-gray-900 max-w-[260px] truncate" title="${r.roofingCompany}">${r.roofingCompany}</td>
+              <td class="p-4 text-gray-500 max-w-[170px] truncate" title="${r.cityState}">${r.cityState}</td>
+              <td class="p-4 text-gray-700 max-w-[220px] truncate" title="${r.clientName}">${r.clientName}</td>
               <td class="p-4 text-gray-500">${r.lastLead}</td>
-
               <td class="p-4 text-center text-gray-900 font-bold">${r.packageLabel}</td>
-
               <td class="p-4 text-center text-gray-700 font-semibold">${r.hoursSince}</td>
               <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsToday}</td>
               <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsYesterday}</td>
@@ -770,7 +524,6 @@
         }).join("");
       },
 
-      // ---------- Team Performance (unchanged) ----------
       updatePerf(period, btnElement) {
         this.perfPeriod = period;
 
@@ -801,7 +554,6 @@
 
         tbody.innerHTML = agents.map(agent => {
           const name = this.pick(agent, ["employeeName","Employee Name","EMPLOYEE NAME","name","Name"], "Unknown");
-
           const agentLeads = leads.filter(l => {
             const lAgent = this.pick(l, ["Appointment Coordinator Name","Appointment Coord","Appointment Coordinator","Agent","AGENT"], "");
             const dStr   = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date"], "");
@@ -815,10 +567,7 @@
             return window.portal?.isConfirmedStatus ? window.portal.isConfirmedStatus(st) : String(st).toLowerCase() === "confirmed";
           }).length;
 
-          const rejected  = agentLeads.filter(l =>
-            String(this.pick(l, ["Status","STATUS"], "")).toLowerCase().includes("reject")
-          ).length;
-
+          const rejected  = agentLeads.filter(l => String(this.pick(l, ["Status","STATUS"], "")).toLowerCase().includes("reject")).length;
           const eff = total > 0 ? Math.round((confirmed / total) * 100) : 0;
 
           return `
@@ -836,18 +585,12 @@
       renderClientCards(clients) {
         const container = document.getElementById('client-cards-container');
         if (!clients || !clients.length) return;
-
         container.innerHTML = clients.map(c => {
-          const name = this.extractRoofingCompany(c);
-          const code = this.extractCode(c);
-          const city = this.extractCityState(c);
+          const name = this.pick(c, ["roofing_company","roofingCompany","Company Name","COMPANY NAME"], "Unnamed");
           return `
             <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-              <div class="flex items-center justify-between">
-                <h3 class="font-bold text-gray-900 text-lg">${name}</h3>
-                <span class="text-xs font-bold text-gray-500">${code}</span>
-              </div>
-              <p class="text-xs text-gray-500 mt-1">${city}</p>
+              <h3 class="font-bold text-gray-900 text-lg">${name}</h3>
+              <p class="text-xs text-gray-500 mt-1">Mapped from Google Sheets</p>
             </div>
           `;
         }).join('');
@@ -855,7 +598,6 @@
 
       renderLeads(leads) {
         const tbody = document.getElementById('leads-table-body');
-
         if (!leads || !leads.length) {
           tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400">No leads recorded.</td></tr>';
           return;
