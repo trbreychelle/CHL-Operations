@@ -39,7 +39,7 @@ class CallHammerPortal {
   }
 
   // ------------------------
-  // ✅ LOGIN + SESSION (ADDED)
+  // ✅ LOGIN + SESSION
   // ------------------------
   saveSession(user) {
     try {
@@ -145,7 +145,6 @@ class CallHammerPortal {
       if (!errWrap) return;
       errWrap.classList.remove('hidden');
       if (errText) errText.textContent = msg || 'Login failed. Please try again.';
-      // little shake if you want
       errWrap.classList.add('error-shake');
       setTimeout(() => errWrap.classList.remove('error-shake'), 600);
     };
@@ -311,16 +310,15 @@ class CallHammerPortal {
     if (value === null || value === undefined || value === '') return null;
 
     // ✅ Google Sheets serial date support
-    // If your Sheets node returns a date as a number (ex: 45231), convert from 1899-12-30
     if (typeof value === 'number' && isFinite(value)) {
-      // Heuristic: serial dates are usually > 20000
+      // serial dates are usually > 20000
       if (value > 20000) {
         const base = new Date(Date.UTC(1899, 11, 30));
         const ms = base.getTime() + value * 24 * 60 * 60 * 1000;
         const dt = new Date(ms);
         return isNaN(dt.getTime()) ? null : dt;
       }
-      // If it's epoch ms/seconds, try both
+      // epoch ms/seconds
       if (value > 1e12) {
         const dt = new Date(value);
         return isNaN(dt.getTime()) ? null : dt;
@@ -360,16 +358,30 @@ class CallHammerPortal {
   }
 
   // ------------------------
-  // ✅ Status Helpers used by admin-dashboard.html
+  // ✅ Status Helpers (UPDATED FOR NEW DASHBOARD LOGIC)
   // ------------------------
+  // Qualified = Confirmed / Approved
   isQualifiedStatus(status) {
     const s = String(status || '').trim().toUpperCase();
     return s.includes('CONFIRM') || s.includes('APPROV');
   }
 
-  isUnqualifiedStatus(status) {
+  // ✅ NEW: QC Rejected = Rejected only
+  isRejectedStatus(status) {
     const s = String(status || '').trim().toUpperCase();
-    return s.includes('REJECT') || s.includes('CREDIT') || s.includes('DECLIN') || s.includes('CANCEL');
+    return s.includes('REJECT');
+  }
+
+  // ✅ NEW: Credited only (this is your "Unqualified" in the UI now)
+  isCreditedStatus(status) {
+    const s = String(status || '').trim().toUpperCase();
+    return s.includes('CREDIT');
+  }
+
+  // Pending review
+  isPendingStatus(status) {
+    const s = String(status || '').trim().toUpperCase();
+    return s.includes('PENDING');
   }
 
   formatCurrency(v) {
@@ -378,7 +390,7 @@ class CallHammerPortal {
   }
 
   // ------------------------
-  // ✅ MST + Payroll week helpers (SAT → FRI) used by admin-dashboard.html
+  // ✅ MST + Payroll week helpers (SAT → FRI)
   // ------------------------
   toMST(date) {
     const d = new Date(date);
@@ -409,9 +421,7 @@ class CallHammerPortal {
     const d = new Date(mst);
     d.setHours(0, 0, 0, 0);
 
-    // JS getDay(): Sun=0 ... Sat=6
-    // We want Saturday start -> 6
-    const day = d.getDay();
+    const day = d.getDay(); // Sun=0 ... Sat=6
     const diffToSat = (day - 6 + 7) % 7; // days since last Saturday
     d.setDate(d.getDate() - diffToSat);
     return d;
@@ -436,7 +446,7 @@ class CallHammerPortal {
   }
 
   // ------------------------
-  // ✅ ADMIN ANALYTICS FROM RAW LEADS (ADDED)
+  // ✅ ADMIN ANALYTICS FROM RAW LEADS (UPDATED)
   // ------------------------
   getLeadDateValue(lead) {
     return this.getAny(lead, [
@@ -497,22 +507,17 @@ class CallHammerPortal {
   }
 
   setMetricByLabel(labelText, valueText) {
-    // Finds a card that contains the label text and replaces the big number inside it.
     const label = String(labelText || '').toLowerCase();
-
     const all = Array.from(document.querySelectorAll('*'))
       .filter(el => (el.textContent || '').trim().toLowerCase() === label);
 
     for (const lbl of all) {
-      // common pattern: label is a small text, number is in same card/container
       let card = lbl.closest('div');
       for (let i = 0; i < 6 && card; i++) {
-        // try find a big number-like element inside card
         const candidates = Array.from(card.querySelectorAll('div,span,p,h1,h2,h3'))
           .filter(x => /\d|%/.test((x.textContent || '').trim()))
           .sort((a,b) => (b.textContent || '').trim().length - (a.textContent || '').trim().length);
 
-        // better: take the first "big number" near top
         const big = candidates.find(x => /^[\d,]+(\.\d+)?%?$/.test((x.textContent || '').trim()));
         if (big) { big.textContent = valueText; return true; }
 
@@ -522,6 +527,7 @@ class CallHammerPortal {
     return false;
   }
 
+  // ✅ UPDATED to support QC Rejected + Credited split + new KPI labels
   refreshAdminAnalyticsFromRawLeads() {
     const leads = Array.isArray(this.adminState.leads) ? this.adminState.leads : [];
     if (!leads.length) {
@@ -538,30 +544,36 @@ class CallHammerPortal {
       return dt >= start && dt <= end;
     });
 
-    let total = inRange.length;
+    const total = inRange.length;
     let qualified = 0;
-    let unqualified = 0;
+    let qcRejected = 0;
+    let credited = 0;
     let pending = 0;
 
     for (const l of inRange) {
       const status = this.getLeadStatusValue(l);
       if (this.isQualifiedStatus(status)) qualified++;
-      else if (this.isUnqualifiedStatus(status)) unqualified++;
-      else pending++;
+      else if (this.isRejectedStatus(status)) qcRejected++;
+      else if (this.isCreditedStatus(status)) credited++;
+      else if (this.isPendingStatus(status)) pending++;
+      else pending++; // unknown -> treat as pending
     }
 
-    const denom = qualified + unqualified;
-    const cancelRate = denom > 0 ? Math.round((unqualified / denom) * 100) : 0;
+    // ✅ Cancellation Rate = Credited / (Qualified + Credited)
+    const denom = qualified + credited;
+    const cancelRate = denom > 0 ? Math.round((credited / denom) * 100) : 0;
 
     // ✅ Update metric cards (best-effort by labels)
+    // Note: your new HTML uses "QC REJECTED" and "CREDITED" KPI tiles
     this.setMetricByLabel('TOTAL LEADS', String(total));
     this.setMetricByLabel('QUALIFIED', String(qualified));
-    this.setMetricByLabel('UNQUALIFIED', String(unqualified));
+    this.setMetricByLabel('QC REJECTED', String(qcRejected));
+    this.setMetricByLabel('CREDITED', String(credited));
     this.setMetricByLabel('PENDING', String(pending));
     this.setMetricByLabel('CANCELLATION RATE', `${cancelRate}%`);
 
     console.log('✅ Admin analytics computed from RAW leads:', {
-      rangeKey, start, end, total, qualified, unqualified, pending, cancelRate
+      rangeKey, start, end, total, qualified, qcRejected, credited, pending, cancelRate
     });
   }
 
@@ -570,7 +582,6 @@ class CallHammerPortal {
   // ------------------------
   async fetchAdminData(forceRefresh = false) {
     try {
-      // Cache guard to avoid quota
       const now = Date.now();
       if (!forceRefresh && this.adminState.clients.length > 0 && (now - this.lastAdminFetch) < this.adminCacheMs) {
         console.log('🧠 Using cached admin data (quota guard).');
@@ -589,7 +600,6 @@ class CallHammerPortal {
       const result = await response.json();
       this.lastAdminFetch = Date.now();
 
-      // ✅ IMPORTANT: support {status:"success", healthMonitor:[...]} AND {data:{...}}
       const dataRoot = result?.data || result || {};
 
       const rawHealthMonitor =
@@ -617,17 +627,14 @@ class CallHammerPortal {
         dataRoot.packages || dataRoot.leadPackages || dataRoot.Packages ||
         result.packages || result.leadPackages || result.Packages || [];
 
-      // ✅ If healthMonitor exists, use it for Client Health Monitor
       if (Array.isArray(rawHealthMonitor) && rawHealthMonitor.length > 0) {
         this.normalizeAdminFromHealthMonitor(rawHealthMonitor);
 
-        // still store these if present
         this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
         this.adminState.agents = Array.isArray(rawAgents) ? rawAgents : [];
         this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
         this.adminState.rawPackages = Array.isArray(rawPackages) ? rawPackages : [];
       } else {
-        // fallback join-based
         this.normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages);
       }
 
@@ -639,8 +646,6 @@ class CallHammerPortal {
 
       this.triggerAdminRefresh();
 
-      // ✅ After refresh, compute analytics from RAW leads
-      // (small delay so DOM is ready)
       setTimeout(() => {
         try { this.refreshAdminAnalyticsFromRawLeads(); } catch (e) { console.error(e); }
       }, 150);
@@ -684,7 +689,9 @@ class CallHammerPortal {
 
       const purchasedLeads = this.toNumberSafe(this.getAny(r, ['purchased_leads', 'Purchased Leads'], 0), 0);
       const owedLeads = this.toNumberSafe(this.getAny(r, ['owed_leads', 'Owed Leads'], 0), 0);
-      const packageStatus = this.getAny(r, ['package_status', 'Package Status', 'Status'], '');
+
+      // ✅ keep these, admin-dashboard now shows them
+      const packageStatus = this.getAny(r, ['package_status', 'Package Status'], '');
       const purchaseDate = this.getAny(r, ['purchase_date', 'Purchase Date'], '');
 
       return {
@@ -712,11 +719,9 @@ class CallHammerPortal {
     this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
     this.adminState.rawPackages = Array.isArray(rawPackages) ? rawPackages : [];
 
-    // store raw leads/agents too
     this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
     this.adminState.agents = Array.isArray(rawAgents) ? rawAgents : [];
 
-    // basic fallback: keep clients as-is but normalize minimal fields if needed
     const clientsArr = Array.isArray(rawClients) ? rawClients : [];
     this.adminState.clients = clientsArr.map(c => ({
       status: this.getAny(c, ['STATUS', 'Status', 'Client Status', 'CLIENT STATUS'], 'NOT STARTED'),
