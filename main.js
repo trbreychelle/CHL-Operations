@@ -19,7 +19,6 @@ class CallHammerPortal {
       agents: [],        // normalized from AGENT_MASTER
       rawStatuses: [],   // raw client status rows (Client Lead Delivery Tracker)
       rawPackages: []    // raw package rows (Lead Package tab)
-      // NOTE: we are not adding new required fields; we will enrich clients directly
     };
 
     // Cache to avoid Google Sheets quota/too-many-requests issues
@@ -72,7 +71,9 @@ class CallHammerPortal {
     // Admin dashboard (Mission Control / Overview)
     if (onAdminDashboard) {
       document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
-      setTimeout(() => this.fetchAdminData(false), 300);
+
+      // ✅ CHANGE: force refresh ONCE on load so n8n changes show immediately (no cached N/A)
+      setTimeout(() => this.fetchAdminData(true), 300);
     }
   }
 
@@ -244,13 +245,6 @@ class CallHammerPortal {
         this.adminState.agents = Array.isArray(rawAgents) ? rawAgents : [];
         this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
         this.adminState.rawPackages = Array.isArray(rawPackages) ? rawPackages : [];
-
-        // ✅ IMPORTANT FIX:
-        // Even if healthMonitor exists, enrich it using:
-        // - Client Lead Delivery Tracker (Client Status tab) for City State + Client Name
-        // - Master Lead Record (Client Code List tab) for Code Name
-        // - Lead Package tab for owed/purchased (if needed)
-        this.enrichAdminHealthClients(this.adminState.rawStatuses, rawClients, this.adminState.rawPackages);
       } else {
         // fallback join-based
         this.normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages);
@@ -292,7 +286,8 @@ class CallHammerPortal {
         '—'
       );
 
-      const cityState = this.getAny(r, ['city_state', 'CITY STATE', 'City State', 'location', 'Location'], '—');
+      const cityState = this.getAny(r, ['city_state', 'CITY STATE', 'City State', 'location', 'Location'], 'Remote');
+
       const clientName = this.getAny(r, ['client_name', 'CLIENT NAME', 'Client Name'], '—');
 
       const lastLeadReceived = this.getAny(r, ['last_lead_received', 'Last Lead Received'], '');
@@ -336,130 +331,6 @@ class CallHammerPortal {
         owedLeads,
         packageStatus,
         purchaseDate
-      };
-    });
-  }
-
-  // ✅ IMPORTANT FIX: enrich health clients using your 2-sheet matching rules
-  // Rule:
-  // - From Client Lead Delivery Tracker → CLIENT STATUS tab:
-  //   Column A Roofing Company, Column B CITY STATE, Column C CLIENT NAME
-  // - From Master Lead Record → CLIENT CODE LIST tab:
-  //   Column B COMPANY NAME matches roofing company → Column A CODE NAME becomes dashboard Code
-  enrichAdminHealthClients(rawStatuses, rawClientCodeListRows, rawPackages) {
-    const statuses = Array.isArray(rawStatuses) ? rawStatuses : [];
-    const codeList = Array.isArray(rawClientCodeListRows) ? rawClientCodeListRows : [];
-    const packages = Array.isArray(rawPackages) ? rawPackages : [];
-
-    // Map: Roofing Company -> { city_state, client_name, last_lead_received, hours_since_last_lead, leads_today, leads_yesterday, status }
-    const statusMap = new Map();
-    for (const row of statuses) {
-      const company = this.getAny(row, ['Roofing Company', 'ROOFING COMPANY', 'Company Name', 'COMPANY NAME'], '');
-      const key = this.normalizeCompanyKey(company);
-      if (!key || key === 'unknown') continue;
-
-      statusMap.set(key, {
-        roofing_company: company,
-        city_state: this.getAny(row, ['CITY STATE', 'City State', 'City, State', 'CITY, STATE'], '—'),
-        client_name: this.getAny(row, ['CLIENT NAME', 'Client Name', 'Client'], '—'),
-        last_lead_received: this.getAny(row, ['Last Lead Received', 'LAST LEAD RECEIVED'], ''),
-        hours_since_last_lead: this.toNumberSafe(this.getAny(row, ['Hours Since Last Lead', 'HOURS SINCE LAST LEAD', 'Hours Since'], 0), 0),
-        leads_today: this.toNumberSafe(this.getAny(row, ['Leads Today', 'LEADS TODAY'], 0), 0),
-        leads_yesterday: this.toNumberSafe(this.getAny(row, ['Leads Yesterday', 'LEADS YESTERDAY'], 0), 0),
-        status: this.getAny(row, ['Client Status', 'CLIENT STATUS', 'Status'], 'NOT STARTED')
-      });
-    }
-
-    // Map: Company Name -> Code Name (Master Lead Record → Client Code List)
-    const codeMap = new Map();
-    for (const row of codeList) {
-      // Your sheet: Column A = CODE NAME, Column B = COMPANY NAME
-      const company = this.getAny(row, ['COMPANY NAME', 'Company Name', 'Roofing Company', 'ROOFING COMPANY'], '');
-      const code = this.getAny(row, ['CODE NAME', 'Code Name', 'CODE', 'Client Code'], '');
-      const key = this.normalizeCompanyKey(company);
-      if (!key || key === 'unknown') continue;
-      if (!codeMap.has(key) && String(code).trim() !== '') codeMap.set(key, String(code).trim());
-    }
-
-    // Optional: Map packages if you want to fill owed/purchased when missing
-    const pkgMap = new Map();
-    for (const row of packages) {
-      const company = this.getAny(row, ['Roofing Company Name', 'Roofing Company', 'Company Name', 'COMPANY NAME'], '');
-      const key = this.normalizeCompanyKey(company);
-      if (!key || key === 'unknown') continue;
-
-      const purchased = this.toNumberSafe(this.getAny(row, ['Purchased Leads', 'PURCHASED LEADS', 'Purchased', 'PURCHASED'], 0), 0);
-      const owed = this.toNumberSafe(this.getAny(row, ['Owed Leads', 'OWED LEADS', 'Owed', 'OWED'], 0), 0);
-
-      if (!pkgMap.has(key)) pkgMap.set(key, { purchased, owed });
-    }
-
-    // Enrich the already-normalized health monitor rows
-    this.adminState.clients = (this.adminState.clients || []).map(c => {
-      const company = c.roofing_company || c.roofingCompany || '';
-      const key = this.normalizeCompanyKey(company);
-
-      const s = statusMap.get(key);
-      const code = codeMap.get(key);
-
-      // Prefer tracker values for city/client (since that is your source of truth)
-      const cityState = (s && s.city_state) ? s.city_state : (c.city_state || c.cityState || '—');
-      const clientName = (s && s.client_name) ? s.client_name : (c.client_name || c.clientName || '—');
-
-      // Code: prefer mapped code list if current code is N/A
-      const curCode = (c.code_name || c.codeName || '').toString().trim();
-      const finalCode = (curCode && curCode !== 'N/A') ? curCode : (code || 'N/A');
-
-      // Prefer tracker stats when present (since those columns are exactly what you want)
-      const lastLead = (s && s.last_lead_received) ? s.last_lead_received : (c.last_lead_received || c.lastLeadReceived || '');
-      const hoursSince = (s && s.hours_since_last_lead !== undefined) ? s.hours_since_last_lead : (c.hours_since_last_lead || c.hoursSinceLastLead || 0);
-      const leadsToday = (s && s.leads_today !== undefined) ? s.leads_today : (c.leads_today || c.leadsToday || 0);
-      const leadsYesterday = (s && s.leads_yesterday !== undefined) ? s.leads_yesterday : (c.leads_yesterday || c.leadsYesterday || 0);
-
-      // Status: prefer tracker "Client Status" if available
-      const finalStatus = (s && s.status) ? s.status : (c.status || 'NOT STARTED');
-
-      // Package: keep existing; if missing, use package map
-      let purchased = this.toNumberSafe(c.purchased_leads ?? c.purchasedLeads, 0);
-      let owed = this.toNumberSafe(c.owed_leads ?? c.owedLeads, 0);
-
-      if ((purchased === 0 && owed === 0) && pkgMap.has(key)) {
-        const pkg = pkgMap.get(key);
-        purchased = this.toNumberSafe(pkg.purchased, 0);
-        owed = this.toNumberSafe(pkg.owed, 0);
-      }
-
-      return {
-        ...c,
-
-        status: finalStatus,
-
-        code_name: finalCode,
-        codeName: finalCode,
-
-        city_state: cityState,
-        cityState: cityState,
-
-        client_name: clientName,
-        clientName: clientName,
-
-        last_lead_received: lastLead,
-        lastLeadReceived: lastLead,
-
-        hours_since_last_lead: this.toNumberSafe(hoursSince, 0),
-        hoursSinceLastLead: this.toNumberSafe(hoursSince, 0),
-
-        leads_today: this.toNumberSafe(leadsToday, 0),
-        leadsToday: this.toNumberSafe(leadsToday, 0),
-
-        leads_yesterday: this.toNumberSafe(leadsYesterday, 0),
-        leadsYesterday: this.toNumberSafe(leadsYesterday, 0),
-
-        purchased_leads: this.toNumberSafe(purchased, 0),
-        purchasedLeads: this.toNumberSafe(purchased, 0),
-
-        owed_leads: this.toNumberSafe(owed, 0),
-        owedLeads: this.toNumberSafe(owed, 0)
       };
     });
   }
