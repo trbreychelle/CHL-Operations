@@ -71,9 +71,7 @@ class CallHammerPortal {
     // Admin dashboard (Mission Control / Overview)
     if (onAdminDashboard) {
       document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
-
-      // ✅ CHANGE: force refresh ONCE on load so n8n changes show immediately (no cached N/A)
-      setTimeout(() => this.fetchAdminData(true), 300);
+      setTimeout(() => this.fetchAdminData(false), 300);
     }
   }
 
@@ -327,6 +325,7 @@ class CallHammerPortal {
         hoursSinceLastLead,
         leadsToday,
         leadsYesterday,
+
         purchasedLeads,
         owedLeads,
         packageStatus,
@@ -395,460 +394,300 @@ class CallHammerPortal {
         codeName,
         clientNameWithCode: codeName && codeName !== 'N/A' ? `${companyName} (${codeName})` : companyName,
         lastLeadReceived,
+        hoursSince
         hoursSinceLastLead,
         leadsToday,
-        leadsYesterday
+        leadsYesterday,
+
+        purchasedLeads,
+        owedLeads,
+        packageStatus,
+        purchaseDate
       };
     });
 
-    const agentsArr = Array.isArray(rawAgents) ? rawAgents : [];
-    this.adminState.agents = agentsArr.map(a => ({
-      employeeName: this.getAny(a, ['Employee Name', 'Name', 'AGENT NAME', 'Agent Name'], 'Unknown'),
-      email: this.getAny(a, ['Email', 'Email Address'], ''),
-      role: this.getAny(a, ['Role'], 'Agent'),
-      position: this.getAny(a, ['Position'], ''),
-      employmentStatus: this.getAny(a, ['Employment_Status', 'Employment Status', 'Status'], 'Active'),
-      paymentStatus: this.getAny(a, ['Payment Status'], '')
-    }));
-
+    // store raw leads/agents too
     this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
+    this.adminState.agents = Array.isArray(rawAgents) ? rawAgents : [];
+
+    // ✅ Build status options + admin performance payload
+    this.adminState.statusOptions = this.getAdminStatusOptions();
+    this.adminState.performance = this.buildAdminPerformance(this.currentFilter || 'this-week');
   }
 
-  // ✅ ADMIN: compute Team Performance from RAW LEADS + Agent Master
-  calculateAdminTeamStats(timeFilter = 'today') {
-    const stats = {};
+  // ------------------------
+  // ✅ ADMIN: Status Options (fix dropdown missing statuses)
+  // ------------------------
+  getAdminStatusOptions() {
+    const required = ['CRITICAL', 'AT RISK', 'HEALTHY', 'NOT STARTED'];
 
-    (this.adminState.agents || []).forEach(a => {
-      const name = (a.employeeName || '').trim() || 'Unknown';
-      const emp = (a.employmentStatus || '').toLowerCase();
-      if (emp && emp.includes('offboard')) return;
-      stats[name] = { name, total: 0, confirmed: 0, rejected: 0, pending: 0 };
+    const found = new Set();
+    (this.adminState.clients || []).forEach(c => {
+      const s = (c?.status || '').toString().trim();
+      if (s) found.add(s.toUpperCase());
     });
 
+    // union required + found
+    const all = new Set([...required, ...found]);
+
+    // return in a friendly order
+    const ordered = [];
+    required.forEach(r => { if (all.has(r)) ordered.push(r); all.delete(r); });
+    [...all].sort().forEach(x => ordered.push(x));
+    return ordered;
+  }
+
+  // ------------------------
+  // ✅ ADMIN: Performance Builder (team totals + chart series + top10)
+  // ------------------------
+  buildAdminPerformance(periodKey = 'this-week') {
     const leads = Array.isArray(this.adminState.leads) ? this.adminState.leads : [];
-    if (!leads.length) return Object.values(stats);
+    const agents = Array.isArray(this.adminState.agents) ? this.adminState.agents : [];
 
-    const now = new Date();
-    const startOfDay = new Date(now); startOfDay.setHours(0, 0, 0, 0);
+    const range = this.getPeriodRange(periodKey);
+    const { start, end } = range;
 
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
-    startOfWeek.setHours(0, 0, 0, 0);
+    // Helpers: robust agent name + status + date
+    const getLeadAgentName = (lead) => {
+      // Try common header variants
+      return (
+        this.getAny(lead, ['Agent Name', 'AGENT NAME', 'agent_name', 'agent', 'Agent', 'Submitted By', 'submitted_by'], '') ||
+        this.getAny(lead, ['Team Leader', 'TL', 'team_leader'], '')
+      ).toString().trim();
+    };
 
-    const startOf30 = new Date(now);
-    startOf30.setDate(now.getDate() - 30);
-    startOf30.setHours(0, 0, 0, 0);
+    const getLeadDecision = (lead) => {
+      // confirmed/approved vs rejected/credited
+      const raw =
+        this.getAny(lead, ['Status', 'STATUS', 'Decision', 'DECISION', 'Lead Status', 'LEAD STATUS'], '') ||
+        this.getAny(lead, ['Qualified', 'QUALIFIED'], '') ||
+        '';
+      return raw.toString().trim().toUpperCase();
+    };
 
+    const getLeadDate = (lead) => {
+      const v =
+        this.getAny(lead, ['Date', 'DATE', 'Submitted Date', 'SUBMITTED DATE', 'Created', 'CREATED', 'Timestamp', 'TIMESTAMP', 'created_at'], '');
+      return this.parseDateSafe(v);
+    };
+
+    // Filter leads in range
+    const inRange = [];
     for (const lead of leads) {
-      const coordinator = String(
-        this.getAny(lead, ['Appointment Coordinator Name', 'Setter', 'Agent', 'Agent Name'], 'Unknown')
-      ).trim() || 'Unknown';
-
-      const dateStr = this.getAny(lead, ['Date Submitted', 'Date', 'Submitted Date'], '');
-      const leadDate = this.parseDateSafe(dateStr);
-      if (!leadDate) continue;
-
-      let include = false;
-      if (timeFilter === 'today') include = leadDate >= startOfDay;
-      else if (timeFilter === 'this-week') include = leadDate >= startOfWeek;
-      else if (timeFilter === '30-days') include = leadDate >= startOf30;
-      else if (timeFilter === 'all') include = true;
-
-      if (!include) continue;
-
-      if (!stats[coordinator]) {
-        stats[coordinator] = { name: coordinator, total: 0, confirmed: 0, rejected: 0, pending: 0 };
-      }
-
-      const status = String(this.getAny(lead, ['Status'], '')).toLowerCase();
-      stats[coordinator].total += 1;
-
-      if (status === 'confirmed' || status === 'approved') stats[coordinator].confirmed += 1;
-      else if (status.includes('reject') || status.includes('decline') || status.includes('cancel') || status.includes('credit')) stats[coordinator].rejected += 1;
-      else stats[coordinator].pending += 1;
+      const dt = getLeadDate(lead);
+      if (!dt) continue;
+      if (dt >= start && dt < end) inRange.push({ lead, dt });
     }
 
-    return Object.values(stats).map(a => {
-      const efficiency = a.total > 0 ? (a.confirmed / a.total) * 100 : 0;
-      return { ...a, efficiency: `${efficiency.toFixed(0)}%` };
-    });
-  }
-
-  // ------------------------
-  // Payroll Week Helpers (Agent/TL)
-  // ------------------------
-  getPayrollWeekRangeFor(date) {
-    const mstDate = this.toMST(date);
-    const dayOfWeek = mstDate.getDay(); // Sun=0 ... Sat=6
-    const start = new Date(mstDate);
-    const diffToSat = (dayOfWeek === 6) ? 0 : (dayOfWeek + 1);
-    start.setDate(mstDate.getDate() - diffToSat);
-    start.setHours(0, 0, 0, 0);
-
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    end.setHours(23, 59, 59, 999);
-
-    return { start, end };
-  }
-
-  getPayrollWeekRange() {
-    const now = new Date();
-    const mstOffset = -7 * 60;
-    const localOffset = now.getTimezoneOffset();
-    const mstNow = new Date(now.getTime() + (mstOffset + localOffset) * 60000);
-
-    const dayOfWeek = mstNow.getDay(); // Sun=0 ... Sat=6
-    const start = new Date(mstNow);
-    const diffToSat = (dayOfWeek === 6) ? 0 : (dayOfWeek + 1);
-
-    start.setDate(mstNow.getDate() - diffToSat);
-    start.setHours(0, 0, 0, 0);
-
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    end.setHours(23, 59, 59, 999);
-
-    return { start, end };
-  }
-
-  getPreviousPayrollWeekRange() {
-    const cur = this.getPayrollWeekRange();
-    const start = new Date(cur.start);
-    const end = new Date(cur.end);
-    start.setDate(start.getDate() - 7);
-    end.setDate(end.getDate() - 7);
-    start.setHours(0, 0, 0, 0);
-    end.setHours(23, 59, 59, 999);
-    return { start, end };
-  }
-
-  getPayrollWeekStart(date) {
-    const mstDate = this.toMST(date);
-    const dayOfWeek = mstDate.getDay(); // Sun=0 ... Sat=6
-    const start = new Date(mstDate);
-    const diffToSat = (dayOfWeek === 6) ? 0 : (dayOfWeek + 1);
-    start.setDate(mstDate.getDate() - diffToSat);
-    start.setHours(0, 0, 0, 0);
-    return start;
-  }
-
-  getPayrollWeekKey(date) {
-    const start = this.getPayrollWeekStart(date);
-    return start.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
-  }
-
-  computeWorkedHoursFromWeeklyPayroll(rangeStart, rangeEnd) {
-    const rows = Array.isArray(this.weeklyPayroll) ? this.weeklyPayroll : [];
-    if (!rows.length || !this.currentUser) return 0;
-
-    const myEmail = (this.currentUser.email || '').toLowerCase().trim();
-    const myName = (this.currentUser.name || '').toLowerCase().trim();
-
-    const parseHours = (v) => {
-      const n = parseFloat((v ?? '').toString().replace(/[^\d.]/g, ''));
-      return isNaN(n) ? 0 : n;
-    };
-
-    const objRows = rows.filter(r => r && typeof r === 'object' && !Array.isArray(r));
-    if (!objRows.length) return 0;
-
-    const getPossibleEmail = (r) =>
-      (r.Email || r.email || r['Agent Email'] || r['Employee Email'] || r['Email Address'] || '').toString().toLowerCase().trim();
-
-    const getPossibleName = (r) =>
-      (r['Agent Name'] || r['Employee Name'] || r['Name'] || r.name || '').toString().toLowerCase().trim();
-
-    const myRow = objRows.find(r => {
-      const rowEmail = getPossibleEmail(r);
-      const rowName = getPossibleName(r);
-      const emailMatch = myEmail && rowEmail && myEmail === rowEmail;
-      const nameMatch = myName && rowName && (rowName.includes(myName) || myName.includes(rowName));
-      return emailMatch || nameMatch;
+    // Build employee map (for display names)
+    const employeeNameSet = new Set();
+    agents.forEach(a => {
+      const n = this.getAny(a, ['Agent Name', 'AGENT NAME', 'Name', 'NAME', 'agent_name'], '').toString().trim();
+      if (n) employeeNameSet.add(n);
     });
 
-    if (!myRow) return 0;
+    // Aggregate totals per agent
+    const perAgent = {};
+    const teamTotals = { total: 0, confirmed: 0, rejected: 0 };
 
-    let total = 0;
-    let foundAnyDateColumns = false;
+    const bump = (agentName, type) => {
+      if (!agentName) agentName = 'Unknown';
+      if (!perAgent[agentName]) perAgent[agentName] = { total: 0, confirmed: 0, rejected: 0 };
+      perAgent[agentName].total += 1;
+      teamTotals.total += 1;
 
-    for (const [k, v] of Object.entries(myRow)) {
-      const key = (k || '').toString().trim();
-      if (!key) continue;
-
-      const keyDate = this.parseDateSafe(key);
-      if (!keyDate) continue;
-
-      foundAnyDateColumns = true;
-
-      const mstK = this.toMST(keyDate);
-      if (mstK >= rangeStart && mstK <= rangeEnd) total += parseHours(v);
-    }
-
-    if (foundAnyDateColumns) return total;
-
-    const totalHoursCandidate =
-      myRow['Total Hours'] ??
-      myRow['TOTAL HOURS'] ??
-      myRow['TotalHours'] ??
-      myRow['total_hours'] ??
-      myRow['Hours'] ??
-      myRow['hours'] ??
-      0;
-
-    return parseHours(totalHoursCandidate);
-  }
-
-  // ------------------------
-  // Status helpers
-  // ------------------------
-  isConfirmedStatus(status) {
-    const s = (status || '').toString().trim().toLowerCase();
-    return s === 'confirmed';
-  }
-
-  isCancelledLikeStatus(status) {
-    const s = (status || '').toString().toLowerCase();
-    return s.includes('cancel') || s.includes('credited') || s.includes('rejected') || s.includes('declined');
-  }
-
-  // ------------------------
-  // Data Fetch (AGENT)
-  // ------------------------
-  async fetchAllData() {
-    if (!this.currentUser) return;
-
-    try {
-      const response = await fetch(this.webhooks.fetchData, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: this.currentUser.email,
-          role: this.currentUser.role
-        })
-      });
-
-      const result = await response.json();
-
-      if (result.status === "success") {
-        this.leadsData = Array.isArray(result.leads) ? result.leads : [];
-        this.employeeList = Array.isArray(result.employeeList) ? result.employeeList : [];
-
-        this.weeklyPayroll = Array.isArray(result.weeklyPayroll) ? result.weeklyPayroll : [];
-        this.timeTracker = Array.isArray(result.timeTracker) ? result.timeTracker : [];
-
-        if (result.profile) {
-          const p = result.profile;
-
-          this.currentUser = {
-            ...this.currentUser,
-            name: p['Employee Name'] || this.currentUser.name,
-            email: p['Email'] || this.currentUser.email,
-            role: (p['Role'] || this.currentUser.role || 'agent').toLowerCase(),
-            baseRate: p['Base Rate'] || this.currentUser.baseRate,
-            weeklyHours: p['Weekly Hours'] || this.currentUser.weeklyHours,
-            startDate: p['Start Date'] || this.currentUser.startDate,
-            position: p['Position'] || this.currentUser.position,
-            managerEmail: p['Manager_Email'] || p['Manager Email'] || this.currentUser.managerEmail,
-            employmentStatus: p['Employment_Status'] || p['Employment Status'] || this.currentUser.employmentStatus,
-            paymentStatus: p['Payment Status'] || this.currentUser.paymentStatus
-          };
-
-          const session = localStorage.getItem('callHammerSession');
-          if (session) {
-            const s = JSON.parse(session);
-            s.user = this.currentUser;
-            localStorage.setItem('callHammerSession', JSON.stringify(s));
-          }
-
-          this.updateProfileUI();
-          this.enforceRoleRouting();
-        }
-
-        if (result.timeOffHistory) this.renderTimeOffHistory(result.timeOffHistory);
-
-        this.handleFilterChange(this.currentFilter);
-        this.updateCharts();
-
-        if (window.teamLeadDashboard && typeof window.teamLeadDashboard.refresh === 'function') {
-          window.teamLeadDashboard.refresh();
-        }
+      if (type === 'CONFIRMED') {
+        perAgent[agentName].confirmed += 1;
+        teamTotals.confirmed += 1;
+      } else if (type === 'REJECTED') {
+        perAgent[agentName].rejected += 1;
+        teamTotals.rejected += 1;
       }
-    } catch (error) {
-      console.error('Data Sync Error:', error);
-    }
-  }
-
-  // ------------------------
-  // Basic UI helpers (agent)
-  // ------------------------
-  updateProfileUI() {
-    if (!this.currentUser) return;
-    const u = this.currentUser;
-
-    const map = {
-      'profileName': u.name || 'N/A',
-      'profileEmail': u.email || 'N/A',
-      'profilePosition': (u.position || u.role || 'Agent'),
-      'profileRate': this.formatCurrency(u.baseRate),
-      'nav-user-name': u.name || 'Loading...',
-      'nav-user-role': (u.role || 'agent').toUpperCase(),
-      'profileHours': u.weeklyHours || 0,
-      'profileStartDate': u.startDate || 'N/A'
     };
 
-    for (const [id, val] of Object.entries(map)) {
-      const el = document.getElementById(id);
-      if (el) el.textContent = val;
-    }
+    // classify lead decision
+    const classifyDecision = (decisionUpper) => {
+      // confirmed synonyms
+      if (
+        decisionUpper.includes('CONFIRM') ||
+        decisionUpper.includes('APPROV') ||
+        decisionUpper.includes('QUALIF') ||
+        decisionUpper === 'YES'
+      ) return 'CONFIRMED';
+
+      // rejected/credited synonyms
+      if (
+        decisionUpper.includes('REJECT') ||
+        decisionUpper.includes('CREDIT') ||
+        decisionUpper.includes('UNQUALIF') ||
+        decisionUpper === 'NO'
+      ) return 'REJECTED';
+
+      // unknown -> still counts as submitted total only
+      return 'UNKNOWN';
+    };
+
+    // Count leads
+    inRange.forEach(({ lead }) => {
+      const agentName = getLeadAgentName(lead);
+      const decision = classifyDecision(getLeadDecision(lead));
+
+      if (decision === 'CONFIRMED') bump(agentName, 'CONFIRMED');
+      else if (decision === 'REJECTED') bump(agentName, 'REJECTED');
+      else bump(agentName, 'UNKNOWN');
+    });
+
+    // Build Top 10 agents by total submitted
+    const topAgents = Object.entries(perAgent)
+      .map(([name, stats]) => ({ name, ...stats }))
+      .sort((a, b) => (b.total - a.total) || (b.confirmed - a.confirmed))
+      .slice(0, 10);
+
+    // Build a chart series depending on period type:
+    // - today: hourly buckets (optional)
+    // - this-week / prev-week: daily buckets
+    // - last-4/6: weekly buckets
+    // - all-time: monthly buckets (safe)
+    const series = this.buildPerformanceSeries(inRange, periodKey, getLeadDecision, getLeadAgentName);
+
+    // Provide everything your admin dashboard needs
+    return {
+      period: periodKey,
+      range: { start: start.toISOString(), end: end.toISOString() },
+      totals: teamTotals,
+      topAgents,
+      series
+    };
   }
 
-  handleFilterChange(value) {
-    this.currentFilter = value;
+  // ------------------------
+  // ✅ Period Ranges (today, this-week, prev-week, last-4, last-6, all-time)
+  // ------------------------
+  getPeriodRange(periodKey) {
     const now = new Date();
-    let filtered = this.leadsData;
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
 
-    const getSubmittedDate = (l) => this.parseDateSafe(l['Date Submitted'] || this.normalizeKey(l, 'Date Submitted'));
+    const startOfWeek = (d) => {
+      // Monday start (0=Sun -> convert)
+      const day = d.getDay(); // 0..6
+      const diff = (day === 0 ? -6 : 1) - day;
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate() + diff, 12, 0, 0);
+    };
 
-    if (value === 'this-week') {
-      const range = this.getPayrollWeekRange();
-      filtered = this.leadsData.filter(l => {
-        const d = getSubmittedDate(l);
-        return d && d >= range.start && d <= range.end;
-      });
-    } else if (value === 'previous-week') {
-      const range = this.getPreviousPayrollWeekRange();
-      filtered = this.leadsData.filter(l => {
-        const d = getSubmittedDate(l);
-        return d && d >= range.start && d <= range.end;
-      });
-    } else if (value === '30-days') {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(now.getDate() - 30);
-      filtered = this.leadsData.filter(l => {
-        const d = getSubmittedDate(l);
-        return d && d >= thirtyDaysAgo;
-      });
-    } else if (value === '4-weeks') {
-      const d0 = new Date();
-      d0.setDate(now.getDate() - 28);
-      filtered = this.leadsData.filter(l => {
-        const d = getSubmittedDate(l);
-        return d && d >= d0;
-      });
-    } else if (value === '6-weeks') {
-      const d0 = new Date();
-      d0.setDate(now.getDate() - 42);
-      filtered = this.leadsData.filter(l => {
-        const d = getSubmittedDate(l);
-        return d && d >= d0;
-      });
-    } else if (value === 'all-time') {
-      filtered = this.leadsData;
+    const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n, 12, 0, 0);
+
+    // Default end is "tomorrow noon" for inclusive today
+    const tomorrow = addDays(today, 1);
+
+    if (periodKey === 'today') {
+      return { start: today, end: tomorrow };
     }
 
-    this.filteredLeads = filtered;
-    if (typeof this.updateDashboardUI === 'function') this.updateDashboardUI(filtered);
-    if (typeof this.updateCharts === 'function') this.updateCharts();
+    if (periodKey === 'this-week' || periodKey === 'current-week') {
+      const sow = startOfWeek(today);
+      const eow = addDays(sow, 7);
+      return { start: sow, end: eow };
+    }
+
+    if (periodKey === 'prev-week' || periodKey === 'previous-week') {
+      const thisSow = startOfWeek(today);
+      const prevSow = addDays(thisSow, -7);
+      const prevEow = addDays(thisSow, 0);
+      return { start: prevSow, end: prevEow };
+    }
+
+    if (periodKey === 'last-4-weeks') {
+      const thisSow = startOfWeek(today);
+      const start = addDays(thisSow, -28);
+      const end = addDays(thisSow, 7); // include current week window
+      return { start, end };
+    }
+
+    if (periodKey === 'last-6-weeks') {
+      const thisSow = startOfWeek(today);
+      const start = addDays(thisSow, -42);
+      const end = addDays(thisSow, 7);
+      return { start, end };
+    }
+
+    // all-time fallback (last 5 years safe range)
+    if (periodKey === 'all-time') {
+      const start = new Date(today.getFullYear() - 5, 0, 1, 12, 0, 0);
+      const end = tomorrow;
+      return { start, end };
+    }
+
+    // fallback -> this week
+    const sow = startOfWeek(today);
+    return { start: sow, end: addDays(sow, 7) };
   }
 
-  bindEvents() {
-    const loginForm = document.getElementById('loginForm');
-    if (loginForm) {
-      loginForm.onsubmit = (e) => {
-        e.preventDefault();
-        this.login(new FormData(loginForm).get('email'), new FormData(loginForm).get('password'));
-      };
-    }
+  // ------------------------
+  // ✅ Build chart-ready series (labels + totals/confirmed/rejected per bucket)
+  // ------------------------
+  buildPerformanceSeries(inRange, periodKey, getLeadDecision, getLeadAgentName) {
+    const classifyDecision = (decisionUpper) => {
+      if (
+        decisionUpper.includes('CONFIRM') ||
+        decisionUpper.includes('APPROV') ||
+        decisionUpper.includes('QUALIF') ||
+        decisionUpper === 'YES'
+      ) return 'CONFIRMED';
 
-    const timeframeSelect = document.getElementById('timeframe-filter');
-    if (timeframeSelect) {
-      timeframeSelect.onchange = (e) => this.handleFilterChange(e.target.value);
-    }
+      if (
+        decisionUpper.includes('REJECT') ||
+        decisionUpper.includes('CREDIT') ||
+        decisionUpper.includes('UNQUALIF') ||
+        decisionUpper === 'NO'
+      ) return 'REJECTED';
 
-    const statusSelect = document.getElementById('status-filter');
-    if (statusSelect) {
-      statusSelect.onchange = (e) => {
-        const v = (e.target.value || 'all').toLowerCase();
-        let filtered = this.filteredLeads?.length ? this.filteredLeads : this.leadsData;
+      return 'UNKNOWN';
+    };
 
-        if (v !== 'all') {
-          filtered = filtered.filter(l => (l['Status'] || this.normalizeKey(l, 'Status') || '').toString().toLowerCase() === v);
-        }
-        if (typeof this.renderLeadsTable === 'function') this.renderLeadsTable(filtered);
-      };
-    }
-  }
+    const buckets = {}; // key -> {label,total,confirmed,rejected}
 
-  formatCurrency(val) {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val || 0);
-  }
+    const addBucket = (key, label, decision) => {
+      if (!buckets[key]) buckets[key] = { label, total: 0, confirmed: 0, rejected: 0 };
+      buckets[key].total += 1;
+      if (decision === 'CONFIRMED') buckets[key].confirmed += 1;
+      if (decision === 'REJECTED') buckets[key].rejected += 1;
+    };
 
-  async login(email, password) {
-    try {
-      const res = await fetch(this.webhooks.login, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
+    const pad2 = (n) => String(n).padStart(2, '0');
 
-      const result = await res.json();
+    for (const { lead, dt } of inRange) {
+      const decisionUpper = (this.getAny(lead, ['Status', 'STATUS', 'Decision', 'DECISION', 'Lead Status', 'LEAD STATUS'], '') || '').toString().trim().toUpperCase();
+      const decision = classifyDecision(decisionUpper);
 
-      if (result.status === "success") {
-        const userObj = {
-          name: result.user['Employee Name'],
-          role: (result.user.Role || 'agent').toLowerCase(),
-          email,
-          baseRate: result.user['Base Rate'],
-          weeklyHours: result.user['Weekly Hours'],
-          startDate: result.user['Start Date'],
-          position: result.user['Position']
-        };
-
-        localStorage.setItem('callHammerSession', JSON.stringify({ user: userObj, expiresAt: Date.now() + 86400000 }));
-
-        const role = userObj.role;
-        if (role === 'admin') window.location.href = 'admin-dashboard.html';
-        else if (role === 'team_leader') window.location.href = 'team-leader-dashboard.html';
-        else window.location.href = 'agent-dashboard.html';
+      if (periodKey === 'today') {
+        const key = `${pad2(dt.getHours())}:00`;
+        addBucket(key, key, decision);
+      } else if (periodKey === 'this-week' || periodKey === 'prev-week' || periodKey === 'current-week' || periodKey === 'previous-week') {
+        const key = `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
+        addBucket(key, key, decision);
+      } else if (periodKey === 'last-4-weeks' || periodKey === 'last-6-weeks') {
+        // week bucket: YYYY-W##
+        const onejan = new Date(dt.getFullYear(), 0, 1, 12, 0, 0);
+        const week = Math.ceil((((dt - onejan) / 86400000) + onejan.getDay() + 1) / 7);
+        const key = `${dt.getFullYear()}-W${pad2(week)}`;
+        addBucket(key, key, decision);
       } else {
-        alert("Login failed");
+        // all-time -> month bucket: YYYY-MM
+        const key = `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}`;
+        addBucket(key, key, decision);
       }
-    } catch (err) {
-      alert("Network error");
     }
+
+    // Sort bucket keys chronologically-ish (works for our formats)
+    const keys = Object.keys(buckets).sort();
+    return keys.map(k => ({ key: k, ...buckets[k] }));
   }
 
-  async submitTimeOffRequest(data) {
-    try {
-      const res = await fetch(this.webhooks.timeOffRequest, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...data,
-          email: this.currentUser.email,
-          name: this.currentUser.name
-        })
-      });
-      return res.ok;
-    } catch (err) {
-      return false;
-    }
+  // ------------------------
+  // ✅ ADMIN: Set performance period + refresh dashboard
+  // ------------------------
+  setAdminPerformancePeriod(periodKey) {
+    this.currentFilter = periodKey;
+    this.adminState.performance = this.buildAdminPerformance(periodKey);
+    this.triggerAdminRefresh();
   }
-
-  checkExistingSession() {
-    const session = localStorage.getItem('callHammerSession');
-    if (session) {
-      const data = JSON.parse(session);
-      if (data.expiresAt > Date.now()) this.currentUser = data.user;
-    }
-  }
-
-  logout() {
-    localStorage.removeItem('callHammerSession');
-    window.location.href = 'index.html';
-  }
-}
-
-const portal = new CallHammerPortal();
-window.portal = portal;
