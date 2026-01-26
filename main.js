@@ -37,12 +37,148 @@ class CallHammerPortal {
 
     this.init();
   }
+  // ------------------------
+  // ✅ Login + Session helpers
+  // ------------------------
+  saveSession(user) {
+    try {
+      localStorage.setItem('ch_session', JSON.stringify({ user }));
+      this.currentUser = user;
+    } catch (e) {
+      console.warn('Failed to save session:', e);
+    }
+  }
+
+  clearSession() {
+    try { localStorage.removeItem('ch_session'); } catch (e) {}
+    this.currentUser = null;
+  }
+
+  // Normalize role routing target
+  routeByRole(roleRaw) {
+    const role = String(roleRaw || '').toLowerCase();
+    if (role === 'admin') return 'admin-dashboard.html';
+    if (role === 'team_leader' || role === 'team leader' || role === 'tl') return 'team-leader-dashboard.html';
+    return 'agent-dashboard.html';
+  }
+
+  // ✅ CORE LOGIN: calls webhook then saves session then routes
+  async loginWithCredentials(email, password) {
+    const cleanEmail = String(email || '').trim();
+    const cleanPassword = String(password || '').trim();
+
+    if (!cleanEmail || !cleanPassword) {
+      throw new Error('Missing email or password.');
+    }
+
+    const res = await fetch(this.webhooks.login, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ email: cleanEmail, password: cleanPassword })
+    });
+
+    if (!res.ok) {
+      throw new Error(`Login failed (HTTP ${res.status}).`);
+    }
+
+    const result = await res.json();
+
+    // ✅ Support multiple response shapes
+    // Expected possibilities:
+    // 1) { success:true, user:{...} }
+    // 2) { status:"success", user:{...} }
+    // 3) { data:{ user:{...} } }
+    // 4) { user:{...} }
+    const user =
+      result?.user ||
+      result?.data?.user ||
+      result?.data?.profile ||
+      result?.profile ||
+      null;
+
+    if (!user) {
+      console.error('Login response:', result);
+      throw new Error('Login failed: user record missing in response.');
+    }
+
+    // Ensure role exists
+    user.role = user.role || user.Role || user.position || user.Position || 'agent';
+    user.email = user.email || cleanEmail;
+
+    this.saveSession(user);
+
+    // ✅ Always route after login
+    const target = this.routeByRole(user.role);
+    window.location.href = target;
+  }
+
+  // ✅ Login via URL params: /index.html?email=...&password=...
+  async tryLoginFromQueryParams() {
+    const params = new URLSearchParams(window.location.search || '');
+    const email = params.get('email');
+    const password = params.get('password');
+
+    if (!email || !password) return false;
+
+    try {
+      await this.loginWithCredentials(email, password);
+      return true; // loginWithCredentials redirects, so this is just a safety return
+    } catch (err) {
+      console.error('Query param login failed:', err);
+      return false;
+    }
+  }
+
+  // ✅ Bind login form if present on index.html
+  bindLoginForm() {
+    const form = document.getElementById('login-form');
+    const btn = document.getElementById('login-btn');
+    const emailEl = document.getElementById('login-email');
+    const passEl = document.getElementById('login-password');
+    const errEl = document.getElementById('login-error');
+
+    const run = async (e) => {
+      if (e) e.preventDefault();
+      if (!emailEl || !passEl) return;
+
+      if (errEl) errEl.textContent = '';
+
+      try {
+        await this.loginWithCredentials(emailEl.value, passEl.value);
+      } catch (err) {
+        console.error(err);
+        if (errEl) errEl.textContent = err.message || 'Login failed. Please try again.';
+      }
+    };
+
+    if (form) form.addEventListener('submit', run);
+    if (btn) btn.addEventListener('click', run);
+  }
+
+  // ✅ Override logout to always clear session then go to index
+  logout() {
+    this.clearSession();
+    window.location.href = 'index.html';
+  }
 
   // ------------------------
   // Init / Routing
   // ------------------------
   init() {
     this.checkExistingSession();
+        // ✅ If we are on index.html, support:
+    // - query param login (?email=...&password=...)
+    // - login form binding
+    const path = (window.location.pathname || '').toLowerCase();
+    const onIndex = path.endsWith('index.html') || path.endsWith('/') || path === '';
+
+    if (onIndex) {
+      // bind login form if it exists
+      this.bindLoginForm();
+
+      // attempt query param login if provided
+      this.tryLoginFromQueryParams();
+    }
     this.enforceRoleRouting();
     this.bindEvents();
 
