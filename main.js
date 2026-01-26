@@ -2,26 +2,28 @@
 class CallHammerPortal {
   constructor() {
     this.currentUser = null;
+
+    // Agent/TL datasets
     this.leadsData = [];
     this.employeeList = [];
     this.filteredLeads = [];
     this.currentFilter = 'this-week';
 
-    // ✅ NEW (optional TL/admin datasets from n8n)
     this.weeklyPayroll = [];
     this.timeTracker = [];
 
-    // ✅ Admin dashboard datasets (UPDATED STRUCTURE)
+    // Admin datasets (normalized + raw)
     this.adminState = {
-      clients: [],      // Normalized Client List
-      leads: [],        // Raw Leads (for stats)
-      agents: [],       // Normalized Agent List
-      rawStatuses: [],  // For joins
-      rawPackages: []   // For joins
+      clients: [],       // normalized for Client Health Monitor
+      leads: [],         // raw leads (RAW LEADS tab)
+      agents: [],        // normalized from AGENT_MASTER
+      rawStatuses: [],   // raw client status rows (Client Lead Delivery Tracker)
+      rawPackages: []    // raw package rows (Lead Package tab)
     };
-    
-    // ✅ QUOTA PROTECTION: Timestamp for caching
-    this.lastAdminFetch = 0; 
+
+    // Cache to avoid Google Sheets quota/too-many-requests issues
+    this.lastAdminFetch = 0;
+    this.adminCacheMs = 60_000; // 60s
 
     this.charts = {
       appointments: null,
@@ -41,44 +43,51 @@ class CallHammerPortal {
     this.init();
   }
 
+  // ------------------------
+  // Init / Routing
+  // ------------------------
   init() {
     this.checkExistingSession();
-    this.enforceRoleRouting(); // ✅ NEW: Protects pages
+    this.enforceRoleRouting();
     this.bindEvents();
 
-    // ✅ Agent / TL dashboard behavior
-    if (this.currentUser && window.location.pathname.includes('dashboard')) {
-      // Only run Agent fetches if NOT on Admin Dashboard
-      if (!window.location.pathname.includes('admin-dashboard')) {
-        this.fetchAllData();
-        this.updateProfileUI();
-        this.startMSTClock();
-      }
+    const path = (window.location.pathname || '').toLowerCase();
+    const onAnyDashboard = path.includes('dashboard');
+    const onAdminDashboard = path.includes('admin-dashboard');
 
-      if (this.currentUser.role === 'admin') {
+    // Agent/TL dashboards
+    if (this.currentUser && onAnyDashboard && !onAdminDashboard) {
+      this.fetchAllData();
+      this.updateProfileUI();
+      this.startMSTClock();
+
+      if ((this.currentUser.role || '').toLowerCase() === 'admin') {
         document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
-      } else if (this.currentUser.role === 'team_leader') {
+      } else if ((this.currentUser.role || '').toLowerCase() === 'team_leader') {
         document.querySelectorAll('.tl-only').forEach(el => el.classList.remove('hidden'));
       }
     }
 
-    // ✅ Admin Dashboard behavior (separate fetch so it doesn't interfere)
-    if (window.location.pathname.includes('admin-dashboard')) {
-      // Auto load admin dashboard data
-      setTimeout(() => {
-        this.fetchAdminData();
-      }, 500);
+    // Admin dashboard (Mission Control / Overview)
+    if (onAdminDashboard) {
+      // show admin-only blocks
+      document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+
+      // load once (cached)
+      setTimeout(() => this.fetchAdminData(false), 300);
+
+      // OPTIONAL: if you have a manual refresh button somewhere, you can call:
+      // window.portal.fetchAdminData(true)
     }
   }
 
-  // ✅ NEW: Role-based routing guard (minimal, non-breaking)
   enforceRoleRouting() {
     if (!this.currentUser) return;
 
     const path = (window.location.pathname || '').toLowerCase();
     const role = (this.currentUser.role || 'agent').toLowerCase();
 
-    // Only redirect if actually ON a dashboard page
+    // only guard dashboard routes
     if (!path.includes('dashboard')) return;
 
     const onAdmin = path.includes('admin-dashboard');
@@ -95,17 +104,27 @@ class CallHammerPortal {
   // ------------------------
   normalizeKey(obj, key) {
     if (!obj) return '';
-    const foundKey = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
+    const foundKey = Object.keys(obj).find(k => (k || '').toLowerCase() === (key || '').toLowerCase());
     return foundKey ? obj[foundKey] : '';
   }
 
-  // ✅ NEW: Normalizer for Admin Joins
-  normalizeCompanyKey(str) {
-    if (!str) return 'unknown';
-    return str.toString().toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+  // robust getter: try many header spellings
+  getAny(obj, keys, fallback = '') {
+    if (!obj) return fallback;
+    for (const k of keys) {
+      const v = this.normalizeKey(obj, k);
+      if (v !== undefined && v !== null && String(v).trim() !== '') return v;
+    }
+    return fallback;
   }
 
-  // ✅ FIX: date-only parsing without timezone shifting (Preserved your logic)
+  // join key for company names (removes punctuation/spaces, case-insensitive)
+  normalizeCompanyKey(str) {
+    if (!str) return 'unknown';
+    return String(str).toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+  }
+
+  // ✅ date-only parsing without timezone shifting (prevents wrong weekly counts)
   parseDateSafe(value) {
     if (!value) return null;
 
@@ -132,7 +151,7 @@ class CallHammerPortal {
       return isNaN(dt.getTime()) ? null : dt;
     }
 
-    // Fallback (handles "Jan 6, 2026", or date+time strings)
+    // Fallback
     const d = new Date(raw);
     return isNaN(d.getTime()) ? null : d;
   }
@@ -143,6 +162,13 @@ class CallHammerPortal {
   }
 
   // --- MST Clock Helpers ---
+  toMST(date) {
+    const d = new Date(date);
+    const mstOffset = -7 * 60; // MST offset minutes
+    const localOffset = d.getTimezoneOffset();
+    return new Date(d.getTime() + (mstOffset + localOffset) * 60000);
+  }
+
   formatMSTTime(date = new Date()) {
     const mst = this.toMST(date);
     return mst.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -152,188 +178,234 @@ class CallHammerPortal {
     const el = document.getElementById('mst-clock');
     if (!el) return;
 
-    const tick = () => {
-      el.textContent = `${this.formatMSTTime()} MST`;
-    };
-
+    const tick = () => { el.textContent = `${this.formatMSTTime()} MST`; };
     tick();
+
     clearInterval(this._mstClockInterval);
     this._mstClockInterval = setInterval(tick, 1000);
   }
 
   // ------------------------
-  // ✅ ADMIN DASHBOARD FETCH (COMPLETELY FIXED)
+  // ✅ ADMIN: Fetch + Normalize
   // ------------------------
   async fetchAdminData(forceRefresh = false) {
-    // 1) QUOTA FIX: Cache for 60 seconds
-    const now = Date.now();
-    if (!forceRefresh && this.adminState.clients.length > 0 && (now - this.lastAdminFetch < 60000)) {
-      console.log("Using cached Admin Data (Quota Protection)...");
-      if (window.adminDashboard && window.adminDashboard.refreshDashboard) {
-        window.adminDashboard.refreshDashboard();
-      }
-      return;
-    }
-
     try {
-      console.log("📡 Fetching Admin Dashboard Data...");
+      // Cache guard to avoid quota
+      const now = Date.now();
+      if (!forceRefresh && this.adminState.clients.length > 0 && (now - this.lastAdminFetch) < this.adminCacheMs) {
+        console.log('🧠 Using cached admin data (quota guard).');
+        this.triggerAdminRefresh();
+        return;
+      }
 
+      console.log('📡 Fetching Admin Dashboard Data...');
       const response = await fetch(this.webhooks.fetchAdminData, {
-        method: "GET",
-        headers: { "Accept": "application/json" }
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
       });
 
-      if (!response.ok) {
-        throw new Error(`Admin Data Error: HTTP ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`Admin Data Error: HTTP ${response.status}`);
 
       const result = await response.json();
-      this.lastAdminFetch = Date.now(); // Update timestamp
+      this.lastAdminFetch = Date.now();
 
-      // Support multiple possible response shapes from n8n
-      const rawClients = result.clients || result.Clients || result.CLIENTS || result.data?.clients || [];
-      const rawLeads = result.leads || result.Leads || result.LEADS || result.data?.leads || [];
-      const rawAgents = result.agents || result.Agents || result.AGENTS || result.data?.agents || [];
-      const rawStatuses = result.clientStatuses || result.data?.clientStatuses || []; // Delivery Tracker
-      const rawPackages = result.packages || result.data?.packages || []; // Package Tab
+      // Support multiple response shapes from n8n
+      const rawClients =
+        result.clients || result.Clients || result.CLIENTS || result.data?.clients || result.data?.Clients || [];
 
-      // ✅ 2) Normalize & Join Data
+      const rawLeads =
+        result.leads || result.Leads || result.LEADS || result.data?.leads || result.data?.Leads || [];
+
+      const rawAgents =
+        result.agents || result.Agents || result.AGENTS || result.data?.agents || result.data?.Agents || [];
+
+      // These may or may not exist depending on your n8n workflow
+      const rawStatuses =
+        result.clientStatuses || result.statuses || result.ClientStatuses || result.data?.clientStatuses || result.data?.statuses || [];
+
+      const rawPackages =
+        result.packages || result.leadPackages || result.Packages || result.data?.packages || result.data?.leadPackages || [];
+
       this.normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages);
 
-      console.log("📊 Admin State Ready:", {
+      console.log('✅ Admin State Ready:', {
         clients: this.adminState.clients.length,
         leads: this.adminState.leads.length,
         agents: this.adminState.agents.length
       });
 
-      // ✅ Trigger Admin Dashboard UI
-      if (window.adminDashboard && typeof window.adminDashboard.refreshDashboard === "function") {
-        window.adminDashboard.refreshDashboard();
-      } else {
-        console.warn("⚠️ adminDashboard.refreshDashboard not found.");
-      }
-
+      this.triggerAdminRefresh();
     } catch (err) {
-      console.error("❌ fetchAdminData failed:", err);
+      console.error('❌ fetchAdminData failed:', err);
+      this.triggerAdminRefresh(); // still let UI show empty state if needed
     }
   }
 
-  // ✅ NEW: Central Normalization & Joining Logic (Fixes Admin Headers)
+  triggerAdminRefresh() {
+    // Admin dashboard UI script should read from window.portal.adminState
+    if (window.adminDashboard && typeof window.adminDashboard.refreshDashboard === 'function') {
+      window.adminDashboard.refreshDashboard();
+    } else {
+      console.warn('⚠️ adminDashboard.refreshDashboard not found (this is OK if your admin UI script uses a different function).');
+    }
+  }
+
   normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages) {
-    
-    // -- Step A: Create Lookup Maps for Joins --
+    // Keep raw for debugging
+    this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
+    this.adminState.rawPackages = Array.isArray(rawPackages) ? rawPackages : [];
+
+    // --- Build lookup maps for joins (Status + Package) ---
     const statusMap = {};
-    rawStatuses.forEach(row => {
-      const key = this.normalizeCompanyKey(row['Roofing Company'] || row['Company Name']);
-      statusMap[key] = row; 
+    (Array.isArray(rawStatuses) ? rawStatuses : []).forEach(row => {
+      const company = this.getAny(row, ['Roofing Company', 'Company Name', 'COMPANY NAME', 'Client', 'CLIENT NAME'], '');
+      const key = this.normalizeCompanyKey(company);
+      if (!key || key === 'unknown') return;
+      statusMap[key] = row;
     });
 
     const packageMap = {};
-    rawPackages.forEach(row => {
-      const key = this.normalizeCompanyKey(row['Roofing Company Name'] || row['Company Name']);
+    (Array.isArray(rawPackages) ? rawPackages : []).forEach(row => {
+      const company = this.getAny(row, ['Roofing Company Name', 'Roofing Company', 'Company Name', 'COMPANY NAME'], '');
+      const key = this.normalizeCompanyKey(company);
+      if (!key || key === 'unknown') return;
       packageMap[key] = row;
     });
 
-    // -- Step B: Map Clients (Fixing "Unnamed") --
-    this.adminState.clients = rawClients.map(c => {
-      const compName = c['COMPANY NAME'] || c['Company Name'] || c['name'] || 'Unnamed';
-      const key = this.normalizeCompanyKey(compName);
-      
-      const statusRow = statusMap[key] || {};
-      const packageRow = packageMap[key] || {};
+    // --- Normalize Clients (from CLIENT CODE LIST) ---
+    // Expected headers you showed:
+    // CODE NAME, COMPANY NAME, PHONE, AREA CODES TO CALL, EMAIL, WEBSITE, STATUS, Onboarding, Add location here
+    const clientsArr = Array.isArray(rawClients) ? rawClients : [];
+    this.adminState.clients = clientsArr.map(c => {
+      const companyName = this.getAny(c, ['COMPANY NAME', 'Company Name', 'Company', 'Roofing Company'], 'Unnamed');
+      const codeName = this.getAny(c, ['CODE NAME', 'Code Name', 'CODE', 'Client Code'], 'N/A');
+      const location = this.getAny(c, ['Add location here', 'Location', 'CITY STATE', 'City State'], 'Remote');
+      const clientKey = this.normalizeCompanyKey(companyName);
+
+      // Join with delivery tracker/status rows
+      const sRow = statusMap[clientKey] || {};
+      const pRow = packageMap[clientKey] || {};
+
+      const joinedStatus = this.getAny(sRow, ['Client Status', 'CLIENT STATUS', 'Status'], this.getAny(c, ['STATUS', 'Status'], 'NOT STARTED'));
+      const joinedPackage = this.getAny(pRow, ['Package', 'Lead Package', 'PACKAGE'], '');
+
+      // If your UI wants last lead + hours since last lead, pull them too
+      const lastLeadReceived = this.getAny(sRow, ['Last Lead Received'], '');
+      const hoursSinceLastLead = this.getAny(sRow, ['Hours Since Last Lead'], '');
+      const leadsToday = this.getAny(sRow, ['Leads Today'], '');
+      const leadsYesterday = this.getAny(sRow, ['Leads Yesterday'], '');
 
       return {
-        clientName: compName,
-        codeName: c['CODE NAME'] || c['Code'] || 'N/A',
-        location: c['Add location here'] || c['Location'] || 'Remote', 
-        status: statusRow['Client Status'] || statusRow['Status'] || 'Not Started',
-        package: packageRow['Package'] || packageRow['Lead Package'] || 'Standard',
-        leadsPurchased: packageRow['Leads Purchased'] || 0
+        // fields the table can use
+        clientName: companyName,
+        codeName,
+        // optional combined label if you want in one column
+        clientNameWithCode: codeName && codeName !== 'N/A' ? `${companyName} (${codeName})` : companyName,
+
+        location,
+        status: joinedStatus || 'NOT STARTED',
+        package: joinedPackage || '',
+
+        // optional extra metrics (if your UI shows them)
+        lastLeadReceived,
+        hoursSinceLastLead,
+        leadsToday,
+        leadsYesterday
       };
     });
 
-    // -- Step C: Map Agents (Fixing Disappearing Names) --
-    this.adminState.agents = rawAgents.map(a => ({
-      employeeName: a['Employee Name'] || a['Name'] || 'Unknown Agent',
-      role: a['Role'] || 'Agent',
-      employmentStatus: a['Employment_Status'] || a['Status'] || 'Active',
-      email: a['Email'] || a['Email Address'] || ''
+    // --- Normalize Agents (from AGENT_MASTER) ---
+    // Expected headers you showed:
+    // Employment_Status, Employee Name, Email, Role, Position, etc.
+    const agentsArr = Array.isArray(rawAgents) ? rawAgents : [];
+    this.adminState.agents = agentsArr.map(a => ({
+      employeeName: this.getAny(a, ['Employee Name', 'Name', 'AGENT NAME', 'Agent Name'], 'Unknown'),
+      email: this.getAny(a, ['Email', 'Email Address'], ''),
+      role: this.getAny(a, ['Role'], 'Agent'),
+      position: this.getAny(a, ['Position'], ''),
+      employmentStatus: this.getAny(a, ['Employment_Status', 'Employment Status', 'Status'], 'Active'),
+      paymentStatus: this.getAny(a, ['Payment Status'], '')
     }));
 
-    // -- Step D: Store Raw Leads
-    this.adminState.leads = rawLeads;
+    // --- Raw Leads (from RAW LEADS tab) ---
+    // Headers you confirmed you care about:
+    // Appointment Coordinator Name, Status, Date Submitted, Company Name
+    this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
   }
 
-  // ✅ NEW: Compute Team Performance from RAW LEADS (Fixes Efficiency Stats)
+  // ✅ ADMIN: compute Team Performance from RAW LEADS + Agent Master
+  // timeFilter: 'today' | 'this-week' | '30-days' | 'all'
   calculateAdminTeamStats(timeFilter = 'today') {
-    const stats = {}; 
+    const stats = {};
 
-    // 1. Initialize stats with ALL agents from Master List
-    this.adminState.agents.forEach(agent => {
-      stats[agent.employeeName] = { 
-        name: agent.employeeName, 
-        total: 0, 
-        confirmed: 0, 
+    // Seed with agent list so names always show (prevents "No agents found")
+    (this.adminState.agents || []).forEach(a => {
+      const name = (a.employeeName || '').trim() || 'Unknown';
+      // Optional: only include Active employment status
+      const emp = (a.employmentStatus || '').toLowerCase();
+      if (emp && emp.includes('offboard')) return;
+
+      stats[name] = {
+        name,
+        total: 0,
+        confirmed: 0,
         rejected: 0,
         pending: 0
       };
     });
 
-    // 2. Define Date Range
+    const leads = Array.isArray(this.adminState.leads) ? this.adminState.leads : [];
+    if (!leads.length) return Object.values(stats);
+
     const now = new Date();
-    const startOfDay = new Date(now.setHours(0,0,0,0));
+    const startOfDay = new Date(now); startOfDay.setHours(0, 0, 0, 0);
+
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
-    startOfWeek.setHours(0,0,0,0);
-    
-    const startOfMonth = new Date(); 
-    startOfMonth.setDate(now.getDate() - 30);
-    startOfMonth.setHours(0,0,0,0);
+    startOfWeek.setHours(0, 0, 0, 0);
 
-    // 3. Process Leads
-    this.adminState.leads.forEach(lead => {
-      const coordinator = lead['Appointment Coordinator Name'] || lead['Setter'] || 'Unknown';
-      
-      const dateStr = lead['Date Submitted'] || lead['Date'];
+    const startOf30 = new Date(now);
+    startOf30.setDate(now.getDate() - 30);
+    startOf30.setHours(0, 0, 0, 0);
+
+    for (const lead of leads) {
+      const coordinator = String(
+        this.getAny(lead, ['Appointment Coordinator Name', 'Setter', 'Agent', 'Agent Name'], 'Unknown')
+      ).trim() || 'Unknown';
+
+      const dateStr = this.getAny(lead, ['Date Submitted', 'Date', 'Submitted Date'], '');
       const leadDate = this.parseDateSafe(dateStr);
-      if (!leadDate) return;
+      if (!leadDate) continue;
 
       let include = false;
-      if (timeFilter === 'today' && leadDate >= startOfDay) include = true;
-      else if (timeFilter === 'this-week' && leadDate >= startOfWeek) include = true;
-      else if (timeFilter === '30-days' && leadDate >= startOfMonth) include = true;
+      if (timeFilter === 'today') include = leadDate >= startOfDay;
+      else if (timeFilter === 'this-week') include = leadDate >= startOfWeek;
+      else if (timeFilter === '30-days') include = leadDate >= startOf30;
       else if (timeFilter === 'all') include = true;
 
-      if (include) {
-        if (!stats[coordinator]) {
-          stats[coordinator] = { name: coordinator, total: 0, confirmed: 0, rejected: 0, pending: 0 };
-        }
+      if (!include) continue;
 
-        const s = (lead['Status'] || '').toLowerCase();
-        stats[coordinator].total++;
-
-        if (s === 'confirmed' || s === 'approved') {
-          stats[coordinator].confirmed++;
-        } else if (s.includes('reject') || s.includes('decline') || s.includes('cancel') || s.includes('credit')) {
-          stats[coordinator].rejected++;
-        } else {
-          stats[coordinator].pending++;
-        }
+      if (!stats[coordinator]) {
+        stats[coordinator] = { name: coordinator, total: 0, confirmed: 0, rejected: 0, pending: 0 };
       }
-    });
 
-    // 4. Return Array
-    return Object.values(stats).map(agent => {
-      const efficiency = agent.total > 0 ? (agent.confirmed / agent.total) * 100 : 0;
-      return {
-        ...agent,
-        efficiency: efficiency.toFixed(1) + '%'
-      };
+      const status = String(this.getAny(lead, ['Status'], '')).toLowerCase();
+      stats[coordinator].total += 1;
+
+      if (status === 'confirmed' || status === 'approved') stats[coordinator].confirmed += 1;
+      else if (status.includes('reject') || status.includes('decline') || status.includes('cancel') || status.includes('credit')) stats[coordinator].rejected += 1;
+      else stats[coordinator].pending += 1;
+    }
+
+    // Return array w/ efficiency
+    return Object.values(stats).map(a => {
+      const efficiency = a.total > 0 ? (a.confirmed / a.total) * 100 : 0;
+      return { ...a, efficiency: `${efficiency.toFixed(0)}%` };
     });
   }
 
   // ------------------------
-  // Weekly Payroll -> Worked Hours (MST Sat–Fri)
+  // Payroll Week Helpers (Agent/TL)
   // ------------------------
   getPayrollWeekRangeFor(date) {
     const mstDate = this.toMST(date);
@@ -381,6 +453,21 @@ class CallHammerPortal {
     return { start, end };
   }
 
+  getPayrollWeekStart(date) {
+    const mstDate = this.toMST(date);
+    const dayOfWeek = mstDate.getDay(); // Sun=0 ... Sat=6
+    const start = new Date(mstDate);
+    const diffToSat = (dayOfWeek === 6) ? 0 : (dayOfWeek + 1);
+    start.setDate(mstDate.getDate() - diffToSat);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  }
+
+  getPayrollWeekKey(date) {
+    const start = this.getPayrollWeekStart(date);
+    return start.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+  }
+
   computeWorkedHoursFromWeeklyPayroll(rangeStart, rangeEnd) {
     const rows = Array.isArray(this.weeklyPayroll) ? this.weeklyPayroll : [];
     if (!rows.length || !this.currentUser) return 0;
@@ -425,9 +512,7 @@ class CallHammerPortal {
       foundAnyDateColumns = true;
 
       const mstK = this.toMST(keyDate);
-      if (mstK >= rangeStart && mstK <= rangeEnd) {
-        total += parseHours(v);
-      }
+      if (mstK >= rangeStart && mstK <= rangeEnd) total += parseHours(v);
     }
 
     if (foundAnyDateColumns) return total;
@@ -441,32 +526,12 @@ class CallHammerPortal {
       myRow['hours'] ??
       0;
 
-    const n = parseHours(totalHoursCandidate);
-    return n;
+    return parseHours(totalHoursCandidate);
   }
 
-  toMST(date) {
-    const d = new Date(date);
-    const mstOffset = -7 * 60;
-    const localOffset = d.getTimezoneOffset();
-    return new Date(d.getTime() + (mstOffset + localOffset) * 60000);
-  }
-
-  getPayrollWeekStart(date) {
-    const mstDate = this.toMST(date);
-    const dayOfWeek = mstDate.getDay(); // Sun=0 ... Sat=6
-    const start = new Date(mstDate);
-    const diffToSat = (dayOfWeek === 6) ? 0 : (dayOfWeek + 1);
-    start.setDate(mstDate.getDate() - diffToSat);
-    start.setHours(0, 0, 0, 0);
-    return start;
-  }
-
-  getPayrollWeekKey(date) {
-    const start = this.getPayrollWeekStart(date);
-    return start.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
-  }
-
+  // ------------------------
+  // Status helpers
+  // ------------------------
   isConfirmedStatus(status) {
     const s = (status || '').toString().trim().toLowerCase();
     return s === 'confirmed';
@@ -530,9 +595,7 @@ class CallHammerPortal {
           this.enforceRoleRouting();
         }
 
-        if (result.timeOffHistory) {
-          this.renderTimeOffHistory(result.timeOffHistory);
-        }
+        if (result.timeOffHistory) this.renderTimeOffHistory(result.timeOffHistory);
 
         this.handleFilterChange(this.currentFilter);
         this.updateCharts();
@@ -546,7 +609,7 @@ class CallHammerPortal {
     }
   }
 
-  // ✅ NEW: Team Leader dashboard fetch (does not affect agent dashboard)
+  // Team Leader dashboard fetch (does not affect agent dashboard)
   async fetchTeamLeaderDashboardData() {
     if (!this.currentUser) return null;
 
@@ -561,7 +624,6 @@ class CallHammerPortal {
       });
 
       const result = await response.json();
-
       if (result.status === "success") return result;
 
       console.error("TL Fetch Failed:", result);
@@ -594,68 +656,8 @@ class CallHammerPortal {
     return total;
   }
 
-  buildPayrollWeekBucketsFromLeads(leads) {
-    const getVal = (obj, key) => this.normalizeKey(obj, key) || '';
-    const buckets = {};
-
-    for (const lead of leads) {
-      const date = this.parseDateSafe(getVal(lead, 'Date Submitted'));
-      if (!date) continue;
-
-      const weekKey = this.getPayrollWeekKey(date);
-      if (!buckets[weekKey]) {
-        buckets[weekKey] = {
-          weekKey,
-          weekStart: this.getPayrollWeekStart(date),
-          submitted: 0,
-          confirmed: 0,
-          cancelled: 0,
-          cancelRate: 0,
-          incentives: 0
-        };
-      }
-
-      const status = getVal(lead, 'Status');
-      buckets[weekKey].submitted += 1;
-      if (this.isConfirmedStatus(status)) buckets[weekKey].confirmed += 1;
-      if (this.isCancelledLikeStatus(status)) buckets[weekKey].cancelled += 1;
-    }
-
-    for (const k of Object.keys(buckets)) {
-      const w = buckets[k];
-      w.cancelRate = w.submitted > 0 ? (w.cancelled / w.submitted) * 100 : 0;
-      w.incentives = this.calculateIncentives(w.confirmed, w.cancelRate);
-    }
-
-    return buckets;
-  }
-
-  computeMonthlyIncentiveStatus() {
-    const buckets = this.buildPayrollWeekBucketsFromLeads(this.leadsData);
-    const keys = Object.keys(buckets).sort((a, b) => (buckets[a].weekStart - buckets[b].weekStart));
-    const last4 = keys.slice(-4).map(k => buckets[k]);
-
-    const hits = last4.filter(w => w.confirmed >= 8 && w.cancelRate < 25).length;
-    const qualified = last4.length === 4 ? hits >= 3 : false;
-
-    return { qualified, hits, weeksConsidered: last4.length, needed: 3 };
-  }
-
-  computeMonthlyRaffleStatus() {
-    const buckets = this.buildPayrollWeekBucketsFromLeads(this.leadsData);
-    const weeks = Object.values(buckets).sort((a, b) => a.weekStart - b.weekStart);
-
-    const eligibleWeeks = weeks.filter(w => w.confirmed >= 8 && w.cancelRate < 20);
-    const totalEligibleWeeks = eligibleWeeks.length;
-
-    const entriesEarned = Math.floor(totalEligibleWeeks / 4);
-    const progress = totalEligibleWeeks % 4;
-
-    return { eligibleNow: false, progress, needed: 4, entriesEarned };
-  }
-
   // ------------------------
-  // Dashboard UI
+  // Agent Dashboard UI
   // ------------------------
   updateDashboardUI(leads) {
     const getVal = (obj, key) => this.normalizeKey(obj, key) || '';
@@ -667,27 +669,28 @@ class CallHammerPortal {
     });
 
     const payrollConfirmed = payrollLeads.filter(l => this.isConfirmedStatus(getVal(l, 'Status')));
-
     const payrollTotal = payrollLeads.length;
     const payrollCancelled = payrollLeads.filter(l => this.isCancelledLikeStatus(getVal(l, 'Status'))).length;
     const payrollCancelRate = payrollTotal > 0 ? (payrollCancelled / payrollTotal) * 100 : 0;
-
     const currentIncentives = this.calculateIncentives(payrollConfirmed.length, payrollCancelRate);
 
     const totalRaw = leads.length;
     const cancelledCount = leads.filter(l => this.isCancelledLikeStatus(getVal(l, 'Status'))).length;
     const rate = totalRaw > 0 ? ((cancelledCount / totalRaw) * 100).toFixed(1) : "0.0";
 
-    if (document.getElementById('stat-appointments')) document.getElementById('stat-appointments').textContent = totalRaw;
-    if (document.getElementById('stat-cancel-rate')) document.getElementById('stat-cancel-rate').textContent = `${rate}%`;
-    if (document.getElementById('stat-incentives')) document.getElementById('stat-incentives').textContent = this.formatCurrency(currentIncentives);
+    const elA = document.getElementById('stat-appointments');
+    const elR = document.getElementById('stat-cancel-rate');
+    const elI = document.getElementById('stat-incentives');
+
+    if (elA) elA.textContent = totalRaw;
+    if (elR) elR.textContent = `${rate}%`;
+    if (elI) elI.textContent = this.formatCurrency(currentIncentives);
 
     const hoursRange = (this.currentFilter === 'previous-week')
       ? this.getPreviousPayrollWeekRange()
       : this.getPayrollWeekRange();
 
     const workedHours = this.computeWorkedHoursFromWeeklyPayroll(hoursRange.start, hoursRange.end);
-
     const statHoursEl = document.getElementById('stat-hours');
     if (statHoursEl) statHoursEl.textContent = `${(workedHours || 0).toFixed(2)} hrs`;
 
@@ -888,14 +891,12 @@ class CallHammerPortal {
     return out;
   }
 
-  getWeekStart(d) {
-    return this.getPayrollWeekStart(d);
-  }
+  getWeekStart(d) { return this.getPayrollWeekStart(d); }
+  getWeekKey(d) { return this.getPayrollWeekKey(d); }
 
-  getWeekKey(d) {
-    return this.getPayrollWeekKey(d);
-  }
-
+  // ------------------------
+  // Profile / Auth / Session
+  // ------------------------
   updateProfileUI() {
     if (!this.currentUser) return;
     const u = this.currentUser;
@@ -1007,450 +1008,6 @@ class CallHammerPortal {
 
   formatCurrency(val) {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val || 0);
-  }
-
-  logout() {
-    localStorage.removeItem('callHammerSession');
-    window.location.href = 'index.html';
-  }
-}
-
-const portal = new CallHammerPortal();
-window.portal = portal;
-("TL Fetch Failed:", result);
-      return null;
-    } catch (err) {
-      console.error("TL Fetch Network Error:", err);
-      return null;
-    }
-  }
-
-  // ------------------------
-  // INCENTIVE LOGIC
-  // ------------------------
-  calculateIncentives(confirmedN, cancelRate) {
-    const isHighPerf = cancelRate < 25;
-    let total = 0;
-
-    if (confirmedN >= 6) total += 50;
-    if (confirmedN >= 8) total += isHighPerf ? 50 : 30;
-
-    if (confirmedN >= 9) {
-      const count9to12 = Math.min(confirmedN, 12) - 8;
-      total += count9to12 * (isHighPerf ? 17 : 15);
-    }
-
-    if (confirmedN >= 13) {
-      total += (confirmedN - 12) * (isHighPerf ? 27 : 25);
-    }
-
-    return total;
-  }
-
-  buildPayrollWeekBucketsFromLeads(leads) {
-    const getVal = (obj, key) => this.normalizeKey(obj, key) || '';
-    const buckets = {};
-
-    for (const lead of leads) {
-      const date = this.parseDateSafe(getVal(lead, 'Date Submitted'));
-      if (!date) continue;
-
-      const weekKey = this.getPayrollWeekKey(date);
-      if (!buckets[weekKey]) {
-        buckets[weekKey] = {
-          weekKey,
-          weekStart: this.getPayrollWeekStart(date),
-          submitted: 0,
-          confirmed: 0,
-          cancelled: 0,
-          cancelRate: 0,
-          incentives: 0
-        };
-      }
-
-      const status = getVal(lead, 'Status');
-      buckets[weekKey].submitted += 1;
-      if (this.isConfirmedStatus(status)) buckets[weekKey].confirmed += 1;
-      if (this.isCancelledLikeStatus(status)) buckets[weekKey].cancelled += 1;
-    }
-
-    for (const k of Object.keys(buckets)) {
-      const w = buckets[k];
-      w.cancelRate = w.submitted > 0 ? (w.cancelled / w.submitted) * 100 : 0;
-      w.incentives = this.calculateIncentives(w.confirmed, w.cancelRate);
-    }
-
-    return buckets;
-  }
-
-  computeMonthlyIncentiveStatus() {
-    const buckets = this.buildPayrollWeekBucketsFromLeads(this.leadsData);
-    const keys = Object.keys(buckets).sort((a, b) => (buckets[a].weekStart - buckets[b].weekStart));
-    const last4 = keys.slice(-4).map(k => buckets[k]);
-
-    const hits = last4.filter(w => w.confirmed >= 8 && w.cancelRate < 25).length;
-    const qualified = last4.length === 4 ? hits >= 3 : false;
-
-    return { qualified, hits, weeksConsidered: last4.length, needed: 3 };
-  }
-
-  computeMonthlyRaffleStatus() {
-    const buckets = this.buildPayrollWeekBucketsFromLeads(this.leadsData);
-    const weeks = Object.values(buckets).sort((a, b) => a.weekStart - b.weekStart);
-
-    const eligibleWeeks = weeks.filter(w => w.confirmed >= 8 && w.cancelRate < 20);
-    const totalEligibleWeeks = eligibleWeeks.length;
-
-    const entriesEarned = Math.floor(totalEligibleWeeks / 4);
-    const progress = totalEligibleWeeks % 4;
-
-    return { eligibleNow: false, progress, needed: 4, entriesEarned };
-  }
-
-  // ------------------------
-  // DASHBOARD UI UPDATES
-  // ------------------------
-  updateDashboardUI(leads) {
-    const getVal = (obj, key) => this.normalizeKey(obj, key) || '';
-
-    const payrollRange = this.getPayrollWeekRange();
-    const payrollLeads = this.leadsData.filter(l => {
-      const subDate = this.parseDateSafe(getVal(l, 'Date Submitted'));
-      return subDate && subDate >= payrollRange.start && subDate <= payrollRange.end;
-    });
-
-    const payrollConfirmed = payrollLeads.filter(l => this.isConfirmedStatus(getVal(l, 'Status')));
-
-    const payrollTotal = payrollLeads.length;
-    const payrollCancelled = payrollLeads.filter(l => this.isCancelledLikeStatus(getVal(l, 'Status'))).length;
-    const payrollCancelRate = payrollTotal > 0 ? (payrollCancelled / payrollTotal) * 100 : 0;
-
-    const currentIncentives = this.calculateIncentives(payrollConfirmed.length, payrollCancelRate);
-
-    const totalRaw = leads.length;
-    const cancelledCount = leads.filter(l => this.isCancelledLikeStatus(getVal(l, 'Status'))).length;
-    const rate = totalRaw > 0 ? ((cancelledCount / totalRaw) * 100).toFixed(1) : "0.0";
-
-    if (document.getElementById('stat-appointments')) document.getElementById('stat-appointments').textContent = totalRaw;
-    if (document.getElementById('stat-cancel-rate')) document.getElementById('stat-cancel-rate').textContent = `${rate}%`;
-    if (document.getElementById('stat-incentives')) document.getElementById('stat-incentives').textContent = this.formatCurrency(currentIncentives);
-
-    const hoursRange = (this.currentFilter === 'previous-week')
-      ? this.getPreviousPayrollWeekRange()
-      : this.getPayrollWeekRange();
-
-    const workedHours = this.computeWorkedHoursFromWeeklyPayroll(hoursRange.start, hoursRange.end);
-
-    const statHoursEl = document.getElementById('stat-hours');
-    if (statHoursEl) statHoursEl.textContent = `${(workedHours || 0).toFixed(2)} hrs`;
-
-    this.renderLeadsTable(leads);
-  }
-
-  renderLeadsTable(leads) {
-    const body = document.getElementById('leads-table-body');
-    if (!body) return;
-
-    body.innerHTML = leads.map(l => {
-      const date = l['Date Submitted'] || this.normalizeKey(l, 'Date Submitted') || 'N/A';
-      const homeowner = l['Homeowner Name(s)'] || l['Homeowner Name'] || this.normalizeKey(l, 'Homeowner Name(s)') || 'N/A';
-      const status = l['Status'] || this.normalizeKey(l, 'Status') || 'Pending';
-
-      return `
-        <tr class="hover:bg-gray-50">
-          <td class="px-6 py-4 text-sm text-gray-600">${date}</td>
-          <td class="px-6 py-4 font-bold text-gray-900">${homeowner}</td>
-          <td class="px-6 py-4">
-            <span class="px-3 py-1 rounded-full text-xs font-bold ${this.getStatusStyle(status)} uppercase">
-              ${status}
-            </span>
-          </td>
-        </tr>
-      `;
-    }).join('') || `<tr><td class="px-6 py-6 text-sm text-gray-500" colspan="3">No leads found.</td></tr>`;
-  }
-
-  renderTimeOffHistory(history) {
-    const container = document.getElementById('timeoff-history-list');
-    if (!container) return;
-
-    const rows = Array.isArray(history) ? history : [];
-
-    rows.sort((a, b) => {
-      const ad = this.parseDateSafe(a['Start Date'] || a.startDate) || new Date(0);
-      const bd = this.parseDateSafe(b['Start Date'] || b.startDate) || new Date(0);
-      return bd - ad;
-    });
-
-    container.innerHTML = rows.map(req => {
-      const start = req['Start Date'] || req.startDate || '';
-      const end = req['End Date'] || req.endDate || '';
-      const reason = req['Reason'] || req.Reason || req.reason || 'Leave Request';
-      const status = (req['Status'] || req.status || 'Pending').toString();
-
-      const badge = (() => {
-        const s = status.toLowerCase();
-        if (s.includes('approve')) return 'bg-green-100 text-green-700';
-        if (s.includes('decline') || s.includes('reject')) return 'bg-red-100 text-red-700';
-        return 'bg-yellow-100 text-yellow-700';
-      })();
-
-      return `
-        <div class="p-3 bg-white rounded-lg border border-gray-100 shadow-sm">
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-[10px] font-bold text-gray-400 uppercase">${start} — ${end}</span>
-            <span class="px-2 py-1 rounded-full text-[10px] font-bold ${badge}">${status}</span>
-          </div>
-          <p class="text-xs text-gray-700 font-semibold">${reason}</p>
-        </div>
-      `;
-    }).join('') || `<p class="text-xs text-gray-400 italic">No history found.</p>`;
-  }
-
-  handleFilterChange(value) {
-    this.currentFilter = value;
-    const now = new Date();
-    let filtered = this.leadsData;
-
-    const getSubmittedDate = (l) => this.parseDateSafe(l['Date Submitted'] || this.normalizeKey(l, 'Date Submitted'));
-
-    if (value === 'this-week') {
-      const range = this.getPayrollWeekRange();
-      filtered = this.leadsData.filter(l => {
-        const d = getSubmittedDate(l);
-        return d && d >= range.start && d <= range.end;
-      });
-    } else if (value === 'previous-week') {
-      const range = this.getPreviousPayrollWeekRange();
-      filtered = this.leadsData.filter(l => {
-        const d = getSubmittedDate(l);
-        return d && d >= range.start && d <= range.end;
-      });
-    } else if (value === '30-days') {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(now.getDate() - 30);
-      filtered = this.leadsData.filter(l => {
-        const d = getSubmittedDate(l);
-        return d && d >= thirtyDaysAgo;
-      });
-    } else if (value === '4-weeks') {
-      const d0 = new Date();
-      d0.setDate(now.getDate() - 28);
-      filtered = this.leadsData.filter(l => {
-        const d = getSubmittedDate(l);
-        return d && d >= d0;
-      });
-    } else if (value === '6-weeks') {
-      const d0 = new Date();
-      d0.setDate(now.getDate() - 42);
-      filtered = this.leadsData.filter(l => {
-        const d = getSubmittedDate(l);
-        return d && d >= d0;
-      });
-    } else if (value === 'all-time') {
-      filtered = this.leadsData;
-    }
-
-    this.filteredLeads = filtered;
-    this.updateDashboardUI(filtered);
-    this.updateCharts();
-  }
-
-  // ------------------------
-  // CHARTS
-  // ------------------------
-  updateCharts() {
-    const chartA = document.getElementById('appointmentsChart');
-    const chartI = document.getElementById('incentivesChart');
-    if (!chartA || !chartI) return;
-
-    if (!this.charts.appointments) this.charts.appointments = echarts.init(chartA);
-    if (!this.charts.incentives) this.charts.incentives = echarts.init(chartI);
-
-    const buckets = this.buildWeeklyBuckets(8);
-
-    for (const lead of this.leadsData) {
-      const date = this.parseDateSafe(lead['Date Submitted'] || this.normalizeKey(lead, 'Date Submitted'));
-      if (!date) continue;
-
-      const weekKey = this.getWeekKey(date);
-      if (!buckets[weekKey]) continue;
-
-      const status = (lead['Status'] || this.normalizeKey(lead, 'Status') || '').toString().toLowerCase();
-
-      buckets[weekKey].submitted += 1;
-      if (status === 'confirmed') buckets[weekKey].confirmed += 1;
-      if (status.includes('cancel') || status.includes('reject') || status.includes('declined') || status.includes('credited')) buckets[weekKey].cancelled += 1;
-    }
-
-    for (const k of Object.keys(buckets)) {
-      const week = buckets[k];
-      const cancelRate = week.submitted > 0 ? (week.cancelled / week.submitted) * 100 : 0;
-      week.incentives = this.calculateIncentives(week.confirmed, cancelRate);
-    }
-
-    const labels = Object.keys(buckets).sort();
-    const confirmedSeries = labels.map(k => buckets[k].confirmed);
-    const submittedSeries = labels.map(k => buckets[k].submitted);
-    const incentiveSeries = labels.map(k => buckets[k].incentives);
-
-    this.charts.appointments.setOption({
-      tooltip: { trigger: 'axis' },
-      xAxis: { type: 'category', data: labels },
-      yAxis: { type: 'value' },
-      series: [
-        { name: 'Submitted', type: 'line', data: submittedSeries, smooth: true },
-        { name: 'Confirmed', type: 'line', data: confirmedSeries, smooth: true }
-      ]
-    }, true);
-
-    this.charts.incentives.setOption({
-      tooltip: { trigger: 'axis' },
-      xAxis: { type: 'category', data: labels },
-      yAxis: { type: 'value' },
-      series: [
-        { name: 'Incentives', type: 'bar', data: incentiveSeries }
-      ]
-    }, true);
-
-    window.addEventListener('resize', () => {
-      this.charts?.appointments?.resize();
-      this.charts?.incentives?.resize();
-    });
-  }
-
-  buildWeeklyBuckets(weeksBack = 8) {
-    const out = {};
-    const now = new Date();
-
-    for (let w = weeksBack - 1; w >= 0; w--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - (w * 7));
-      const start = this.getWeekStart(d);
-      const label = start.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
-      out[label] = { submitted: 0, confirmed: 0, cancelled: 0, incentives: 0 };
-    }
-    return out;
-  }
-
-  getWeekStart(d) {
-    return this.getPayrollWeekStart(d);
-  }
-
-  getWeekKey(d) {
-    return this.getPayrollWeekKey(d);
-  }
-
-  // ------------------------
-  // AUTH & EVENTS
-  // ------------------------
-  updateProfileUI() {
-    if (!this.currentUser) return;
-    const u = this.currentUser;
-
-    const map = {
-      'profileName': u.name || 'N/A',
-      'profileEmail': u.email || 'N/A',
-      'profilePosition': (u.position || u.role || 'Agent'),
-      'profileRate': this.formatCurrency(u.baseRate),
-      'nav-user-name': u.name || 'Loading...',
-      'nav-user-role': (u.role || 'agent').toUpperCase(),
-      'profileHours': u.weeklyHours || 0,
-      'profileStartDate': u.startDate || 'N/A'
-    };
-
-    for (const [id, val] of Object.entries(map)) {
-      const el = document.getElementById(id);
-      if (el) el.textContent = val;
-    }
-  }
-
-  async login(email, password) {
-    try {
-      const res = await fetch(this.webhooks.login, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-
-      const result = await res.json();
-
-      if (result.status === "success") {
-        const userObj = {
-          name: result.user['Employee Name'],
-          role: (result.user.Role || 'agent').toLowerCase(),
-          email,
-          baseRate: result.user['Base Rate'],
-          weeklyHours: result.user['Weekly Hours'],
-          startDate: result.user['Start Date'],
-          position: result.user['Position']
-        };
-
-        localStorage.setItem('callHammerSession', JSON.stringify({ user: userObj, expiresAt: Date.now() + 86400000 }));
-
-        const role = userObj.role;
-        if (role === 'admin') window.location.href = 'admin-dashboard.html';
-        else if (role === 'team_leader') window.location.href = 'team-leader-dashboard.html';
-        else window.location.href = 'agent-dashboard.html';
-      } else {
-        alert("Login failed");
-      }
-    } catch (err) {
-      alert("Network error");
-    }
-  }
-
-  async submitTimeOffRequest(data) {
-    try {
-      const res = await fetch(this.webhooks.timeOffRequest, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...data,
-          email: this.currentUser.email,
-          name: this.currentUser.name
-        })
-      });
-      return res.ok;
-    } catch (err) {
-      return false;
-    }
-  }
-
-  checkExistingSession() {
-    const session = localStorage.getItem('callHammerSession');
-    if (session) {
-      const data = JSON.parse(session);
-      if (data.expiresAt > Date.now()) this.currentUser = data.user;
-    }
-  }
-
-  bindEvents() {
-    const loginForm = document.getElementById('loginForm');
-    if (loginForm) {
-      loginForm.onsubmit = (e) => {
-        e.preventDefault();
-        this.login(new FormData(loginForm).get('email'), new FormData(loginForm).get('password'));
-      };
-    }
-
-    const timeframeSelect = document.getElementById('timeframe-filter');
-    if (timeframeSelect) {
-      timeframeSelect.onchange = (e) => this.handleFilterChange(e.target.value);
-    }
-
-    const statusSelect = document.getElementById('status-filter');
-    if (statusSelect) {
-      statusSelect.onchange = (e) => {
-        const v = (e.target.value || 'all').toLowerCase();
-        let filtered = this.filteredLeads?.length ? this.filteredLeads : this.leadsData;
-
-        if (v !== 'all') {
-          filtered = filtered.filter(l => (l['Status'] || this.normalizeKey(l, 'Status') || '').toString().toLowerCase() === v);
-        }
-        this.renderLeadsTable(filtered);
-      };
-    }
   }
 
   logout() {
