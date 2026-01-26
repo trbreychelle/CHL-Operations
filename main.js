@@ -646,8 +646,22 @@ class CallHammerPortal {
 
       this.triggerAdminRefresh();
 
-      setTimeout(() => {
-        try { this.refreshAdminAnalyticsFromRawLeads(); } catch (e) { console.error(e); }
+            setTimeout(() => {
+        try {
+          // ✅ IMPORTANT:
+          // If the admin dashboard already computes KPIs + tables + chart (AdminDashboard.updateAnalytics),
+          // do NOT overwrite KPI tiles using DOM label search.
+          if (window.Admin && typeof window.Admin.updateAnalytics === 'function') {
+            // ensure analytics stays consistent after data refresh
+            window.Admin.updateAnalytics(window.Admin.analyticsPeriod || 'today');
+            return;
+          }
+
+          // fallback only (if admin dashboard script isn't present)
+          this.refreshAdminAnalyticsFromRawLeads();
+        } catch (e) {
+          console.error(e);
+        }
       }, 150);
 
     } catch (err) {
