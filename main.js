@@ -269,45 +269,69 @@ class CallHammerPortal {
     }
   }
 
-  // ✅ FIX: output BOTH snake_case + camelCase so UI never shows "Unnamed"
-  normalizeAdminFromHealthMonitor(rows) {
-    const list = Array.isArray(rows) ? rows : [];
+  // ✅ ADMIN: normalize from healthMonitor (now includes code_name + roofing_company + city_state + package stats)
+normalizeAdminFromHealthMonitor(rows) {
+  const list = Array.isArray(rows) ? rows : [];
 
-    this.adminState.clients = list.map(r => {
-      const client_name = this.getAny(r, ['client_name', 'clientName', 'CLIENT NAME', 'Company Name', 'Roofing Company'], 'Unnamed');
-      const code = this.getAny(r, ['code', 'code_name', 'CODE', 'CODE NAME', 'codeName'], 'N/A');
-      const location = this.getAny(r, ['location', 'Location', 'CITY STATE'], 'Remote');
-      const status = this.getAny(r, ['status', 'Client Status', 'CLIENT STATUS'], 'NOT STARTED');
-      const pkg = this.getAny(r, ['package', 'Package', 'Lead Package'], '');
+  this.adminState.clients = list.map(r => {
+    // source fields (from n8n)
+    const status = this.getAny(r, ['status', 'Client Status', 'CLIENT STATUS'], 'NOT STARTED');
+    const codeName = this.getAny(r, ['code_name', 'codeName', 'CODE NAME', 'CODE', 'code'], 'N/A');
 
-      const last_lead_received = this.getAny(r, ['last_lead_received', 'Last Lead Received'], '');
-      const hours_since_last_lead = this.toNumberSafe(this.getAny(r, ['hours_since_last_lead', 'Hours Since Last Lead'], 0), 0);
-      const leads_today = this.toNumberSafe(this.getAny(r, ['leads_today', 'Leads Today'], 0), 0);
-      const leads_yesterday = this.toNumberSafe(this.getAny(r, ['leads_yesterday', 'Leads Yesterday'], 0), 0);
+    const roofingCompany = this.getAny(
+      r,
+      ['roofing_company', 'Roofing Company', 'Roofing Company Name', 'Company Name', 'COMPANY NAME'],
+      '—'
+    );
 
-      return {
-        // ✅ snake_case (UI most likely expects these)
-        client_name,
-        code,
-        location,
-        status,
-        package: pkg,
-        last_lead_received,
-        hours_since_last_lead,
-        leads_today,
-        leads_yesterday,
+    const cityState = this.getAny(r, ['city_state', 'CITY STATE', 'City State', 'location', 'Location'], 'Remote');
 
-        // ✅ camelCase (your JS logic might use these)
-        clientName: client_name,
-        codeName: code,
-        clientNameWithCode: (code && code !== 'N/A') ? `${client_name} (${code})` : client_name,
-        lastLeadReceived: last_lead_received,
-        hoursSinceLastLead: hours_since_last_lead,
-        leadsToday: leads_today,
-        leadsYesterday: leads_yesterday
-      };
-    });
-  }
+    const clientName = this.getAny(r, ['client_name', 'CLIENT NAME', 'Client Name'], '—');
+
+    const lastLeadReceived = this.getAny(r, ['last_lead_received', 'Last Lead Received'], '');
+    const hoursSinceLastLead = this.toNumberSafe(this.getAny(r, ['hours_since_last_lead', 'Hours Since Last Lead'], 0), 0);
+    const leadsToday = this.toNumberSafe(this.getAny(r, ['leads_today', 'Leads Today'], 0), 0);
+    const leadsYesterday = this.toNumberSafe(this.getAny(r, ['leads_yesterday', 'Leads Yesterday'], 0), 0);
+
+    const purchasedLeads = this.toNumberSafe(this.getAny(r, ['purchased_leads', 'Purchased Leads'], 0), 0);
+    const owedLeads = this.toNumberSafe(this.getAny(r, ['owed_leads', 'Owed Leads'], 0), 0);
+    const packageStatus = this.getAny(r, ['package_status', 'Package Status', 'Status'], '');
+    const purchaseDate = this.getAny(r, ['purchase_date', 'Purchase Date'], '');
+
+    return {
+      // ✅ snake_case for easy HTML use
+      status,
+      code_name: codeName,
+      roofing_company: roofingCompany,
+      city_state: cityState,
+      client_name: clientName,
+
+      last_lead_received: lastLeadReceived,
+      hours_since_last_lead: hoursSinceLastLead,
+      leads_today: leadsToday,
+      leads_yesterday: leadsYesterday,
+
+      purchased_leads: purchasedLeads,
+      owed_leads: owedLeads,
+      package_status: packageStatus,
+      purchase_date: purchaseDate,
+
+      // ✅ camelCase aliases (safe for any other JS)
+      clientName,
+      codeName,
+      roofingCompany,
+      cityState,
+      lastLeadReceived,
+      hoursSinceLastLead,
+      leadsToday,
+      leadsYesterday,
+      purchasedLeads,
+      owedLeads,
+      packageStatus,
+      purchaseDate
+    };
+  });
+}
 
   // Fallback join-based normalization (also outputs aliases)
   normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages) {
