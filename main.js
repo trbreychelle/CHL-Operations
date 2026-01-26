@@ -39,7 +39,7 @@ class CallHammerPortal {
   }
 
   // ------------------------
-  // ✅ Login + Session helpers (ADDED)
+  // ✅ LOGIN + SESSION (ADDED)
   // ------------------------
   saveSession(user) {
     try {
@@ -55,7 +55,6 @@ class CallHammerPortal {
     this.currentUser = null;
   }
 
-  // Normalize role routing target
   routeByRole(roleRaw) {
     const role = String(roleRaw || '').toLowerCase();
     if (role === 'admin') return 'admin-dashboard.html';
@@ -63,21 +62,11 @@ class CallHammerPortal {
     return 'agent-dashboard.html';
   }
 
-  // Safely read response JSON (handles empty/non-json responses)
-  async readResponseSafe(res) {
-    const txt = await res.text();
-    if (!txt || !txt.trim()) return {};
-    try { return JSON.parse(txt); } catch { return { _rawText: txt }; }
-  }
-
-  // ✅ CORE LOGIN: calls webhook then saves session then routes
   async loginWithCredentials(email, password) {
     const cleanEmail = String(email || '').trim();
     const cleanPassword = String(password || '').trim();
 
-    if (!cleanEmail || !cleanPassword) {
-      throw new Error('Missing email or password.');
-    }
+    if (!cleanEmail || !cleanPassword) throw new Error('Missing email or password.');
 
     const res = await fetch(this.webhooks.login, {
       method: 'POST',
@@ -85,26 +74,18 @@ class CallHammerPortal {
       body: JSON.stringify({ email: cleanEmail, password: cleanPassword })
     });
 
-    if (!res.ok) {
-      const errBody = await this.readResponseSafe(res);
-      const msg =
-        errBody?.message ||
-        errBody?.error ||
-        errBody?.status ||
-        `Login failed (HTTP ${res.status}).`;
-      throw new Error(msg);
-    }
+    if (!res.ok) throw new Error(`Login failed (HTTP ${res.status}).`);
 
-    const result = await this.readResponseSafe(res);
+    const result = await res.json();
 
-    // ✅ Support multiple response shapes
+    // Support multiple response shapes
     const user =
       result?.user ||
       result?.data?.user ||
       result?.data?.profile ||
       result?.profile ||
-      result?.data ||
-      null;
+      (result?.data && typeof result.data === 'object' ? result.data : null) ||
+      (typeof result === 'object' ? result : null);
 
     if (!user || typeof user !== 'object') {
       console.error('Login response:', result);
@@ -116,52 +97,68 @@ class CallHammerPortal {
 
     this.saveSession(user);
 
-    // Route
-    const target = this.routeByRole(user.role);
-    window.location.href = target;
+    window.location.href = this.routeByRole(user.role);
   }
 
-  // ✅ Login via URL params: /index.html?email=...&password=...
-  async tryLoginFromQueryParams() {
+  tryLoginFromQueryParams() {
     const params = new URLSearchParams(window.location.search || '');
     const email = params.get('email');
     const password = params.get('password');
+    if (!email || !password) return;
 
-    if (!email || !password) return false;
-
-    try {
-      await this.loginWithCredentials(email, password);
-      return true;
-    } catch (err) {
+    // fire and forget (it will redirect on success)
+    this.loginWithCredentials(email, password).catch(err => {
       console.error('Query param login failed:', err);
-      return false;
-    }
+    });
   }
 
-  // ✅ Bind login form if present on index.html
-  bindLoginForm() {
-    const form = document.getElementById('login-form');
-    const btn = document.getElementById('login-btn');
-    const emailEl = document.getElementById('login-email');
-    const passEl = document.getElementById('login-password');
-    const errEl = document.getElementById('login-error');
+  bindIndexLoginForm() {
+    // ✅ matches YOUR index.html IDs
+    const form = document.getElementById('loginForm');
+    const emailEl = document.getElementById('email');
+    const passEl = document.getElementById('password');
 
-    const run = async (e) => {
-      if (e) e.preventDefault();
-      if (!emailEl || !passEl) return;
+    const errorBox = document.getElementById('loginError');
+    const errorText = errorBox ? errorBox.querySelector('p') : null;
 
-      if (errEl) errEl.textContent = '';
+    const btn = document.getElementById('loginButton');
+    const spinner = document.getElementById('loginSpinner');
+    const loginText = document.getElementById('loginText');
 
+    if (!form || !emailEl || !passEl) return;
+
+    const setLoading = (on) => {
+      if (btn) btn.disabled = !!on;
+      if (spinner) spinner.classList.toggle('hidden', !on);
+      if (loginText) loginText.classList.toggle('hidden', !!on);
+    };
+
+    const showError = (msg) => {
+      if (!errorBox) return;
+      errorBox.classList.remove('hidden');
+      if (errorText) errorText.textContent = msg || 'Login failed.';
+      errorBox.classList.add('error-shake');
+      setTimeout(() => errorBox.classList.remove('error-shake'), 600);
+    };
+
+    const clearError = () => {
+      if (!errorBox) return;
+      errorBox.classList.add('hidden');
+      if (errorText) errorText.textContent = '';
+    };
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearError();
+      setLoading(true);
       try {
         await this.loginWithCredentials(emailEl.value, passEl.value);
       } catch (err) {
         console.error(err);
-        if (errEl) errEl.textContent = err.message || 'Login failed. Please try again.';
+        showError(err.message || 'Login failed. Please try again.');
+        setLoading(false);
       }
-    };
-
-    if (form) form.addEventListener('submit', run);
-    if (btn) btn.addEventListener('click', run);
+    });
   }
 
   // ------------------------
@@ -177,15 +174,15 @@ class CallHammerPortal {
       path === '' ||
       path.endsWith('/index');
 
-    // ✅ If we’re on index and already logged in, route away
+    // ✅ If on index and already logged in, route away immediately
     if (onIndex && this.currentUser) {
       window.location.href = this.routeByRole(this.currentUser.role);
       return;
     }
 
-    // ✅ If on index page, support form login + query param login
+    // ✅ If on index, bind form + support queryparam login
     if (onIndex) {
-      this.bindLoginForm();
+      this.bindIndexLoginForm();
       this.tryLoginFromQueryParams();
     }
 
@@ -212,6 +209,13 @@ class CallHammerPortal {
     // Admin dashboard (Mission Control / Overview)
     if (onAdminDashboard) {
       document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+
+      // ✅ Ensure a refresh function exists (fallback uses RAW LEADS)
+      window.adminDashboard = window.adminDashboard || {};
+      if (typeof window.adminDashboard.refreshDashboard !== 'function') {
+        window.adminDashboard.refreshDashboard = () => this.refreshAdminAnalyticsFromRawLeads();
+      }
+
       setTimeout(() => this.fetchAdminData(false), 300);
     }
   }
@@ -252,7 +256,7 @@ class CallHammerPortal {
     // keep safe – admin dashboard HTML uses portal.logout()
   }
 
-  // ✅ Single logout (FIXED)
+  // ✅ logout: clear session then go home
   logout() {
     this.clearSession();
     window.location.href = 'index.html';
@@ -328,12 +332,12 @@ class CallHammerPortal {
   // ------------------------
   isQualifiedStatus(status) {
     const s = String(status || '').trim().toUpperCase();
-    return s.includes('CONFIRM') || s.includes('APPROV');
+    return s.includes('CONFIRM') || s.includes('APPROV') || s.includes('QUALIF');
   }
 
   isUnqualifiedStatus(status) {
     const s = String(status || '').trim().toUpperCase();
-    return s.includes('REJECT') || s.includes('CREDIT') || s.includes('DECLIN') || s.includes('CANCEL');
+    return s.includes('REJECT') || s.includes('CREDIT') || s.includes('DECLIN') || s.includes('CANCEL') || s.includes('UNQUAL');
   }
 
   formatCurrency(v) {
@@ -437,6 +441,7 @@ class CallHammerPortal {
 
       const rawLeads =
         dataRoot.leads || dataRoot.Leads || dataRoot.LEADS ||
+        dataRoot.rawLeads || dataRoot['RAW LEADS'] ||
         result.leads || result.Leads || result.LEADS || [];
 
       const rawAgents =
@@ -482,7 +487,9 @@ class CallHammerPortal {
     if (window.adminDashboard && typeof window.adminDashboard.refreshDashboard === 'function') {
       window.adminDashboard.refreshDashboard();
     } else {
-      console.warn('⚠️ adminDashboard.refreshDashboard not found (OK if your admin UI uses a different function).');
+      // ✅ fallback: still try to compute from raw leads
+      try { this.refreshAdminAnalyticsFromRawLeads(); } catch (e) {}
+      console.warn('⚠️ adminDashboard.refreshDashboard not found.');
     }
   }
 
@@ -560,6 +567,190 @@ class CallHammerPortal {
       package_status: '',
       purchase_date: ''
     }));
+  }
+
+  // ------------------------
+  // ✅ ADMIN ANALYTICS FROM RAW LEADS (ADDED)
+  // ------------------------
+  refreshAdminAnalyticsFromRawLeads() {
+    const leads = Array.isArray(this.adminState.leads) ? this.adminState.leads : [];
+    if (!leads.length) {
+      console.warn('⚠️ RAW LEADS is empty (adminState.leads). If this is wrong, webhook/dashboard-data is not returning leads.');
+      return;
+    }
+
+    // Range selector: tries to find active pill (Today / This Week / Previous Week / 4 Weeks / 6 Weeks / All-Time)
+    const rangeKey = (() => {
+      const btns = Array.from(document.querySelectorAll('button, a'))
+        .filter(el => /today|this week|previous week|4 weeks|6 weeks|all-time/i.test(el.textContent || ''));
+      const active = btns.find(el =>
+        el.classList.contains('active') ||
+        el.getAttribute('aria-selected') === 'true' ||
+        el.getAttribute('aria-current') === 'true'
+      );
+      const t = (active?.textContent || '').toLowerCase();
+      if (t.includes('all')) return 'all-time';
+      if (t.includes('previous')) return 'previous-week';
+      if (t.includes('6')) return '6-weeks';
+      if (t.includes('4')) return '4-weeks';
+      if (t.includes('this week')) return 'this-week';
+      return 'today';
+    })();
+
+    const startOfDay = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+    const endOfDay = (d) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
+    const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+
+    const computeRange = () => {
+      const now = new Date();
+      if (rangeKey === 'all-time') return { start: new Date(2000,0,1), end: endOfDay(now) };
+      if (rangeKey === 'today') return { start: startOfDay(now), end: endOfDay(now) };
+
+      // week Mon..Sun
+      const day = now.getDay(); // Sun=0
+      const diffToMon = (day + 6) % 7;
+      const mon = startOfDay(addDays(now, -diffToMon));
+      const sun = endOfDay(addDays(mon, 6));
+
+      if (rangeKey === 'this-week') return { start: mon, end: sun };
+      if (rangeKey === 'previous-week') {
+        const prevMon = addDays(mon, -7);
+        return { start: prevMon, end: endOfDay(addDays(prevMon, 6)) };
+      }
+      if (rangeKey === '4-weeks') return { start: startOfDay(addDays(now, -28)), end: endOfDay(now) };
+      if (rangeKey === '6-weeks') return { start: startOfDay(addDays(now, -42)), end: endOfDay(now) };
+
+      return { start: startOfDay(now), end: endOfDay(now) };
+    };
+
+    const { start, end } = computeRange();
+
+    const getLeadDate = (lead) => this.getAny(lead, [
+      'lead_date', 'Lead Date', 'DATE', 'Date',
+      'created_at', 'Created At', 'timestamp', 'Timestamp',
+      'appointment_date', 'Appointment Date'
+    ], '');
+
+    const getLeadStatus = (lead) => this.getAny(lead, [
+      'status', 'Status', 'LEAD STATUS', 'Lead Status',
+      'disposition', 'Disposition', 'result', 'Result'
+    ], '');
+
+    const getLeadAgent = (lead) => this.getAny(lead, [
+      'agent', 'Agent', 'AGENT NAME', 'Agent Name',
+      'set_by', 'Set By', 'setter', 'Setter',
+      'agent_email', 'Agent Email', 'email', 'Email'
+    ], 'Unknown');
+
+    const inRange = leads.filter(l => {
+      const dt = this.parseDateSafe(getLeadDate(l));
+      if (!dt) return false;
+      return dt >= start && dt <= end;
+    });
+
+    let total = inRange.length;
+    let qualified = 0;
+    let unqualified = 0;
+    let pending = 0;
+
+    const agentQualified = new Map();
+
+    for (const l of inRange) {
+      const status = getLeadStatus(l);
+      if (this.isQualifiedStatus(status)) {
+        qualified++;
+        const a = String(getLeadAgent(l) || 'Unknown').trim() || 'Unknown';
+        agentQualified.set(a, (agentQualified.get(a) || 0) + 1);
+      } else if (this.isUnqualifiedStatus(status)) {
+        unqualified++;
+      } else {
+        pending++;
+      }
+    }
+
+    const denom = qualified + unqualified;
+    const cancelRate = denom === 0 ? 0 : (unqualified / denom);
+    const cancelPct = `${Math.round(cancelRate * 100)}%`;
+
+    // ✅ Set KPI numbers by finding the label text and updating a nearby number
+    const setKpiByLabel = (labelText, valueText) => {
+      const label = String(labelText).trim().toLowerCase();
+      const els = Array.from(document.querySelectorAll('*'))
+        .filter(el => (el.textContent || '').trim().toLowerCase() === label);
+
+      for (const el of els) {
+        const card = el.closest('div') || el.parentElement;
+        if (!card) continue;
+
+        const candidates = Array.from(card.querySelectorAll('div, span, p, h1, h2, h3'))
+          .filter(x => x !== el)
+          .map(x => ({ el: x, txt: (x.textContent || '').trim() }))
+          .filter(x => x.txt.length <= 20); // avoid big paragraphs
+
+        const num = candidates.find(x => /^[\d,$.%]+$/.test(x.txt));
+        if (num) { num.el.textContent = valueText; return true; }
+      }
+      return false;
+    };
+
+    setKpiByLabel('TOTAL LEADS', String(total));
+    setKpiByLabel('QUALIFIED', String(qualified));
+    setKpiByLabel('UNQUALIFIED', String(unqualified));
+    setKpiByLabel('PENDING', String(pending));
+    setKpiByLabel('CANCELLATION RATE', cancelPct);
+
+    // ✅ Fill Top/Bottom tables if present
+    const fillTableByHeader = (headerContains, rowsHtml) => {
+      const titleEls = Array.from(document.querySelectorAll('*'))
+        .filter(el => (el.textContent || '').toLowerCase().includes(String(headerContains).toLowerCase()))
+        .slice(0, 5);
+
+      for (const t of titleEls) {
+        const block = t.closest('div');
+        const table = block ? block.querySelector('table') : null;
+        const tbody = table ? table.querySelector('tbody') : null;
+        if (tbody) {
+          tbody.innerHTML = rowsHtml;
+          return true;
+        }
+      }
+      return false;
+    };
+
+    const top10 = Array.from(agentQualified.entries())
+      .sort((a,b) => b[1] - a[1])
+      .slice(0, 10);
+
+    const topRows = top10.length ? top10.map(([agent, cnt]) => `
+      <tr class="border-t">
+        <td class="py-3 px-4 text-sm text-gray-900">${agent}</td>
+        <td class="py-3 px-4 text-sm text-gray-900">${cnt}</td>
+        <td class="py-3 px-4 text-sm text-green-600">${cnt}</td>
+        <td class="py-3 px-4 text-sm text-red-600">0</td>
+        <td class="py-3 px-4 text-sm text-gray-600">0%</td>
+      </tr>
+    `).join('') : `<tr><td colspan="5" class="py-6 text-center text-sm text-gray-500">No leads in this period.</td></tr>`;
+
+    const bottom5 = Array.from(agentQualified.entries())
+      .sort((a,b) => a[1] - b[1])
+      .slice(0, 5);
+
+    const bottomRows = bottom5.length ? bottom5.map(([agent, cnt]) => `
+      <tr class="border-t">
+        <td class="py-3 px-4 text-sm text-gray-900">${agent}</td>
+        <td class="py-3 px-4 text-sm text-gray-900">${cnt}</td>
+        <td class="py-3 px-4 text-sm text-green-600">${cnt}</td>
+        <td class="py-3 px-4 text-sm text-red-600">0</td>
+        <td class="py-3 px-4 text-sm text-gray-600">0%</td>
+      </tr>
+    `).join('') : `<tr><td colspan="5" class="py-6 text-center text-sm text-gray-500">No leads in this period.</td></tr>`;
+
+    fillTableByHeader('Top 10 Agents', topRows);
+    fillTableByHeader('Bottom 5 Agents', bottomRows);
+
+    console.log('✅ Admin analytics updated from RAW LEADS', {
+      rangeKey, total, qualified, unqualified, pending, cancelPct
+    });
   }
 }
 
