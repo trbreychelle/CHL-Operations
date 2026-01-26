@@ -129,45 +129,67 @@
         </div>
 
         <!-- ✅ FULL-WIDTH Client Health Monitor -->
-        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col h-[520px] mb-8">
-          <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row md:justify-between md:items-center gap-3 bg-gray-50/50 rounded-t-2xl">
-            <h3 class="font-bold text-gray-900 flex items-center gap-2">
-              <i class="fa-solid fa-heart-pulse text-red-500"></i> Client Health Monitor
-            </h3>
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col h-[560px] mb-8">
+          <div class="p-5 border-b border-gray-100 flex flex-col gap-4 bg-gray-50/50 rounded-t-2xl">
+            <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
+              <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                <i class="fa-solid fa-heart-pulse text-red-500"></i> Client Health Monitor
+              </h3>
 
-            <!-- ✅ Dots only. Hover shows meaning -->
-            <div class="flex items-center gap-3">
-              <div class="status-container">
-                <span class="status-dot st-critical"></span>
-                <span class="tooltip-text">
-                  <b>CRITICAL</b><br>
-                  No lead delivered in more than 48 hours.
-                </span>
-              </div>
+              <!-- ✅ Dots only. Hover shows meaning -->
+              <div class="flex items-center gap-3">
+                <div class="status-container">
+                  <span class="status-dot st-critical"></span>
+                  <span class="tooltip-text">
+                    <b>CRITICAL</b><br>
+                    No lead delivered in more than 48 hours.
+                  </span>
+                </div>
 
-              <div class="status-container">
-                <span class="status-dot st-risk"></span>
-                <span class="tooltip-text">
-                  <b>AT RISK</b><br>
-                  Lead within 48 hours but not healthy / no lead both today and yesterday.
-                </span>
-              </div>
+                <div class="status-container">
+                  <span class="status-dot st-risk"></span>
+                  <span class="tooltip-text">
+                    <b>AT RISK</b><br>
+                    Lead within 48 hours but not healthy / no lead both today and yesterday.
+                  </span>
+                </div>
 
-              <div class="status-container">
-                <span class="status-dot st-healthy"></span>
-                <span class="tooltip-text">
-                  <b>HEALTHY</b><br>
-                  At least 1 lead today AND at least 1 lead yesterday.
-                </span>
-              </div>
+                <div class="status-container">
+                  <span class="status-dot st-healthy"></span>
+                  <span class="tooltip-text">
+                    <b>HEALTHY</b><br>
+                    At least 1 lead today AND at least 1 lead yesterday.
+                  </span>
+                </div>
 
-              <div class="status-container">
-                <span class="status-dot st-new"></span>
-                <span class="tooltip-text">
-                  <b>NOT STARTED</b><br>
-                  New campaign.
-                </span>
+                <div class="status-container">
+                  <span class="status-dot st-new"></span>
+                  <span class="tooltip-text">
+                    <b>NOT STARTED</b><br>
+                    New campaign.
+                  </span>
+                </div>
               </div>
+            </div>
+
+            <!-- ✅ SEARCH BAR (filters Code / Company / City-State / Client Name) -->
+            <div class="flex flex-col md:flex-row gap-3 md:items-center">
+              <div class="flex-1 relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400"></i>
+                <input
+                  id="client-health-search"
+                  type="text"
+                  placeholder="Search by code, roofing company, city/state, or client name..."
+                  class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                />
+              </div>
+              <button
+                type="button"
+                onclick="Admin.clearClientSearch()"
+                class="px-4 py-2.5 rounded-xl text-sm font-bold bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+              >
+                Clear
+              </button>
             </div>
           </div>
 
@@ -194,7 +216,6 @@
           </div>
         </div>
 
-        <!-- (Optional) Live Floor Status stays, but now below (so Client Monitor is full width) -->
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8">
           <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
             <h3 class="font-bold text-gray-900 text-sm">Live Floor Status</h3>
@@ -313,9 +334,10 @@
   </main>
 
   <script>
-    // -------------- AdminDashboard --------------
     const AdminDashboard = {
       perfPeriod: 'today',
+      _clientHealthAll: [],
+      _clientHealthBound: false,
 
       getState() {
         return (window.portal && window.portal.adminState) ? window.portal.adminState : null;
@@ -332,7 +354,11 @@
         const leads   = Array.isArray(state.leads) ? state.leads : [];
         const agents  = Array.isArray(state.agents) ? state.agents : [];
 
-        console.log(`⚡ UI Update: ${clients.length} Clients, ${leads.length} Leads, ${agents.length} Agents`);
+        // keep master copy for searching
+        this._clientHealthAll = clients;
+
+        // bind search once
+        this.bindClientHealthSearch();
 
         try { this.renderPulse(leads); } catch(e) { console.error("Pulse Error:", e); }
         try { this.renderClientHealth(clients); } catch(e) { console.error("Client Health Error:", e); }
@@ -341,12 +367,96 @@
         try { this.renderLeads(leads); } catch(e) { console.error("Leads Table Error:", e); }
       },
 
+      bindClientHealthSearch() {
+        if (this._clientHealthBound) return;
+        const input = document.getElementById("client-health-search");
+        if (!input) return;
+
+        input.addEventListener("input", () => {
+          const q = String(input.value || "").trim().toLowerCase();
+          if (!q) {
+            this.renderClientHealth(this._clientHealthAll);
+            return;
+          }
+
+          const filtered = (this._clientHealthAll || []).filter(c => {
+            const fields = this.getClientSearchFields(c);
+            return (
+              fields.code.includes(q) ||
+              fields.company.includes(q) ||
+              fields.location.includes(q) ||
+              fields.client.includes(q)
+            );
+          });
+
+          this.renderClientHealth(filtered);
+        });
+
+        this._clientHealthBound = true;
+      },
+
+      clearClientSearch() {
+        const input = document.getElementById("client-health-search");
+        if (input) input.value = "";
+        this.renderClientHealth(this._clientHealthAll);
+      },
+
       pick(obj, keys, fallback = "") {
         for (const k of keys) {
           const v = obj?.[k];
           if (v !== undefined && v !== null && String(v).trim() !== "") return v;
         }
         return fallback;
+      },
+
+      // ✅ builds "City, State" even if city + state are separate columns
+      buildCityState(c) {
+        const cityState = this.pick(c, [
+          "city_state","cityState","CITY STATE","City State",
+          "City, State","CITY, STATE","City State (Formatted)","Location","location"
+        ], "");
+
+        if (cityState) return cityState;
+
+        const city = this.pick(c, ["city","City","CITY"], "");
+        const state = this.pick(c, ["state","State","STATE"], "");
+        const combined = [city, state].filter(Boolean).join(", ").trim();
+        return combined || "—";
+      },
+
+      // ✅ code sometimes comes as "CODE NAME" or "CODE NAME " (trailing space)
+      // so we try a lot of common variants
+      getClientCode(c) {
+        return this.pick(c, [
+          "code_name","codeName","code","Code","CODE",
+          "CODE NAME","CODE NAME ","Code Name","Code name","CODE_NAME",
+          "CLIENT CODE","Client Code"
+        ], "—");
+      },
+
+      getClientName(c) {
+        return this.pick(c, [
+          "client_name","clientName","CLIENT NAME","Client Name","CLIENTNAME",
+          "Client","CLIENT",
+          "homeowner","Homeowner","HOMEOWNER",
+          "Account Name","ACCOUNT NAME"
+        ], "—");
+      },
+
+      getClientCompany(c) {
+        return this.pick(c, [
+          "roofing_company","roofingCompany",
+          "Roofing Company","Roofing Company Name",
+          "Company Name","COMPANY NAME"
+        ], "—");
+      },
+
+      getClientSearchFields(c) {
+        const code = String(this.getClientCode(c) || "").toLowerCase();
+        const company = String(this.getClientCompany(c) || "").toLowerCase();
+        const location = String(this.buildCityState(c) || "").toLowerCase();
+        const client = String(this.getClientName(c) || "").toLowerCase();
+        return { code, company, location, client };
       },
 
       normalizeClientStatus(v) {
@@ -359,7 +469,6 @@
         return s || "UNKNOWN";
       },
 
-      // ✅ NOT STARTED = BLUE
       statusDotClass(clientStatus) {
         if (clientStatus === "CRITICAL") return "st-critical";
         if (clientStatus === "AT RISK") return "st-risk";
@@ -369,7 +478,6 @@
         return "st-new";
       },
 
-      // ✅ top tiles
       renderPulse(leads) {
         const today = new Date().toDateString();
 
@@ -396,12 +504,11 @@
         document.getElementById('pulse-pending').textContent = pending.length;
       },
 
-      // ✅ Client Health Monitor render (NOW 10 columns + uses correct keys)
       renderClientHealth(clients) {
         const tbody = document.getElementById('client-health-body');
 
         if (!clients || clients.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-gray-400 italic">No clients found.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-gray-400 italic">No matching clients.</td></tr>';
           return;
         }
 
@@ -410,25 +517,13 @@
           const clientStatus = this.normalizeClientStatus(rawStatus);
           const dotClass = this.statusDotClass(clientStatus);
 
-          // ✅ IMPORTANT: read CODE from code_name (n8n output)
-          const code = this.pick(c, ["code_name","codeName","code","CODE NAME","CODE"], "—");
-
-          // ✅ Roofing Company (n8n output uses roofing_company)
-          const roofingCompany = this.pick(
-            c,
-            ["roofing_company","roofingCompany","Roofing Company","Roofing Company Name","Company Name","COMPANY NAME"],
-            "—"
-          );
-
-          // ✅ City/State (n8n output uses city_state)
-          const location = this.pick(c, ["city_state","cityState","CITY STATE","City State","location","Location"], "—");
-
-          // ✅ Client Name (n8n output uses client_name)
-          const clientName = this.pick(c, ["client_name","clientName","CLIENT NAME","Client Name"], "—");
+          const code = this.getClientCode(c);
+          const roofingCompany = this.getClientCompany(c);
+          const location = this.buildCityState(c);
+          const clientName = this.getClientName(c);
 
           const lastLead = this.pick(c, ["last_lead_received","lastLeadReceived","Last Lead Received"], "—");
 
-          // ✅ Package: owed / purchased
           const owed = Number(this.pick(c, ["owed_leads","owedLeads","Owed Leads"], 0)) || 0;
           const purchased = Number(this.pick(c, ["purchased_leads","purchasedLeads","Purchased Leads"], 0)) || 0;
 
@@ -451,7 +546,7 @@
                 ${roofingCompany}
               </td>
 
-              <td class="p-4 text-gray-500 max-w-[160px] truncate" title="${location}">
+              <td class="p-4 text-gray-500 max-w-[180px] truncate" title="${location}">
                 ${location}
               </td>
 
