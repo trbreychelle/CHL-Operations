@@ -137,25 +137,42 @@
               <h3 class="font-bold text-gray-900 flex items-center gap-2">
                 <i class="fa-solid fa-heart-pulse text-red-500"></i> Client Health Monitor
               </h3>
-              <div class="flex gap-3 text-[10px] uppercase font-bold text-gray-500">
-                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500"></span> Critical</span>
-                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Healthy</span>
-              </div>
-            </div>
+              <div class="flex flex-wrap gap-3 text-[10px] uppercase font-bold text-gray-500">
+  <span class="flex items-center gap-1">
+    <span class="w-2 h-2 rounded-full bg-red-500"></span>
+    Critical: &gt;48h no lead
+  </span>
+  <span class="flex items-center gap-1">
+    <span class="w-2 h-2 rounded-full bg-yellow-500"></span>
+    At Risk: &lt;48h but not healthy / no lead today &amp; yesterday
+  </span>
+  <span class="flex items-center gap-1">
+    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+    Healthy: 1+ today &amp; 1+ yesterday
+  </span>
+  <span class="flex items-center gap-1">
+    <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+    Not Started: new campaign
+  </span>
+</div>
 
             <div class="flex-1 overflow-auto">
               <table class="w-full text-left border-collapse">
                 <thead class="bg-white sticky top-0 z-10 shadow-sm">
                   <tr>
-                    <th class="p-4 text-xs font-bold text-gray-400 uppercase w-10">Status</th>
-                    <th class="p-4 text-xs font-bold text-gray-400 uppercase">Client Name</th>
-                    <th class="p-4 text-xs font-bold text-gray-400 uppercase">Code</th>
-                    <th class="p-4 text-xs font-bold text-gray-400 uppercase">Location</th>
-                    <th class="p-4 text-xs font-bold text-gray-400 uppercase">Package</th>
-                  </tr>
+  <th class="p-4 text-xs font-bold text-gray-400 uppercase w-10">Status</th>
+  <th class="p-4 text-xs font-bold text-gray-400 uppercase">Code</th>
+  <th class="p-4 text-xs font-bold text-gray-400 uppercase">Roofing Company</th>
+  <th class="p-4 text-xs font-bold text-gray-400 uppercase">City, State</th>
+  <th class="p-4 text-xs font-bold text-gray-400 uppercase">Client Name</th>
+  <th class="p-4 text-xs font-bold text-gray-400 uppercase">Last Lead Received</th>
+  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Hours Since</th>
+  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Leads Today</th>
+  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Leads Yesterday</th>
+</tr>
                 </thead>
                 <tbody id="client-health-body" class="text-sm divide-y divide-gray-50">
-                  <tr><td colspan="5" class="p-6 text-center text-gray-400 italic">Loading clients...</td></tr>
+                  <tr><td colspan="9" class="p-6 text-center text-gray-400 italic">Loading clients...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -329,13 +346,13 @@
     },
 
     statusDotClass(clientStatus) {
-      if (clientStatus === "CRITICAL") return "st-critical";
-      if (clientStatus === "AT RISK") return "st-risk";
-      if (clientStatus === "HEALTHY") return "st-healthy";
-      if (clientStatus === "NEW") return "st-new";
-      if (clientStatus === "NOT STARTED") return "st-bottleneck";
-      return "st-bottleneck";
-    },
+  if (clientStatus === "CRITICAL") return "st-critical";
+  if (clientStatus === "AT RISK") return "st-risk";
+  if (clientStatus === "HEALTHY") return "st-healthy";
+  if (clientStatus === "NOT STARTED") return "st-new"; // ✅ BLUE
+  if (clientStatus === "NEW") return "st-new";         // keep blue too
+  return "st-new";
+},
 
     packageBadgeClass(pkgStatus) {
       const s = String(pkgStatus || "").toUpperCase();
@@ -374,43 +391,59 @@
 
     // ✅ FIXED: reads from normalized keys first (client_name/code/location/package/status)
     renderClientHealth(clients) {
-      const tbody = document.getElementById('client-health-body');
+  const tbody = document.getElementById('client-health-body');
 
-      if (!clients || clients.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No clients found.</td></tr>';
-        return;
-      }
+  if (!clients || clients.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-gray-400 italic">No clients found.</td></tr>';
+    return;
+  }
 
-      tbody.innerHTML = clients.map(c => {
-        // ✅ normalized keys from main.js
-        const name = this.pick(c, ["client_name","clientName","Company Name","Roofing Company"], "Unnamed");
-        const code = this.pick(c, ["code","codeName","CODE","CODE NAME"], "N/A");
-        const location = this.pick(c, ["location","CITY STATE","City State","Location"], "—");
-        const rawClientStatus = this.pick(c, ["status","Client Status","CLIENT STATUS","Status"], "UNKNOWN");
-        const clientStatus = this.normalizeClientStatus(rawClientStatus);
-        const pkg = this.pick(c, ["package","Package","Lead Package"], "—");
+  tbody.innerHTML = clients.map(c => {
+    const rawStatus = this.pick(c, ["status","Client Status","CLIENT STATUS","Status"], "UNKNOWN");
+    const clientStatus = this.normalizeClientStatus(rawStatus);
+    const dotClass = this.statusDotClass(clientStatus);
 
-        const dotClass = this.statusDotClass(clientStatus);
+    const code = this.pick(c, ["code","codeName","CODE","CODE NAME"], "—");
+    const roofingCompany = this.pick(c, ["roofing_company","Roofing Company","Roofing Company Name","Company Name","COMPANY NAME"], "—");
+    const location = this.pick(c, ["location","CITY STATE","City State","Location"], "—");
+    const clientName = this.pick(c, ["client_name","clientName","CLIENT NAME","Client Name"], "—");
 
-        return `
-          <tr class="hover:bg-gray-50">
-            <td class="p-4">
-              <div class="status-container">
-                <span class="status-dot ${dotClass}"></span>
-              </div>
-            </td>
-            <td class="p-4 font-bold text-gray-900">${name}</td>
-            <td class="p-4 text-gray-500">${code}</td>
-            <td class="p-4 text-gray-500 max-w-[150px] truncate" title="${location}">${location}</td>
-            <td class="p-4">
-              <span class="px-2 py-1 rounded text-[10px] font-bold uppercase ${this.packageBadgeClass(pkg)}">
-                ${String(pkg)}
-              </span>
-            </td>
-          </tr>
-        `;
-      }).join('');
-    },
+    const lastLead = this.pick(c, ["last_lead_received","Last Lead Received"], "—");
+    const hoursSince = this.pick(c, ["hours_since_last_lead","Hours Since Last Lead"], 0);
+    const leadsToday = this.pick(c, ["leads_today","Leads Today"], 0);
+    const leadsYesterday = this.pick(c, ["leads_yesterday","Leads Yesterday"], 0);
+
+    return `
+      <tr class="hover:bg-gray-50">
+        <td class="p-4">
+          <div class="status-container">
+            <span class="status-dot ${dotClass}"></span>
+          </div>
+        </td>
+
+        <td class="p-4 text-gray-700 font-semibold">${code}</td>
+
+        <td class="p-4 font-bold text-gray-900 max-w-[220px] truncate" title="${roofingCompany}">
+          ${roofingCompany}
+        </td>
+
+        <td class="p-4 text-gray-500 max-w-[140px] truncate" title="${location}">
+          ${location}
+        </td>
+
+        <td class="p-4 text-gray-700 max-w-[180px] truncate" title="${clientName}">
+          ${clientName}
+        </td>
+
+        <td class="p-4 text-gray-500">${lastLead}</td>
+
+        <td class="p-4 text-center text-gray-700 font-semibold">${hoursSince}</td>
+        <td class="p-4 text-center text-gray-700 font-semibold">${leadsToday}</td>
+        <td class="p-4 text-center text-gray-700 font-semibold">${leadsYesterday}</td>
+      </tr>
+    `;
+  }).join('');
+},
 
     updatePerf(period, btnElement) {
       this.perfPeriod = period;
