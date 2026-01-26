@@ -1,371 +1,1050 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>CHL Command Center - Admin Dashboard</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CHL Command Center</title>
 
-  <!-- Tailwind (optional, but helps quickly) -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-  <!-- Chart.js for Trend chart -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
-    body { background:#f6f7fb; }
-    .sidebar { width: 260px; background: #111827; color: #fff; }
-    .navitem { display:flex; align-items:center; gap:.6rem; padding:.75rem 1rem; border-radius:.5rem; cursor:pointer; }
-    .navitem:hover { background: rgba(255,255,255,.08); }
-    .navitem.active { background: rgba(255,255,255,.14); }
-    .card { background:#fff; border:1px solid #e5e7eb; border-radius:16px; }
-    .chip { padding:.25rem .6rem; border-radius:999px; border:1px solid #e5e7eb; background:#fff; cursor:pointer; }
-    .chip.active { border-color:#111827; }
-    table { width:100%; border-collapse:collapse; }
-    th, td { padding:.7rem .75rem; border-bottom:1px solid #eef2f7; font-size:14px; }
-    th { color:#6b7280; font-weight:600; text-align:left; }
-    .muted { color:#6b7280; }
-    .input { width:100%; border:1px solid #e5e7eb; border-radius:10px; padding:.55rem .7rem; }
-    .btn { border-radius:10px; padding:.55rem .85rem; border:1px solid #e5e7eb; background:#fff; }
-    .btn-primary { background:#111827; color:#fff; border-color:#111827; }
-    .btn-danger { background:#ef4444; color:#fff; border-color:#ef4444; }
+    * { font-family: 'Inter', sans-serif; }
+    body { background-color: #F9FAFB; color: #111827; }
+
+    .sidebar { background: linear-gradient(180deg, #374151 0%, #111827 100%); transition: all 0.3s; }
+    .nav-item { transition: all 0.2s; border-left: 4px solid transparent; cursor: pointer; color: #D1D5DB; }
+    .nav-item:hover { background: rgba(251, 191, 36, 0.1); color: #FBBF24; }
+    .nav-item.active { background: rgba(251, 191, 36, 0.15); color: #FBBF24; border-left-color: #FBBF24; font-weight: 600; }
+
+    .status-container { position: relative; display: inline-flex; align-items: center; }
+    .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; cursor: help; }
+    .st-critical { background-color: #EF4444; box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2); }
+    .st-risk { background-color: #F59E0B; box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.18); }
+    .st-healthy { background-color: #10B981; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.18); }
+    .st-new { background-color: #3B82F6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18); }
+
+    .tooltip-text {
+      visibility: hidden; width: 260px; background-color: #111827; color: #fff; text-align: left;
+      border-radius: 8px; padding: 10px; position: absolute; z-index: 50; bottom: 135%; left: 50%;
+      margin-left: -130px; opacity: 0; transition: opacity 0.2s; font-size: 11px; font-weight: 500;
+      pointer-events: none; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); border: 1px solid #374151;
+      line-height: 1.35;
+    }
+    .tooltip-text::after {
+      content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px;
+      border-width: 5px; border-style: solid; border-color: #111827 transparent transparent transparent;
+    }
+    .status-container:hover .tooltip-text { visibility: visible; opacity: 1; }
+
+    .view-section { display: none; animation: fadeIn 0.3s ease-in-out; }
+    .view-section.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { background: rgba(17,24,39,0.02); }
+    .sort-icon { font-size: 10px; margin-left: 6px; color: #9CA3AF; }
+
+    /* KPI tiles */
+    .kpi-tile { background: #fff; border: 1px solid #F3F4F6; border-radius: 16px; padding: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+    .kpi-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .12em; color: #9CA3AF; }
+    .kpi-value { font-size: 20px; font-weight: 800; margin-top: 6px; color: #111827; }
+    .kpi-sub { font-size: 12px; font-weight: 600; margin-top: 2px; color: #6B7280; }
+
+    /* ✅ Client Health fixed scroll height */
+    .client-health-scroll {
+      max-height: 315px; /* ~5 rows visible */
+      overflow-y: auto;
+    }
   </style>
 </head>
 
-<body class="min-h-screen">
-  <div class="flex min-h-screen">
+<body class="h-screen flex overflow-hidden">
 
-    <!-- Sidebar -->
-    <aside class="sidebar p-4 flex flex-col">
-      <div class="flex items-center gap-2 mb-6">
-        <div class="w-9 h-9 rounded-xl bg-orange-500 flex items-center justify-center font-bold">CH</div>
+  <!-- Sidebar -->
+  <aside class="sidebar w-64 flex-shrink-0 hidden lg:flex flex-col">
+    <div class="h-16 flex items-center px-6 border-b border-gray-700">
+      <div class="w-8 h-8 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-lg flex items-center justify-center text-gray-900 font-bold mr-3 shadow-lg shadow-yellow-500/20">CH</div>
+      <span class="font-bold text-white tracking-tight">COMMAND CENTER</span>
+    </div>
+
+    <div class="flex-1 overflow-y-auto py-6 space-y-8">
+      <div>
+        <div class="px-6 mb-2 text-[10px] font-bold uppercase text-gray-400 tracking-wider">Operations</div>
+        <nav class="space-y-1">
+          <a href="#overview" class="nav-item active flex items-center px-6 py-3 text-sm" onclick="Admin.nav('overview', this)">
+            <i class="fa-solid fa-satellite-dish w-5 text-center"></i> Overview
+          </a>
+          <a href="#clients" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('clients', this)">
+            <i class="fa-solid fa-building w-5 text-center"></i> Passbook Clients
+          </a>
+          <a href="#leads" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('leads', this)">
+            <i class="fa-solid fa-list-check w-5 text-center"></i> Leads Tracker
+          </a>
+        </nav>
+      </div>
+
+      <div>
+        <div class="px-6 mb-2 text-[10px] font-bold uppercase text-gray-400 tracking-wider">Management</div>
+        <nav class="space-y-1">
+          <a href="#" class="nav-item flex items-center px-6 py-3 text-sm opacity-50 cursor-not-allowed">
+            <i class="fa-solid fa-file-invoice-dollar w-5 text-center"></i> Payroll & Finance
+          </a>
+          <a href="#" class="nav-item flex items-center px-6 py-3 text-sm opacity-50 cursor-not-allowed">
+            <i class="fa-solid fa-users-gear w-5 text-center"></i> HR & Agents
+          </a>
+        </nav>
+      </div>
+    </div>
+
+    <div class="p-4 border-t border-gray-700 bg-gray-800/50">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-gray-700 to-gray-600 flex items-center justify-center text-xs font-bold text-white border border-gray-500">AD</div>
         <div>
-          <div class="font-extrabold leading-tight">COMMAND CENTER</div>
-          <div class="text-xs text-gray-300 -mt-0.5">Admin</div>
+          <p class="text-xs font-bold text-white">Admin Access</p>
+          <button onclick="portal.logout()" class="text-[10px] text-gray-400 hover:text-yellow-400 uppercase font-bold tracking-wide transition-colors">Log Out</button>
         </div>
       </div>
+    </div>
+  </aside>
 
-      <div class="text-xs text-gray-400 uppercase tracking-widest mb-2">Operations</div>
-
-      <div id="nav-overview" class="navitem active">📊 <span>Overview</span></div>
-      <div id="nav-passbook" class="navitem">📒 <span>Passbook Clients</span></div>
-      <div id="nav-leads" class="navitem">🧾 <span>Leads Tracker</span></div>
-      <div id="nav-agents" class="navitem">👥 <span>Agents</span></div>
-
-      <div class="mt-auto pt-6 border-t border-white/10">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center font-bold">AD</div>
-          <div class="flex-1">
-            <div class="text-sm font-semibold">Admin Access</div>
-            <button class="text-xs text-gray-300 hover:text-white" onclick="window.portal.logout()">LOG OUT</button>
-          </div>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Main -->
-    <main class="flex-1 p-6 lg:p-10">
-      <div class="flex items-start justify-between gap-4 mb-6">
-        <div>
-          <div class="text-3xl font-extrabold text-gray-900">Mission Control</div>
-          <div class="text-sm text-gray-500">Daily decision support & system health.</div>
-        </div>
-
-        <!-- ✅ Removed the EST VALUE + PENDING cards (as requested) -->
-      </div>
-
-      <!-- Global time controls -->
-      <div class="card p-4 mb-6">
-        <div class="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-4">
-          <div class="flex flex-wrap gap-2" id="time-chips">
-            <button class="chip active" data-range="today">Today</button>
-            <button class="chip" data-range="this-week">This Week</button>
-            <button class="chip" data-range="previous-week">Previous Week</button>
-            <button class="chip" data-range="4-weeks">4 Weeks</button>
-            <button class="chip" data-range="6-weeks">6 Weeks</button>
-            <button class="chip" data-range="all-time">All-Time</button>
-          </div>
-
-          <!-- Calendar override -->
-          <div class="flex items-center gap-2 lg:ml-auto">
-            <div class="text-sm text-gray-600 font-semibold">Custom Range:</div>
-            <input id="custom-start" type="date" class="input w-[160px]" />
-            <span class="text-gray-400">to</span>
-            <input id="custom-end" type="date" class="input w-[160px]" />
-            <button id="apply-custom" class="btn btn-primary">Apply</button>
-            <button id="clear-custom" class="btn">Clear</button>
-          </div>
-        </div>
-
-        <div class="text-xs text-gray-500 mt-2">
-          Tip: Use Today/This Week/etc OR set a custom calendar range (overrides chips).
-        </div>
-      </div>
+  <!-- Main -->
+  <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+    <div class="flex-1 overflow-y-auto p-6 lg:p-8" id="main-scroll">
 
       <!-- OVERVIEW -->
-      <section id="page-overview" class="space-y-6">
+      <div id="view-overview" class="view-section active">
 
-        <!-- Client Health Monitor -->
-        <div class="card p-5">
-          <div class="flex items-center justify-between gap-3 mb-3">
-            <div class="font-extrabold text-gray-900 flex items-center gap-2">💓 Client Health Monitor</div>
-            <div class="flex items-center gap-2 w-full max-w-3xl">
-              <input id="health-search" class="input" placeholder="Search by code, roofing company, city/state, or client name..." />
-              <select id="health-status-filter" class="input w-[160px]">
-                <option value="">All Status</option>
+        <!-- Top Header -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+          <div>
+            <h1 class="text-3xl font-bold text-gray-900">Mission Control</h1>
+            <p class="text-sm text-gray-500 mt-1">Daily decision support & system health.</p>
+          </div>
+
+          <div class="flex gap-4">
+            <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
+              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Est. Value (Today)</p>
+              <p class="text-lg font-bold text-emerald-600 mt-1" id="pulse-profit">$0.00</p>
+            </div>
+            <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
+              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pending</p>
+              <p class="text-lg font-bold text-yellow-500 mt-1" id="pulse-pending">0</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ✅ CLIENT HEALTH (5 ROWS + SCROLL) -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8">
+          <div class="p-5 border-b border-gray-100 flex flex-col gap-3 bg-gray-50/50 rounded-t-2xl">
+            <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
+              <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                <i class="fa-solid fa-heart-pulse text-red-500"></i> Client Health Monitor
+              </h3>
+
+              <div class="flex items-center gap-3">
+                <div class="status-container">
+                  <span class="status-dot st-critical"></span>
+                  <span class="tooltip-text"><b>CRITICAL</b><br>No lead delivered in more than 48 hours.</span>
+                </div>
+                <div class="status-container">
+                  <span class="status-dot st-risk"></span>
+                  <span class="tooltip-text"><b>AT RISK</b><br>Lead within 48 hours but not healthy / no lead today & yesterday.</span>
+                </div>
+                <div class="status-container">
+                  <span class="status-dot st-healthy"></span>
+                  <span class="tooltip-text"><b>HEALTHY</b><br>At least 1 lead today AND at least 1 lead yesterday.</span>
+                </div>
+                <div class="status-container">
+                  <span class="status-dot st-new"></span>
+                  <span class="tooltip-text"><b>NOT STARTED</b><br>New campaign.</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex flex-col md:flex-row gap-3">
+              <div class="flex-1 relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+                <input
+                  id="health-search"
+                  type="text"
+                  placeholder="Search by code, roofing company, city/state, or client name..."
+                  class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                />
+              </div>
+
+              <select id="health-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
+                <option value="all">All Status</option>
               </select>
-              <button id="health-clear" class="btn">Clear</button>
+
+              <select id="health-filter-city" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[190px]">
+                <option value="all">All City/State</option>
+              </select>
+
+              <button id="health-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
+                Clear
+              </button>
             </div>
           </div>
 
-          <div class="overflow-auto">
-            <table id="health-table">
-              <thead>
+          <!-- ✅ scroll wrapper -->
+          <div class="client-health-scroll">
+            <table class="w-full text-left border-collapse">
+              <thead class="bg-white sticky top-0 z-10 shadow-sm">
                 <tr>
-                  <th>STATUS</th>
-                  <th>CODE</th>
-                  <th>ROOFING COMPANY</th>
-                  <th>CITY, STATE</th>
-                  <th>CLIENT NAME</th>
-                  <th>LAST LEAD RECEIVED</th>
-                  <th>PACKAGE (OWED/PURCHASED)</th>
-                  <th>HOURS SINCE</th>
-                  <th>LEADS TODAY</th>
-                  <th>LEADS YESTERDAY</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase w-10">Status</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="code">Code <span class="sort-icon" id="sort-code">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="roofingCompany">Roofing Company <span class="sort-icon" id="sort-roofingCompany">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="cityState">City, State <span class="sort-icon" id="sort-cityState">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="clientName">Client Name <span class="sort-icon" id="sort-clientName">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase">Last Lead Received</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="packageRatio">Package (Owed/Purchased) <span class="sort-icon" id="sort-packageRatio">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="hoursSince">Hours Since <span class="sort-icon" id="sort-hoursSince">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsToday">Leads Today <span class="sort-icon" id="sort-leadsToday">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsYesterday">Leads Yesterday <span class="sort-icon" id="sort-leadsYesterday">↕</span></th>
                 </tr>
               </thead>
-              <tbody></tbody>
+
+              <tbody id="client-health-body" class="text-sm divide-y divide-gray-50">
+                <tr><td colspan="10" class="p-6 text-center text-gray-400 italic">Loading clients...</td></tr>
+              </tbody>
             </table>
           </div>
         </div>
 
-        <!-- Team Performance Analytics -->
-        <div class="card p-5">
-          <div class="flex items-center justify-between mb-3">
-            <div class="font-extrabold text-gray-900 flex items-center gap-2">📈 Team Performance Analytics</div>
-            <div class="text-sm text-gray-500" id="analytics-range-label"></div>
-          </div>
+        <!-- ✅ TEAM ANALYTICS -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8 overflow-hidden">
+          <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-gray-50/50">
+            <h3 class="font-bold text-gray-900 flex items-center gap-2">
+              <i class="fa-solid fa-chart-column text-yellow-500"></i> Team Performance Analytics
+            </h3>
 
-          <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
-            <div class="card p-4">
-              <div class="text-xs muted font-semibold">TOTAL LEADS</div>
-              <div class="text-2xl font-extrabold" id="metric-total">0</div>
-              <div class="text-xs muted" id="metric-total-sub"></div>
-            </div>
-            <div class="card p-4">
-              <div class="text-xs muted font-semibold">QUALIFIED</div>
-              <div class="text-2xl font-extrabold text-green-600" id="metric-qualified">0</div>
-              <div class="text-xs muted">Confirmed / Approved</div>
-            </div>
-            <div class="card p-4">
-              <div class="text-xs muted font-semibold">UNQUALIFIED</div>
-              <div class="text-2xl font-extrabold text-red-500" id="metric-unqualified">0</div>
-              <div class="text-xs muted">Rejected / Credited</div>
-            </div>
-            <div class="card p-4">
-              <div class="text-xs muted font-semibold">PENDING</div>
-              <div class="text-2xl font-extrabold text-orange-500" id="metric-pending">0</div>
-              <div class="text-xs muted">Needs review</div>
-            </div>
-            <div class="card p-4">
-              <div class="text-xs muted font-semibold">CANCELLATION RATE</div>
-              <div class="text-2xl font-extrabold" id="metric-cancel">0%</div>
-              <div class="text-xs muted">Unqualified / (Qualified + Unqualified)</div>
+            <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
+              <button onclick="Admin.setAnalyticsPeriod('today', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
+              <button onclick="Admin.setAnalyticsPeriod('this-week', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
+              <button onclick="Admin.setAnalyticsPeriod('previous-week', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Previous Week</button>
+              <button onclick="Admin.setAnalyticsPeriod('4-weeks', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">4 Weeks</button>
+              <button onclick="Admin.setAnalyticsPeriod('6-weeks', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">6 Weeks</button>
+              <button onclick="Admin.setAnalyticsPeriod('all-time', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
             </div>
           </div>
 
-          <!-- Trend chart -->
-          <div class="mt-5">
-            <div class="text-xs muted font-bold mb-2">TREND (STACKED)</div>
-            <div class="card p-4">
-              <canvas id="trendChart" height="110"></canvas>
-              <div class="text-xs text-gray-500 mt-2">
-                Trend shows daily counts by status (Qualified / Unqualified / Pending) based on RAW LEADS submission date.
+          <div class="p-5">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-5">
+              <div class="kpi-tile">
+                <div class="kpi-label">Total Leads</div>
+                <div class="kpi-value" id="kpi-total">0</div>
+                <div class="kpi-sub" id="kpi-range">—</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">Qualified</div>
+                <div class="kpi-value text-emerald-600" id="kpi-qualified">0</div>
+                <div class="kpi-sub">Confirmed / Approved</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">Unqualified</div>
+                <div class="kpi-value text-red-500" id="kpi-unqualified">0</div>
+                <div class="kpi-sub">Rejected / Credited</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">Pending</div>
+                <div class="kpi-value text-yellow-600" id="kpi-pending">0</div>
+                <div class="kpi-sub">Needs review</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">Cancellation Rate</div>
+                <div class="kpi-value" id="kpi-cancel">0%</div>
+                <div class="kpi-sub">Unqualified / (Qualified + Unqualified)</div>
+              </div>
+            </div>
+
+            <div class="bg-white border border-gray-100 rounded-2xl p-4">
+              <div class="flex items-center justify-between mb-2">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Trend (stacked)</p>
+                <p class="text-xs text-gray-400" id="trend-grain">—</p>
+              </div>
+              <div class="w-full overflow-x-auto">
+                <div class="min-w-[720px]">
+                  <canvas id="team-analytics-chart" height="110"></canvas>
+                </div>
               </div>
             </div>
           </div>
+
+          <!-- ✅ TOP 10 + BOTTOM 5 (fixed layout + correct headers) -->
+          <div class="border-t border-gray-100 p-5 bg-gray-50/40 space-y-6">
+
+            <!-- TOP 10 -->
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="font-bold text-gray-900 flex items-center gap-2">
+                  <i class="fa-solid fa-trophy text-yellow-500"></i> Top 10 Agents (Qualified Leads Only)
+                </h4>
+                <span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider" id="top10-label">—</span>
+              </div>
+
+              <div class="overflow-x-auto bg-white rounded-2xl border border-gray-100">
+                <table class="w-full text-left text-sm">
+                  <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+                    <tr>
+                      <th class="p-4">Agent</th>
+                      <th class="p-4 text-center">Total</th>
+                      <th class="p-4 text-center text-emerald-600">Qualified</th>
+                      <th class="p-4 text-center text-red-500">Unqualified</th>
+                      <th class="p-4 text-center">Cancellation Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody id="top10-body" class="divide-y divide-gray-50">
+                    <tr><td colspan="5" class="p-6 text-center text-gray-400 italic">Calculating...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- BOTTOM 5 -->
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="font-bold text-gray-900 flex items-center gap-2">
+                  <i class="fa-solid fa-arrow-down-wide-short text-red-500"></i> Bottom 5 Agents (Lowest Leads Set)
+                </h4>
+                <span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider" id="bottom5-label">—</span>
+              </div>
+
+              <div class="overflow-x-auto bg-white rounded-2xl border border-gray-100">
+                <table class="w-full text-left text-sm">
+                  <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+                    <tr>
+                      <th class="p-4">Agent</th>
+                      <th class="p-4 text-center">Total</th>
+                      <th class="p-4 text-center text-emerald-600">Qualified</th>
+                      <th class="p-4 text-center text-red-500">Unqualified</th>
+                      <th class="p-4 text-center">Cancellation Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody id="bottom5-body" class="divide-y divide-gray-50">
+                    <tr><td colspan="5" class="p-6 text-center text-gray-400 italic">Calculating...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
         </div>
 
-        <!-- Top/Bottom agents -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div class="card p-5">
-            <div class="font-extrabold text-gray-900 flex items-center gap-2 mb-3">🏆 Top 10 Agents (Qualified Leads Only)</div>
-            <div class="overflow-auto">
-              <table id="top10-table">
-                <thead>
-                  <tr><th>AGENT</th><th>TOTAL</th><th>QUALIFIED</th><th>UNQUALIFIED</th><th>CANCELLATION RATE</th></tr>
-                </thead>
-                <tbody></tbody>
-              </table>
+        <!-- Team Performance table (unchanged but will still show properly) -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm mb-8">
+          <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-gray-50/50 rounded-t-2xl">
+            <h3 class="font-bold text-gray-900 flex items-center gap-2">
+              <i class="fa-solid fa-users-viewfinder text-yellow-500"></i> Team Performance (All Agents)
+            </h3>
+            <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
+              <button onclick="Admin.updatePerf('today', this)" class="perf-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
+              <button onclick="Admin.updatePerf('this-week', this)" class="perf-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
+              <button onclick="Admin.updatePerf('previous-week', this)" class="perf-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Previous Week</button>
+              <button onclick="Admin.updatePerf('4-weeks', this)" class="perf-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">4 Weeks</button>
+              <button onclick="Admin.updatePerf('6-weeks', this)" class="perf-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">6 Weeks</button>
+              <button onclick="Admin.updatePerf('all-time', this)" class="perf-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
             </div>
           </div>
 
-          <div class="card p-5">
-            <div class="font-extrabold text-gray-900 flex items-center gap-2 mb-3">📉 Bottom 5 Agents (Lowest Leads Set)</div>
-            <div class="overflow-auto">
-              <table id="bottom5-table">
-                <thead>
-                  <tr><th>AGENT</th><th>TOTAL</th><th>QUALIFIED</th><th>UNQUALIFIED</th><th>CANCELLATION RATE</th></tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-      </section>
-
-      <!-- PASSBOOK CLIENTS -->
-      <section id="page-passbook" class="space-y-6 hidden">
-        <div class="card p-5">
-          <div class="flex items-center justify-between gap-3 mb-3">
-            <div class="font-extrabold text-gray-900 flex items-center gap-2">📒 Passbook Clients</div>
-            <div class="flex items-center gap-2 w-full max-w-3xl">
-              <input id="passbook-search" class="input" placeholder="Search client by code / company / email / phone..." />
-              <select id="passbook-status-filter" class="input w-[160px]">
-                <option value="">All Status</option>
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="BLACKLISTED">BLACKLISTED</option>
-              </select>
-              <button id="passbook-clear" class="btn">Clear</button>
-            </div>
-          </div>
-
-          <div class="overflow-auto">
-            <table id="passbook-table">
-              <thead>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
                 <tr>
-                  <th>CODE</th>
-                  <th>COMPANY</th>
-                  <th>PHONE</th>
-                  <th>AREA CODES</th>
-                  <th>EMAIL</th>
-                  <th>WEBSITE</th>
-                  <th>STATUS</th>
-                  <th>PACKAGE (OWED/PURCHASED)</th>
-                  <th>ONBOARDING</th>
+                  <th class="p-4">Agent Name</th>
+                  <th class="p-4 text-center">Total Leads</th>
+                  <th class="p-4 text-center text-emerald-600">Qualified</th>
+                  <th class="p-4 text-center text-red-500">Unqualified</th>
+                  <th class="p-4 text-center">Cancellation Rate</th>
                 </tr>
               </thead>
-              <tbody></tbody>
+              <tbody id="agent-perf-body" class="divide-y divide-gray-50">
+                <tr><td colspan="5" class="p-6 text-center text-gray-400 italic">Calculating performance...</td></tr>
+              </tbody>
             </table>
           </div>
+        </div>
+      </div>
 
-          <div class="text-xs text-gray-500 mt-3">
-            ✅ Onboarding edit + writeback to Google Sheet requires an n8n webhook (I give you the exact webhook spec below).
+      <!-- CLIENTS VIEW -->
+      <div id="view-clients" class="view-section">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">Passbook Clients</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="client-cards-container">
+          <div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">
+            Waiting for admin data...
           </div>
         </div>
-      </section>
+      </div>
 
-      <!-- LEADS TRACKER -->
-      <section id="page-leads" class="space-y-6 hidden">
-        <div class="card p-5">
-          <div class="flex items-center justify-between gap-3 mb-3">
-            <div class="font-extrabold text-gray-900 flex items-center gap-2">🧾 Leads Tracker</div>
-            <div class="flex items-center gap-2 w-full max-w-5xl">
-              <input id="leads-search" class="input" placeholder="Search homeowner / coordinator / agent / company / status..." />
-              <input id="leads-date-start" type="date" class="input w-[170px]" />
-              <input id="leads-date-end" type="date" class="input w-[170px]" />
-              <select id="leads-status-filter" class="input w-[170px]">
-                <option value="">All Status</option>
-                <option value="CONFIRMED">Confirmed</option>
-                <option value="APPROVED">Approved</option>
-                <option value="PENDING">Pending Review</option>
-                <option value="REJECTED">Rejected</option>
-                <option value="CREDITED">Credited</option>
-              </select>
-              <button id="leads-clear" class="btn">Clear</button>
-            </div>
-          </div>
-
-          <div class="overflow-auto">
-            <table id="leads-table">
-              <thead>
+      <!-- LEADS VIEW -->
+      <div id="view-leads" class="view-section">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">Leads Master Record</h2>
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm whitespace-nowrap">
+              <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
                 <tr>
-                  <th>SUBMITTED</th>
-                  <th>HOMEOWNER</th>
-                  <th>COMPANY NAME</th>
-                  <th>APPT COORDINATOR</th>
-                  <th>AGENT</th>
-                  <th>STATUS</th>
-                  <th>UPDATE</th>
+                  <th class="p-4">Date</th>
+                  <th class="p-4">Homeowner</th>
+                  <th class="p-4">Appointment Coordinator</th>
+                  <th class="p-4">Client</th>
+                  <th class="p-4">Status</th>
                 </tr>
               </thead>
-              <tbody></tbody>
+              <tbody id="leads-table-body" class="divide-y divide-gray-50">
+                <tr><td colspan="5" class="p-6 text-center text-gray-400">Loading leads...</td></tr>
+              </tbody>
             </table>
           </div>
-
-          <div class="text-xs text-gray-500 mt-3">
-            ✅ Status update writeback requires an n8n webhook. (Exact payload spec below.)
-          </div>
         </div>
-      </section>
+      </div>
 
-      <!-- AGENTS -->
-      <section id="page-agents" class="space-y-6 hidden">
-        <div class="card p-5">
-          <div class="flex items-center justify-between gap-3 mb-3">
-            <div class="font-extrabold text-gray-900 flex items-center gap-2">👥 Agents</div>
-            <div class="flex items-center gap-2 w-full max-w-4xl">
-              <input id="agents-search" class="input" placeholder="Search by name / email / role / status..." />
-              <select id="agents-lead-filter" class="input w-[220px]">
-                <option value="">All Agents</option>
-                <option value="has-qualified">Has Qualified Leads</option>
-                <option value="has-unqualified">Has Unqualified Leads</option>
-                <option value="has-pending">Has Pending Leads</option>
-              </select>
-              <button id="agents-clear" class="btn">Clear</button>
-            </div>
-          </div>
+    </div>
+  </main>
 
-          <div class="overflow-auto">
-            <table id="agents-table">
-              <thead>
-                <tr>
-                  <th>EMPLOYEE</th>
-                  <th>EMAIL</th>
-                  <th>ROLE</th>
-                  <th>POSITION</th>
-                  <th>EMP STATUS</th>
-                  <th>START DATE</th>
-                  <th>BASE RATE</th>
-                  <th>WEEKLY HOURS</th>
-                  <th class="text-right">LEADS (RANGE)</th>
-                  <th class="text-right">LEADS (ALL TIME)</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
+  <script>
+    const AdminDashboard = {
+      perfPeriod: 'today',
+      analyticsPeriod: 'today',
 
-          <div class="text-xs text-gray-500 mt-3">
-            Counts are computed from RAW LEADS (range + all-time).
-          </div>
-        </div>
-      </section>
+      clientHealthRaw: [],
+      clientHealthView: [],
+      sortState: { key: null, dir: 'asc' },
 
-      <script src="main.js"></script>
+      _companyToCodeMap: null,
+      _companyToPackageMap: null,
 
-      <script>
-        // Tabs
-        const tabs = [
-          { nav: 'nav-overview', page: 'page-overview' },
-          { nav: 'nav-passbook', page: 'page-passbook' },
-          { nav: 'nav-leads', page: 'page-leads' },
-          { nav: 'nav-agents', page: 'page-agents' },
-        ];
+      _analyticsChart: null,
 
-        function setActiveTab(navId) {
-          tabs.forEach(t => {
-            document.getElementById(t.nav).classList.toggle('active', t.nav === navId);
-            document.getElementById(t.page).classList.toggle('hidden', t.nav !== navId);
+      getState() {
+        return (window.portal && window.portal.adminState) ? window.portal.adminState : null;
+      },
+
+      refreshDashboard() {
+        const state = this.getState();
+        if (!state) return;
+
+        const clients = Array.isArray(state.clients) ? state.clients : [];
+        const leads   = Array.isArray(state.leads) ? state.leads : [];
+        const agents  = Array.isArray(state.agents) ? state.agents : [];
+
+        this._companyToCodeMap = null;
+        this._companyToPackageMap = null;
+
+        try { this.renderPulse(leads); } catch(e) {}
+        try {
+          this.clientHealthRaw = this.normalizeClientHealthRows(clients);
+          this.setupFilters(this.clientHealthRaw);
+          this.applyClientHealthFilters();
+        } catch(e) {}
+
+        try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
+        try { this.updatePerf(this.perfPeriod); } catch(e) {}
+        try { this.renderClientCards(clients); } catch(e) {}
+        try { this.renderLeads(leads); } catch(e) {}
+      },
+
+      pick(obj, keys, fallback = "") {
+        for (const k of keys) {
+          const v = obj?.[k];
+          if (v !== undefined && v !== null && String(v).trim() !== "") return v;
+        }
+        return fallback;
+      },
+
+      normalizeCompanyName(name) {
+        return String(name || "")
+          .toLowerCase()
+          .replace(/&/g, "and")
+          .replace(/[^a-z0-9\s]/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+      },
+
+      normalizeClientStatus(v) {
+        const s = String(v || "").trim().toUpperCase();
+        if (s.includes("CRITICAL")) return "CRITICAL";
+        if (s.includes("YELLOW") || s.includes("RISK") || s.includes("AT RISK")) return "AT RISK";
+        if (s.includes("GREEN") || s.includes("HEALTHY")) return "HEALTHY";
+        if (s.includes("NOT STARTED") || s.includes("BLUE")) return "NOT STARTED";
+        return s || "UNKNOWN";
+      },
+
+      statusDotClass(clientStatus) {
+        if (clientStatus === "CRITICAL") return "st-critical";
+        if (clientStatus === "AT RISK") return "st-risk";
+        if (clientStatus === "HEALTHY") return "st-healthy";
+        return "st-new";
+      },
+
+      extractRoofingCompany(c) {
+  return this.pick(c, [
+    // ✅ healthMonitor normalized
+    "roofing_company",
+    // fallback (sheet-style)
+    "Roofing Company",
+    "Roofing Company Name",
+    "ROOFING COMPANY",
+    "Company Name",
+    "COMPANY NAME"
+  ], "—");
+},
+
+extractCityState(c) {
+  return this.pick(c, [
+    // ✅ healthMonitor normalized
+    "city_state",
+    // fallback
+    "CITY STATE",
+    "CITY, STATE",
+    "City, State",
+    "City State",
+    "Location",
+    "location"
+  ], "—");
+},
+
+extractClientName(c) {
+  return this.pick(c, [
+    // ✅ healthMonitor normalized
+    "client_name",
+    // fallback
+    "CLIENT NAME",
+    "Client Name",
+    "client_name",
+    "clientName",
+    "Client",
+    "CLIENT"
+  ], "—");
+},
+
+extractCode(c) {
+  return this.pick(c, [
+    // ✅ healthMonitor normalized
+    "code_name",
+    // fallback
+    "CODE NAME",
+    "Code Name",
+    "codeName",
+    "code_name",
+    "CODE",
+    "code",
+    "Client Code",
+    "CLIENT CODE",
+    "Client ID",
+    "ClientID"
+  ], "N/A");
+},
+
+      normalizeClientHealthRows(clients) {
+  return (clients || []).map(c => {
+    const rawStatus = this.pick(c, [
+      // ✅ healthMonitor normalized
+      "status",
+      // fallback
+      "Client Status","CLIENT STATUS","Status","STATUS","status"
+    ], "UNKNOWN");
+
+    const clientStatus = this.normalizeClientStatus(rawStatus);
+
+    const roofingCompany = this.extractRoofingCompany(c);
+    const code = this.extractCode(c);
+    const cityState = this.extractCityState(c);
+    const clientName = this.extractClientName(c);
+
+    const lastLead = this.pick(c, [
+      // ✅ healthMonitor normalized
+      "last_lead_received",
+      // fallback
+      "Last Lead Received","last_lead_received"
+    ], "—");
+
+    const hoursSince = Number(this.pick(c, [
+      // ✅ healthMonitor normalized
+      "hours_since_last_lead",
+      // fallback
+      "Hours Since Last Lead","Hours Since","hours_since_last_lead"
+    ], 0)) || 0;
+
+    const leadsToday = Number(this.pick(c, [
+      // ✅ healthMonitor normalized
+      "leads_today",
+      // fallback
+      "Leads Today","leads_today"
+    ], 0)) || 0;
+
+    const leadsYesterday = Number(this.pick(c, [
+      // ✅ healthMonitor normalized
+      "leads_yesterday",
+      // fallback
+      "Leads Yesterday","leads_yesterday"
+    ], 0)) || 0;
+
+    // ✅ package fields: healthMonitor uses snake_case
+    const owed = Number(this.pick(c, [
+      "owed_leads",        // ✅ healthMonitor
+      "Owed Leads","OWED LEADS","owed_leads","Owed"
+    ], 0)) || 0;
+
+    const purchased = Number(this.pick(c, [
+      "purchased_leads",   // ✅ healthMonitor
+      "Purchased Leads","PURCHASED LEADS","purchased_leads","Purchased"
+    ], 0)) || 0;
+
+    const pkgLabel = `${owed} / ${purchased}`;
+    const pkgRatio = purchased === 0 ? owed : (owed / purchased);
+
+    return {
+      _raw: c,
+      status: clientStatus,
+      code,
+      roofingCompany,
+      cityState,
+      clientName,
+      lastLead,
+      packageLabel: pkgLabel,
+      packageRatio: pkgRatio,
+      hoursSince,
+      leadsToday,
+      leadsYesterday,
+    };
+  });
+},
+
+      setupFilters(rows) {
+        const statusSel = document.getElementById("health-filter-status");
+        const citySel = document.getElementById("health-filter-city");
+
+        const alwaysStatuses = ["CRITICAL", "AT RISK", "HEALTHY", "NOT STARTED"];
+        const foundStatuses = [...new Set(rows.map(r => r.status))].filter(Boolean);
+        const statuses = [...new Set([...alwaysStatuses, ...foundStatuses])];
+
+        statusSel.innerHTML =
+          `<option value="all">All Status</option>` +
+          statuses.map(s => `<option value="${s}">${s}</option>`).join("");
+
+        const cities = [...new Set(rows.map(r => r.cityState).filter(Boolean))].sort();
+        citySel.innerHTML = `<option value="all">All City/State</option>` + cities.map(s => `<option value="${s}">${s}</option>`).join("");
+
+        if (!this._filtersBound) {
+          this._filtersBound = true;
+
+          document.getElementById("health-search").addEventListener("input", () => this.applyClientHealthFilters());
+          statusSel.addEventListener("change", () => this.applyClientHealthFilters());
+          citySel.addEventListener("change", () => this.applyClientHealthFilters());
+
+          document.getElementById("health-clear").addEventListener("click", () => {
+            document.getElementById("health-search").value = "";
+            statusSel.value = "all";
+            citySel.value = "all";
+            this.applyClientHealthFilters();
           });
 
-          // refresh current page UI
-          window.portal?.adminDashboard?.refreshDashboard?.();
+          document.querySelectorAll("th.sortable").forEach(th => {
+            th.addEventListener("click", () => {
+              const key = th.getAttribute("data-sort");
+              this.toggleSort(key);
+              this.applyClientHealthFilters();
+            });
+          });
+        }
+      },
+
+      toggleSort(key) {
+        if (this.sortState.key === key) {
+          this.sortState.dir = this.sortState.dir === "asc" ? "desc" : "asc";
+        } else {
+          this.sortState.key = key;
+          this.sortState.dir = "asc";
         }
 
-        tabs.forEach(t => document.getElementById(t.nav).addEventListener('click', () => setActiveTab(t.nav)));
-      </script>
-    </main>
-  </div>
+        document.querySelectorAll(".sort-icon").forEach(i => i.textContent = "↕");
+        const icon = document.getElementById(`sort-${key}`);
+        if (icon) icon.textContent = this.sortState.dir === "asc" ? "↑" : "↓";
+      },
+
+      applyClientHealthFilters() {
+        const q = String(document.getElementById("health-search").value || "").toLowerCase().trim();
+        const status = document.getElementById("health-filter-status").value;
+        const city = document.getElementById("health-filter-city").value;
+
+        let filtered = [...this.clientHealthRaw];
+
+        if (status !== "all") filtered = filtered.filter(r => r.status === status);
+        if (city !== "all") filtered = filtered.filter(r => r.cityState === city);
+
+        if (q) {
+          filtered = filtered.filter(r => {
+            const hay = `${r.code} ${r.roofingCompany} ${r.cityState} ${r.clientName}`.toLowerCase();
+            return hay.includes(q);
+          });
+        }
+
+        const { key, dir } = this.sortState;
+        if (key) {
+          filtered.sort((a,b) => {
+            const A = a[key];
+            const B = b[key];
+            if (typeof A === "number" && typeof B === "number") return dir === "asc" ? A - B : B - A;
+            return dir === "asc" ? String(A).localeCompare(String(B)) : String(B).localeCompare(String(A));
+          });
+        }
+
+        this.clientHealthView = filtered;
+        this.renderClientHealthTable(filtered);
+      },
+
+      renderClientHealthTable(rows) {
+        const tbody = document.getElementById("client-health-body");
+        if (!rows.length) {
+          tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-gray-400 italic">No results found.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = rows.map(r => {
+          const dotClass = this.statusDotClass(r.status);
+          return `
+            <tr class="hover:bg-gray-50">
+              <td class="p-4">
+                <div class="status-container">
+                  <span class="status-dot ${dotClass}"></span>
+                  <span class="tooltip-text"><b>${r.status}</b></span>
+                </div>
+              </td>
+              <td class="p-4 text-gray-700 font-semibold">${r.code || "N/A"}</td>
+              <td class="p-4 font-bold text-gray-900 max-w-[260px] truncate" title="${r.roofingCompany}">${r.roofingCompany}</td>
+              <td class="p-4 text-gray-500 max-w-[170px] truncate" title="${r.cityState}">${r.cityState}</td>
+              <td class="p-4 text-gray-700 max-w-[220px] truncate" title="${r.clientName}">${r.clientName}</td>
+              <td class="p-4 text-gray-500">${r.lastLead}</td>
+              <td class="p-4 text-center text-gray-900 font-bold">${r.packageLabel}</td>
+              <td class="p-4 text-center text-gray-700 font-semibold">${r.hoursSince}</td>
+              <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsToday}</td>
+              <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsYesterday}</td>
+            </tr>
+          `;
+        }).join("");
+      },
+
+      renderPulse(leads) {
+        const today = new Date().toDateString();
+
+        // ✅ FIX: RAW LEADS header is "Date Submitted"
+        const todayLeads = (leads || []).filter(l => {
+          const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
+          const d = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+          return d && !isNaN(d.getTime()) && d.toDateString() === today;
+        });
+
+        const confirmed = todayLeads.filter(l => {
+          const st = this.pick(l, ["Status","STATUS"], "");
+          return this.isQualified(st);
+        });
+
+        const value = confirmed.length * 50;
+
+        const pending = (leads || []).filter(l =>
+          String(this.pick(l, ["Status","STATUS"], "")).toLowerCase().includes("pending")
+        );
+
+        document.getElementById('pulse-profit').textContent = `$${value.toFixed(2)}`;
+        document.getElementById('pulse-pending').textContent = pending.length;
+      },
+
+      setAnalyticsPeriod(period, btnElement) {
+        this.analyticsPeriod = period;
+
+        if (btnElement) {
+          document.querySelectorAll('.analytics-btn').forEach(b => {
+            b.classList.remove('bg-white', 'shadow', 'text-gray-900');
+            b.classList.add('text-gray-500');
+          });
+          btnElement.classList.add('bg-white', 'shadow', 'text-gray-900');
+          btnElement.classList.remove('text-gray-500');
+        }
+
+        this.updateAnalytics(period);
+      },
+
+      getRangeFor(period, leads) {
+        const now = new Date();
+        const payrollThis = window.portal?.getPayrollWeekRange ? window.portal.getPayrollWeekRange() : null;
+        const payrollPrev = window.portal?.getPreviousPayrollWeekRange ? window.portal.getPreviousPayrollWeekRange() : null;
+
+        const startOfDay = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+        const endOfDay = (d) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
+
+        if (period === "today") return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "Today" };
+        if (period === "this-week" && payrollThis) return { start: payrollThis.start, end: payrollThis.end, grain: "day", label: "This Week" };
+        if (period === "previous-week" && payrollPrev) return { start: payrollPrev.start, end: payrollPrev.end, grain: "day", label: "Previous Week" };
+
+        if (period === "4-weeks") {
+          const end = payrollThis ? payrollThis.end : endOfDay(now);
+          const start = new Date(end); start.setDate(start.getDate() - 27); start.setHours(0,0,0,0);
+          return { start, end, grain: "week", label: "Last 4 Weeks" };
+        }
+
+        if (period === "6-weeks") {
+          const end = payrollThis ? payrollThis.end : endOfDay(now);
+          const start = new Date(end); start.setDate(start.getDate() - 41); start.setHours(0,0,0,0);
+          return { start, end, grain: "week", label: "Last 6 Weeks" };
+        }
+
+        // all-time
+        const all = Array.isArray(leads) ? leads : [];
+        let min = null;
+        for (const l of all) {
+          const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED"], "");
+          const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+          if (!dt || isNaN(dt.getTime())) continue;
+          if (!min || dt < min) min = dt;
+        }
+        const start = min ? startOfDay(min) : startOfDay(now);
+        const end = payrollThis ? payrollThis.end : endOfDay(now);
+        return { start, end, grain: "month", label: "All-Time" };
+      },
+
+      isQualified(st) {
+        const s = String(st || "").toLowerCase();
+        return s.includes("confirm") || s.includes("approve");
+      },
+
+      isUnqualified(st) {
+        const s = String(st || "").toLowerCase();
+        return s.includes("reject") || s.includes("credit") || s.includes("cancel");
+      },
+
+      updateAnalytics(period) {
+        const state = this.getState();
+        const leads = (state && state.leads) ? state.leads : [];
+
+        const { start, end, grain, label } = this.getRangeFor(period, leads);
+
+        document.getElementById("kpi-range").textContent = `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
+        document.getElementById("top10-label").textContent = label;
+        document.getElementById("bottom5-label").textContent = label;
+
+        let total = 0, qualified = 0, unqualified = 0, pending = 0;
+
+        const agentAgg = new Map();
+
+        for (const l of (leads || [])) {
+          // ✅ RAW LEADS header is "Date Submitted"
+          const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
+          const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+          if (!dt || isNaN(dt.getTime())) continue;
+          if (dt < start || dt > end) continue;
+
+          const st = this.pick(l, ["Status","STATUS"], "");
+
+          // ✅ RAW LEADS header from your screenshot: Appointment Coordinator Name
+          const agent = String(this.pick(l, [
+            "Appointment Coordinator Name",
+            "Appointment Coordinator",
+            "Setter",
+            "Agent",
+            "Agent Name",
+            "AGENT"
+          ], "Unknown")).trim() || "Unknown";
+
+          total += 1;
+
+          const a = agentAgg.get(agent) || { name: agent, total: 0, qualified: 0, unqualified: 0 };
+          a.total += 1;
+
+          if (this.isQualified(st)) {
+            qualified += 1;
+            a.qualified += 1;
+          } else if (this.isUnqualified(st)) {
+            unqualified += 1;
+            a.unqualified += 1;
+          } else {
+            pending += 1;
+          }
+
+          agentAgg.set(agent, a);
+        }
+
+        const denom = qualified + unqualified;
+        const cancelRate = denom > 0 ? Math.round((unqualified / denom) * 100) : 0;
+
+        document.getElementById("kpi-total").textContent = total;
+        document.getElementById("kpi-qualified").textContent = qualified;
+        document.getElementById("kpi-unqualified").textContent = unqualified;
+        document.getElementById("kpi-pending").textContent = pending;
+        document.getElementById("kpi-cancel").textContent = `${cancelRate}%`;
+
+        // ✅ Top 10 by QUALIFIED ONLY
+        const top = Array.from(agentAgg.values())
+          .sort((a,b) => (b.qualified - a.qualified) || (b.total - a.total))
+          .slice(0, 10);
+
+        // ✅ Bottom 5 by LOWEST TOTAL leads set
+        let bottomCandidates = Array.from(agentAgg.values()).filter(a => a.total > 0);
+        if (bottomCandidates.length < 5) bottomCandidates = Array.from(agentAgg.values());
+
+        const bottom = bottomCandidates
+          .sort((a,b) => (a.total - b.total) || (a.qualified - b.qualified))
+          .slice(0, 5);
+
+        // Render tables
+        const renderRow = (a) => {
+          const d = a.qualified + a.unqualified;
+          const cr = d > 0 ? Math.round((a.unqualified / d) * 100) : 0;
+          return `
+            <tr>
+              <td class="p-4 font-bold text-gray-900">${a.name}</td>
+              <td class="p-4 text-center text-gray-600 font-semibold">${a.total}</td>
+              <td class="p-4 text-center text-emerald-600 font-bold">${a.qualified}</td>
+              <td class="p-4 text-center text-red-500 font-bold">${a.unqualified}</td>
+              <td class="p-4 text-center text-gray-600 font-semibold">${cr}%</td>
+            </tr>
+          `;
+        };
+
+        const topBody = document.getElementById("top10-body");
+        topBody.innerHTML = top.length
+          ? top.map(renderRow).join("")
+          : `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No leads in this period.</td></tr>`;
+
+        const bottomBody = document.getElementById("bottom5-body");
+        bottomBody.innerHTML = bottom.length
+          ? bottom.map(renderRow).join("")
+          : `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No leads in this period.</td></tr>`;
+      },
+
+      // ✅ Team Performance (All Agents) uses cancellation rate too
+      updatePerf(period, btnElement) {
+        this.perfPeriod = period;
+
+        if (btnElement) {
+          document.querySelectorAll('.perf-btn').forEach(b => {
+            b.classList.remove('bg-white', 'shadow', 'text-gray-900');
+            b.classList.add('text-gray-500');
+          });
+          btnElement.classList.add('bg-white', 'shadow', 'text-gray-900');
+          btnElement.classList.remove('text-gray-500');
+        }
+
+        const state = this.getState();
+        const agents = (state && state.agents) ? state.agents : [];
+        const leads  = (state && state.leads) ? state.leads : [];
+        const tbody = document.getElementById('agent-perf-body');
+
+        if (!agents.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No agents found.</td></tr>';
+          return;
+        }
+
+        const { start, end } = this.getRangeFor(period, leads);
+
+        tbody.innerHTML = agents.map(agent => {
+          const name = this.pick(agent, ["employeeName","Employee Name","EMPLOYEE NAME","name","Name"], "Unknown");
+
+          const agentLeads = (leads || []).filter(l => {
+            const lAgent = this.pick(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent"], "");
+            const dStr   = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date"], "");
+            const dt  = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+            if (!dt || isNaN(dt.getTime())) return false;
+
+            return String(lAgent).toLowerCase().includes(String(name).toLowerCase()) && dt >= start && dt <= end;
+          });
+
+          const total = agentLeads.length;
+          const qualified = agentLeads.filter(l => this.isQualified(this.pick(l, ["Status","STATUS"], ""))).length;
+          const unqualified = agentLeads.filter(l => this.isUnqualified(this.pick(l, ["Status","STATUS"], ""))).length;
+
+          const denom = qualified + unqualified;
+          const cancelRate = denom > 0 ? Math.round((unqualified / denom) * 100) : 0;
+
+          return `
+            <tr>
+              <td class="p-4 font-bold text-gray-900">${name}</td>
+              <td class="p-4 text-center text-gray-600">${total}</td>
+              <td class="p-4 text-center text-emerald-600 font-bold">${qualified}</td>
+              <td class="p-4 text-center text-red-500 font-bold">${unqualified}</td>
+              <td class="p-4 text-center text-gray-600 font-semibold">${cancelRate}%</td>
+            </tr>
+          `;
+        }).join('');
+      },
+
+      renderClientCards(clients) {
+        const container = document.getElementById('client-cards-container');
+        if (!clients || !clients.length) return;
+
+        container.innerHTML = clients.map(c => {
+          const name = this.extractRoofingCompany(c);
+          const code = this.extractCode(c);
+          const city = this.extractCityState(c);
+          return `
+            <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+              <div class="flex items-center justify-between">
+                <h3 class="font-bold text-gray-900 text-lg">${name}</h3>
+                <span class="text-xs font-bold text-gray-500">${code}</span>
+              </div>
+              <p class="text-xs text-gray-500 mt-1">${city}</p>
+            </div>
+          `;
+        }).join('');
+      },
+
+      renderLeads(leads) {
+        const tbody = document.getElementById('leads-table-body');
+
+        if (!leads || !leads.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400">No leads recorded.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = leads.map(l => {
+          const status = this.pick(l, ["Status","STATUS"], "New");
+          const date = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date"], "-");
+
+          const homeowner = this.pick(l, ["Homeowner Name(s)","Homeowner Name","HOMEOWNER NAME","Homeowner"], "Unknown");
+
+          const agent = this.pick(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent"], "-");
+          const client = this.pick(l, ["Company Name","COMPANY NAME","Client"], "-");
+
+          let statusColor = "text-gray-600 bg-gray-100";
+          const s = String(status).toLowerCase();
+          if (s.includes('approve') || s.includes('confirm')) statusColor = "text-emerald-700 bg-emerald-100";
+          if (s.includes('reject') || s.includes('credit')) statusColor = "text-red-700 bg-red-100";
+          if (s.includes('pending')) statusColor = "text-yellow-700 bg-yellow-100";
+
+          return `
+            <tr class="hover:bg-gray-50 transition">
+              <td class="p-4 text-gray-500">${date}</td>
+              <td class="p-4 font-bold text-gray-900">${homeowner}</td>
+              <td class="p-4 text-gray-500">${agent}</td>
+              <td class="p-4 text-gray-500">${client}</td>
+              <td class="p-4">
+                <span class="px-2 py-1 rounded text-xs font-bold uppercase ${statusColor}">${status}</span>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      },
+
+      nav(viewId, linkEl) {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        document.getElementById('view-' + viewId).classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        linkEl.classList.add('active');
+      }
+    };
+
+    window.adminDashboard = AdminDashboard;
+    window.Admin = AdminDashboard;
+  </script>
+
+  <script src="main.js"></script>
 </body>
 </html>
