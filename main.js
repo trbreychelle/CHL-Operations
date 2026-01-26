@@ -14,11 +14,13 @@ class CallHammerPortal {
 
     // Admin datasets (normalized + raw)
     this.adminState = {
-      clients: [],       // normalized for Client Health Monitor
-      leads: [],         // raw leads (RAW LEADS tab)
-      agents: [],        // normalized from AGENT_MASTER
-      rawStatuses: [],   // raw client status rows (Client Lead Delivery Tracker)
-      rawPackages: []    // raw package rows (Lead Package tab)
+      clients: [],        // normalized for Client Health Monitor
+      leads: [],          // raw leads (RAW LEADS tab)
+      agents: [],         // normalized from AGENT_MASTER
+      rawStatuses: [],    // raw client status rows (Client Lead Delivery Tracker)
+      rawPackages: [],    // raw package rows (Lead Package tab)
+      statusOptions: ['CRITICAL', 'AT RISK', 'HEALTHY', 'NOT STARTED'],
+      performance: null   // computed team performance payload
     };
 
     // Cache to avoid Google Sheets quota/too-many-requests issues
@@ -61,9 +63,10 @@ class CallHammerPortal {
       this.updateProfileUI();
       this.startMSTClock();
 
-      if ((this.currentUser.role || '').toLowerCase() === 'admin') {
+      const role = (this.currentUser.role || '').toLowerCase();
+      if (role === 'admin') {
         document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
-      } else if ((this.currentUser.role || '').toLowerCase() === 'team_leader') {
+      } else if (role === 'team_leader') {
         document.querySelectorAll('.tl-only').forEach(el => el.classList.remove('hidden'));
       }
     }
@@ -91,6 +94,57 @@ class CallHammerPortal {
     if (role === 'admin' && !onAdmin) window.location.href = 'admin-dashboard.html';
     else if (role === 'team_leader' && !onTL) window.location.href = 'team-leader-dashboard.html';
     else if (role === 'agent' && !onAgent) window.location.href = 'agent-dashboard.html';
+  }
+
+  // ------------------------
+  // Basic Session / Events (safe defaults)
+  // ------------------------
+  checkExistingSession() {
+    try {
+      const raw = localStorage.getItem('ch_session');
+      if (!raw) return;
+      const session = JSON.parse(raw);
+      if (session && session.user) this.currentUser = session.user;
+    } catch (e) {
+      console.warn('Session parse failed:', e);
+    }
+  }
+
+  bindEvents() {
+    // Optional hooks if you already have buttons wired in HTML
+    // (safe: no errors if elements don’t exist)
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        localStorage.removeItem('ch_session');
+        window.location.href = 'index.html';
+      });
+    }
+
+    // Admin performance period selector (optional)
+    document.addEventListener('change', (e) => {
+      const t = e.target;
+      if (!t) return;
+      if (t.id === 'admin-performance-period') {
+        this.setAdminPerformancePeriod(t.value);
+      }
+    });
+  }
+
+  async fetchAllData() {
+    // Placeholder: keep your existing logic if you already had it.
+    // This won’t break the admin dashboard features.
+    try {
+      // Agent/TL data endpoints were not included in your paste
+      // so this is intentionally minimal.
+      console.log('fetchAllData(): (no-op safe default)');
+    } catch (e) {
+      console.warn('fetchAllData failed:', e);
+    }
+  }
+
+  updateProfileUI() {
+    // safe default
   }
 
   // ------------------------
@@ -129,7 +183,6 @@ class CallHammerPortal {
   // ✅ date-only parsing without timezone shifting (prevents wrong weekly counts)
   parseDateSafe(value) {
     if (!value) return null;
-
     const raw = value.toString().trim();
     if (!raw) return null;
 
@@ -139,7 +192,7 @@ class CallHammerPortal {
       const y = parseInt(isoMatch[1], 10);
       const m = parseInt(isoMatch[2], 10) - 1;
       const d = parseInt(isoMatch[3], 10);
-      const dt = new Date(y, m, d, 12, 0, 0); // noon local avoids shifting
+      const dt = new Date(y, m, d, 12, 0, 0);
       return isNaN(dt.getTime()) ? null : dt;
     }
 
@@ -149,7 +202,7 @@ class CallHammerPortal {
       const m = parseInt(slashMatch[1], 10) - 1;
       const d = parseInt(slashMatch[2], 10);
       const y = parseInt(slashMatch[3], 10);
-      const dt = new Date(y, m, d, 12, 0, 0); // noon local avoids shifting
+      const dt = new Date(y, m, d, 12, 0, 0);
       return isNaN(dt.getTime()) ? null : dt;
     }
 
@@ -187,7 +240,6 @@ class CallHammerPortal {
   // ------------------------
   async fetchAdminData(forceRefresh = false) {
     try {
-      // Cache guard to avoid quota
       const now = Date.now();
       if (!forceRefresh && this.adminState.clients.length > 0 && (now - this.lastAdminFetch) < this.adminCacheMs) {
         console.log('🧠 Using cached admin data (quota guard).');
@@ -206,13 +258,10 @@ class CallHammerPortal {
       const result = await response.json();
       this.lastAdminFetch = Date.now();
 
-      // ✅ IMPORTANT: support {status:"success", healthMonitor:[...]} AND {data:{...}}
+      // ✅ support {data:{...}} and direct root
       const dataRoot = result?.data || result || {};
 
-      const rawHealthMonitor =
-        dataRoot.healthMonitor ||
-        result.healthMonitor ||
-        [];
+      const rawHealthMonitor = dataRoot.healthMonitor || result.healthMonitor || [];
 
       const rawClients =
         dataRoot.clients || dataRoot.Clients || dataRoot.CLIENTS ||
@@ -234,11 +283,9 @@ class CallHammerPortal {
         dataRoot.packages || dataRoot.leadPackages || dataRoot.Packages ||
         result.packages || result.leadPackages || result.Packages || [];
 
-      // ✅ If healthMonitor exists, use it for Client Health Monitor
+      // ✅ If healthMonitor exists, use it
       if (Array.isArray(rawHealthMonitor) && rawHealthMonitor.length > 0) {
         this.normalizeAdminFromHealthMonitor(rawHealthMonitor);
-
-        // still store these if present
         this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
         this.adminState.agents = Array.isArray(rawAgents) ? rawAgents : [];
         this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
@@ -247,6 +294,10 @@ class CallHammerPortal {
         // fallback join-based
         this.normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages);
       }
+
+      // ✅ Always rebuild status options + performance payload after load
+      this.adminState.statusOptions = this.getAdminStatusOptions();
+      this.adminState.performance = this.buildAdminPerformance(this.currentFilter || 'this-week');
 
       console.log('✅ Admin State Ready:', {
         clients: this.adminState.clients.length,
@@ -269,12 +320,11 @@ class CallHammerPortal {
     }
   }
 
-  // ✅ ADMIN: normalize from healthMonitor (now includes code_name + roofing_company + city_state + package stats)
+  // ✅ ADMIN: normalize from healthMonitor (includes code_name + roofing_company + city_state + package stats)
   normalizeAdminFromHealthMonitor(rows) {
     const list = Array.isArray(rows) ? rows : [];
 
     this.adminState.clients = list.map(r => {
-      // source fields (from n8n)
       const status = this.getAny(r, ['status', 'Client Status', 'CLIENT STATUS'], 'NOT STARTED');
       const codeName = this.getAny(r, ['code_name', 'codeName', 'CODE NAME', 'CODE', 'code'], 'N/A');
 
@@ -284,9 +334,17 @@ class CallHammerPortal {
         '—'
       );
 
-      const cityState = this.getAny(r, ['city_state', 'CITY STATE', 'City State', 'location', 'Location'], 'Remote');
+      const cityState = this.getAny(
+        r,
+        ['city_state', 'CITY STATE', 'City State', 'CITY STATE ', 'City State ', 'location', 'Location'],
+        'Remote'
+      );
 
-      const clientName = this.getAny(r, ['client_name', 'CLIENT NAME', 'Client Name'], '—');
+      const clientName = this.getAny(
+        r,
+        ['client_name', 'CLIENT NAME', 'Client Name', 'CLIENT NAME ', 'Client Name '],
+        '—'
+      );
 
       const lastLeadReceived = this.getAny(r, ['last_lead_received', 'Last Lead Received'], '');
       const hoursSinceLastLead = this.toNumberSafe(this.getAny(r, ['hours_since_last_lead', 'Hours Since Last Lead'], 0), 0);
@@ -299,7 +357,6 @@ class CallHammerPortal {
       const purchaseDate = this.getAny(r, ['purchase_date', 'Purchase Date'], '');
 
       return {
-        // ✅ snake_case for easy HTML use
         status,
         code_name: codeName,
         roofing_company: roofingCompany,
@@ -314,34 +371,19 @@ class CallHammerPortal {
         purchased_leads: purchasedLeads,
         owed_leads: owedLeads,
         package_status: packageStatus,
-        purchase_date: purchaseDate,
-
-        // ✅ camelCase aliases (safe for any other JS)
-        clientName,
-        codeName,
-        roofingCompany,
-        cityState,
-        lastLeadReceived,
-        hoursSinceLastLead,
-        leadsToday,
-        leadsYesterday,
-
-        purchasedLeads,
-        owedLeads,
-        packageStatus,
-        purchaseDate
+        purchase_date: purchaseDate
       };
     });
   }
 
-  // Fallback join-based normalization (also outputs aliases)
+  // Fallback join-based normalization (kept safe)
   normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages) {
     this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
     this.adminState.rawPackages = Array.isArray(rawPackages) ? rawPackages : [];
 
     const statusMap = {};
     (Array.isArray(rawStatuses) ? rawStatuses : []).forEach(row => {
-      const company = this.getAny(row, ['Roofing Company', 'Company Name', 'COMPANY NAME', 'Client', 'CLIENT NAME'], '');
+      const company = this.getAny(row, ['Roofing Company', 'Company Name', 'COMPANY NAME'], '');
       const key = this.normalizeCompanyKey(company);
       if (!key || key === 'unknown') return;
       statusMap[key] = row;
@@ -357,80 +399,64 @@ class CallHammerPortal {
 
     const clientsArr = Array.isArray(rawClients) ? rawClients : [];
     this.adminState.clients = clientsArr.map(c => {
-      const companyName = this.getAny(c, ['COMPANY NAME', 'Company Name', 'Company', 'Roofing Company'], 'Unnamed');
+      const roofingCompany = this.getAny(c, ['COMPANY NAME', 'Company Name', 'Company', 'Roofing Company'], 'Unnamed');
       const codeName = this.getAny(c, ['CODE NAME', 'Code Name', 'CODE', 'Client Code'], 'N/A');
-      const location = this.getAny(c, ['Add location here', 'Location', 'CITY STATE', 'City State'], 'Remote');
-      const clientKey = this.normalizeCompanyKey(companyName);
+
+      const clientKey = this.normalizeCompanyKey(roofingCompany);
 
       const sRow = statusMap[clientKey] || {};
       const pRow = packageMap[clientKey] || {};
 
-      const joinedStatus = this.getAny(
-        sRow,
-        ['Client Status', 'CLIENT STATUS', 'Status'],
-        this.getAny(c, ['STATUS', 'Status'], 'NOT STARTED')
-      );
-
-      const joinedPackage = this.getAny(pRow, ['Package', 'Lead Package', 'PACKAGE'], '');
+      const status = this.getAny(sRow, ['Client Status', 'CLIENT STATUS', 'Status'], this.getAny(c, ['STATUS', 'Status'], 'NOT STARTED'));
 
       const lastLeadReceived = this.getAny(sRow, ['Last Lead Received'], '');
       const hoursSinceLastLead = this.toNumberSafe(this.getAny(sRow, ['Hours Since Last Lead'], 0), 0);
       const leadsToday = this.toNumberSafe(this.getAny(sRow, ['Leads Today'], 0), 0);
       const leadsYesterday = this.toNumberSafe(this.getAny(sRow, ['Leads Yesterday'], 0), 0);
 
-      // ✅ output both naming styles
+      const purchasedLeads = this.toNumberSafe(this.getAny(pRow, ['Purchased Leads', 'PURCHASED LEADS'], 0), 0);
+      const owedLeads = this.toNumberSafe(this.getAny(pRow, ['Owed Leads', 'OWED LEADS'], 0), 0);
+      const packageStatus = this.getAny(pRow, ['Status', 'STATUS'], '');
+      const purchaseDate = this.getAny(pRow, ['Purchase Date', 'PURCHASE DATE'], '');
+
       return {
-        client_name: companyName,
-        code: codeName,
-        location,
-        status: joinedStatus || 'NOT STARTED',
-        package: joinedPackage || '',
+        status,
+        code_name: codeName,
+        roofing_company: roofingCompany,
+        city_state: this.getAny(sRow, ['CITY STATE', 'City State'], this.getAny(c, ['CITY STATE', 'City State'], 'Remote')),
+        client_name: this.getAny(sRow, ['CLIENT NAME', 'Client Name'], '—'),
+
         last_lead_received: lastLeadReceived,
         hours_since_last_lead: hoursSinceLastLead,
         leads_today: leadsToday,
         leads_yesterday: leadsYesterday,
 
-        clientName: companyName,
-        codeName,
-        clientNameWithCode: codeName && codeName !== 'N/A' ? `${companyName} (${codeName})` : companyName,
-        lastLeadReceived,
-        hoursSince
-        hoursSinceLastLead,
-        leadsToday,
-        leadsYesterday,
-
-        purchasedLeads,
-        owedLeads,
-        packageStatus,
-        purchaseDate
+        purchased_leads: purchasedLeads,
+        owed_leads: owedLeads,
+        package_status: packageStatus,
+        purchase_date: purchaseDate
       };
     });
 
     // store raw leads/agents too
     this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
     this.adminState.agents = Array.isArray(rawAgents) ? rawAgents : [];
-
-    // ✅ Build status options + admin performance payload
-    this.adminState.statusOptions = this.getAdminStatusOptions();
-    this.adminState.performance = this.buildAdminPerformance(this.currentFilter || 'this-week');
   }
 
   // ------------------------
-  // ✅ ADMIN: Status Options (fix dropdown missing statuses)
+  // ✅ ADMIN: Status Options (always include all statuses)
   // ------------------------
   getAdminStatusOptions() {
     const required = ['CRITICAL', 'AT RISK', 'HEALTHY', 'NOT STARTED'];
-
     const found = new Set();
+
     (this.adminState.clients || []).forEach(c => {
       const s = (c?.status || '').toString().trim();
       if (s) found.add(s.toUpperCase());
     });
 
-    // union required + found
     const all = new Set([...required, ...found]);
 
-    // return in a friendly order
     const ordered = [];
     required.forEach(r => { if (all.has(r)) ordered.push(r); all.delete(r); });
     [...all].sort().forEach(x => ordered.push(x));
@@ -438,40 +464,49 @@ class CallHammerPortal {
   }
 
   // ------------------------
-  // ✅ ADMIN: Performance Builder (team totals + chart series + top10)
+  // ✅ ADMIN: Performance Builder
+  // - totals: total / qualified(confirmed+approved) / unqualified(rejected+credited)
+  // - top10Qualified: ranked by qualified only
+  // - bottom5: lowest total submitted (includes 0)
   // ------------------------
   buildAdminPerformance(periodKey = 'this-week') {
     const leads = Array.isArray(this.adminState.leads) ? this.adminState.leads : [];
-    const agents = Array.isArray(this.adminState.agents) ? this.adminState.agents : [];
 
-    const range = this.getPeriodRange(periodKey);
-    const { start, end } = range;
+    const { start, end } = this.getPeriodRange(periodKey);
 
-    // Helpers: robust agent name + status + date
-    const getLeadAgentName = (lead) => {
-      // Try common header variants
-      return (
-        this.getAny(lead, ['Agent Name', 'AGENT NAME', 'agent_name', 'agent', 'Agent', 'Submitted By', 'submitted_by'], '') ||
-        this.getAny(lead, ['Team Leader', 'TL', 'team_leader'], '')
-      ).toString().trim();
-    };
-
-    const getLeadDecision = (lead) => {
-      // confirmed/approved vs rejected/credited
-      const raw =
-        this.getAny(lead, ['Status', 'STATUS', 'Decision', 'DECISION', 'Lead Status', 'LEAD STATUS'], '') ||
-        this.getAny(lead, ['Qualified', 'QUALIFIED'], '') ||
-        '';
-      return raw.toString().trim().toUpperCase();
-    };
-
+    // RAW LEADS mapping based on your sheet screenshot:
+    // Date Submitted | Appointment Coordinator Name | Status
     const getLeadDate = (lead) => {
-      const v =
-        this.getAny(lead, ['Date', 'DATE', 'Submitted Date', 'SUBMITTED DATE', 'Created', 'CREATED', 'Timestamp', 'TIMESTAMP', 'created_at'], '');
+      const v = this.getAny(lead, [
+        'Date Submitted', 'DATE SUBMITTED', 'date_submitted',
+        'Submitted Date', 'SUBMITTED DATE', 'Date', 'DATE', 'Timestamp', 'TIMESTAMP'
+      ], '');
       return this.parseDateSafe(v);
     };
 
-    // Filter leads in range
+    const getLeadAgentName = (lead) => {
+      return this.getAny(lead, [
+        'Appointment Coordinator Name', 'APPOINTMENT COORDINATOR NAME',
+        'Agent Name', 'AGENT NAME', 'Submitted By', 'SUBMITTED BY', 'agent_name'
+      ], 'Unknown').toString().trim();
+    };
+
+    const getLeadStatus = (lead) => {
+      return this.getAny(lead, ['Status', 'STATUS', 'Lead Status', 'LEAD STATUS'], '')
+        .toString()
+        .trim()
+        .toUpperCase();
+    };
+
+    const classifyDecision = (statusUpper) => {
+      // qualified
+      if (statusUpper.includes('CONFIRM') || statusUpper.includes('APPROV')) return 'QUALIFIED';
+      // unqualified
+      if (statusUpper.includes('REJECT') || statusUpper.includes('CREDIT')) return 'UNQUALIFIED';
+      return 'UNKNOWN';
+    };
+
+    // filter in range
     const inRange = [];
     for (const lead of leads) {
       const dt = getLeadDate(lead);
@@ -479,185 +514,141 @@ class CallHammerPortal {
       if (dt >= start && dt < end) inRange.push({ lead, dt });
     }
 
-    // Build employee map (for display names)
-    const employeeNameSet = new Set();
-    agents.forEach(a => {
-      const n = this.getAny(a, ['Agent Name', 'AGENT NAME', 'Name', 'NAME', 'agent_name'], '').toString().trim();
-      if (n) employeeNameSet.add(n);
-    });
-
-    // Aggregate totals per agent
+    // aggregate
     const perAgent = {};
-    const teamTotals = { total: 0, confirmed: 0, rejected: 0 };
+    const teamTotals = { total: 0, qualified: 0, unqualified: 0 };
 
-    const bump = (agentName, type) => {
-      if (!agentName) agentName = 'Unknown';
-      if (!perAgent[agentName]) perAgent[agentName] = { total: 0, confirmed: 0, rejected: 0 };
-      perAgent[agentName].total += 1;
+    const ensureAgent = (name) => {
+      const key = name || 'Unknown';
+      if (!perAgent[key]) perAgent[key] = { name: key, total: 0, qualified: 0, unqualified: 0 };
+      return perAgent[key];
+    };
+
+    inRange.forEach(({ lead }) => {
+      const name = getLeadAgentName(lead);
+      const decision = classifyDecision(getLeadStatus(lead));
+
+      const bucket = ensureAgent(name);
+      bucket.total += 1;
       teamTotals.total += 1;
 
-      if (type === 'CONFIRMED') {
-        perAgent[agentName].confirmed += 1;
-        teamTotals.confirmed += 1;
-      } else if (type === 'REJECTED') {
-        perAgent[agentName].rejected += 1;
-        teamTotals.rejected += 1;
+      if (decision === 'QUALIFIED') {
+        bucket.qualified += 1;
+        teamTotals.qualified += 1;
+      } else if (decision === 'UNQUALIFIED') {
+        bucket.unqualified += 1;
+        teamTotals.unqualified += 1;
       }
-    };
-
-    // classify lead decision
-    const classifyDecision = (decisionUpper) => {
-      // confirmed synonyms
-      if (
-        decisionUpper.includes('CONFIRM') ||
-        decisionUpper.includes('APPROV') ||
-        decisionUpper.includes('QUALIF') ||
-        decisionUpper === 'YES'
-      ) return 'CONFIRMED';
-
-      // rejected/credited synonyms
-      if (
-        decisionUpper.includes('REJECT') ||
-        decisionUpper.includes('CREDIT') ||
-        decisionUpper.includes('UNQUALIF') ||
-        decisionUpper === 'NO'
-      ) return 'REJECTED';
-
-      // unknown -> still counts as submitted total only
-      return 'UNKNOWN';
-    };
-
-    // Count leads
-    inRange.forEach(({ lead }) => {
-      const agentName = getLeadAgentName(lead);
-      const decision = classifyDecision(getLeadDecision(lead));
-
-      if (decision === 'CONFIRMED') bump(agentName, 'CONFIRMED');
-      else if (decision === 'REJECTED') bump(agentName, 'REJECTED');
-      else bump(agentName, 'UNKNOWN');
     });
 
-    // Build Top 10 agents by total submitted
-    const topAgents = Object.entries(perAgent)
-      .map(([name, stats]) => ({ name, ...stats }))
-      .sort((a, b) => (b.total - a.total) || (b.confirmed - a.confirmed))
+    const agentsArr = Object.values(perAgent);
+
+    // ✅ Top 10 by QUALIFIED only (confirmed/approved)
+    const top10Qualified = agentsArr
+      .slice()
+      .sort((a, b) => (b.qualified - a.qualified) || (b.total - a.total))
       .slice(0, 10);
 
-    // Build a chart series depending on period type:
-    // - today: hourly buckets (optional)
-    // - this-week / prev-week: daily buckets
-    // - last-4/6: weekly buckets
-    // - all-time: monthly buckets (safe)
-    const series = this.buildPerformanceSeries(inRange, periodKey, getLeadDecision, getLeadAgentName);
+    // ✅ Bottom 5 by LOWEST total submitted
+    // (includes 0; if you want "only active agents", tell me and I’ll adjust)
+    const bottom5 = agentsArr
+      .slice()
+      .sort((a, b) => (a.total - b.total) || (a.qualified - b.qualified))
+      .slice(0, 5);
 
-    // Provide everything your admin dashboard needs
+    // series for chart rendering
+    const series = this.buildPerformanceSeries(inRange, periodKey);
+
     return {
       period: periodKey,
       range: { start: start.toISOString(), end: end.toISOString() },
       totals: teamTotals,
-      topAgents,
+      top10Qualified,
+      bottom5,
       series
     };
   }
 
   // ------------------------
-  // ✅ Period Ranges (today, this-week, prev-week, last-4, last-6, all-time)
+  // ✅ Period Ranges
   // ------------------------
   getPeriodRange(periodKey) {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
 
+    const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n, 12, 0, 0);
+
     const startOfWeek = (d) => {
-      // Monday start (0=Sun -> convert)
-      const day = d.getDay(); // 0..6
+      // Monday start
+      const day = d.getDay(); // 0..6 (Sun..Sat)
       const diff = (day === 0 ? -6 : 1) - day;
       return new Date(d.getFullYear(), d.getMonth(), d.getDate() + diff, 12, 0, 0);
     };
 
-    const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n, 12, 0, 0);
-
-    // Default end is "tomorrow noon" for inclusive today
     const tomorrow = addDays(today, 1);
 
-    if (periodKey === 'today') {
-      return { start: today, end: tomorrow };
-    }
+    if (periodKey === 'today') return { start: today, end: tomorrow };
 
     if (periodKey === 'this-week' || periodKey === 'current-week') {
       const sow = startOfWeek(today);
-      const eow = addDays(sow, 7);
-      return { start: sow, end: eow };
+      return { start: sow, end: addDays(sow, 7) };
     }
 
     if (periodKey === 'prev-week' || periodKey === 'previous-week') {
-      const thisSow = startOfWeek(today);
-      const prevSow = addDays(thisSow, -7);
-      const prevEow = addDays(thisSow, 0);
-      return { start: prevSow, end: prevEow };
+      const sow = startOfWeek(today);
+      return { start: addDays(sow, -7), end: sow };
     }
 
     if (periodKey === 'last-4-weeks') {
-      const thisSow = startOfWeek(today);
-      const start = addDays(thisSow, -28);
-      const end = addDays(thisSow, 7); // include current week window
-      return { start, end };
+      const sow = startOfWeek(today);
+      return { start: addDays(sow, -28), end: addDays(sow, 7) };
     }
 
     if (periodKey === 'last-6-weeks') {
-      const thisSow = startOfWeek(today);
-      const start = addDays(thisSow, -42);
-      const end = addDays(thisSow, 7);
-      return { start, end };
+      const sow = startOfWeek(today);
+      return { start: addDays(sow, -42), end: addDays(sow, 7) };
     }
 
-    // all-time fallback (last 5 years safe range)
     if (periodKey === 'all-time') {
-      const start = new Date(today.getFullYear() - 5, 0, 1, 12, 0, 0);
-      const end = tomorrow;
-      return { start, end };
+      // safe range: last 5 years
+      return { start: new Date(today.getFullYear() - 5, 0, 1, 12, 0, 0), end: tomorrow };
     }
 
-    // fallback -> this week
+    // fallback
     const sow = startOfWeek(today);
     return { start: sow, end: addDays(sow, 7) };
   }
 
   // ------------------------
-  // ✅ Build chart-ready series (labels + totals/confirmed/rejected per bucket)
+  // ✅ Chart-ready series per bucket
+  // (total / qualified / unqualified)
   // ------------------------
-  buildPerformanceSeries(inRange, periodKey, getLeadDecision, getLeadAgentName) {
-    const classifyDecision = (decisionUpper) => {
-      if (
-        decisionUpper.includes('CONFIRM') ||
-        decisionUpper.includes('APPROV') ||
-        decisionUpper.includes('QUALIF') ||
-        decisionUpper === 'YES'
-      ) return 'CONFIRMED';
+  buildPerformanceSeries(inRange, periodKey) {
+    const buckets = {};
+    const pad2 = (n) => String(n).padStart(2, '0');
 
-      if (
-        decisionUpper.includes('REJECT') ||
-        decisionUpper.includes('CREDIT') ||
-        decisionUpper.includes('UNQUALIF') ||
-        decisionUpper === 'NO'
-      ) return 'REJECTED';
-
+    const classifyDecision = (statusUpper) => {
+      if (statusUpper.includes('CONFIRM') || statusUpper.includes('APPROV')) return 'QUALIFIED';
+      if (statusUpper.includes('REJECT') || statusUpper.includes('CREDIT')) return 'UNQUALIFIED';
       return 'UNKNOWN';
     };
 
-    const buckets = {}; // key -> {label,total,confirmed,rejected}
-
-    const addBucket = (key, label, decision) => {
-      if (!buckets[key]) buckets[key] = { label, total: 0, confirmed: 0, rejected: 0 };
-      buckets[key].total += 1;
-      if (decision === 'CONFIRMED') buckets[key].confirmed += 1;
-      if (decision === 'REJECTED') buckets[key].rejected += 1;
+    const getStatusUpper = (lead) => {
+      return this.getAny(lead, ['Status', 'STATUS', 'Lead Status', 'LEAD STATUS'], '')
+        .toString()
+        .trim()
+        .toUpperCase();
     };
 
-    const pad2 = (n) => String(n).padStart(2, '0');
+    const addBucket = (key, label, decision) => {
+      if (!buckets[key]) buckets[key] = { label, total: 0, qualified: 0, unqualified: 0 };
+      buckets[key].total += 1;
+      if (decision === 'QUALIFIED') buckets[key].qualified += 1;
+      if (decision === 'UNQUALIFIED') buckets[key].unqualified += 1;
+    };
 
     for (const { lead, dt } of inRange) {
-      const decisionUpper = (this.getAny(lead, ['Status', 'STATUS', 'Decision', 'DECISION', 'Lead Status', 'LEAD STATUS'], '') || '').toString().trim().toUpperCase();
-      const decision = classifyDecision(decisionUpper);
+      const decision = classifyDecision(getStatusUpper(lead));
 
       if (periodKey === 'today') {
         const key = `${pad2(dt.getHours())}:00`;
@@ -666,21 +657,17 @@ class CallHammerPortal {
         const key = `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
         addBucket(key, key, decision);
       } else if (periodKey === 'last-4-weeks' || periodKey === 'last-6-weeks') {
-        // week bucket: YYYY-W##
         const onejan = new Date(dt.getFullYear(), 0, 1, 12, 0, 0);
         const week = Math.ceil((((dt - onejan) / 86400000) + onejan.getDay() + 1) / 7);
         const key = `${dt.getFullYear()}-W${pad2(week)}`;
         addBucket(key, key, decision);
       } else {
-        // all-time -> month bucket: YYYY-MM
         const key = `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}`;
         addBucket(key, key, decision);
       }
     }
 
-    // Sort bucket keys chronologically-ish (works for our formats)
-    const keys = Object.keys(buckets).sort();
-    return keys.map(k => ({ key: k, ...buckets[k] }));
+    return Object.keys(buckets).sort().map(k => ({ key: k, ...buckets[k] }));
   }
 
   // ------------------------
@@ -691,3 +678,7 @@ class CallHammerPortal {
     this.adminState.performance = this.buildAdminPerformance(periodKey);
     this.triggerAdminRefresh();
   }
+}
+
+// expose instance globally if needed
+window.callHammerPortal = window.callHammerPortal || new CallHammerPortal();
