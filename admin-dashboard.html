@@ -1090,10 +1090,39 @@
 
         this.renderAnalyticsChart(labels, qData, uData, pData);
 
-        // top 10 table
-        const top = Array.from(agentAgg.values())
-          .sort((a,b) => b.total - a.total)
-          .slice(0, 10);
+        // ✅ Top 10 Agents by QUALIFIED only (CONFIRMED/APPROVED)
+const top = Array.from(agentAgg.values())
+  .sort((a,b) => (b.qualified - a.qualified) || (b.total - a.total))
+  .slice(0, 10);
+
+// ✅ Bottom 5 Agents by LOWEST total leads set
+// Prefer agents who actually have data (total > 0). If fewer than 5, include zeros.
+let bottomCandidates = Array.from(agentAgg.values()).filter(a => a.total > 0);
+if (bottomCandidates.length < 5) bottomCandidates = Array.from(agentAgg.values());
+
+const bottom = bottomCandidates
+  .sort((a,b) => (a.total - b.total) || (a.qualified - b.qualified))
+  .slice(0, 5);
+
+document.getElementById("bottom5-label").textContent = label;
+        // bottom 5 table render
+const btb = document.getElementById("bottom5-body");
+if (!bottom.length) {
+  btb.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No leads in this period.</td></tr>`;
+} else {
+  btb.innerHTML = bottom.map(a => {
+    const e = a.total > 0 ? Math.round((a.qualified / a.total) * 100) : 0;
+    return `
+      <tr>
+        <td class="p-4 font-bold text-gray-900">${a.name}</td>
+        <td class="p-4 text-center text-gray-600 font-semibold">${a.total}</td>
+        <td class="p-4 text-center text-emerald-600 font-bold">${a.qualified}</td>
+        <td class="p-4 text-center text-red-500 font-bold">${a.unqualified}</td>
+        <td class="p-4 text-center text-gray-600 font-semibold">${e}%</td>
+      </tr>
+    `;
+  }).join("");
+}
 
         const tb = document.getElementById("top10-body");
         if (!top.length) {
