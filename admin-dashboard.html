@@ -55,6 +55,7 @@
 </head>
 
 <body class="h-screen flex overflow-hidden">
+  <!-- Sidebar -->
   <aside class="sidebar w-64 flex-shrink-0 hidden lg:flex flex-col">
     <div class="h-16 flex items-center px-6 border-b border-gray-700">
       <div class="w-8 h-8 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-lg flex items-center justify-center text-gray-900 font-bold mr-3 shadow-lg shadow-yellow-500/20">CH</div>
@@ -101,9 +102,11 @@
     </div>
   </aside>
 
+  <!-- Main -->
   <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
     <div class="flex-1 overflow-y-auto p-6 lg:p-8" id="main-scroll">
 
+      <!-- OVERVIEW -->
       <div id="view-overview" class="view-section active">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
           <div>
@@ -122,6 +125,7 @@
           </div>
         </div>
 
+        <!-- ✅ FULL WIDTH CLIENT HEALTH -->
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8">
           <div class="p-5 border-b border-gray-100 flex flex-col gap-3 bg-gray-50/50 rounded-t-2xl">
             <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
@@ -149,6 +153,7 @@
               </div>
             </div>
 
+            <!-- ✅ Search + Filters -->
             <div class="flex flex-col md:flex-row gap-3">
               <div class="flex-1 relative">
                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
@@ -174,7 +179,8 @@
             </div>
           </div>
 
-          <div class="flex-1 overflow-y-auto max-h-[320px]">
+          <!-- ✅ CHANGE: show only ~5 rows then scroll -->
+          <div class="flex-1 overflow-auto" style="max-height: 340px;">
             <table class="w-full text-left border-collapse">
               <thead class="bg-white sticky top-0 z-10 shadow-sm">
                 <tr>
@@ -223,6 +229,7 @@
           </div>
         </div>
 
+        <!-- Optional blocks remain -->
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8">
           <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
             <h3 class="font-bold text-gray-900 text-sm">Live Floor Status</h3>
@@ -264,6 +271,7 @@
         </div>
       </div>
 
+      <!-- CLIENTS VIEW -->
       <div id="view-clients" class="view-section">
         <h2 class="text-2xl font-bold text-gray-900 mb-6">Passbook Clients</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="client-cards-container">
@@ -273,6 +281,7 @@
         </div>
       </div>
 
+      <!-- LEADS VIEW -->
       <div id="view-leads" class="view-section">
         <h2 class="text-2xl font-bold text-gray-900 mb-6">Leads Master Record</h2>
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -301,9 +310,15 @@
   <script>
     const AdminDashboard = {
       perfPeriod: 'today',
+
+      // Table dataset cache for sorting/filtering
       clientHealthRaw: [],
       clientHealthView: [],
-      sortState: { key: null, dir: 'asc' },
+      sortState: { key: null, dir: 'asc' }, // asc/desc
+
+      // built maps (company -> code / package)
+      _companyToCodeMap: null,
+      _companyToPackageMap: null,
 
       getState() {
         return (window.portal && window.portal.adminState) ? window.portal.adminState : null;
@@ -311,24 +326,34 @@
 
       refreshDashboard() {
         const state = this.getState();
-        if (!state) return;
+        if (!state) {
+          console.log("⏳ Waiting for portal/adminState...");
+          return;
+        }
 
         const clients = Array.isArray(state.clients) ? state.clients : [];
         const leads   = Array.isArray(state.leads) ? state.leads : [];
+        const agents  = Array.isArray(state.agents) ? state.agents : [];
 
-        try { this.renderPulse(leads); } catch(e) {}
+        // reset maps each refresh (in case sheets updated)
+        this._companyToCodeMap = null;
+        this._companyToPackageMap = null;
 
+        try { this.renderPulse(leads); } catch(e) { console.error("Pulse Error:", e); }
+
+        // ✅ Normalize client health rows first, then render
         try {
           this.clientHealthRaw = this.normalizeClientHealthRows(clients);
           this.setupFilters(this.clientHealthRaw);
-          this.applyClientHealthFilters();
-        } catch(e) {}
+          this.applyClientHealthFilters(); // renders the table view
+        } catch(e) { console.error("Client Health Error:", e); }
 
-        try { this.updatePerf(this.perfPeriod); } catch(e) {}
-        try { this.renderClientCards(clients); } catch(e) {}
-        try { this.renderLeads(leads); } catch(e) {}
+        try { this.updatePerf(this.perfPeriod); } catch(e) { console.error("Perf Error:", e); }
+        try { this.renderClientCards(clients); } catch(e) { console.error("Client Cards Error:", e); }
+        try { this.renderLeads(leads); } catch(e) { console.error("Leads Table Error:", e); }
       },
 
+      // ✅ smarter pick: tries multiple keys + ignores empty strings
       pick(obj, keys, fallback = "") {
         for (const k of keys) {
           const v = obj?.[k];
@@ -337,12 +362,174 @@
         return fallback;
       },
 
+      // ✅ normalize for matching across sheets (Company Name)
+      normalizeCompanyName(name) {
+        return String(name || "")
+          .toLowerCase()
+          .replace(/&/g, "and")
+          .replace(/[^a-z0-9\s]/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+      },
+
+      // ✅ find a list inside adminState by checking many possible keys (VERY IMPORTANT)
+      findListInState(possibleKeys) {
+        const state = this.getState();
+        if (!state) return [];
+
+        for (const k of possibleKeys) {
+          const v = state[k];
+          if (Array.isArray(v)) return v;
+        }
+
+        // sometimes people store sheets grouped like state.sheets = { ... }
+        const sheets = state.sheets || state.SHEETS || state.data || null;
+        if (sheets && typeof sheets === "object") {
+          for (const k of possibleKeys) {
+            const v = sheets[k];
+            if (Array.isArray(v)) return v;
+          }
+        }
+
+        return [];
+      },
+
+      // ✅ CLIENT CODE LIST tab rows (Company Name -> Code Name)
+      getClientCodeListFromState() {
+        return this.findListInState([
+          "clientCodeList",
+          "client_code_list",
+          "clientCodes",
+          "client_codes",
+          "codeList",
+          "code_list",
+          "codes",
+          "CLIENT_CODE_LIST",
+          "CLIENT CODE LIST",
+          "client code list",
+          "Client Code List",
+          "CLIENT_CODE",
+          "clientCode",
+        ]);
+      },
+
+      // ✅ LEAD PACKAGE tab rows (Purchased Leads / Owed Leads)
+      getLeadPackageListFromState() {
+        return this.findListInState([
+          "leadPackage",
+          "lead_package",
+          "leadPackages",
+          "lead_packages",
+          "packageLedger",
+          "package_ledger",
+          "packages",
+          "Lead Package",
+          "LEAD PACKAGE",
+          "LEAD_PACKAGE",
+          "lead package",
+        ]);
+      },
+
+      buildCompanyToCodeMap(codeRows) {
+        const map = new Map();
+        (codeRows || []).forEach(row => {
+          const company = this.pick(row, ["COMPANY NAME", "Company Name", "company_name"], "");
+          const code    = this.pick(row, ["CODE NAME", "Code Name", "code_name", "CODE", "Code"], "");
+          const key = this.normalizeCompanyName(company);
+          if (!key) return;
+          if (!map.has(key) && String(code).trim() !== "") map.set(key, String(code).trim());
+        });
+        return map;
+      },
+
+      buildCompanyToPackageMap(pkgRows) {
+        const map = new Map();
+        (pkgRows || []).forEach(row => {
+          // Lead Package tab header shows: Roofing Company Name
+          const company = this.pick(row, ["Roofing Company Name", "Roofing Company", "ROOFING COMPANY", "Company Name", "COMPANY NAME"], "");
+          const purchased = Number(this.pick(row, ["Purchased Leads", "PURCHASED LEADS", "Purchased", "PURCHASED"], 0)) || 0;
+          const owed = Number(this.pick(row, ["Owed Leads", "OWED LEADS", "Owed", "OWED"], 0)) || 0;
+
+          const key = this.normalizeCompanyName(company);
+          if (!key) return;
+          // keep latest/first; if duplicates, we can sum — but default keep the first non-zero.
+          if (!map.has(key)) map.set(key, { purchased, owed });
+        });
+        return map;
+      },
+
+      // ✅ FIX: include snake_case + camelCase coming from main.js normalization
+      extractCityState(c) {
+        return this.pick(c, [
+          "CITY STATE",
+          "CITY, STATE",
+          "City, State",
+          "City State",
+          "City/State",
+          "CITYSTATE",
+          "city_state",   // ✅ added
+          "cityState",    // ✅ added
+          "Location",
+          "location"
+        ], "—");
+      },
+
+      extractClientName(c) {
+        return this.pick(c, [
+          "CLIENT NAME",
+          "Client Name",
+          "client_name",
+          "clientName",
+          "Client",
+          "CLIENT"
+        ], "—");
+      },
+
+      extractRoofingCompany(c) {
+        return this.pick(c, [
+          "Roofing Company",
+          "Roofing Company Name",
+          "ROOFING COMPANY",
+          "roofing_company",
+          "roofingCompany",
+          "Company Name",
+          "COMPANY NAME"
+        ], "—");
+      },
+
+      extractCodeFromCompanyName(companyName) {
+        const key = this.normalizeCompanyName(companyName);
+        if (!key) return "N/A";
+
+        if (!this._companyToCodeMap) {
+          const codeList = this.getClientCodeListFromState();
+          this._companyToCodeMap = this.buildCompanyToCodeMap(codeList);
+        }
+
+        return this._companyToCodeMap.get(key) || "N/A";
+      },
+
+      // ✅ FIX: include code_name + codeName
+      extractCode(c) {
+        const direct = this.pick(c, [
+          "CODE NAME", "Code Name", "codeName",
+          "code_name",   // ✅ added
+          "CODE", "code",
+          "Client Code", "CLIENT CODE", "Client ID", "ClientID"
+        ], "");
+        if (direct && String(direct).trim() !== "") return String(direct).trim();
+
+        const roofingCompany = this.extractRoofingCompany(c);
+        return this.extractCodeFromCompanyName(roofingCompany);
+      },
+
       normalizeClientStatus(v) {
         const s = String(v || "").trim().toUpperCase();
         if (s.includes("CRITICAL")) return "CRITICAL";
         if (s.includes("YELLOW") || s.includes("RISK")) return "AT RISK";
         if (s.includes("GREEN") || s.includes("HEALTHY")) return "HEALTHY";
-        return "NOT STARTED";
+        if (s.includes("NOT STARTED") || s.includes("BLUE")) return "NOT STARTED";
+        return s || "UNKNOWN";
       },
 
       statusDotClass(clientStatus) {
@@ -352,55 +539,99 @@
         return "st-new";
       },
 
-      normalizeClientHealthRows(clients) {
-        return (clients || []).map(c => {
-          // Data already normalized by main.js logic (Merging Master + Tracker)
-          const status = this.pick(c, ["status"], "NOT STARTED");
-          const code = this.pick(c, ["code"], "N/A");
-          const company = this.pick(c, ["roofing_company","roofingCompany"], "—");
-          const city = this.pick(c, ["location","cityState"], "—");
-          const client = this.pick(c, ["client_name","clientName"], "—");
-          const lastLead = this.pick(c, ["last_lead_received"], "—");
+      extractPackageRatio(c, roofingCompanyName) {
+        const directOwed = Number(this.pick(c, ["Owed Leads", "Owed", "OWED LEADS", "owed_leads"], "")) || null;
+        const directPurchased = Number(this.pick(c, ["Purchased Leads", "Purchased", "PURCHASED LEADS", "purchased_leads"], "")) || null;
 
-          const owed = Number(c.owed_leads || 0);
-          const purchased = Number(c.purchased_leads || 0);
-          const pkgLabel = `${owed} / ${purchased}`;
+        let owed = (directOwed !== null && !Number.isNaN(directOwed)) ? directOwed : null;
+        let purchased = (directPurchased !== null && !Number.isNaN(directPurchased)) ? directPurchased : null;
 
-          return {
-            status,
-            code,
-            roofingCompany: company,
-            cityState: city,
-            clientName: client,
-            lastLead,
-            packageLabel: pkgLabel,
-            packageRatio: purchased === 0 ? owed : (owed/purchased),
-            hoursSince: c.hours_since_last_lead || 0,
-            leadsToday: c.leads_today || 0,
-            leadsYesterday: c.leads_yesterday || 0
-          };
-        });
+        if (owed === null || purchased === null) {
+          if (!this._companyToPackageMap) {
+            const pkgList = this.getLeadPackageListFromState();
+            this._companyToPackageMap = this.buildCompanyToPackageMap(pkgList);
+          }
+          const key = this.normalizeCompanyName(roofingCompanyName);
+          const pkg = this._companyToPackageMap.get(key);
+          if (pkg) {
+            if (owed === null) owed = Number(pkg.owed) || 0;
+            if (purchased === null) purchased = Number(pkg.purchased) || 0;
+          }
+        }
+
+        owed = Number(owed) || 0;
+        purchased = Number(purchased) || 0;
+
+        return {
+          owed,
+          purchased,
+          label: `${owed} / ${purchased}`,
+          value: purchased === 0 ? owed : (owed / purchased)
+        };
       },
 
       renderPulse(leads) {
         const today = new Date().toDateString();
-        const todayLeads = leads.filter(l => {
-          const dStr = this.pick(l, ["Date Submitted","Date"], "");
-          const d = window.portal?.parseDateSafe(dStr);
-          return d && d.toDateString() === today;
+
+        const todayLeads = (leads || []).filter(l => {
+          const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
+          const d = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+          return d && !isNaN(d.getTime()) && d.toDateString() === today;
         });
-        const confirmed = todayLeads.filter(l => String(this.pick(l,["Status"],"")).toLowerCase() === 'confirmed');
+
+        const confirmed = todayLeads.filter(l => {
+          const st = this.pick(l, ["Status","STATUS"], "");
+          return window.portal?.isConfirmedStatus ? window.portal.isConfirmedStatus(st) : String(st).toLowerCase() === "confirmed";
+        });
+
         const value = confirmed.length * 50;
-        const pending = leads.filter(l => String(this.pick(l,["Status"],"")).toLowerCase().includes('pending'));
-        
-        document.getElementById('pulse-profit').textContent = new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(value);
+
+        const pending = (leads || []).filter(l =>
+          String(this.pick(l, ["Status","STATUS"], "")).toLowerCase().includes("pending")
+        );
+
+        document.getElementById('pulse-profit').textContent =
+          window.portal?.formatCurrency ? window.portal.formatCurrency(value) : `$${value.toFixed(2)}`;
+
         document.getElementById('pulse-pending').textContent = pending.length;
       },
 
-      setupFilters(rows) {
-        if (this._filtersBound) return;
-        this._filtersBound = true;
+      normalizeClientHealthRows(clients) {
+        return (clients || []).map(c => {
+          const rawStatus = this.pick(c, ["Client Status","CLIENT STATUS","Status","status"], "UNKNOWN");
+          const clientStatus = this.normalizeClientStatus(rawStatus);
 
+          const roofingCompany = this.extractRoofingCompany(c);
+
+          const code = this.extractCode(c);
+          const cityState = this.extractCityState(c);
+          const clientName = this.extractClientName(c);
+
+          const lastLead = this.pick(c, ["Last Lead Received","Last Lead Received ", "last_lead_received"], "—");
+          const hoursSince = Number(this.pick(c, ["Hours Since Last Lead","Hours Since", "hours_since_last_lead"], 0)) || 0;
+          const leadsToday = Number(this.pick(c, ["Leads Today","leads_today"], 0)) || 0;
+          const leadsYesterday = Number(this.pick(c, ["Leads Yesterday","leads_yesterday"], 0)) || 0;
+
+          const pkg = this.extractPackageRatio(c, roofingCompany);
+
+          return {
+            _raw: c,
+            status: clientStatus,
+            code,
+            roofingCompany,
+            cityState,
+            clientName,
+            lastLead,
+            packageLabel: pkg.label,
+            packageRatio: pkg.value,
+            hoursSince,
+            leadsToday,
+            leadsYesterday,
+          };
+        });
+      },
+
+      setupFilters(rows) {
         const statusSel = document.getElementById("health-filter-status");
         const citySel = document.getElementById("health-filter-city");
 
@@ -410,24 +641,28 @@
         const cities = [...new Set(rows.map(r => r.cityState).filter(Boolean))].sort();
         citySel.innerHTML = `<option value="all">All City/State</option>` + cities.map(s => `<option value="${s}">${s}</option>`).join("");
 
-        document.getElementById("health-search").addEventListener("input", () => this.applyClientHealthFilters());
-        statusSel.addEventListener("change", () => this.applyClientHealthFilters());
-        citySel.addEventListener("change", () => this.applyClientHealthFilters());
+        if (!this._filtersBound) {
+          this._filtersBound = true;
 
-        document.getElementById("health-clear").addEventListener("click", () => {
-          document.getElementById("health-search").value = "";
-          statusSel.value = "all";
-          citySel.value = "all";
-          this.applyClientHealthFilters();
-        });
+          document.getElementById("health-search").addEventListener("input", () => this.applyClientHealthFilters());
+          statusSel.addEventListener("change", () => this.applyClientHealthFilters());
+          citySel.addEventListener("change", () => this.applyClientHealthFilters());
 
-        document.querySelectorAll("th.sortable").forEach(th => {
-          th.addEventListener("click", () => {
-            const key = th.getAttribute("data-sort");
-            this.toggleSort(key);
+          document.getElementById("health-clear").addEventListener("click", () => {
+            document.getElementById("health-search").value = "";
+            statusSel.value = "all";
+            citySel.value = "all";
             this.applyClientHealthFilters();
           });
-        });
+
+          document.querySelectorAll("th.sortable").forEach(th => {
+            th.addEventListener("click", () => {
+              const key = th.getAttribute("data-sort");
+              this.toggleSort(key);
+              this.applyClientHealthFilters();
+            });
+          });
+        }
       },
 
       toggleSort(key) {
@@ -437,8 +672,10 @@
           this.sortState.key = key;
           this.sortState.dir = "asc";
         }
+
         document.querySelectorAll(".sort-icon").forEach(i => i.textContent = "↕");
-        document.getElementById(`sort-${key}`).textContent = this.sortState.dir === "asc" ? "↑" : "↓";
+        const icon = document.getElementById(`sort-${key}`);
+        if (icon) icon.textContent = this.sortState.dir === "asc" ? "↑" : "↓";
       },
 
       applyClientHealthFilters() {
@@ -447,63 +684,97 @@
         const city = document.getElementById("health-filter-city").value;
 
         let filtered = [...this.clientHealthRaw];
+
         if (status !== "all") filtered = filtered.filter(r => r.status === status);
         if (city !== "all") filtered = filtered.filter(r => r.cityState === city);
 
         if (q) {
-          filtered = filtered.filter(r => 
-            `${r.code} ${r.roofingCompany} ${r.cityState} ${r.clientName}`.toLowerCase().includes(q)
-          );
+          filtered = filtered.filter(r => {
+            const hay = `${r.code} ${r.roofingCompany} ${r.cityState} ${r.clientName}`.toLowerCase();
+            return hay.includes(q);
+          });
         }
 
         const { key, dir } = this.sortState;
         if (key) {
           filtered.sort((a,b) => {
-            const A = a[key], B = b[key];
-            if (typeof A === "number" && typeof B === "number") return dir === "asc" ? A - B : B - A;
-            return dir === "asc" ? String(A).localeCompare(String(B)) : String(B).localeCompare(String(A));
+            const A = a[key];
+            const B = b[key];
+
+            if (typeof A === "number" && typeof B === "number") {
+              return dir === "asc" ? A - B : B - A;
+            }
+            return dir === "asc"
+              ? String(A).localeCompare(String(B))
+              : String(B).localeCompare(String(A));
           });
         }
+
+        this.clientHealthView = filtered;
         this.renderClientHealthTable(filtered);
       },
 
       renderClientHealthTable(rows) {
         const tbody = document.getElementById("client-health-body");
+
         if (!rows.length) {
           tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-gray-400 italic">No results found.</td></tr>`;
           return;
         }
 
-        tbody.innerHTML = rows.map(r => `
-          <tr class="hover:bg-gray-50">
-            <td class="p-4"><div class="status-container"><span class="status-dot ${this.statusDotClass(r.status)}"></span><span class="tooltip-text"><b>${r.status}</b></span></div></td>
-            <td class="p-4 text-gray-700 font-semibold">${r.code}</td>
-            <td class="p-4 font-bold text-gray-900 truncate max-w-[200px]" title="${r.roofingCompany}">${r.roofingCompany}</td>
-            <td class="p-4 text-gray-500 truncate max-w-[150px]" title="${r.cityState}">${r.cityState}</td>
-            <td class="p-4 text-gray-700 truncate max-w-[150px]" title="${r.clientName}">${r.clientName}</td>
-            <td class="p-4 text-gray-500">${r.lastLead}</td>
-            <td class="p-4 text-center font-bold text-gray-900">${r.packageLabel}</td>
-            <td class="p-4 text-center text-gray-700">${r.hoursSince}</td>
-            <td class="p-4 text-center text-gray-700">${r.leadsToday}</td>
-            <td class="p-4 text-center text-gray-700">${r.leadsYesterday}</td>
-          </tr>
-        `).join("");
+        tbody.innerHTML = rows.map(r => {
+          const dotClass = this.statusDotClass(r.status);
+
+          return `
+            <tr class="hover:bg-gray-50">
+              <td class="p-4">
+                <div class="status-container">
+                  <span class="status-dot ${dotClass}"></span>
+                  <span class="tooltip-text"><b>${r.status}</b></span>
+                </div>
+              </td>
+
+              <td class="p-4 text-gray-700 font-semibold">${r.code || "N/A"}</td>
+
+              <td class="p-4 font-bold text-gray-900 max-w-[260px] truncate" title="${r.roofingCompany}">
+                ${r.roofingCompany}
+              </td>
+
+              <td class="p-4 text-gray-500 max-w-[170px] truncate" title="${r.cityState}">
+                ${r.cityState}
+              </td>
+
+              <td class="p-4 text-gray-700 max-w-[220px] truncate" title="${r.clientName}">
+                ${r.clientName}
+              </td>
+
+              <td class="p-4 text-gray-500">${r.lastLead}</td>
+
+              <td class="p-4 text-center text-gray-900 font-bold">${r.packageLabel}</td>
+
+              <td class="p-4 text-center text-gray-700 font-semibold">${r.hoursSince}</td>
+              <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsToday}</td>
+              <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsYesterday}</td>
+            </tr>
+          `;
+        }).join("");
       },
 
-      updatePerf(period, btn) {
+      updatePerf(period, btnElement) {
         this.perfPeriod = period;
-        if (btn) {
+
+        if (btnElement) {
           document.querySelectorAll('.perf-btn').forEach(b => {
-             b.classList.remove('bg-white','shadow','text-gray-900');
-             b.classList.add('text-gray-500');
+            b.classList.remove('bg-white', 'shadow', 'text-gray-900');
+            b.classList.add('text-gray-500');
           });
-          btn.classList.add('bg-white','shadow','text-gray-900');
-          btn.classList.remove('text-gray-500');
+          btnElement.classList.add('bg-white', 'shadow', 'text-gray-900');
+          btnElement.classList.remove('text-gray-500');
         }
 
         const state = this.getState();
-        const agents = state?.agents || [];
-        const leads = state?.leads || [];
+        const agents = (state && state.agents) ? state.agents : [];
+        const leads  = (state && state.leads) ? state.leads : [];
         const tbody = document.getElementById('agent-perf-body');
 
         if (!agents.length) {
@@ -512,73 +783,108 @@
         }
 
         const now = new Date();
-        const fd = new Date();
-        fd.setHours(0,0,0,0);
-        if (period === 'week') fd.setDate(now.getDate() - 7);
-        if (period === 'month') fd.setDate(now.getDate() - 30);
+        const filterDate = new Date();
+        if (period === 'today') filterDate.setHours(0,0,0,0);
+        if (period === 'week') filterDate.setDate(now.getDate() - 7);
+        if (period === 'month') filterDate.setDate(now.getDate() - 30);
 
-        tbody.innerHTML = agents.map(a => {
-           const name = this.pick(a, ["employeeName","name"], "Unknown");
-           const myLeads = leads.filter(l => {
-             const ag = this.pick(l, ["Appointment Coordinator Name","Agent"], "");
-             const d = window.portal?.parseDateSafe(this.pick(l,["Date Submitted","Date"],""));
-             return ag.toLowerCase().includes(name.toLowerCase()) && d && d >= fd;
-           });
-           const total = myLeads.length;
-           const conf = myLeads.filter(l => String(this.pick(l,["Status"],"")).toLowerCase() === 'confirmed').length;
-           const rej = myLeads.filter(l => String(this.pick(l,["Status"],"")).toLowerCase().includes('reject')).length;
-           const eff = total > 0 ? Math.round((conf/total)*100) : 0;
-           
-           return `<tr>
-             <td class="p-4 font-bold text-gray-900">${name}</td>
-             <td class="p-4 text-center text-gray-600">${total}</td>
-             <td class="p-4 text-center text-emerald-600 font-bold bg-emerald-50 rounded">${conf}</td>
-             <td class="p-4 text-center text-red-500">${rej}</td>
-             <td class="p-4 text-center text-gray-600">${eff}%</td>
-           </tr>`;
+        tbody.innerHTML = agents.map(agent => {
+          const name = this.pick(agent, ["employeeName","Employee Name","EMPLOYEE NAME","name","Name"], "Unknown");
+
+          const agentLeads = leads.filter(l => {
+            const lAgent = this.pick(l, ["Appointment Coordinator Name","Appointment Coord","Appointment Coordinator","Agent","AGENT"], "");
+            const dStr   = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date"], "");
+            const lDate  = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+            return String(lAgent).toLowerCase().includes(String(name).toLowerCase()) && lDate && !isNaN(lDate.getTime()) && lDate >= filterDate;
+          });
+
+          const total = agentLeads.length;
+          const confirmed = agentLeads.filter(l => {
+            const st = this.pick(l, ["Status","STATUS"], "");
+            return window.portal?.isConfirmedStatus ? window.portal.isConfirmedStatus(st) : String(st).toLowerCase() === "confirmed";
+          }).length;
+
+          const rejected  = agentLeads.filter(l =>
+            String(this.pick(l, ["Status","STATUS"], "")).toLowerCase().includes("reject")
+          ).length;
+
+          const eff = total > 0 ? Math.round((confirmed / total) * 100) : 0;
+
+          return `
+            <tr>
+              <td class="p-4 font-bold text-gray-900">${name}</td>
+              <td class="p-4 text-center text-gray-600">${total}</td>
+              <td class="p-4 text-center text-emerald-600 font-bold bg-emerald-50 rounded">${confirmed}</td>
+              <td class="p-4 text-center text-red-500">${rejected}</td>
+              <td class="p-4 text-center text-gray-600">${eff}%</td>
+            </tr>
+          `;
         }).join('');
       },
 
       renderClientCards(clients) {
-        const c = document.getElementById('client-cards-container');
-        if (!clients.length) return;
-        c.innerHTML = clients.map(cl => `
-           <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-             <div class="flex justify-between">
-               <h3 class="font-bold text-gray-900 text-lg">${this.pick(cl,["roofing_company","roofingCompany"],"-")}</h3>
-               <span class="text-xs font-bold text-gray-500">${this.pick(cl,["code"],"-")}</span>
-             </div>
-             <p class="text-xs text-gray-500 mt-1">${this.pick(cl,["location","cityState"],"-")}</p>
-           </div>
-        `).join('');
+        const container = document.getElementById('client-cards-container');
+        if (!clients || !clients.length) return;
+
+        container.innerHTML = clients.map(c => {
+          const name = this.extractRoofingCompany(c);
+          const code = this.extractCode(c);
+          const city = this.extractCityState(c);
+          return `
+            <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+              <div class="flex items-center justify-between">
+                <h3 class="font-bold text-gray-900 text-lg">${name}</h3>
+                <span class="text-xs font-bold text-gray-500">${code}</span>
+              </div>
+              <p class="text-xs text-gray-500 mt-1">${city}</p>
+            </div>
+          `;
+        }).join('');
       },
 
       renderLeads(leads) {
         const tbody = document.getElementById('leads-table-body');
-        if (!leads.length) { tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center">No leads.</td></tr>'; return; }
+
+        if (!leads || !leads.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400">No leads recorded.</td></tr>';
+          return;
+        }
+
         tbody.innerHTML = leads.map(l => {
-           const s = this.pick(l,["Status"], "New");
-           let cls = "text-gray-600 bg-gray-100";
-           if (s.toLowerCase().includes('confirm')) cls = "text-emerald-700 bg-emerald-100";
-           if (s.toLowerCase().includes('reject')) cls = "text-red-700 bg-red-100";
-           if (s.toLowerCase().includes('pending')) cls = "text-yellow-700 bg-yellow-100";
-           return `<tr class="hover:bg-gray-50">
-             <td class="p-4 text-gray-500">${this.pick(l,["Date Submitted","Date"],"-")}</td>
-             <td class="p-4 font-bold text-gray-900">${this.pick(l,["Homeowner Name(s)","Homeowner"],"-")}</td>
-             <td class="p-4 text-gray-500">${this.pick(l,["Appointment Coordinator Name","Agent"],"-")}</td>
-             <td class="p-4 text-gray-500">${this.pick(l,["Company Name","Client"],"-")}</td>
-             <td class="p-4"><span class="px-2 py-1 rounded text-xs font-bold uppercase ${cls}">${s}</span></td>
-           </tr>`;
+          const status = this.pick(l, ["Status","STATUS"], "New");
+          const date = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date"], "-");
+          const homeowner = this.pick(l, ["Homeowner Name(s)","Homeowner Name","HOMEOWNER NAME","Homeowner"], "Unknown");
+          const agent = this.pick(l, ["Appointment Coordinator Name","Appointment Coord","Appointment Coordinator","Agent","AGENT"], "-");
+          const client = this.pick(l, ["Company Name","CLIENT","Client"], "-");
+
+          let statusColor = "text-gray-600 bg-gray-100";
+          const s = String(status).toLowerCase();
+          if (s.includes('approve') || s.includes('confirm')) statusColor = "text-emerald-700 bg-emerald-100";
+          if (s.includes('reject')) statusColor = "text-red-700 bg-red-100";
+          if (s.includes('pending')) statusColor = "text-yellow-700 bg-yellow-100";
+
+          return `
+            <tr class="hover:bg-gray-50 transition">
+              <td class="p-4 text-gray-500">${date}</td>
+              <td class="p-4 font-bold text-gray-900">${homeowner}</td>
+              <td class="p-4 text-gray-500">${agent}</td>
+              <td class="p-4 text-gray-500">${client}</td>
+              <td class="p-4">
+                <span class="px-2 py-1 rounded text-xs font-bold uppercase ${statusColor}">${status}</span>
+              </td>
+            </tr>
+          `;
         }).join('');
       },
 
-      nav(viewId, link) {
-        document.querySelectorAll('.view-section').forEach(e => e.classList.remove('active'));
-        document.getElementById('view-'+viewId).classList.add('active');
-        document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
-        link.classList.add('active');
+      nav(viewId, linkEl) {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        document.getElementById('view-' + viewId).classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        linkEl.classList.add('active');
       }
     };
+
     window.adminDashboard = AdminDashboard;
     window.Admin = AdminDashboard;
   </script>
