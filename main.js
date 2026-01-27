@@ -34,9 +34,9 @@ class CallHammerPortal {
       changePassword: 'https://automate.callhammerleads.com/webhook/change-password',
       manageEmployee: 'https://automate.callhammerleads.com/webhook/manage-employee',
       // ✅ PASSBOOK
-  passbookClientsList: 'https://automate.callhammerleads.com/webhook/passbook-clients-list',
-  passbookClientDetails: 'https://automate.callhammerleads.com/webhook/passbook-client',
-  passbookClientUpdate: 'https://automate.callhammerleads.com/webhook/passbook-client-update',
+      passbookClientsList: 'https://automate.callhammerleads.com/webhook/passbook-clients-list',
+      passbookClientDetails: 'https://automate.callhammerleads.com/webhook/passbook-client',
+      passbookClientUpdate: 'https://automate.callhammerleads.com/webhook/passbook-client-update',
     };
 
     this.init();
@@ -215,6 +215,9 @@ class CallHammerPortal {
 
     this.enforceRoleRouting();
     this.bindEvents();
+
+    // ✅ ADDED ONLY: wire Passbook update UI (no-op on pages without the button/form)
+    this.bindPassbookUpdateButton();
 
     const onAnyDashboard = path.includes('dashboard');
     const onAdminDashboard = path.includes('admin-dashboard');
@@ -650,7 +653,7 @@ class CallHammerPortal {
 
       this.triggerAdminRefresh();
 
-            setTimeout(() => {
+      setTimeout(() => {
         try {
           // ✅ IMPORTANT:
           // If the admin dashboard already computes KPIs + tables + chart (AdminDashboard.updateAnalytics),
@@ -756,6 +759,159 @@ class CallHammerPortal {
       package_status: '',
       purchase_date: ''
     }));
+  }
+
+  // ============================================================
+  // ✅ ADDED ONLY: PASSBOOK UPDATE → calls n8n webhook + refreshes UI
+  // ============================================================
+
+  bindPassbookUpdateButton() {
+    // This safely does nothing on pages that don't have Passbook UI
+    // We try multiple selectors so you don't have to rename HTML.
+    const btn =
+      document.querySelector('#passbookSaveButton') ||
+      document.querySelector('#saveClientButton') ||
+      document.querySelector('button[data-action="passbook-save"]') ||
+      document.querySelector('button[data-action="save-client"]') ||
+      document.querySelector('button[data-passbook-save="true"]');
+
+    const form =
+      document.querySelector('#passbookClientForm') ||
+      document.querySelector('form[data-passbook-form="client"]') ||
+      document.querySelector('form[data-form="passbook-client"]');
+
+    if (!btn && !form) return;
+
+    const handler = async (e) => {
+      if (e) e.preventDefault();
+
+      try {
+        const payload = this.collectPassbookUpdatePayloadFromForm(form || document);
+        if (!payload.codeName) {
+          alert('Missing client code. Please reload the client details and try again.');
+          return;
+        }
+
+        // Basic guard: don't spam webhook if no updates found
+        if (!payload.updates || Object.keys(payload.updates).length === 0) {
+          alert('No fields detected to update.');
+          return;
+        }
+
+        await this.submitPassbookClientUpdate(payload);
+
+        // refresh screen so user sees latest values
+        await this.refreshPassbookClientDetails(payload.codeName);
+
+        // optional success UX
+        console.log('✅ Passbook client updated:', payload.codeName, payload.updates);
+        alert('Client updated successfully.');
+      } catch (err) {
+        console.error('❌ Passbook update failed:', err);
+        alert(err?.message || 'Update failed. Please try again.');
+      }
+    };
+
+    if (btn) btn.addEventListener('click', handler);
+    if (form) form.addEventListener('submit', handler);
+  }
+
+  async submitPassbookClientUpdate(payload) {
+    const res = await fetch(this.webhooks.passbookClientUpdate, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '');
+      throw new Error(`Passbook update failed (HTTP ${res.status}). ${txt}`);
+    }
+
+    // Some webhooks return JSON, some return text
+    const out = await res.json().catch(async () => ({ raw: await res.text().catch(() => '') }));
+    return out;
+  }
+
+  async refreshPassbookClientDetails(codeName) {
+    // If you already have a Passbook UI renderer elsewhere, this triggers it.
+    // Otherwise we just refetch the record and emit an event that any UI can listen to.
+    const url = this.webhooks.passbookClientDetails;
+    if (!url) return;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ codeName }),
+    });
+
+    if (!res.ok) {
+      console.warn(`Passbook details refresh failed (HTTP ${res.status}).`);
+      return;
+    }
+
+    const data = await res.json().catch(() => null);
+
+    // Emit event for any UI layer that wants to re-render
+    try {
+      window.dispatchEvent(new CustomEvent('passbook:client-updated', { detail: { codeName, data } }));
+    } catch (e) {}
+
+    return data;
+  }
+
+  collectPassbookUpdatePayloadFromForm(rootEl) {
+    // We try to find the client code from common places:
+    // - hidden input name="codeName"/"CODE NAME"
+    // - any element with data-code-name
+    // - any input whose id includes "code"
+    const root = rootEl || document;
+
+    const codeFromData =
+      (root.querySelector('[data-code-name]')?.getAttribute('data-code-name') || '').trim();
+
+    const codeFromInput =
+      (root.querySelector('input[name="codeName"]')?.value || '').trim() ||
+      (root.querySelector('input[name="CODE NAME"]')?.value || '').trim() ||
+      (root.querySelector('#codeName')?.value || '').trim() ||
+      (root.querySelector('#CODE_NAME')?.value || '').trim();
+
+    const codeName = codeFromInput || codeFromData;
+
+    // Collect fields:
+    // Priority:
+    // 1) elements that explicitly opt-in via data-passbook-field="SHEET HEADER"
+    // 2) inputs/selects/textarea that have "name" (we use it as the sheet column)
+    const updates = {};
+
+    const explicit = Array.from(root.querySelectorAll('[data-passbook-field]'));
+    for (const el of explicit) {
+      const key = (el.getAttribute('data-passbook-field') || '').trim();
+      if (!key) continue;
+      const val = (el.value ?? '').toString();
+      updates[key] = val;
+    }
+
+    if (explicit.length === 0) {
+      const fields = Array.from(root.querySelectorAll('input[name], select[name], textarea[name]'));
+      for (const el of fields) {
+        const name = (el.getAttribute('name') || '').trim();
+        if (!name) continue;
+
+        // avoid sending login/password/session fields if any exist on page
+        if (/password|email|login/i.test(name)) continue;
+
+        const val = (el.value ?? '').toString();
+        updates[name] = val;
+      }
+    }
+
+    // Always stamp metadata if you want (optional; safe if sheet has these columns)
+    // If you don't want these, remove them here—nothing else depends on them.
+    updates['LAST UPDATED'] = new Date().toISOString();
+    updates['UPDATED BY'] = 'Passbook';
+
+    return { codeName, updates };
   }
 }
 
