@@ -585,6 +585,185 @@ class CallHammerPortal {
   }
 
   // ------------------------
+  // ✅ AGENT DATA FETCHING & RENDERING (ADDED)
+  // ------------------------
+
+  async fetchAllData() {
+    if (!this.currentUser || !this.currentUser.email) return;
+
+    // 1. Setup UI for loading state
+    const stats = ['stat-appointments', 'stat-cancel-rate', 'stat-incentives', 'stat-hours'];
+    stats.forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.innerText = '...';
+    });
+
+    try {
+      console.log('📡 Fetching Agent Data for:', this.currentUser.email);
+      
+      // 2. Call the webhook
+      const response = await fetch(this.webhooks.fetchData, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: this.currentUser.email,
+          range: document.getElementById('timeframe-filter')?.value || 'this-week'
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch agent data');
+
+      const result = await response.json();
+      
+      // Handle different n8n response structures
+      const data = result.data || result; 
+
+      // 3. Update the Dashboard
+      this.updateAgentDashboard(data);
+      this.renderLeadsTable(data.leads || []);
+      this.renderCharts(data.charts || {});
+      this.updateProfileUI(data.profile || this.currentUser);
+
+    } catch (error) {
+      console.error('❌ Error fetching agent data:', error);
+    }
+  }
+
+  updateAgentDashboard(data) {
+    // Helper to safely set text
+    const setText = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.innerText = val;
+    };
+
+    // 1. Top Cards
+    setText('stat-appointments', data.totalAppointments || 0);
+    setText('stat-cancel-rate', (data.cancellationRate || 0) + '%');
+    setText('stat-incentives', this.formatCurrency(data.totalIncentives || 0));
+    setText('stat-hours', data.weeklyHours || 0);
+
+    // 2. Monthly Incentive Status
+    setText('monthly-incentive-status-ov', data.monthlyIncentiveStatus || 'Not qualified yet');
+    setText('monthly-raffle-status-ov', data.raffleStatus || '0 / 4 weeks qualified');
+
+    // 3. Tier Progress Bar
+    const tierCount = data.approvedAppointments || 0;
+    const tierMax = 6; // Tier 1 goal
+    const percentage = Math.min(100, (tierCount / tierMax) * 100);
+    
+    setText('tier-count-display', `${tierCount} / ${tierMax} approved appointments`);
+    const progressBar = document.getElementById('tier-progress-bar');
+    if (progressBar) progressBar.style.width = `${percentage}%`;
+    
+    // Handle loading text update
+    const tierStatusText = document.getElementById('tier-status-text');
+    if(tierStatusText) tierStatusText.innerText = 'Tier 1 Progress';
+  }
+
+  renderLeadsTable(leads) {
+    const tbody = document.getElementById('leads-table-body');
+    if (!tbody) return;
+
+    if (leads.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3" class="px-6 py-4 text-center text-sm text-gray-500">No leads found for this period.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = leads.map(lead => {
+      // Determine badge color based on status
+      let badgeClass = 'bg-gray-100 text-gray-800';
+      const status = (lead.status || 'Pending').toLowerCase();
+      
+      if (status.includes('confirm') || status.includes('approv')) badgeClass = 'bg-green-100 text-green-800';
+      else if (status.includes('reject')) badgeClass = 'bg-red-100 text-red-800';
+      else if (status.includes('pending')) badgeClass = 'bg-yellow-100 text-yellow-800';
+
+      return `
+        <tr>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${this.formatDate(lead.date)}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${lead.homeowner || 'Unknown'}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeClass}">
+              ${lead.status || 'Pending'}
+            </span>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  renderCharts(chartData) {
+    // 1. Appointments Chart
+    const aptChartDom = document.getElementById('appointmentsChart');
+    if (aptChartDom && window.echarts) {
+      if (!this.charts) this.charts = {};
+      this.charts.appointments = echarts.init(aptChartDom);
+      
+      const option = {
+        tooltip: { trigger: 'axis' },
+        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+        xAxis: { type: 'category', data: chartData.labels || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
+        yAxis: { type: 'value' },
+        series: [{
+          data: chartData.appointments || [0, 0, 0, 0, 0],
+          type: 'bar',
+          itemStyle: { color: '#FBBF24' },
+          barWidth: '40%'
+        }]
+      };
+      this.charts.appointments.setOption(option);
+    }
+
+    // 2. Incentives Chart (Line Chart)
+    const incChartDom = document.getElementById('incentivesChart');
+    if (incChartDom && window.echarts) {
+      this.charts.incentives = echarts.init(incChartDom);
+      const option = {
+        tooltip: { trigger: 'axis' },
+        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+        xAxis: { type: 'category', data: chartData.labels || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
+        yAxis: { type: 'value' },
+        series: [{
+          data: chartData.earnings || [0, 0, 0, 0, 0],
+          type: 'line',
+          smooth: true,
+          lineStyle: { color: '#D97706', width: 3 },
+          areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{offset: 0, color: 'rgba(251, 191, 36, 0.5)'}, {offset: 1, color: 'rgba(251, 191, 36, 0.01)'}]) }
+        }]
+      };
+      this.charts.incentives.setOption(option);
+    }
+  }
+
+  updateProfileUI(profile) {
+    if (!profile) return;
+    const setText = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+    
+    setText('nav-user-name', profile.name || this.currentUser.name || 'Agent');
+    setText('profileName', profile.name || this.currentUser.name);
+    setText('profileEmail', profile.email || this.currentUser.email);
+    setText('profilePosition', profile.role || 'Agent');
+    setText('profileRate', this.formatCurrency(profile.baseRate || 0));
+    setText('profileHours', profile.weeklyHours || 0);
+
+    // Also update monthly incentive snapshots in profile tab if they exist
+    setText('monthly-incentive-status-prof', profile.monthlyIncentiveStatus || 'Not qualified yet');
+    setText('monthly-raffle-status-prof', profile.raffleStatus || '0 / 4 weeks qualified');
+    
+    if (profile.hourlyIncrease) {
+        setText('milestone-hourly-increase', this.formatCurrency(profile.hourlyIncrease));
+        setText('effective-hourly-rate', this.formatCurrency((profile.baseRate || 0) + profile.hourlyIncrease));
+    }
+  }
+
+  formatDate(dateString) {
+    if(!dateString) return '-';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  // ------------------------
   // ✅ ADMIN: Fetch + Normalize
   // ------------------------
   async fetchAdminData(forceRefresh = false) {
