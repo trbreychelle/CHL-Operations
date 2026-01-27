@@ -2531,9 +2531,21 @@
       },
 
       // Helpers for Agent Data
-      getAgentStage(agent) {
-        const raw = this.pick(agent, ["Stage","stage","Status","status","Employee Status","employeeStatus"], "");
-        return String(raw || "").toLowerCase().trim();
+     getAgentStage(agent) {
+        // ✅ ADDED "Employment_Status" to match your Google Sheet
+        const raw = this.pick(agent, [
+          "Employment_Status", 
+          "Employment Status",
+          "employment_status",
+          "Stage",
+          "stage",
+          "Status",
+          "status",
+          "Employee Status",
+          "employeeStatus"
+        ], "");
+        
+        return String(raw || "").toLowerCase().trim(); 
       },
 
       isAgentWarned(agent) {
