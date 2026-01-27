@@ -472,21 +472,93 @@
       </div>
 
       <div id="view-leads" class="view-section">
-        <h2 class="text-2xl font-bold text-gray-900 mb-6">Leads Master Record</h2>
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">Leads Master Record</h2>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+          <div class="flex flex-col xl:flex-row gap-3 xl:items-end">
+            <div class="flex-1 relative">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+              <input
+                id="leads-search"
+                type="text"
+                placeholder="Search homeowner, appointment coordinator, roofing company, status, lead ID, email, phone..."
+                class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              />
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+              <select id="leads-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
+                <option value="all">All Status</option>
+              </select>
+
+              <select id="leads-filter-company" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[240px]">
+                <option value="all">All Roofing Company</option>
+              </select>
+
+              <select id="leads-filter-ac" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
+                <option value="all">All Appointment Coordinators</option>
+              </select>
+
+              <select id="leads-filter-homeowner" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
+                <option value="all">All Homeowners</option>
+              </select>
+
+              <div class="flex items-center gap-2">
+                <div>
+                  <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+                  <input id="leads-date-start" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+                  <input id="leads-date-end" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
+                </div>
+              </div>
+
+              <button id="leads-clear"
+                      class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
+                Clear
+              </button>
+
+              <div class="relative">
+                <button id="leads-columns-toggle"
+                        class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800 flex items-center gap-2">
+                  <i class="fa-solid fa-table-columns"></i> Columns
+                </button>
+
+                <div id="leads-columns-popover"
+                     class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                  <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">
+                    Visible Columns
+                  </div>
+                  <div id="leads-columns-box" class="max-h-[280px] overflow-y-auto space-y-2 pr-1"></div>
+
+                  <div class="flex justify-end gap-2 mt-3">
+                    <button id="leads-columns-all"
+                            class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
+                      All
+                    </button>
+                    <button id="leads-columns-min"
+                            class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
+                      Minimal
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="mt-3 text-xs text-gray-500">
+            Showing <span class="font-bold" id="leads-count">0</span> leads
+          </div>
+        </div>
+
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div class="overflow-x-auto">
             <table class="w-full text-left text-sm whitespace-nowrap">
-              <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
-                <tr>
-                  <th class="p-4">Date</th>
-                  <th class="p-4">Homeowner</th>
-                  <th class="p-4">Appointment Coordinator</th>
-                  <th class="p-4">Client</th>
-                  <th class="p-4">Status</th>
-                </tr>
-              </thead>
+              <thead id="leads-table-head" class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100"></thead>
               <tbody id="leads-table-body" class="divide-y divide-gray-50">
-                <tr><td colspan="5" class="p-6 text-center text-gray-400">Loading leads...</td></tr>
+                <tr><td class="p-6 text-center text-gray-400">Loading leads...</td></tr>
               </tbody>
             </table>
           </div>
@@ -516,6 +588,11 @@
 
       // ✅ custom range
       _customRange: { active: false, start: null, end: null },
+
+      // ✅ Leads Master Record UI state
+      _leadsCols: null,
+      _leadsVisibleCols: null,
+      _leadsFiltersBound: false,
 
       getState() {
         return (window.portal && window.portal.adminState) ? window.portal.adminState : null;
@@ -547,7 +624,14 @@
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
         try { this.updatePerf(this.perfPeriod); } catch(e) {}
         try { this.renderClientCards(clients); } catch(e) {}
-        try { this.renderLeads(leads); } catch(e) {}
+        
+        try {
+          // ✅ setup lead filters UI + columns UI + render filtered view
+          this.initLeadsColumnsUI();
+          this.setupLeadFilters(leads);
+          this.bindLeadsMasterEvents();
+          this.applyLeadsFilters(); // renders with filters/search applied
+        } catch(e) {}
       },
 
       pick(obj, keys, fallback = "") {
@@ -556,6 +640,238 @@
           if (v !== undefined && v !== null && String(v).trim() !== "") return v;
         }
         return fallback;
+      },
+
+      // ✅ Lead field getter (supports many header spellings)
+      getLeadField(l, keys, fallback="—") {
+        return this.pick(l, keys, fallback);
+      },
+
+      // ✅ Define ALL columns you want (RAW leads style)
+      getLeadsColumns() {
+        return [
+          // ✅ EXACT headers from RAW LEADS
+          { key: "date_submitted", label: "Date Submitted", keys: ["Date Submitted"] },
+          { key: "lead_id", label: "LEAD ID", keys: ["LEAD ID"] },
+
+          // ✅ Use Roofing Company label (pero source header is Company Name)
+          { key: "roofing_company", label: "Roofing Company", keys: ["Company Name"] },
+
+          { key: "appointment_coordinator", label: "Appointment Coordinator Name", keys: ["Appointment Coordinator Name"] },
+
+          { key: "homeowner_name", label: "Homeowner Name(s)", keys: ["Homeowner Name(s)"] },
+          { key: "homeowner_email", label: "Email of Homeowner", keys: ["Email of Homeowner"] },
+          { key: "homeowner_phone", label: "Homeowner Phone Number(s)", keys: ["Homeowner Phone Number(s)"] },
+
+          { key: "appointment_datetime", label: "Appointment Date /Time", keys: ["Appointment Date /Time"] },
+
+          { key: "address", label: "Address", keys: ["Address"] },
+          { key: "age_of_roof", label: "Age of Roof", keys: ["Age of Roof"] },
+          { key: "insurance_company", label: "Insurance Company", keys: ["Insurance Company"] },
+          { key: "additional_notes", label: "Additional Notes", keys: ["Additional Notes"] },
+
+          { key: "status", label: "Status", keys: ["Status"] },
+          { key: "reviewed_by", label: "Reviewed By", keys: ["Reviewed By"] },
+        ];
+      },
+
+      // ✅ Default visible columns (minimal view)
+      getLeadsDefaultVisibleCols() {
+        return new Set(["date_submitted","homeowner_name","appointment_coordinator","roofing_company","status"]);
+      },
+
+      // ✅ Parse lead date using existing portal.parseDateSafe
+      getLeadDateObj(l) {
+        const dStr = this.getLeadField(l, ["Date Submitted"], "");
+        const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+        return (dt && !isNaN(dt.getTime())) ? dt : null;
+      },
+
+      // ✅ Build dropdown filter options
+      setupLeadFilters(leads) {
+        const statusSel = document.getElementById("leads-filter-status");
+        const compSel = document.getElementById("leads-filter-company");
+        const acSel = document.getElementById("leads-filter-ac");
+        const hoSel = document.getElementById("leads-filter-homeowner");
+
+        const uniq = (arr) => [...new Set(arr.filter(x => String(x||"").trim() !== ""))].sort((a,b)=>String(a).localeCompare(String(b)));
+
+        const statuses = uniq(leads.map(l => this.getLeadField(l, ["Status","STATUS"], "")));
+        const companies = uniq(leads.map(l => this.getLeadField(l, ["Company Name","COMPANY NAME","Client","CLIENT","Roofing Company"], "")));
+        const acs = uniq(leads.map(l => this.getLeadField(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent","Agent Name"], "")));
+        const homeowners = uniq(leads.map(l => this.getLeadField(l, ["Homeowner Name(s)","Homeowner Name","Homeowner","HOMEOWNER NAME"], "")));
+
+        statusSel.innerHTML = `<option value="all">All Status</option>` + statuses.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
+        compSel.innerHTML = `<option value="all">All Roofing Company</option>` + companies.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
+        acSel.innerHTML = `<option value="all">All Appointment Coordinators</option>` + acs.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
+        hoSel.innerHTML = `<option value="all">All Homeowners</option>` + homeowners.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
+      },
+
+      // ✅ Column selector UI
+      initLeadsColumnsUI() {
+        if (this._leadsCols) return;
+
+        this._leadsCols = this.getLeadsColumns();
+        this._leadsVisibleCols = this.getLeadsDefaultVisibleCols();
+
+        const toggle = document.getElementById("leads-columns-toggle");
+        const pop = document.getElementById("leads-columns-popover");
+        const box = document.getElementById("leads-columns-box");
+        const allBtn = document.getElementById("leads-columns-all");
+        const minBtn = document.getElementById("leads-columns-min");
+
+        if (!toggle || !pop || !box) return;
+
+        const renderChecks = () => {
+          box.innerHTML = this._leadsCols.map(col => {
+            const checked = this._leadsVisibleCols.has(col.key);
+            return `
+              <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" data-colkey="${col.key}" ${checked ? "checked" : ""} />
+                <span>${col.label}</span>
+              </label>
+            `;
+          }).join("");
+
+          box.querySelectorAll('input[type="checkbox"][data-colkey]').forEach(chk => {
+            chk.addEventListener("change", () => {
+              const k = chk.getAttribute("data-colkey");
+              if (!k) return;
+              if (chk.checked) this._leadsVisibleCols.add(k);
+              else this._leadsVisibleCols.delete(k);
+              this.applyLeadsFilters(); // re-render
+            });
+          });
+        };
+
+        toggle.addEventListener("click", (e) => {
+          e.preventDefault();
+          pop.classList.toggle("hidden");
+        });
+
+        document.addEventListener("click", (e) => {
+          if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
+            pop.classList.add("hidden");
+          }
+        });
+
+        if (allBtn) allBtn.addEventListener("click", () => {
+          this._leadsVisibleCols = new Set(this._leadsCols.map(c => c.key));
+          renderChecks();
+          this.applyLeadsFilters();
+        });
+
+        if (minBtn) minBtn.addEventListener("click", () => {
+          this._leadsVisibleCols = this.getLeadsDefaultVisibleCols();
+          renderChecks();
+          this.applyLeadsFilters();
+        });
+
+        renderChecks();
+      },
+
+      // ✅ Apply search + dropdown filters + date range
+      applyLeadsFilters() {
+        const state = this.getState();
+        const leads = (state && Array.isArray(state.leads)) ? state.leads : [];
+
+        const q = String(document.getElementById("leads-search")?.value || "").toLowerCase().trim();
+        const stVal = document.getElementById("leads-filter-status")?.value || "all";
+        const compVal = document.getElementById("leads-filter-company")?.value || "all";
+        const acVal = document.getElementById("leads-filter-ac")?.value || "all";
+        const hoVal = document.getElementById("leads-filter-homeowner")?.value || "all";
+
+        const sDate = document.getElementById("leads-date-start")?.value || "";
+        const eDate = document.getElementById("leads-date-end")?.value || "";
+
+        const startDt = sDate ? new Date(sDate + "T00:00:00") : null;
+        const endDt = eDate ? new Date(eDate + "T23:59:59") : null;
+
+        let filtered = [...leads];
+
+        if (stVal !== "all") {
+          filtered = filtered.filter(l => String(this.getLeadField(l, ["Status","STATUS"], "")).trim() === stVal);
+        }
+        if (compVal !== "all") {
+          filtered = filtered.filter(l => String(this.getLeadField(l, ["Company Name","COMPANY NAME","Client","CLIENT","Roofing Company"], "")).trim() === compVal);
+        }
+        if (acVal !== "all") {
+          filtered = filtered.filter(l => String(this.getLeadField(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent","Agent Name"], "")).trim() === acVal);
+        }
+        if (hoVal !== "all") {
+          filtered = filtered.filter(l => String(this.getLeadField(l, ["Homeowner Name(s)","Homeowner Name","Homeowner","HOMEOWNER NAME"], "")).trim() === hoVal);
+        }
+
+        // date range filter
+        if (startDt || endDt) {
+          filtered = filtered.filter(l => {
+            const dt = this.getLeadDateObj(l);
+            if (!dt) return false;
+            if (startDt && dt < startDt) return false;
+            if (endDt && dt > endDt) return false;
+            return true;
+          });
+        }
+
+        // text search across many fields
+        if (q) {
+          filtered = filtered.filter(l => {
+            const hay = [
+              this.getLeadField(l, ["Homeowner Name(s)","Homeowner Name","Homeowner"], ""),
+              this.getLeadField(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent","Agent Name"], ""),
+              this.getLeadField(l, ["Company Name","COMPANY NAME","Client","CLIENT","Roofing Company"], ""),
+              this.getLeadField(l, ["Status","STATUS"], ""),
+              this.getLeadField(l, ["Lead ID","LEAD ID","lead_id","ID"], ""),
+              this.getLeadField(l, ["Email","EMAIL","Homeowner Email"], ""),
+              this.getLeadField(l, ["Phone","PHONE","Homeowner Phone Number","Phone Number"], ""),
+              this.getLeadField(l, ["Address","ADDRESS","Job Address"], ""),
+            ].join(" ").toLowerCase();
+            return hay.includes(q);
+          });
+        }
+
+        // update count + render
+        const countEl = document.getElementById("leads-count");
+        if (countEl) countEl.textContent = filtered.length;
+
+        this.renderLeads(filtered);
+      },
+
+      // ✅ Bind once
+      bindLeadsMasterEvents() {
+        if (this._leadsFiltersBound) return;
+        this._leadsFiltersBound = true;
+
+        const els = [
+          "leads-search",
+          "leads-filter-status",
+          "leads-filter-company",
+          "leads-filter-ac",
+          "leads-filter-homeowner",
+          "leads-date-start",
+          "leads-date-end"
+        ];
+
+        els.forEach(id => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          const evt = (id === "leads-search") ? "input" : "change";
+          el.addEventListener(evt, () => this.applyLeadsFilters());
+        });
+
+        const clearBtn = document.getElementById("leads-clear");
+        if (clearBtn) {
+          clearBtn.addEventListener("click", () => {
+            const s = document.getElementById("leads-search"); if (s) s.value = "";
+            const a = document.getElementById("leads-filter-status"); if (a) a.value = "all";
+            const b = document.getElementById("leads-filter-company"); if (b) b.value = "all";
+            const c = document.getElementById("leads-filter-ac"); if (c) c.value = "all";
+            const d = document.getElementById("leads-filter-homeowner"); if (d) d.value = "all";
+            const ds = document.getElementById("leads-date-start"); if (ds) ds.value = "";
+            const de = document.getElementById("leads-date-end"); if (de) de.value = "";
+            this.applyLeadsFilters();
+          });
+        }
       },
 
       normalizeCompanyName(name) {
@@ -1538,42 +1854,50 @@
         }
       },
 
+      // ✅ Replaced with dynamic column version
       renderLeads(leads) {
         const tbody = document.getElementById('leads-table-body');
+        const thead = document.getElementById('leads-table-head');
+        if (!tbody || !thead) return;
+
+        // init columns config if not yet
+        this.initLeadsColumnsUI();
+        const cols = this._leadsCols || this.getLeadsColumns();
+        const visible = this._leadsVisibleCols || this.getLeadsDefaultVisibleCols();
+
+        const visibleCols = cols.filter(c => visible.has(c.key));
+
+        // render thead
+        thead.innerHTML = `
+          <tr>
+            ${visibleCols.map(c => `<th class="p-4">${c.label}</th>`).join("")}
+          </tr>
+        `;
 
         if (!leads || !leads.length) {
-          tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400">No leads recorded.</td></tr>';
+          tbody.innerHTML = `<tr><td colspan="${visibleCols.length || 1}" class="p-6 text-center text-gray-400">No leads found.</td></tr>`;
           return;
         }
 
+        const badge = (status) => {
+          const s = String(status || "").toLowerCase();
+          let cls = "text-gray-700 bg-gray-100";
+          if (s.includes("confirm") || s.includes("approve")) cls = "text-emerald-700 bg-emerald-100";
+          else if (s.includes("reject")) cls = "text-red-700 bg-red-100";
+          else if (s.includes("credit")) cls = "text-red-700 bg-red-100";
+          else if (s.includes("pending")) cls = "text-yellow-700 bg-yellow-100";
+          return `<span class="px-2 py-1 rounded text-xs font-bold uppercase ${cls}">${status || "—"}</span>`;
+        };
+
         tbody.innerHTML = leads.map(l => {
-          const status = this.pick(l, ["Status","STATUS"], "New");
-          const date = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date"], "-");
+          const cells = visibleCols.map(c => {
+            const val = this.getLeadField(l, c.keys, "—");
+            if (c.key === "status") return `<td class="p-4">${badge(val)}</td>`;
+            return `<td class="p-4 text-gray-700">${String(val || "—")}</td>`;
+          }).join("");
 
-          const homeowner = this.pick(l, ["Homeowner Name(s)","Homeowner Name","HOMEOWNER NAME","Homeowner"], "Unknown");
-
-          const agent = this.pick(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent"], "-");
-          const client = this.pick(l, ["Company Name","COMPANY NAME","Client"], "-");
-
-          let statusColor = "text-gray-600 bg-gray-100";
-          const s = String(status).toLowerCase();
-          if (s.includes('approve') || s.includes('confirm')) statusColor = "text-emerald-700 bg-emerald-100";
-          if (s.includes('reject')) statusColor = "text-red-700 bg-red-100";
-          if (s.includes('credit')) statusColor = "text-red-700 bg-red-100";
-          if (s.includes('pending')) statusColor = "text-yellow-700 bg-yellow-100";
-
-          return `
-            <tr class="hover:bg-gray-50 transition">
-              <td class="p-4 text-gray-500">${date}</td>
-              <td class="p-4 font-bold text-gray-900">${homeowner}</td>
-              <td class="p-4 text-gray-500">${agent}</td>
-              <td class="p-4 text-gray-500">${client}</td>
-              <td class="p-4">
-                <span class="px-2 py-1 rounded text-xs font-bold uppercase ${statusColor}">${status}</span>
-              </td>
-            </tr>
-          `;
-        }).join('');
+          return `<tr class="hover:bg-gray-50 transition">${cells}</tr>`;
+        }).join("");
       },
 
       nav(viewId, linkEl) {
