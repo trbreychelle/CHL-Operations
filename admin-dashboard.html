@@ -511,7 +511,7 @@
         <div id="passbook-modal" class="hidden fixed inset-0 z-50">
           <div class="absolute inset-0 bg-black/40" onclick="Admin.closePassbookModal()"></div>
 
-          <div class="relative mx-auto mt-10 w-[94%] max-w-3xl bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+          <div class="relative mx-auto mt-10 w-[94%] max-w-5xl bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
             <div class="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
               <div>
                 <h3 class="font-extrabold text-gray-900" id="passbook-modal-title">Client Details</h3>
@@ -524,16 +524,16 @@
               </button>
             </div>
 
-            <form id="passbookClientForm" class="p-5 space-y-4">
+            <form id="passbookClientForm" class="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
               <input type="hidden" id="codeName" name="codeName" value="">
 
-              <div id="passbook-form-body" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div id="passbook-form-body">
                 <div class="p-4 rounded-xl border border-gray-100 bg-gray-50/40 text-sm text-gray-500 italic">
                   Loading client details...
                 </div>
               </div>
 
-              <div class="flex items-center justify-end gap-2 pt-2">
+              <div class="flex items-center justify-end gap-2 pt-4 border-t border-gray-100">
                 <button type="button"
                         class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50"
                         onclick="Admin.closePassbookModal()">
@@ -1863,7 +1863,9 @@
             json ||
             {};
 
-          this._renderPassbookForm(record);
+          // If the n8n structure returns { client: {}, packages: [] } directly
+          // record might be the whole response.
+          this._renderPassbookForm(json); 
         } catch (err) {
           console.error(err);
           body.innerHTML = `
@@ -1874,79 +1876,213 @@
         }
       },
 
-      _renderPassbookForm(record) {
+      _renderPassbookForm(data) {
         const body = document.getElementById("passbook-form-body");
         if (!body) return;
 
-        // We render a safe set of "nice" fields first, then any extras.
-        // IMPORTANT: inputs use name="<column>" so main.js can collect updates automatically.
-        const preferredOrder = [
-          "Roofing Company",
-          "COMPANY NAME",
-          "Client Name",
-          "CLIENT NAME",
-          "City State",
-          "CITY STATE",
-          "Purchase Date",
-          "PURCHASE DATE",
-          "Package Status",
-          "PACKAGE STATUS",
-          "Status",
-          "STATUS",
-          "Leads Per Day Limit",
-          "LEADS PER DAY LIMIT",
-          "Notes",
-          "NOTES"
-        ];
+        // Handle data structure from n8n (client object + packages array)
+        const client = data.client || data || {};
+        const packages = Array.isArray(data.packages) ? data.packages : [];
 
-        const keys = Object.keys(record || {});
-        const used = new Set();
-
-        const pickValue = (k) => {
-          const v = record?.[k];
-          return (v === null || v === undefined) ? "" : String(v);
+        // Helper to safe-print values
+        const val = (k) => {
+          const v = client[k];
+          return (v === null || v === undefined) ? "" : String(v).replace(/"/g, "&quot;");
         };
 
-        const field = (label, name, value) => `
-          <div>
-            <label class="block text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-1">${label}</label>
-            <input
-              class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              name="${name}"
-              value="${(value || "").replace(/"/g, "&quot;")}"
-            />
+        // ✅ 1. Header Section (Non-editable Code/Name)
+        let html = `
+          <div class="col-span-1 md:col-span-2 bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
+            <div>
+              <h2 class="text-xl font-black text-gray-900">${val('companyName') || 'Unknown Company'}</h2>
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-yellow-100 text-yellow-800">
+                ${val('codeName')}
+              </span>
+            </div>
+            <div class="flex items-center gap-2">
+               <div class="text-right">
+                 <label class="block text-[10px] uppercase font-bold text-gray-400">Status</label>
+                 <select name="STATUS" class="text-sm font-bold bg-transparent text-gray-900 border-none focus:ring-0 p-0 text-right cursor-pointer">
+                    <option value="ACTIVE" ${val('status')==='ACTIVE'?'selected':''}>ACTIVE</option>
+                    <option value="PAUSED" ${val('status')==='PAUSED'?'selected':''}>PAUSED</option>
+                    <option value="BLACKLISTED" ${val('status')==='BLACKLISTED'?'selected':''}>BLACKLISTED</option>
+                 </select>
+               </div>
+            </div>
           </div>
         `;
 
-        // Build preferred fields if they exist
-        let html = "";
-        for (const k of preferredOrder) {
-          if (record && Object.prototype.hasOwnProperty.call(record, k)) {
-            used.add(k);
-            html += field(k, k, pickValue(k));
-          }
-        }
+        // ✅ 2. Editable Profile Grid
+        html += `
+          <div class="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-12 gap-6">
+            
+            <div class="md:col-span-5 space-y-4">
+              <div class="pb-2 border-b border-gray-100 text-xs font-extrabold text-gray-400 uppercase tracking-wider">Contact Information</div>
+              
+              <div class="grid grid-cols-1 gap-3">
+                <div>
+                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Contact Person</label>
+                  <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
+                    name="CONTACT PERSON" value="${val('contactPerson')}">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Phone</label>
+                    <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
+                      name="PHONE" value="${val('phone')}">
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Email</label>
+                    <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
+                      name="EMAIL" value="${val('email')}">
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Company Address</label>
+                  <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
+                    name="COMPANY ADDRESS" value="${val('address')}">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Website</label>
+                  <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-blue-600 underline focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
+                    name="WEBSITE" value="${val('website')}">
+                </div>
+              </div>
 
-        // Add remaining fields (excluding objects/arrays)
-        for (const k of keys) {
-          if (used.has(k)) continue;
-          const v = record?.[k];
-          if (typeof v === "object" && v !== null) continue; // skip nested
-          html += field(k, k, pickValue(k));
-        }
+              <div class="pt-4 pb-2 border-b border-gray-100 text-xs font-extrabold text-gray-400 uppercase tracking-wider">Internal Notes</div>
+              <div>
+                <textarea class="w-full px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition h-24 resize-none" 
+                  name="ADDITIONAL NOTES / REQUESTS" placeholder="Add internal notes here...">${val('notes')}</textarea>
+              </div>
+            </div>
 
-        if (!html) {
-          html = `
-            <div class="p-4 rounded-xl border border-gray-100 bg-gray-50/40 text-sm text-gray-500 italic">
-              No editable fields returned by webhook.
+            <div class="md:col-span-7 space-y-4">
+              <div class="pb-2 border-b border-gray-100 text-xs font-extrabold text-gray-400 uppercase tracking-wider">Operational Configuration</div>
+              
+              <div class="grid grid-cols-2 gap-3">
+                <div class="col-span-2">
+                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Target Area / Regions</label>
+                  <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
+                    name="AREA" value="${val('area')}">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Target Area Codes</label>
+                  <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
+                    name="AREA CODES TO CALL" value="${val('areaCodes')}">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">City / Zip List</label>
+                  <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
+                    name="REGIONS / CITIES / ZIP CODES" value="${val('regionsCitiesZip')}">
+                </div>
+                
+                <div>
+                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Days of Op</label>
+                  <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
+                    name="DAYS OF OPERATION" value="${val('daysOfOperation')}">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Hours of Op</label>
+                  <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
+                    name="HOURS OF OPERATION" value="${val('hoursOfOperation')}">
+                </div>
+
+                <div>
+                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Lead Limit / Day</label>
+                  <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
+                    name="LEADS PER DAY LIMIT" value="${val('leadsPerDayLimit')}">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sales Reps</label>
+                  <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
+                    name="SALES REP COUNT" value="${val('salesRepCount')}">
+                </div>
+
+                <div class="col-span-2">
+                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Roof Types</label>
+                  <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
+                    name="ROOF TYPES" value="${val('roofTypes')}">
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        // ✅ 3. Package History Section (Read-Only Table)
+        if (packages.length > 0) {
+          // Sort packages by Purchase Date (newest first)
+          packages.sort((a, b) => {
+            const da = new Date(a["Purchase Date"]);
+            const db = new Date(b["Purchase Date"]);
+            return db - da;
+          });
+
+          html += `
+            <div class="col-span-1 md:col-span-2 mt-6">
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="font-bold text-gray-900 flex items-center gap-2">
+                  <i class="fa-solid fa-box-archive text-yellow-500"></i> Package History
+                </h4>
+              </div>
+              
+              <div class="overflow-hidden border border-gray-200 rounded-xl">
+                <table class="w-full text-sm text-left">
+                  <thead class="bg-gray-50 text-xs font-bold text-gray-500 uppercase">
+                    <tr>
+                      <th class="p-3">Date</th>
+                      <th class="p-3 text-center">Purchased</th>
+                      <th class="p-3 text-center">Qualified</th>
+                      <th class="p-3 text-center">Credited</th>
+                      <th class="p-3 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-100 bg-white">
+          `;
+
+          packages.forEach(pkg => {
+            const date = pkg["Purchase Date"] || "—";
+            const bought = parseInt(pkg["Purchased Leads"] || 0);
+            const qualified = parseInt(pkg["Qualified Leads\n(Confirmed)"] || 0); // Note: using \n from your screenshot logic if needed, or fuzzy match
+            // Fallback for header names based on your screenshot
+            const qVal = parseInt(pkg["Qualified Leads"] || pkg["Qualified Leads\n(Confirmed)"] || 0);
+            const cVal = parseInt(pkg["Unqualified Leads\n(Credited)"] || pkg["Unqualified Leads"] || 0);
+            
+            const isComplete = qVal >= bought;
+            const statusHtml = isComplete 
+              ? `<span class="px-2 py-1 rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase">Completed</span>`
+              : `<span class="px-2 py-1 rounded bg-blue-100 text-blue-700 text-[10px] font-bold uppercase">Active</span>`;
+
+            html += `
+              <tr>
+                <td class="p-3 font-medium text-gray-900">${date}</td>
+                <td class="p-3 text-center text-gray-500">${bought}</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">${qVal}</td>
+                <td class="p-3 text-center text-red-500">${cVal}</td>
+                <td class="p-3 text-center">${statusHtml}</td>
+              </tr>
+            `;
+          });
+
+          html += `
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+        } else {
+          html += `
+            <div class="col-span-1 md:col-span-2 mt-6 p-4 rounded-xl border border-gray-100 bg-gray-50 text-center text-xs text-gray-400 italic">
+              No package history found for this client.
             </div>
           `;
         }
 
+        // Hidden input for consistency
+        html += `<input type="hidden" name="codeName" value="${val('codeName')}">`;
+
         body.innerHTML = html;
 
-        // ✅ Optional: when update succeeds in main.js, it dispatches this event.
-        // If it fires, refresh the modal fields automatically.
+        // Re-bind listener if needed (already in main function)
         if (!this._passbookEventBound) {
           this._passbookEventBound = true;
           window.addEventListener("passbook:client-updated", (e) => {
