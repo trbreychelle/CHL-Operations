@@ -32,7 +32,11 @@ class CallHammerPortal {
       fetchAdminData: 'https://automate.callhammerleads.com/webhook/dashboard-data',
       timeOffRequest: 'https://automate.callhammerleads.com/webhook/timeoff-request',
       changePassword: 'https://automate.callhammerleads.com/webhook/change-password',
-      manageEmployee: 'https://automate.callhammerleads.com/webhook/manage-employee'
+      manageEmployee: 'https://automate.callhammerleads.com/webhook/manage-employee',
+      // ✅ PASSBOOK
+  passbookClientsList: 'https://automate.callhammerleads.com/webhook/passbook-clients-list',
+  passbookClientDetails: 'https://automate.callhammerleads.com/webhook/passbook-client',
+  passbookClientUpdate: 'https://automate.callhammerleads.com/webhook/passbook-client-update',
     };
 
     this.init();
