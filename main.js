@@ -36,7 +36,7 @@ class CallHammerPortal {
       // ✅ PASSBOOK
   passbookClientsList: 'https://automate.callhammerleads.com/webhook/passbook-clients-list',
   passbookClientDetails: 'https://automate.callhammerleads.com/webhook/passbook-client',
-  passbookClientUpdate: 'https://automate.callhammerleads.com/webhook/passbook-client-update',
+  passbookClientUpdate: 'https://automate.callhammerleads.com/webhook-test/passbook-client-update',
     };
 
     this.init();
