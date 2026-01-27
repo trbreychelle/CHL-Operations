@@ -510,9 +510,9 @@
 
       _analyticsChart: null,
 
-      // ✅ improved lead counts (by company + by code)
-      _leadCountsByCompany: null,
-      _leadCountsByCode: null,
+      // ✅ lead index (by company + by code) for purchase-date based counting
+      _leadsIndexByCompany: null,
+      _leadsIndexByCode: null,
 
       // ✅ custom range
       _customRange: { active: false, start: null, end: null },
@@ -532,10 +532,10 @@
         this._companyToCodeMap = null;
         this._companyToPackageMap = null;
 
-        // ✅ build counts before health normalization
-        const counts = this.buildLeadCounts(leads);
-        this._leadCountsByCompany = counts.byCompany;
-        this._leadCountsByCode = counts.byCode;
+        // ✅ build lead index (so we can count FROM purchase date per client row)
+        const idx = this.buildLeadIndex(leads);
+        this._leadsIndexByCompany = idx.byCompany;
+        this._leadsIndexByCode = idx.byCode;
 
         try { this.renderPulse(leads); } catch(e) {}
         try {
@@ -656,9 +656,8 @@
         ], "N/A");
       },
 
-      // ✅ Build counts by company AND by code (helps fix weird client numbers)
-      buildLeadCounts(leads) {
-        const byCompany = new Map();
+      buildLeadIndex(leads) {
+        const byCompany = new Map(); // key -> [{dt, status}]
         const byCode = new Map();
 
         for (const l of (leads || [])) {
@@ -670,19 +669,40 @@
 
           const st = this.pick(l, ["Status","STATUS"], "");
 
-          const bump = (map, key) => {
+          const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
+          const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+          if (!dt || isNaN(dt.getTime())) continue;
+
+          const push = (map, key) => {
             if (!key) return;
-            const row = map.get(key) || { qualified: 0, credited: 0 };
-            if (this.isQualified(st)) row.qualified += 1;
-            else if (this.isCredited(st)) row.credited += 1;
-            map.set(key, row);
+            const arr = map.get(key) || [];
+            arr.push({ dt, status: st });
+            map.set(key, arr);
           };
 
-          bump(byCompany, companyKey);
-          bump(byCode, codeKey);
+          push(byCompany, companyKey);
+          push(byCode, codeKey);
         }
 
         return { byCompany, byCode };
+      },
+
+      countQualifiedCreditedFrom(list, startDt) {
+        const out = { qualified: 0, credited: 0 };
+
+        const start = (startDt && !isNaN(startDt.getTime()))
+          ? new Date(startDt.getFullYear(), startDt.getMonth(), startDt.getDate(), 0, 0, 0, 0)
+          : null;
+
+        for (const item of (list || [])) {
+          if (!item?.dt || isNaN(item.dt.getTime())) continue;
+          if (start && item.dt < start) continue;
+
+          if (this.isQualified(item.status)) out.qualified += 1;
+          else if (this.isCredited(item.status)) out.credited += 1;
+        }
+
+        return out;
       },
 
       normalizeClientHealthRows(clients) {
@@ -710,13 +730,19 @@
           const purchaseDate = this.pick(c, ["purchase_date","Purchase Date","PURCHASE DATE"], "—");
           const packageStatus = this.pick(c, ["package_status","Package Status","PACKAGE STATUS"], "—");
 
-          // ✅ counts lookup: try CODE first, then company name
+          // ✅ purchase-date based counting: try CODE first, then company
           const codeKey = this.normalizeCode(code);
           const companyKey = this.normalizeCompanyName(roofingCompany);
 
-          const countsByCode = this._leadCountsByCode?.get(codeKey) || null;
-          const countsByCompany = this._leadCountsByCompany?.get(companyKey) || null;
-          const counts = countsByCode || countsByCompany || { qualified: 0, credited: 0 };
+          // parse purchase date of the (active) package on this row
+          const pRaw = purchaseDate;
+          const pDt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(pRaw) : new Date(pRaw);
+
+          const listByCode = this._leadsIndexByCode?.get(codeKey) || null;
+          const listByCompany = this._leadsIndexByCompany?.get(companyKey) || null;
+
+          const list = listByCode || listByCompany || [];
+          const counts = this.countQualifiedCreditedFrom(list, pDt);
 
           const soldBy = this.getSoldByForClient(code);
 
