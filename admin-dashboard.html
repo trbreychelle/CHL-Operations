@@ -62,6 +62,28 @@
       max-height: 315px; /* ~5 rows visible */
       overflow-y: auto;
     }
+
+    /* ✅ Helps when zooming: keep controls from overlapping */
+    .controls-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    .controls-wrap > * {
+      min-width: 180px;
+    }
+    @media (max-width: 1024px) {
+      .controls-wrap > * { min-width: 160px; }
+    }
+
+    /* ✅ Table stays readable, scroll instead of collapsing */
+    .table-scroll {
+      overflow-x: auto;
+    }
+    .table-min {
+      min-width: 1100px;
+    }
   </style>
 </head>
 
@@ -423,6 +445,63 @@
 
       <div id="view-clients" class="view-section">
         <h2 class="text-2xl font-bold text-gray-900 mb-6">Passbook Clients</h2>
+        
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+          <div class="flex flex-col lg:flex-row gap-3 lg:items-end">
+            <div class="flex-1 relative">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+              <input
+                id="passbook-search"
+                type="text"
+                placeholder="Search roofing company, code, city/state, client name..."
+                class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              />
+            </div>
+
+            <select id="passbook-filter-location"
+                    class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
+              <option value="all">All Locations</option>
+            </select>
+
+            <div class="flex bg-gray-200 p-1 rounded-lg">
+              <button id="passbook-view-cards"
+                      class="px-3 py-2 text-xs font-extrabold rounded-md bg-white shadow text-gray-900">
+                Cards
+              </button>
+              <button id="passbook-view-list"
+                      class="px-3 py-2 text-xs font-extrabold rounded-md text-gray-500 hover:text-gray-900">
+                List
+              </button>
+            </div>
+
+            <button id="passbook-clear"
+                    class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
+              Clear
+            </button>
+          </div>
+
+          <div class="mt-3 text-xs text-gray-500">
+            Showing <span class="font-bold" id="passbook-count">0</span> clients
+          </div>
+        </div>
+
+        <div id="passbook-list-wrap" class="hidden bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-6">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm whitespace-nowrap">
+              <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+                <tr>
+                  <th class="p-4">Code</th>
+                  <th class="p-4">Roofing Company</th>
+                  <th class="p-4">City/State</th>
+                  <th class="p-4">Client Name</th>
+                  <th class="p-4 text-right">Open</th>
+                </tr>
+              </thead>
+              <tbody id="passbook-list-body" class="divide-y divide-gray-50"></tbody>
+            </table>
+          </div>
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="client-cards-container">
           <div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">
             Waiting for admin data...
@@ -475,8 +554,8 @@
         <h2 class="text-2xl font-bold text-gray-900 mb-4">Leads Master Record</h2>
 
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
-          <div class="flex flex-col xl:flex-row gap-3 xl:items-end">
-            <div class="flex-1 relative">
+          <div class="controls-wrap">
+            <div class="flex-1 relative" style="min-width: 260px;">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
               <input
                 id="leads-search"
@@ -486,66 +565,64 @@
               />
             </div>
 
-            <div class="flex flex-wrap gap-2">
-              <select id="leads-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
-                <option value="all">All Status</option>
-              </select>
+            <select id="leads-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
+              <option value="all">All Status</option>
+            </select>
 
-              <select id="leads-filter-company" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[240px]">
-                <option value="all">All Roofing Company</option>
-              </select>
+            <select id="leads-filter-company" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[240px]">
+              <option value="all">All Roofing Company</option>
+            </select>
 
-              <select id="leads-filter-ac" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
-                <option value="all">All Appointment Coordinators</option>
-              </select>
+            <select id="leads-filter-ac" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
+              <option value="all">All Appointment Coordinators</option>
+            </select>
 
-              <select id="leads-filter-homeowner" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
-                <option value="all">All Homeowners</option>
-              </select>
+            <select id="leads-filter-homeowner" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
+              <option value="all">All Homeowners</option>
+            </select>
 
-              <div class="flex items-center gap-2">
-                <div>
-                  <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
-                  <input id="leads-date-start" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
-                </div>
-                <div>
-                  <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
-                  <input id="leads-date-end" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
-                </div>
+            <div class="flex items-center gap-2">
+              <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+                <input id="leads-date-start" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
               </div>
+              <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+                <input id="leads-date-end" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
+              </div>
+            </div>
 
-              <button id="leads-clear"
-                      class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
-                Clear
+            <button id="leads-clear"
+                    class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
+              Clear
+            </button>
+
+            <div class="relative">
+              <button id="leads-columns-toggle"
+                      class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800 flex items-center gap-2">
+                <i class="fa-solid fa-table-columns"></i> Columns
               </button>
 
-              <div class="relative">
-                <button id="leads-columns-toggle"
-                        class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800 flex items-center gap-2">
-                  <i class="fa-solid fa-table-columns"></i> Columns
-                </button>
+              <div id="leads-columns-popover"
+                    class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">
+                  Visible Columns
+                </div>
+                <div id="leads-columns-box" class="max-h-[280px] overflow-y-auto space-y-2 pr-1"></div>
 
-                <div id="leads-columns-popover"
-                     class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
-                  <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">
-                    Visible Columns
-                  </div>
-                  <div id="leads-columns-box" class="max-h-[280px] overflow-y-auto space-y-2 pr-1"></div>
-
-                  <div class="flex justify-end gap-2 mt-3">
-                    <button id="leads-columns-all"
-                            class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
-                      All
-                    </button>
-                    <button id="leads-columns-min"
-                            class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
-                      Minimal
-                    </button>
-                  </div>
+                <div class="flex justify-end gap-2 mt-3">
+                  <button id="leads-columns-all"
+                          class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
+                    All
+                  </button>
+                  <button id="leads-columns-min"
+                          class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
+                    Minimal
+                  </button>
                 </div>
               </div>
-
             </div>
+
           </div>
 
           <div class="mt-3 text-xs text-gray-500">
@@ -554,8 +631,8 @@
         </div>
 
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm whitespace-nowrap">
+          <div class="table-scroll">
+            <table class="table-min w-full text-left text-sm whitespace-nowrap">
               <thead id="leads-table-head" class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100"></thead>
               <tbody id="leads-table-body" class="divide-y divide-gray-50">
                 <tr><td class="p-6 text-center text-gray-400">Loading leads...</td></tr>
@@ -593,6 +670,11 @@
       _leadsCols: null,
       _leadsVisibleCols: null,
       _leadsFiltersBound: false,
+      _leadsSort: { key: "date_submitted", dir: "desc" }, // default newest first
+
+      // ✅ Passbook View state
+      _passbookView: "cards",
+      _passbookFiltersBound: false,
 
       getState() {
         return (window.portal && window.portal.adminState) ? window.portal.adminState : null;
@@ -623,7 +705,13 @@
 
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
         try { this.updatePerf(this.perfPeriod); } catch(e) {}
-        try { this.renderClientCards(clients); } catch(e) {}
+        
+        // ✅ New Passbook Logic
+        try {
+          this.setupPassbookFilters(clients);
+          this.bindPassbookUI(clients);
+          this.applyPassbookFilters(clients);
+        } catch(e) {}
         
         try {
           // ✅ setup lead filters UI + columns UI + render filtered view
@@ -827,6 +915,23 @@
               this.getLeadField(l, ["Address","ADDRESS","Job Address"], ""),
             ].join(" ").toLowerCase();
             return hay.includes(q);
+          });
+        }
+
+        // ✅ apply sorting (Date Submitted)
+        if (this._leadsSort?.key === "date_submitted") {
+          const dir = this._leadsSort.dir === "asc" ? 1 : -1;
+
+          filtered.sort((a, b) => {
+            const da = this.getLeadDateObj(a);
+            const db = this.getLeadDateObj(b);
+
+            // put invalid dates at bottom
+            if (!da && !db) return 0;
+            if (!da) return 1;
+            if (!db) return -1;
+
+            return (da.getTime() - db.getTime()) * dir;
           });
         }
 
@@ -1854,7 +1959,7 @@
         }
       },
 
-      // ✅ Replaced with dynamic column version
+      // ✅ Replaced with dynamic column version + Sorting UI
       renderLeads(leads) {
         const tbody = document.getElementById('leads-table-body');
         const thead = document.getElementById('leads-table-head');
@@ -1867,10 +1972,27 @@
 
         const visibleCols = cols.filter(c => visible.has(c.key));
 
-        // render thead
+        // render thead with SORTABLE Date Submitted
+        const sortKey = this._leadsSort?.key;
+        const sortDir = this._leadsSort?.dir;
+
         thead.innerHTML = `
           <tr>
-            ${visibleCols.map(c => `<th class="p-4">${c.label}</th>`).join("")}
+            ${visibleCols.map(c => {
+              const isSortable = (c.key === "date_submitted"); // only date submitted for now
+              const isActive = isSortable && sortKey === c.key;
+              const arrow = !isSortable ? "" : (isActive ? (sortDir === "asc" ? "↑" : "↓") : "↕");
+
+              return `
+                <th
+                  class="p-4 ${isSortable ? "cursor-pointer select-none hover:bg-gray-50" : ""}"
+                  ${isSortable ? `data-leads-sort="${c.key}"` : ""}
+                  title="${isSortable ? "Sort by Date Submitted" : ""}"
+                >
+                  ${c.label} ${isSortable ? `<span class="text-[11px] text-gray-400 ml-1">${arrow}</span>` : ""}
+                </th>
+              `;
+            }).join("")}
           </tr>
         `;
 
@@ -1898,6 +2020,154 @@
 
           return `<tr class="hover:bg-gray-50 transition">${cells}</tr>`;
         }).join("");
+
+        // ✅ bind sort click (thead re-renders, so bind after render)
+        thead.querySelectorAll("[data-leads-sort]").forEach(th => {
+          th.addEventListener("click", () => {
+            const k = th.getAttribute("data-leads-sort");
+            if (!k) return;
+
+            if (!this._leadsSort) this._leadsSort = { key: k, dir: "asc" };
+
+            if (this._leadsSort.key === k) {
+              this._leadsSort.dir = this._leadsSort.dir === "asc" ? "desc" : "asc";
+            } else {
+              this._leadsSort.key = k;
+              this._leadsSort.dir = "asc";
+            }
+
+            this.applyLeadsFilters(); // re-filter + re-render sorted
+          });
+        });
+      },
+
+      // ✅ New Passbook Helper Methods
+      setupPassbookFilters(clients) {
+        const locSel = document.getElementById("passbook-filter-location");
+        if (!locSel) return;
+
+        const locs = [...new Set((clients || []).map(c => this.extractCityState(c)).filter(Boolean))].sort();
+        locSel.innerHTML = `<option value="all">All Locations</option>` + locs.map(l => `<option value="${l}">${l}</option>`).join("");
+      },
+
+      applyPassbookFilters(clients) {
+        const q = String(document.getElementById("passbook-search")?.value || "").toLowerCase().trim();
+        const loc = document.getElementById("passbook-filter-location")?.value || "all";
+
+        let rows = [...(clients || [])];
+
+        if (loc !== "all") rows = rows.filter(c => this.extractCityState(c) === loc);
+
+        if (q) {
+          rows = rows.filter(c => {
+            const company = this.extractRoofingCompany(c);
+            const code = this.extractCode(c);
+            const city = this.extractCityState(c);
+            const clientName = this.extractClientName(c);
+
+            const hay = `${company} ${code} ${city} ${clientName}`.toLowerCase();
+            return hay.includes(q);
+          });
+        }
+
+        const countEl = document.getElementById("passbook-count");
+        if (countEl) countEl.textContent = rows.length;
+
+        // render based on view
+        if (this._passbookView === "list") this.renderPassbookList(rows);
+        else this.renderClientCards(rows);
+      },
+
+      renderPassbookList(clients) {
+        const wrap = document.getElementById("passbook-list-wrap");
+        const body = document.getElementById("passbook-list-body");
+        if (!wrap || !body) return;
+
+        body.innerHTML = (clients || []).map(c => {
+          const name = this.extractRoofingCompany(c);
+          const code = this.extractCode(c);
+          const city = this.extractCityState(c);
+          const clientName = this.extractClientName(c);
+
+          return `
+            <tr class="hover:bg-gray-50">
+              <td class="p-4 font-semibold text-gray-700">${code || "—"}</td>
+              <td class="p-4 font-bold text-gray-900">${name || "—"}</td>
+              <td class="p-4 text-gray-600">${city || "—"}</td>
+              <td class="p-4 text-gray-600">${clientName || "—"}</td>
+              <td class="p-4 text-right">
+                <button
+                  class="px-3 py-1 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800"
+                  onclick="Admin.openPassbookClient('${String(code).replace(/'/g,"\\'")}')"
+                >
+                  Open
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join("") || `<tr><td colspan="5" class="p-6 text-center text-gray-400">No clients found.</td></tr>`;
+      },
+
+      bindPassbookUI(clients) {
+        if (this._passbookFiltersBound) return;
+        this._passbookFiltersBound = true;
+
+        const cardsBtn = document.getElementById("passbook-view-cards");
+        const listBtn = document.getElementById("passbook-view-list");
+        const cardsWrap = document.getElementById("client-cards-container");
+        const listWrap = document.getElementById("passbook-list-wrap");
+
+        const setView = (view) => {
+          this._passbookView = view;
+
+          if (view === "list") {
+            if (listWrap) listWrap.classList.remove("hidden");
+            if (cardsWrap) cardsWrap.classList.add("hidden");
+            if (listBtn) {
+              listBtn.classList.add("bg-white","shadow","text-gray-900");
+              listBtn.classList.remove("text-gray-500");
+            }
+            if (cardsBtn) {
+              cardsBtn.classList.remove("bg-white","shadow","text-gray-900");
+              cardsBtn.classList.add("text-gray-500");
+            }
+          } else {
+            if (listWrap) listWrap.classList.add("hidden");
+            if (cardsWrap) cardsWrap.classList.remove("hidden");
+            if (cardsBtn) {
+              cardsBtn.classList.add("bg-white","shadow","text-gray-900");
+              cardsBtn.classList.remove("text-gray-500");
+            }
+            if (listBtn) {
+              listBtn.classList.remove("bg-white","shadow","text-gray-900");
+              listBtn.classList.add("text-gray-500");
+            }
+          }
+
+          this.applyPassbookFilters(clients);
+        };
+
+        if (cardsBtn) cardsBtn.addEventListener("click", () => setView("cards"));
+        if (listBtn) listBtn.addEventListener("click", () => setView("list"));
+
+        const watch = ["passbook-search","passbook-filter-location"];
+        watch.forEach(id => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.addEventListener(id === "passbook-search" ? "input" : "change", () => this.applyPassbookFilters(clients));
+        });
+
+        const clearBtn = document.getElementById("passbook-clear");
+        if (clearBtn) {
+          clearBtn.addEventListener("click", () => {
+            const s = document.getElementById("passbook-search"); if (s) s.value = "";
+            const l = document.getElementById("passbook-filter-location"); if (l) l.value = "all";
+            this.applyPassbookFilters(clients);
+          });
+        }
+
+        // default view
+        setView("cards");
       },
 
       nav(viewId, linkEl) {
