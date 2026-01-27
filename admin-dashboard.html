@@ -9,7 +9,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
@@ -68,7 +67,6 @@
 
 <body class="h-screen flex overflow-hidden">
 
-  <!-- Sidebar -->
   <aside class="sidebar w-64 flex-shrink-0 hidden lg:flex flex-col">
     <div class="h-16 flex items-center px-6 border-b border-gray-700">
       <div class="w-8 h-8 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-lg flex items-center justify-center text-gray-900 font-bold mr-3 shadow-lg shadow-yellow-500/20">CH</div>
@@ -115,14 +113,11 @@
     </div>
   </aside>
 
-  <!-- Main -->
   <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
     <div class="flex-1 overflow-y-auto p-6 lg:p-8" id="main-scroll">
 
-      <!-- OVERVIEW -->
       <div id="view-overview" class="view-section active">
 
-        <!-- Top Header -->
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
           <div>
             <h1 class="text-3xl font-bold text-gray-900">Mission Control</h1>
@@ -141,7 +136,6 @@
           </div>
         </div>
 
-        <!-- ✅ CLIENT HEALTH (5 ROWS + SCROLL) -->
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8">
           <div class="p-5 border-b border-gray-100 flex flex-col gap-3 bg-gray-50/50 rounded-t-2xl">
             <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
@@ -194,7 +188,6 @@
             </div>
           </div>
 
-          <!-- ✅ scroll wrapper -->
           <div class="client-health-scroll">
             <table class="w-full text-left border-collapse">
               <thead class="bg-white sticky top-0 z-10 shadow-sm">
@@ -226,14 +219,12 @@
           </div>
         </div>
 
-        <!-- ✅ TEAM ANALYTICS -->
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8 overflow-hidden">
           <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-gray-50/50">
             <h3 class="font-bold text-gray-900 flex items-center gap-2">
               <i class="fa-solid fa-chart-column text-yellow-500"></i> Team Performance Analytics
             </h3>
 
-            <!-- ✅ Presets + Custom Calendar -->
             <div class="flex items-center gap-2 flex-wrap">
               <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
                 <button onclick="Admin.setAnalyticsPeriod('today', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
@@ -284,7 +275,6 @@
           </div>
 
           <div class="p-5">
-            <!-- ✅ UPDATED: QC Rejected BEFORE Qualified -->
             <div class="grid grid-cols-1 md:grid-cols-6 gap-3 mb-5">
               <div class="kpi-tile">
                 <div class="kpi-label">Total Leads</div>
@@ -336,10 +326,8 @@
             </div>
           </div>
 
-          <!-- ✅ TOP 10 + BOTTOM 5 -->
           <div class="border-t border-gray-100 p-5 bg-gray-50/40 space-y-6">
 
-            <!-- TOP 10 -->
             <div>
               <div class="flex items-center justify-between mb-3">
                 <h4 class="font-bold text-gray-900 flex items-center gap-2">
@@ -368,7 +356,6 @@
               </div>
             </div>
 
-            <!-- BOTTOM 5 -->
             <div>
               <div class="flex items-center justify-between mb-3">
                 <h4 class="font-bold text-gray-900 flex items-center gap-2">
@@ -400,7 +387,6 @@
           </div>
         </div>
 
-        <!-- Team Performance table (unchanged) -->
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm mb-8">
           <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-gray-50/50 rounded-t-2xl">
             <h3 class="font-bold text-gray-900 flex items-center gap-2">
@@ -435,7 +421,6 @@
         </div>
       </div>
 
-      <!-- CLIENTS VIEW -->
       <div id="view-clients" class="view-section">
         <h2 class="text-2xl font-bold text-gray-900 mb-6">Passbook Clients</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="client-cards-container">
@@ -443,9 +428,49 @@
             Waiting for admin data...
           </div>
         </div>
+
+        <div id="passbook-modal" class="hidden fixed inset-0 z-50">
+          <div class="absolute inset-0 bg-black/40" onclick="Admin.closePassbookModal()"></div>
+
+          <div class="relative mx-auto mt-10 w-[94%] max-w-3xl bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+            <div class="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <div>
+                <h3 class="font-extrabold text-gray-900" id="passbook-modal-title">Client Details</h3>
+                <p class="text-xs text-gray-500 mt-1" id="passbook-modal-sub">—</p>
+              </div>
+
+              <button class="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                      onclick="Admin.closePassbookModal()">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <form id="passbookClientForm" class="p-5 space-y-4">
+              <input type="hidden" id="codeName" name="codeName" value="">
+
+              <div id="passbook-form-body" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="p-4 rounded-xl border border-gray-100 bg-gray-50/40 text-sm text-gray-500 italic">
+                  Loading client details...
+                </div>
+              </div>
+
+              <div class="flex items-center justify-end gap-2 pt-2">
+                <button type="button"
+                        class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50"
+                        onclick="Admin.closePassbookModal()">
+                  Cancel
+                </button>
+
+                <button id="passbookSaveButton" type="submit"
+                        class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800">
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
 
-      <!-- LEADS VIEW -->
       <div id="view-leads" class="view-section">
         <h2 class="text-2xl font-bold text-gray-900 mb-6">Leads Master Record</h2>
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -1298,24 +1323,193 @@
         }).join('');
       },
 
+      // ✅ REPLACED: New version with button onclick event
       renderClientCards(clients) {
         const container = document.getElementById('client-cards-container');
-        if (!clients || !clients.length) return;
+        if (!container) return;
+
+        if (!clients || !clients.length) {
+          container.innerHTML = `
+            <div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">
+              No clients found.
+            </div>
+          `;
+          return;
+        }
 
         container.innerHTML = clients.map(c => {
           const name = this.extractRoofingCompany(c);
           const code = this.extractCode(c);
           const city = this.extractCityState(c);
+
           return `
-            <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+            <button
+              type="button"
+              class="text-left bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition"
+              onclick="Admin.openPassbookClient('${String(code).replace(/'/g, "\\'")}')"
+            >
               <div class="flex items-center justify-between">
                 <h3 class="font-bold text-gray-900 text-lg">${name}</h3>
                 <span class="text-xs font-bold text-gray-500">${code}</span>
               </div>
               <p class="text-xs text-gray-500 mt-1">${city}</p>
-            </div>
+              <p class="text-[10px] font-extrabold text-yellow-600 uppercase tracking-wider mt-3">Click to open</p>
+            </button>
           `;
         }).join('');
+      },
+
+      // ✅ ADDED: Passbook Logic methods
+      openPassbookClient(codeName) {
+        this._openPassbookModalShell(codeName);
+        this._fetchAndRenderPassbookClient(codeName);
+      },
+
+      _openPassbookModalShell(codeName) {
+        const modal = document.getElementById("passbook-modal");
+        const title = document.getElementById("passbook-modal-title");
+        const sub = document.getElementById("passbook-modal-sub");
+        const body = document.getElementById("passbook-form-body");
+        const codeInput = document.getElementById("codeName");
+
+        if (!modal || !body || !codeInput) return;
+
+        codeInput.value = codeName || "";
+        title.textContent = "Client Details";
+        sub.textContent = codeName ? `Code: ${codeName}` : "—";
+
+        body.innerHTML = `
+          <div class="p-4 rounded-xl border border-gray-100 bg-gray-50/40 text-sm text-gray-500 italic">
+            Loading client details...
+          </div>
+        `;
+
+        modal.classList.remove("hidden");
+      },
+
+      closePassbookModal() {
+        const modal = document.getElementById("passbook-modal");
+        if (modal) modal.classList.add("hidden");
+      },
+
+      async _fetchAndRenderPassbookClient(codeName) {
+        const body = document.getElementById("passbook-form-body");
+        if (!body) return;
+
+        try {
+          // uses your main.js webhook
+          const res = await fetch(window.portal.webhooks.passbookClientDetails, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+            body: JSON.stringify({ codeName })
+          });
+
+          if (!res.ok) throw new Error(`Details fetch failed (HTTP ${res.status})`);
+
+          const json = await res.json().catch(() => ({}));
+
+          // try common shapes
+          const record =
+            json?.client ||
+            json?.data?.client ||
+            json?.data ||
+            json ||
+            {};
+
+          this._renderPassbookForm(record);
+        } catch (err) {
+          console.error(err);
+          body.innerHTML = `
+            <div class="p-4 rounded-xl border border-red-100 bg-red-50 text-sm text-red-700">
+              Failed to load client details. ${err?.message || ""}
+            </div>
+          `;
+        }
+      },
+
+      _renderPassbookForm(record) {
+        const body = document.getElementById("passbook-form-body");
+        if (!body) return;
+
+        // We render a safe set of "nice" fields first, then any extras.
+        // IMPORTANT: inputs use name="<column>" so main.js can collect updates automatically.
+        const preferredOrder = [
+          "Roofing Company",
+          "COMPANY NAME",
+          "Client Name",
+          "CLIENT NAME",
+          "City State",
+          "CITY STATE",
+          "Purchase Date",
+          "PURCHASE DATE",
+          "Package Status",
+          "PACKAGE STATUS",
+          "Status",
+          "STATUS",
+          "Leads Per Day Limit",
+          "LEADS PER DAY LIMIT",
+          "Notes",
+          "NOTES"
+        ];
+
+        const keys = Object.keys(record || {});
+        const used = new Set();
+
+        const pickValue = (k) => {
+          const v = record?.[k];
+          return (v === null || v === undefined) ? "" : String(v);
+        };
+
+        const field = (label, name, value) => `
+          <div>
+            <label class="block text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-1">${label}</label>
+            <input
+              class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              name="${name}"
+              value="${(value || "").replace(/"/g, "&quot;")}"
+            />
+          </div>
+        `;
+
+        // Build preferred fields if they exist
+        let html = "";
+        for (const k of preferredOrder) {
+          if (record && Object.prototype.hasOwnProperty.call(record, k)) {
+            used.add(k);
+            html += field(k, k, pickValue(k));
+          }
+        }
+
+        // Add remaining fields (excluding objects/arrays)
+        for (const k of keys) {
+          if (used.has(k)) continue;
+          const v = record?.[k];
+          if (typeof v === "object" && v !== null) continue; // skip nested
+          html += field(k, k, pickValue(k));
+        }
+
+        if (!html) {
+          html = `
+            <div class="p-4 rounded-xl border border-gray-100 bg-gray-50/40 text-sm text-gray-500 italic">
+              No editable fields returned by webhook.
+            </div>
+          `;
+        }
+
+        body.innerHTML = html;
+
+        // ✅ Optional: when update succeeds in main.js, it dispatches this event.
+        // If it fires, refresh the modal fields automatically.
+        if (!this._passbookEventBound) {
+          this._passbookEventBound = true;
+          window.addEventListener("passbook:client-updated", (e) => {
+            const code = e?.detail?.codeName;
+            const codeInput = document.getElementById("codeName");
+            if (codeInput && code && codeInput.value === code) {
+              this._fetchAndRenderPassbookClient(code);
+            }
+          });
+        }
       },
 
       renderLeads(leads) {
