@@ -14,11 +14,11 @@ class CallHammerPortal {
 
     // Admin datasets (normalized + raw)
     this.adminState = {
-      clients: [],       // normalized for Client Health Monitor
-      leads: [],         // raw leads (RAW LEADS tab)
-      agents: [],        // normalized from AGENT_MASTER
-      rawStatuses: [],   // raw client status rows (Client Lead Delivery Tracker)
-      rawPackages: []    // raw package rows (Lead Package tab)
+      clients: [],        // normalized for Client Health Monitor
+      leads: [],          // raw leads (RAW LEADS tab)
+      agents: [],         // normalized from AGENT_MASTER
+      rawStatuses: [],    // raw client status rows (Client Lead Delivery Tracker)
+      rawPackages: []     // raw package rows (Lead Package tab)
     };
 
     // Cache to avoid Google Sheets quota/too-many-requests issues
@@ -834,25 +834,27 @@ class CallHammerPortal {
   }
 
   async refreshPassbookClientDetails(codeName) {
-    // If you already have a Passbook UI renderer elsewhere, this triggers it.
-    // Otherwise we just refetch the record and emit an event that any UI can listen to.
-    const url = this.webhooks.passbookClientDetails;
-    if (!url) return;
+    const baseUrl = this.webhooks.passbookClientDetails;
+    if (!baseUrl) return;
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ codeName }),
+    // Build URL with query param (GET)
+    const u = new URL(baseUrl);
+    u.searchParams.set('codeName', codeName);
+
+    // IMPORTANT: No Content-Type header, no body → avoids preflight in most cases
+    const res = await fetch(u.toString(), {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
     });
 
     if (!res.ok) {
-      console.warn(`Passbook details refresh failed (HTTP ${res.status}).`);
+      const txt = await res.text().catch(() => '');
+      console.warn(`Passbook details refresh failed (HTTP ${res.status}).`, txt);
       return;
     }
 
     const data = await res.json().catch(() => null);
 
-    // Emit event for any UI layer that wants to re-render
     try {
       window.dispatchEvent(new CustomEvent('passbook:client-updated', { detail: { codeName, data } }));
     } catch (e) {}
