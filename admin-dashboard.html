@@ -149,11 +149,26 @@
             <p class="text-sm text-gray-500 mt-1">Daily decision support & system health.</p>
           </div>
 
-          <div class="flex gap-4">
+          <div class="flex gap-4 flex-wrap">
             <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
               <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider" id="pulse-label">EST. VALUE</p>
               <p class="text-lg font-bold text-emerald-600 mt-1" id="pulse-profit">$0.00</p>
             </div>
+
+            <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm min-w-[220px]">
+              <div class="flex items-center justify-between gap-3">
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Owed Leads</p>
+                <select id="owed-package-filter" class="text-[10px] font-extrabold border border-gray-200 rounded-lg px-2 py-1 bg-white">
+                  <option value="all" selected>ALL</option>
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="PAUSE">PAUSE</option>
+                  <option value="REFUNDED">REFUNDED</option>
+                </select>
+              </div>
+              <p class="text-lg font-bold text-gray-900 mt-1" id="pulse-owed">0</p>
+              <p class="text-[11px] font-semibold text-gray-500" id="pulse-owed-sub">All package statuses</p>
+            </div>
+
             <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
               <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pending</p>
               <p class="text-lg font-bold text-yellow-500 mt-1" id="pulse-pending">0</p>
@@ -210,6 +225,10 @@
                 <option value="REFUNDED">REFUNDED</option>
               </select>
 
+              <select id="health-filter-location" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[190px]">
+                <option value="all">All Locations</option>
+              </select>
+
               <button id="health-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
                 Clear
               </button>
@@ -228,6 +247,10 @@
 
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="roofingCompany">
                     Roofing Company <span class="sort-icon" id="sort-roofingCompany">↕</span>
+                  </th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="cityState">
+                    City/State <span class="sort-icon" id="sort-cityState">↕</span>
                   </th>
 
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="packageRatio">
@@ -257,7 +280,7 @@
                 </tr>
               </thead>
               <tbody id="client-health-body" class="text-sm divide-y divide-gray-50">
-                <tr><td colspan="13" class="p-6 text-center text-gray-400 italic">Loading clients...</td></tr>
+                <tr><td colspan="14" class="p-6 text-center text-gray-400 italic">Loading clients...</td></tr>
               </tbody>
             </table>
           </div>
@@ -329,17 +352,17 @@
               </div>
               <div class="kpi-tile">
                 <div class="kpi-label">Qualified</div>
-                <div class="kpi-value text-emerald-600" id="kpi-qualified">0</div>
+                <div class="kpi-value text-blue-500" id="kpi-qualified">0</div>
                 <div class="kpi-sub">Confirmed / Approved</div>
               </div>
               <div class="kpi-tile">
                 <div class="kpi-label">Credited</div>
-                <div class="kpi-value text-red-500" id="kpi-credited">0</div>
+                <div class="kpi-value text-purple-500" id="kpi-credited">0</div>
                 <div class="kpi-sub">Credited only</div>
               </div>
               <div class="kpi-tile">
                 <div class="kpi-label">Pending</div>
-                <div class="kpi-value text-yellow-600" id="kpi-pending">0</div>
+                <div class="kpi-value text-yellow-500" id="kpi-pending">0</div>
                 <div class="kpi-sub">Pending review</div>
               </div>
               <div class="kpi-tile">
@@ -377,9 +400,9 @@
                       <th class="p-4">Agent</th>
                       <th class="p-4 text-center">Total</th>
                       <th class="p-4 text-center text-red-500">QC Rejected</th>
-                      <th class="p-4 text-center text-emerald-600">Qualified</th>
-                      <th class="p-4 text-center text-red-500">Credited</th>
-                      <th class="p-4 text-center text-yellow-600">Pending</th>
+                      <th class="p-4 text-center text-blue-500">Qualified</th>
+                      <th class="p-4 text-center text-purple-500">Credited</th>
+                      <th class="p-4 text-center text-yellow-500">Pending</th>
                       <th class="p-4 text-center">Cancellation Rate</th>
                     </tr>
                   </thead>
@@ -404,9 +427,9 @@
                       <th class="p-4">Agent</th>
                       <th class="p-4 text-center">Total</th>
                       <th class="p-4 text-center text-red-500">QC Rejected</th>
-                      <th class="p-4 text-center text-emerald-600">Qualified</th>
-                      <th class="p-4 text-center text-red-500">Credited</th>
-                      <th class="p-4 text-center text-yellow-600">Pending</th>
+                      <th class="p-4 text-center text-blue-500">Qualified</th>
+                      <th class="p-4 text-center text-purple-500">Credited</th>
+                      <th class="p-4 text-center text-yellow-500">Pending</th>
                       <th class="p-4 text-center">Cancellation Rate</th>
                     </tr>
                   </thead>
@@ -418,7 +441,7 @@
             </div>
           </div>
         </div>
-        </div>
+      </div>
 
       <div id="view-clients" class="view-section">
         <h2 class="text-2xl font-bold text-gray-900 mb-6">Passbook Clients</h2>
@@ -579,7 +602,7 @@
               </button>
 
               <div id="leads-columns-popover"
-                    class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                   class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
                 <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">
                   Visible Columns
                 </div>
@@ -718,13 +741,13 @@
                   <th class="p-4 text-center text-red-500 cursor-pointer select-none" onclick="Admin.setTeamSort('rejected')">
                     QC Rejected <span id="team-sort-rejected" class="text-[10px] ml-1 text-gray-300">↕</span>
                   </th>
-                  <th class="p-4 text-center text-emerald-600 cursor-pointer select-none" onclick="Admin.setTeamSort('qualified')">
+                  <th class="p-4 text-center text-blue-500 cursor-pointer select-none" onclick="Admin.setTeamSort('qualified')">
                     Qualified <span id="team-sort-qualified" class="text-[10px] ml-1 text-gray-300">↕</span>
                   </th>
-                  <th class="p-4 text-center text-red-500 cursor-pointer select-none" onclick="Admin.setTeamSort('credited')">
+                  <th class="p-4 text-center text-purple-500 cursor-pointer select-none" onclick="Admin.setTeamSort('credited')">
                     Credited <span id="team-sort-credited" class="text-[10px] ml-1 text-gray-300">↕</span>
                   </th>
-                  <th class="p-4 text-center text-yellow-600 cursor-pointer select-none" onclick="Admin.setTeamSort('pending')">
+                  <th class="p-4 text-center text-yellow-500 cursor-pointer select-none" onclick="Admin.setTeamSort('pending')">
                     Pending <span id="team-sort-pending" class="text-[10px] ml-1 text-gray-300">↕</span>
                   </th>
                   <th class="p-4 text-center cursor-pointer select-none" onclick="Admin.setTeamSort('cancelRate')">
@@ -883,6 +906,9 @@
       _passbookView: "cards",
       _passbookFiltersBound: false,
 
+      // ✅ NEW: Owed KPI
+      _owedKpiBound: false,
+
       getState() {
         return (window.portal && window.portal.adminState) ? window.portal.adminState : null;
       },
@@ -928,6 +954,9 @@
           this.bindLeadsMasterEvents();
           this.applyLeadsFilters(); // renders with filters/search applied
         } catch(e) {}
+
+        // ✅ NEW: Update Owed KPI
+        try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
       },
 
       pick(obj, keys, fallback = "") {
@@ -1346,6 +1375,7 @@
       setupFilters(rows) {
         const statusSel = document.getElementById("health-filter-status");
         const pkgSel = document.getElementById("health-filter-package");
+        const locSel = document.getElementById("health-filter-location");
 
         const alwaysStatuses = ["CRITICAL", "AT RISK", "HEALTHY", "NOT STARTED"];
         const foundStatuses = [...new Set(rows.map(r => r.status))].filter(Boolean);
@@ -1353,16 +1383,25 @@
 
         statusSel.innerHTML = `<option value="all">All Status</option>` + statuses.map(s => `<option value="${s}">${s}</option>`).join("");
 
+        // ✅ NEW: Populate Location Filter
+        if (locSel) {
+           const uniq = (arr) => [...new Set(arr.filter(x => String(x||"").trim() !== ""))].sort((a,b)=>String(a).localeCompare(String(b)));
+           const locs = uniq(rows.map(r => r.cityState));
+           locSel.innerHTML = `<option value="all">All Locations</option>` + locs.map(l => `<option value="${String(l).replace(/"/g,'&quot;')}">${l}</option>`).join("");
+        }
+
         if (!this._filtersBound) {
           this._filtersBound = true;
           document.getElementById("health-search").addEventListener("input", () => this.applyClientHealthFilters());
           statusSel.addEventListener("change", () => this.applyClientHealthFilters());
           if (pkgSel) pkgSel.addEventListener("change", () => this.applyClientHealthFilters());
+          if (locSel) locSel.addEventListener("change", () => this.applyClientHealthFilters());
 
           document.getElementById("health-clear").addEventListener("click", () => {
             document.getElementById("health-search").value = "";
             statusSel.value = "all";
             if (pkgSel) pkgSel.value = "all";
+            if (locSel) locSel.value = "all";
             this.applyClientHealthFilters();
           });
 
@@ -1415,11 +1454,13 @@
         const q = String(document.getElementById("health-search").value || "").toLowerCase().trim();
         const status = document.getElementById("health-filter-status").value;
         const pkg = document.getElementById("health-filter-package")?.value || "all";
+        const loc = document.getElementById("health-filter-location")?.value || "all";
 
         let filtered = [...this.clientHealthRaw];
 
         if (status !== "all") filtered = filtered.filter(r => r.status === status);
         if (pkg !== "all") filtered = filtered.filter(r => String(r.packageStatus || "").toUpperCase() === pkg);
+        if (loc !== "all") filtered = filtered.filter(r => String(r.cityState || "") === loc);
 
         if (q) {
           filtered = filtered.filter(r => {
@@ -1444,7 +1485,7 @@
       renderClientHealthTable(rows) {
         const tbody = document.getElementById("client-health-body");
         if (!rows.length) {
-          tbody.innerHTML = `<tr><td colspan="13" class="p-6 text-center text-gray-400 italic">No results found.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="14" class="p-6 text-center text-gray-400 italic">No results found.</td></tr>`;
           return;
         }
 
@@ -1461,6 +1502,7 @@
               </td>
               <td class="p-4 text-gray-700 font-semibold">${r.code || "N/A"}</td>
               <td class="p-4 font-bold text-gray-900 max-w-[260px] truncate" title="${r.roofingCompany}">${r.roofingCompany}</td>
+              <td class="p-4 text-gray-600 max-w-[180px] truncate" title="${r.cityState}">${r.cityState}</td>
               <td class="p-4 text-center text-gray-900 font-bold">${r.packageLabel}</td>
               <td class="p-4 text-center text-emerald-600 font-bold">${r.qualifiedCount}</td>
               <td class="p-4 text-center text-red-500 font-bold">${r.creditedCount}</td>
@@ -1489,6 +1531,41 @@
             if (row) row.soldBy = e.target.value;
           });
         });
+      },
+
+      // ✅ NEW: Compute Total Owed Leads
+      computeTotalOwedLeads(packageStatus = "all") {
+        const state = this.getState();
+        const clients = Array.isArray(state?.clients) ? state.clients : [];
+
+        let total = 0;
+        for (const c of clients) {
+          const pkg = this.normalizePackageStatus(this.pick(c, ["package_status","Package Status","PACKAGE STATUS"], "—"));
+          if (packageStatus !== "all" && pkg !== packageStatus) continue;
+
+          const owed = Number(this.pick(c, ["owed_leads","Owed Leads","OWED LEADS","Owed"], 0)) || 0;
+          total += owed;
+        }
+        return total;
+      },
+
+      bindOwedLeadsKPI() {
+        const sel = document.getElementById("owed-package-filter");
+        if (!sel || this._owedKpiBound) return;
+        this._owedKpiBound = true;
+        sel.addEventListener("change", () => this.updateOwedLeadsKPI());
+      },
+
+      updateOwedLeadsKPI() {
+        const sel = document.getElementById("owed-package-filter");
+        const val = sel ? sel.value : "all";
+
+        const total = this.computeTotalOwedLeads(val);
+        const el = document.getElementById("pulse-owed");
+        if (el) el.textContent = total;
+
+        const sub = document.getElementById("pulse-owed-sub");
+        if (sub) sub.textContent = (val === "all") ? "All package statuses" : `${val} packages`;
       },
 
       setAnalyticsPeriod(period, btnElement) {
@@ -1544,6 +1621,21 @@
         if (period === "custom" && this._customRange.active) {
           return { start: startOfDay(new Date(this._customRange.start + "T00:00:00")), end: endOfDay(new Date(this._customRange.end + "T23:59:59")), grain: "day", label: "Custom Range" };
         }
+        
+        // ✅ Patch: All-Time Support
+        if (period === "all-time") {
+          const dates = (leads || [])
+            .map(l => this.getLeadDateObj(l))
+            .filter(d => d && !isNaN(d.getTime()))
+            .sort((a,b) => a - b);
+
+          if (!dates.length) return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "All-Time" };
+
+          const start = startOfDay(dates[0]);
+          const end   = endOfDay(dates[dates.length - 1]);
+          return { start, end, grain: "week", label: "All-Time" };
+        }
+
         if (period === "today") return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "Today" };
         if (period === "this-week") return { start: startOfDay(thisWeekStart), end: endOfDay(thisWeekEnd), grain: "day", label: "This Week" };
         if (period === "previous-week") return { start: startOfDay(prevWeekStart), end: endOfDay(prevWeekEndFinal), grain: "day", label: "Previous Week" };
@@ -1563,6 +1655,17 @@
       isRejected(st) { const s = String(st || "").toLowerCase(); return s.includes("reject"); },
       isCredited(st) { const s = String(st || "").toLowerCase(); return s.includes("credit"); },
       isPendingReview(st) { const s = String(st || "").toLowerCase(); return s.includes("pending"); },
+
+      // ✅ NEW: Status Badge Helper
+      statusBadge(status) {
+        const s = String(status || "").toLowerCase();
+        let cls = "bg-gray-100 text-gray-700 border-gray-200";
+
+        if (s.includes("approved") || s.includes("confirmed")) cls = "bg-emerald-100 text-emerald-800 border-emerald-200";
+        if (s.includes("rejected") || s.includes("credit"))    cls = "bg-red-100 text-red-800 border-red-200";
+
+        return `<span class="px-2 py-1 rounded-full text-xs font-extrabold border ${cls}">${status || "—"}</span>`;
+      },
 
       _fmtDateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; },
       _fmtWeekKey(d) {
@@ -1595,10 +1698,11 @@
         this._analyticsChart = new Chart(ctx, {
           type: "bar",
           data: { labels, datasets: [
-            { label: "Qualified", data: series.qualified, stack: "stack" },
-            { label: "QC Rejected", data: series.rejected, stack: "stack" },
-            { label: "Credited", data: series.credited, stack: "stack" },
-            { label: "Pending", data: series.pending, stack: "stack" },
+            // ✅ Team Performance Colors
+            { label: "Qualified",   data: series.qualified, stack: "stack", backgroundColor: "#3B82F6" }, // blue
+            { label: "QC Rejected", data: series.rejected,  stack: "stack", backgroundColor: "#EF4444" }, // red
+            { label: "Credited",    data: series.credited,  stack: "stack", backgroundColor: "#A855F7" }, // purple
+            { label: "Pending",     data: series.pending,   stack: "stack", backgroundColor: "#FACC15" }, // yellow
           ]},
           options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
         });
@@ -1631,7 +1735,9 @@
           const dt = this.getLeadDateObj(l);
           if (!dt || dt < start || dt > end) return;
           const st = this.pick(l, ["Status","STATUS"], "");
+          // ✅ Fix: use analytics matching fields
           const agent = String(this.pick(l, ["Appointment Coordinator Name","Agent Name","AGENT"], "Unknown")).trim();
+          
           total++;
           const a = agentAgg.get(agent) || { name: agent, total: 0, qualified: 0, rejected: 0, credited: 0, pending: 0 };
           a.total++;
@@ -1669,7 +1775,8 @@
 
         const renderRow = (a) => {
           const d = a.qualified + a.credited;
-          return `<tr><td class="p-4 font-bold text-gray-900">${a.name}</td><td class="p-4 text-center text-gray-600 font-semibold">${a.total}</td><td class="p-4 text-center text-red-500 font-bold">${a.rejected}</td><td class="p-4 text-center text-emerald-600 font-bold">${a.qualified}</td><td class="p-4 text-center text-red-500 font-bold">${a.credited}</td><td class="p-4 text-center text-yellow-600 font-bold">${a.pending}</td><td class="p-4 text-center text-gray-600 font-semibold">${d > 0 ? Math.round((a.credited/d)*100) : 0}%</td></tr>`;
+          // ✅ Team Performance Colors applied here
+          return `<tr><td class="p-4 font-bold text-gray-900">${a.name}</td><td class="p-4 text-center text-gray-600 font-semibold">${a.total}</td><td class="p-4 text-center text-red-500 font-bold">${a.rejected}</td><td class="p-4 text-center text-blue-500 font-bold">${a.qualified}</td><td class="p-4 text-center text-purple-500 font-bold">${a.credited}</td><td class="p-4 text-center text-yellow-600 font-bold">${a.pending}</td><td class="p-4 text-center text-gray-600 font-semibold">${d > 0 ? Math.round((a.credited/d)*100) : 0}%</td></tr>`;
         };
 
         document.getElementById("top10-body").innerHTML = top.map(renderRow).join("") || '<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No data</td></tr>';
@@ -1722,7 +1829,15 @@
         this.initLeadsColumnsUI();
         const visibleCols = this._leadsCols.filter(c => this._leadsVisibleCols.has(c.key));
         thead.innerHTML = `<tr>${visibleCols.map(c => `<th class="p-4 ${c.key==='date_submitted'?'cursor-pointer':''}" ${c.key==='date_submitted'?'data-leads-sort="date_submitted"':''}>${c.label} ${c.key==='date_submitted'?'↕':''}</th>`).join("")}</tr>`;
-        tbody.innerHTML = leads.map(l => `<tr>${visibleCols.map(c => `<td class="p-4">${this.getLeadField(l, c.keys)}</td>`).join("")}</tr>`).join("");
+        
+        // ✅ Patch: Use Status Badge
+        tbody.innerHTML = leads.map(l => `<tr>
+          ${visibleCols.map(c => {
+            const raw = this.getLeadField(l, c.keys);
+            if (c.key === "status") return `<td class="p-4">${this.statusBadge(raw)}</td>`;
+            return `<td class="p-4">${raw}</td>`;
+          }).join("")}
+        </tr>`).join("");
       },
 
       setupPassbookFilters(clients) {
@@ -1765,9 +1880,10 @@
 
       _computeAgentMetrics(name, leads, start, end) {
         const inRange = leads.filter(l => {
-          const a = this.pick(l, ["Agent Name","AGENT"], "");
+          // ✅ Patch: Match logic same as analytics + Exact Match
+          const a = this.pick(l, ["Appointment Coordinator Name","Agent Name","AGENT"], "");
           const dt = this.getLeadDateObj(l);
-          return dt && dt >= start && dt <= end && String(a).toLowerCase().includes(String(name).toLowerCase());
+          return dt && dt >= start && dt <= end && String(a).trim().toLowerCase() === String(name).trim().toLowerCase();
         });
         let q = 0, c = 0, r = 0, p = 0;
         inRange.forEach(l => {
@@ -1781,7 +1897,8 @@
         const state = this.getState(); const leads = state?.leads || []; const agents = state?.agents || [];
         const { start, end } = this.getTeamRangeFor();
         let rows = agents.map(a => ({ name: this.pick(a, ["Name"], "Unknown"), stage: this.getAgentStage(a), warned: this.isAgentWarned(a), ...this._computeAgentMetrics(this.pick(a, ["Name"], ""), leads, start, end) }));
-        document.getElementById("team-body").innerHTML = rows.map(r => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold"><button onclick="Admin.openAgentModal('${r.name}')">${r.name}</button><div class="text-[10px] uppercase text-gray-400">${r.stage}</div></td><td class="p-4 text-center">${r.total}</td><td class="p-4 text-center text-red-500">${r.rejected}</td><td class="p-4 text-center text-emerald-600">${r.qualified}</td><td class="p-4 text-center text-red-500">${r.credited}</td><td class="p-4 text-center text-yellow-600">${r.pending}</td><td class="p-4 text-center">${r.cancelRate}%</td></tr>`).join("");
+        // ✅ Team Performance Colors
+        document.getElementById("team-body").innerHTML = rows.map(r => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold"><button onclick="Admin.openAgentModal('${r.name}')">${r.name}</button><div class="text-[10px] uppercase text-gray-400">${r.stage}</div></td><td class="p-4 text-center">${r.total}</td><td class="p-4 text-center text-red-500">${r.rejected}</td><td class="p-4 text-center text-blue-500">${r.qualified}</td><td class="p-4 text-center text-purple-500">${r.credited}</td><td class="p-4 text-center text-yellow-500">${r.pending}</td><td class="p-4 text-center">${r.cancelRate}%</td></tr>`).join("");
       },
 
       openAgentModal(name) { this._agentSelectedName = name; document.getElementById("agent-modal").classList.remove("hidden"); this.renderAgentLeads(); },
@@ -1790,7 +1907,15 @@
       renderAgentLeads() {
         const state = this.getState(); const { start, end } = this.getRangeFor(this.agentPeriod, state?.leads || []);
         const m = this._computeAgentMetrics(this._agentSelectedName, state?.leads || [], start, end);
-        document.getElementById("agent-leads-body").innerHTML = m.leads.map(l => `<tr><td class="p-3">${this.getLeadField(l, ["Date Submitted"])}</td><td class="p-3">${this.getLeadField(l, ["LEAD ID"])}</td><td class="p-3">${this.getLeadField(l, ["Status"])}</td></tr>`).join("");
+        
+        // ✅ Patch: Use Badge + Correct Columns
+        document.getElementById("agent-leads-body").innerHTML = m.leads.map(l => `
+          <tr>
+            <td class="p-3">${this.getLeadField(l, ["Date Submitted"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["LEAD ID"])}</td>
+            <td class="p-3">${this.statusBadge(this.getLeadField(l, ["Status"]))}</td>
+          </tr>
+        `).join("");
       },
 
       nav(viewId, linkEl) {
