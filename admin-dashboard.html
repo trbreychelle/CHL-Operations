@@ -51,16 +51,19 @@
     th.sortable:hover { background: rgba(17,24,39,0.02); }
     .sort-icon { font-size: 10px; margin-left: 6px; color: #9CA3AF; }
 
+    /* KPI tiles */
     .kpi-tile { background: #fff; border: 1px solid #F3F4F6; border-radius: 16px; padding: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
     .kpi-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .12em; color: #9CA3AF; }
     .kpi-value { font-size: 20px; font-weight: 800; margin-top: 6px; color: #111827; }
     .kpi-sub { font-size: 12px; font-weight: 600; margin-top: 2px; color: #6B7280; }
 
+    /* Client Health fixed scroll height */
     .client-health-scroll {
-      max-height: 315px;
+      max-height: 315px; /* ~5 rows visible */
       overflow-y: auto;
     }
 
+    /* Helps when zooming: keep controls from overlapping */
     .controls-wrap {
       display: flex;
       flex-wrap: wrap;
@@ -74,6 +77,7 @@
       .controls-wrap > * { min-width: 160px; }
     }
 
+    /* Table stays readable, scroll instead of collapsing */
     .table-scroll {
       overflow-x: auto;
     }
@@ -147,7 +151,7 @@
 
           <div class="flex gap-4">
             <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
-              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider" id="pulse-label">Est. Value</p>
+              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider" id="pulse-label">EST. VALUE</p>
               <p class="text-lg font-bold text-emerald-600 mt-1" id="pulse-profit">$0.00</p>
             </div>
             <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
@@ -249,7 +253,6 @@
 
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase">Purchase Date</th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase">Last Lead Received</th>
-
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Sold By</th>
                 </tr>
               </thead>
@@ -839,6 +842,7 @@
       perfPeriod: 'today',
       analyticsPeriod: 'today',
 
+      // ✅ TEAM STATE
       teamPeriod: 'today',
       _teamCustomRange: { active: false, start: null, end: null },
       teamStageFilter: 'active',
@@ -847,6 +851,7 @@
       teamSortDir: 'asc',
       _teamBound: false,
 
+      // ✅ AGENT DRILLDOWN STATE
       _agentSelectedName: null,
       agentPeriod: 'today',
       _agentCustomRange: { active: false, start: null, end: null },
@@ -861,16 +866,20 @@
 
       _analyticsChart: null,
 
+      // ✅ lead index (by company + by code) for purchase-date based counting
       _leadsIndexByCompany: null,
       _leadsIndexByCode: null,
 
+      // ✅ custom range for analytics
       _customRange: { active: false, start: null, end: null },
 
+      // ✅ Leads Master Record UI state
       _leadsCols: null,
       _leadsVisibleCols: null,
       _leadsFiltersBound: false,
-      _leadsSort: { key: "date_submitted", dir: "desc" },
+      _leadsSort: { key: "date_submitted", dir: "desc" }, // default newest first
 
+      // ✅ Passbook View state
       _passbookView: "cards",
       _passbookFiltersBound: false,
 
@@ -884,7 +893,12 @@
 
         const clients = Array.isArray(state.clients) ? state.clients : [];
         const leads   = Array.isArray(state.leads) ? state.leads : [];
+        const agents  = Array.isArray(state.agents) ? state.agents : [];
 
+        this._companyToCodeMap = null;
+        this._companyToPackageMap = null;
+
+        // ✅ build lead index (so we can count FROM purchase date per client row)
         const idx = this.buildLeadIndex(leads);
         this._leadsIndexByCompany = idx.byCompany;
         this._leadsIndexByCode = idx.byCode;
@@ -897,8 +911,10 @@
 
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
 
+        // ✅ Bind Team UI + Render
         try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
         
+        // ✅ New Passbook Logic
         try {
           this.setupPassbookFilters(clients);
           this.bindPassbookUI(clients);
@@ -906,10 +922,11 @@
         } catch(e) {}
         
         try {
+          // ✅ setup lead filters UI + columns UI + render filtered view
           this.initLeadsColumnsUI();
           this.setupLeadFilters(leads);
           this.bindLeadsMasterEvents();
-          this.applyLeadsFilters();
+          this.applyLeadsFilters(); // renders with filters/search applied
         } catch(e) {}
       },
 
@@ -921,13 +938,15 @@
         return fallback;
       },
 
+      // ✅ Lead field getter (supports many header spellings)
       getLeadField(l, keys, fallback="—") {
         return this.pick(l, keys, fallback);
       },
 
+      // ✅ Define ALL columns you want (RAW leads style)
       getLeadsColumns() {
         return [
-          { key: "date_submitted", label: "Date Submitted", keys: ["Date Submitted","DATE SUBMITTED","Date","DATE"] },
+          { key: "date_submitted", label: "Date Submitted", keys: ["Date Submitted"] },
           { key: "lead_id", label: "LEAD ID", keys: ["LEAD ID"] },
           { key: "roofing_company", label: "Roofing Company", keys: ["Company Name"] },
           { key: "appointment_coordinator", label: "Appointment Coordinator Name", keys: ["Appointment Coordinator Name"] },
@@ -944,108 +963,258 @@
         ];
       },
 
+      // ✅ Default visible columns (minimal view)
       getLeadsDefaultVisibleCols() {
         return new Set(["date_submitted","homeowner_name","appointment_coordinator","roofing_company","status"]);
       },
 
+      // ✅ Parse lead date using existing portal.parseDateSafe
       getLeadDateObj(l) {
-        const dStr = this.getLeadField(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
+        const dStr = this.getLeadField(l, ["Date Submitted"], "");
         const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
         return (dt && !isNaN(dt.getTime())) ? dt : null;
       },
 
+      // ✅ Build dropdown filter options
       setupLeadFilters(leads) {
         const statusSel = document.getElementById("leads-filter-status");
         const compSel = document.getElementById("leads-filter-company");
         const acSel = document.getElementById("leads-filter-ac");
         const hoSel = document.getElementById("leads-filter-homeowner");
+
         const uniq = (arr) => [...new Set(arr.filter(x => String(x||"").trim() !== ""))].sort((a,b)=>String(a).localeCompare(String(b)));
 
-        statusSel.innerHTML = `<option value="all">All Status</option>` + uniq(leads.map(l => this.getLeadField(l, ["Status","STATUS"], ""))).map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
-        compSel.innerHTML = `<option value="all">All Roofing Company</option>` + uniq(leads.map(l => this.getLeadField(l, ["Company Name","COMPANY NAME","Client","CLIENT","Roofing Company"], ""))).map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
-        acSel.innerHTML = `<option value="all">All Appointment Coordinators</option>` + uniq(leads.map(l => this.getLeadField(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent","Agent Name"], ""))).map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
-        hoSel.innerHTML = `<option value="all">All Homeowners</option>` + uniq(leads.map(l => this.getLeadField(l, ["Homeowner Name(s)","Homeowner Name","Homeowner","HOMEOWNER NAME"], ""))).map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
+        const statuses = uniq(leads.map(l => this.getLeadField(l, ["Status","STATUS"], "")));
+        const companies = uniq(leads.map(l => this.getLeadField(l, ["Company Name","COMPANY NAME","Client","CLIENT","Roofing Company"], "")));
+        const acs = uniq(leads.map(l => this.getLeadField(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent","Agent Name"], "")));
+        const homeowners = uniq(leads.map(l => this.getLeadField(l, ["Homeowner Name(s)","Homeowner Name","Homeowner","HOMEOWNER NAME"], "")));
+
+        statusSel.innerHTML = `<option value="all">All Status</option>` + statuses.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
+        compSel.innerHTML = `<option value="all">All Roofing Company</option>` + companies.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
+        acSel.innerHTML = `<option value="all">All Appointment Coordinators</option>` + acs.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
+        hoSel.innerHTML = `<option value="all">All Homeowners</option>` + homeowners.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
       },
 
+      // ✅ Column selector UI
       initLeadsColumnsUI() {
         if (this._leadsCols) return;
+
         this._leadsCols = this.getLeadsColumns();
         this._leadsVisibleCols = this.getLeadsDefaultVisibleCols();
+
         const toggle = document.getElementById("leads-columns-toggle");
         const pop = document.getElementById("leads-columns-popover");
         const box = document.getElementById("leads-columns-box");
+        const allBtn = document.getElementById("leads-columns-all");
+        const minBtn = document.getElementById("leads-columns-min");
+
+        if (!toggle || !pop || !box) return;
 
         const renderChecks = () => {
-          box.innerHTML = this._leadsCols.map(col => `
-            <label class="flex items-center gap-2 text-sm text-gray-700">
-              <input type="checkbox" data-colkey="${col.key}" ${this._leadsVisibleCols.has(col.key) ? "checked" : ""} />
-              <span>${col.label}</span>
-            </label>
-          `).join("");
-          box.querySelectorAll('input').forEach(chk => chk.addEventListener("change", () => {
-            const k = chk.getAttribute("data-colkey");
-            if (chk.checked) this._leadsVisibleCols.add(k); else this._leadsVisibleCols.delete(k);
-            this.applyLeadsFilters();
-          }));
+          box.innerHTML = this._leadsCols.map(col => {
+            const checked = this._leadsVisibleCols.has(col.key);
+            return `
+              <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" data-colkey="${col.key}" ${checked ? "checked" : ""} />
+                <span>${col.label}</span>
+              </label>
+            `;
+          }).join("");
+
+          box.querySelectorAll('input[type="checkbox"][data-colkey]').forEach(chk => {
+            chk.addEventListener("change", () => {
+              const k = chk.getAttribute("data-colkey");
+              if (!k) return;
+              if (chk.checked) this._leadsVisibleCols.add(k);
+              else this._leadsVisibleCols.delete(k);
+              this.applyLeadsFilters(); // re-render
+            });
+          });
         };
-        if (toggle) toggle.addEventListener("click", (e) => { e.preventDefault(); pop.classList.toggle("hidden"); });
-        document.getElementById("leads-columns-all")?.addEventListener("click", () => { this._leadsVisibleCols = new Set(this._leadsCols.map(c => c.key)); renderChecks(); this.applyLeadsFilters(); });
-        document.getElementById("leads-columns-min")?.addEventListener("click", () => { this._leadsVisibleCols = this.getLeadsDefaultVisibleCols(); renderChecks(); this.applyLeadsFilters(); });
+
+        toggle.addEventListener("click", (e) => {
+          e.preventDefault();
+          pop.classList.toggle("hidden");
+        });
+
+        document.addEventListener("click", (e) => {
+          if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
+            pop.classList.add("hidden");
+          }
+        });
+
+        if (allBtn) allBtn.addEventListener("click", () => {
+          this._leadsVisibleCols = new Set(this._leadsCols.map(c => c.key));
+          renderChecks();
+          this.applyLeadsFilters();
+        });
+
+        if (minBtn) minBtn.addEventListener("click", () => {
+          this._leadsVisibleCols = this.getLeadsDefaultVisibleCols();
+          renderChecks();
+          this.applyLeadsFilters();
+        });
+
         renderChecks();
       },
 
+      // ✅ Apply search + dropdown filters + date range
       applyLeadsFilters() {
         const state = this.getState();
         const leads = (state && Array.isArray(state.leads)) ? state.leads : [];
+
         const q = String(document.getElementById("leads-search")?.value || "").toLowerCase().trim();
-        const startDt = document.getElementById("leads-date-start")?.value ? new Date(document.getElementById("leads-date-start").value + "T00:00:00") : null;
-        const endDt = document.getElementById("leads-date-end")?.value ? new Date(document.getElementById("leads-date-end").value + "T23:59:59") : null;
+        const stVal = document.getElementById("leads-filter-status")?.value || "all";
+        const compVal = document.getElementById("leads-filter-company")?.value || "all";
+        const acVal = document.getElementById("leads-filter-ac")?.value || "all";
+        const hoVal = document.getElementById("leads-filter-homeowner")?.value || "all";
 
-        let filtered = leads.filter(l => {
-          if (document.getElementById("leads-filter-status")?.value !== "all" && String(this.getLeadField(l, ["Status","STATUS"], "")).trim() !== document.getElementById("leads-filter-status").value) return false;
-          if (document.getElementById("leads-filter-company")?.value !== "all" && String(this.getLeadField(l, ["Company Name","COMPANY NAME","Client","CLIENT","Roofing Company"], "")).trim() !== document.getElementById("leads-filter-company").value) return false;
-          if (startDt || endDt) { const dt = this.getLeadDateObj(l); if (!dt || (startDt && dt < startDt) || (endDt && dt > endDt)) return false; }
-          if (q) {
-            const hay = [this.getLeadField(l, ["Homeowner Name(s)"], ""), this.getLeadField(l, ["Appointment Coordinator Name"], ""), this.getLeadField(l, ["Company Name"], ""), this.getLeadField(l, ["Status"], "")].join(" ").toLowerCase();
-            if (!hay.includes(q)) return false;
-          }
-          return true;
-        });
+        const sDate = document.getElementById("leads-date-start")?.value || "";
+        const eDate = document.getElementById("leads-date-end")?.value || "";
 
-        if (this._leadsSort?.key === "date_submitted") {
-          const dir = this._leadsSort.dir === "asc" ? 1 : -1;
-          filtered.sort((a, b) => { const da = this.getLeadDateObj(a); const db = this.getLeadDateObj(b); return (!da || !db) ? 0 : (da - db) * dir; });
+        const startDt = sDate ? new Date(sDate + "T00:00:00") : null;
+        const endDt = eDate ? new Date(eDate + "T23:59:59") : null;
+
+        let filtered = [...leads];
+
+        if (stVal !== "all") {
+          filtered = filtered.filter(l => String(this.getLeadField(l, ["Status","STATUS"], "")).trim() === stVal);
+        }
+        if (compVal !== "all") {
+          filtered = filtered.filter(l => String(this.getLeadField(l, ["Company Name","COMPANY NAME","Client","CLIENT","Roofing Company"], "")).trim() === compVal);
+        }
+        if (acVal !== "all") {
+          filtered = filtered.filter(l => String(this.getLeadField(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent","Agent Name"], "")).trim() === acVal);
+        }
+        if (hoVal !== "all") {
+          filtered = filtered.filter(l => String(this.getLeadField(l, ["Homeowner Name(s)","Homeowner Name","Homeowner","HOMEOWNER NAME"], "")).trim() === hoVal);
         }
 
-        document.getElementById("leads-count").textContent = filtered.length;
+        // date range filter
+        if (startDt || endDt) {
+          filtered = filtered.filter(l => {
+            const dt = this.getLeadDateObj(l);
+            if (!dt) return false;
+            if (startDt && dt < startDt) return false;
+            if (endDt && dt > endDt) return false;
+            return true;
+          });
+        }
+
+        // text search across many fields
+        if (q) {
+          filtered = filtered.filter(l => {
+            const hay = [
+              this.getLeadField(l, ["Homeowner Name(s)","Homeowner Name","Homeowner"], ""),
+              this.getLeadField(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent","Agent Name"], ""),
+              this.getLeadField(l, ["Company Name","COMPANY NAME","Client","CLIENT","Roofing Company"], ""),
+              this.getLeadField(l, ["Status","STATUS"], ""),
+              this.getLeadField(l, ["Lead ID","LEAD ID","lead_id","ID"], ""),
+              this.getLeadField(l, ["Email","EMAIL","Homeowner Email"], ""),
+              this.getLeadField(l, ["Phone","PHONE","Homeowner Phone Number","Phone Number"], ""),
+              this.getLeadField(l, ["Address","ADDRESS","Job Address"], ""),
+            ].join(" ").toLowerCase();
+            return hay.includes(q);
+          });
+        }
+
+        // ✅ apply sorting (Date Submitted)
+        if (this._leadsSort?.key === "date_submitted") {
+          const dir = this._leadsSort.dir === "asc" ? 1 : -1;
+
+          filtered.sort((a, b) => {
+            const da = this.getLeadDateObj(a);
+            const db = this.getLeadDateObj(b);
+            // put invalid dates at bottom
+            if (!da && !db) return 0;
+            if (!da) return 1;
+            if (!db) return -1;
+            return (da.getTime() - db.getTime()) * dir;
+          });
+        }
+
+        // update count + render
+        const countEl = document.getElementById("leads-count");
+        if (countEl) countEl.textContent = filtered.length;
+
         this.renderLeads(filtered);
       },
 
+      // ✅ Bind once
       bindLeadsMasterEvents() {
         if (this._leadsFiltersBound) return;
         this._leadsFiltersBound = true;
-        ["leads-search","leads-filter-status","leads-filter-company","leads-filter-ac","leads-filter-homeowner","leads-date-start","leads-date-end"].forEach(id => {
-          document.getElementById(id)?.addEventListener((id==="leads-search"?"input":"change"), () => this.applyLeadsFilters());
+
+        const els = [
+          "leads-search",
+          "leads-filter-status",
+          "leads-filter-company",
+          "leads-filter-ac",
+          "leads-filter-homeowner",
+          "leads-date-start",
+          "leads-date-end"
+        ];
+
+        els.forEach(id => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          const evt = (id === "leads-search") ? "input" : "change";
+          el.addEventListener(evt, () => this.applyLeadsFilters());
         });
-        document.getElementById("leads-clear")?.addEventListener("click", () => {
-          ["leads-search","leads-date-start","leads-date-end"].forEach(id => document.getElementById(id).value = "");
-          ["leads-filter-status","leads-filter-company","leads-filter-ac","leads-filter-homeowner"].forEach(id => document.getElementById(id).value = "all");
-          this.applyLeadsFilters();
-        });
+
+        const clearBtn = document.getElementById("leads-clear");
+        if (clearBtn) {
+          clearBtn.addEventListener("click", () => {
+            const s = document.getElementById("leads-search"); if (s) s.value = "";
+            const a = document.getElementById("leads-filter-status"); if (a) a.value = "all";
+            const b = document.getElementById("leads-filter-company"); if (b) b.value = "all";
+            const c = document.getElementById("leads-filter-ac"); if (c) c.value = "all";
+            const d = document.getElementById("leads-filter-homeowner"); if (d) d.value = "all";
+            const ds = document.getElementById("leads-date-start"); if (ds) ds.value = "";
+            const de = document.getElementById("leads-date-end"); if (de) de.value = "";
+            this.applyLeadsFilters();
+          });
+        }
       },
 
-      normalizeCompanyName(name) { return String(name || "").toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim(); },
-      normalizeCode(code) { return String(code || "").toLowerCase().replace(/\s+/g, "").trim(); },
+      normalizeCompanyName(name) {
+        return String(name || "")
+          .toLowerCase()
+          .replace(/&/g, "and")
+          .replace(/[^a-z0-9\s]/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+      },
 
-      getSoldByForClient(code) { try { const obj = JSON.parse(localStorage.getItem("ch_soldby_map") || "{}"); return obj[code] || ""; } catch (e) { return ""; } },
-      setSoldByForClient(code, value) { try { const obj = JSON.parse(localStorage.getItem("ch_soldby_map") || "{}"); obj[code] = value; localStorage.setItem("ch_soldby_map", JSON.stringify(obj)); } catch (e) {} },
+      normalizeCode(code) {
+        return String(code || "").toLowerCase().replace(/\s+/g, "").trim();
+      },
+
+      // ✅ Sold-By mapping persisted locally
+      getSoldByForClient(code) {
+        try {
+          const raw = localStorage.getItem("ch_soldby_map");
+          const obj = raw ? JSON.parse(raw) : {};
+          return obj?.[code] || "";
+        } catch (e) { return ""; }
+      },
+
+      setSoldByForClient(code, value) {
+        try {
+          const raw = localStorage.getItem("ch_soldby_map");
+          const obj = raw ? JSON.parse(raw) : {};
+          obj[code] = value;
+          localStorage.setItem("ch_soldby_map", JSON.stringify(obj));
+        } catch (e) {}
+      },
 
       normalizeClientStatus(v) {
         const s = String(v || "").trim().toUpperCase();
         if (s.includes("CRITICAL")) return "CRITICAL";
         if (s.includes("YELLOW") || s.includes("RISK") || s.includes("AT RISK")) return "AT RISK";
         if (s.includes("GREEN") || s.includes("HEALTHY")) return "HEALTHY";
-        return s || "NOT STARTED";
+        if (s.includes("NOT STARTED") || s.includes("BLUE")) return "NOT STARTED";
+        return s || "UNKNOWN";
       },
 
       normalizePackageStatus(v) {
@@ -1063,61 +1232,113 @@
         return "st-new";
       },
 
-      extractRoofingCompany(c) { return this.pick(c, ["roofing_company","Roofing Company","Company Name"], "—"); },
-      extractCityState(c) { return this.pick(c, ["city_state","City, State","Location"], "—"); },
-      extractClientName(c) { return this.pick(c, ["client_name","Client Name","Client"], "—"); },
-      extractCode(c) { return this.pick(c, ["code_name","Code Name","code","Client Code"], "N/A"); },
+      extractRoofingCompany(c) {
+        return this.pick(c, ["roofing_company","Roofing Company","ROOFING COMPANY","Company Name","COMPANY NAME"], "—");
+      },
+
+      extractCityState(c) {
+        return this.pick(c, ["city_state","CITY STATE","CITY, STATE","City, State","City State","Location","location"], "—");
+      },
+
+      extractClientName(c) {
+        return this.pick(c, ["client_name","CLIENT NAME","Client Name","clientName","Client","CLIENT"], "—");
+      },
+
+      extractCode(c) {
+        return this.pick(c, ["code_name","CODE NAME","Code Name","codeName","CODE","code","Client Code","CLIENT CODE","Client ID","ClientID"], "N/A");
+      },
 
       buildLeadIndex(leads) {
-        const byCompany = new Map(); const byCode = new Map();
+        const byCompany = new Map();
+        const byCode = new Map();
+
         for (const l of (leads || [])) {
-          const cKey = this.normalizeCompanyName(this.pick(l, ["Company Name","Client"], ""));
-          const cdKey = this.normalizeCode(this.pick(l, ["Client Code","Code Name"], ""));
-          const dt = this.getLeadDateObj(l);
-          if (!dt) continue;
-          const push = (m, k) => { if (!k) return; const a = m.get(k) || []; a.push({ dt, status: this.pick(l, ["Status"], "") }); m.set(k, a); };
-          push(byCompany, cKey); push(byCode, cdKey);
+          const company = this.pick(l, ["Company Name","COMPANY NAME","Client"], "");
+          const companyKey = this.normalizeCompanyName(company);
+          const leadCode = this.pick(l, ["Client Code","CLIENT CODE","Code Name","CODE NAME","Code","CODE"], "");
+          const codeKey = this.normalizeCode(leadCode);
+          const st = this.pick(l, ["Status","STATUS"], "");
+          const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
+          const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+          if (!dt || isNaN(dt.getTime())) continue;
+
+          const push = (map, key) => {
+            if (!key) return;
+            const arr = map.get(key) || [];
+            arr.push({ dt, status: st });
+            map.set(key, arr);
+          };
+
+          push(byCompany, companyKey);
+          push(byCode, codeKey);
         }
         return { byCompany, byCode };
       },
 
       countQualifiedCreditedFrom(list, startDt) {
         const out = { qualified: 0, credited: 0 };
-        const start = startDt ? new Date(startDt) : null;
-        if (start) start.setHours(0,0,0,0);
+        const start = (startDt && !isNaN(startDt.getTime()))
+          ? new Date(startDt.getFullYear(), startDt.getMonth(), startDt.getDate(), 0, 0, 0, 0)
+          : null;
+
         for (const item of (list || [])) {
+          if (!item?.dt || isNaN(item.dt.getTime())) continue;
           if (start && item.dt < start) continue;
-          if (this.isQualified(item.status)) out.qualified++; else if (this.isCredited(item.status)) out.credited++;
+          if (this.isQualified(item.status)) out.qualified += 1;
+          else if (this.isCredited(item.status)) out.credited += 1;
         }
         return out;
       },
 
       normalizeClientHealthRows(clients) {
         return (clients || []).map(c => {
+          const rawStatus = this.pick(c, ["status","Client Status","CLIENT STATUS","Status","STATUS"], "UNKNOWN");
+          const clientStatus = this.normalizeClientStatus(rawStatus);
+
           const roofingCompany = this.extractRoofingCompany(c);
           const code = this.extractCode(c);
-          const purchaseDate = this.pick(c, ["purchase_date","Purchase Date"], "—");
+          const cityState = this.extractCityState(c);
+          const clientName = this.extractClientName(c);
+
+          const lastLead = this.pick(c, ["last_lead_received","Last Lead Received"], "—");
+          const leadsToday = Number(this.pick(c, ["leads_today","Leads Today"], 0)) || 0;
+          const leadsYesterday = Number(this.pick(c, ["leads_yesterday","Leads Yesterday"], 0)) || 0;
+
+          const owed = Number(this.pick(c, ["owed_leads","Owed Leads","OWED LEADS","Owed"], 0)) || 0;
+          const purchased = Number(this.pick(c, ["purchased_leads","Purchased Leads","PURCHASED LEADS","Purchased"], 0)) || 0;
+
+          const pkgLabel = `${owed} / ${purchased}`;
+          const pkgRatio = purchased === 0 ? owed : (owed / purchased);
+
+          const purchaseDate = this.pick(c, ["purchase_date","Purchase Date","PURCHASE DATE"], "—");
+          const packageStatusRaw = this.pick(c, ["package_status","Package Status","PACKAGE STATUS"], "—");
+          const packageStatus = this.normalizePackageStatus(packageStatusRaw);
+
+          const codeKey = this.normalizeCode(code);
+          const companyKey = this.normalizeCompanyName(roofingCompany);
           const pDt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(purchaseDate) : new Date(purchaseDate);
-          const list = this._leadsIndexByCode?.get(this.normalizeCode(code)) || this._leadsIndexByCompany?.get(this.normalizeCompanyName(roofingCompany)) || [];
+
+          const list = this._leadsIndexByCode?.get(codeKey) || this._leadsIndexByCompany?.get(companyKey) || [];
           const counts = this.countQualifiedCreditedFrom(list, pDt);
-          const owed = Number(this.pick(c, ["owed_leads","Owed"], 0));
-          const purchased = Number(this.pick(c, ["purchased_leads","Purchased"], 0));
+          const soldBy = this.getSoldByForClient(code);
 
           return {
-            status: this.normalizeClientStatus(this.pick(c, ["status","Status"], "UNKNOWN")),
+            _raw: c,
+            status: clientStatus,
             code,
             roofingCompany,
-            packageLabel: `${owed} / ${purchased}`,
-            packageRatio: purchased === 0 ? owed : (owed / purchased),
-            qualifiedCount: counts.qualified,
-            creditedCount: counts.credited,
-            leadsToday: Number(this.pick(c, ["leads_today","Leads Today"], 0)),
-            leadsYesterday: Number(this.pick(c, ["leads_yesterday","Leads Yesterday"], 0)),
-            packageStatus: this.normalizePackageStatus(this.pick(c, ["package_status","Package Status"], "—")),
-            clientName: this.extractClientName(c),
+            cityState,
+            clientName,
+            lastLead,
             purchaseDate,
-            lastLead: this.pick(c, ["last_lead_received","Last Lead"], "—"),
-            soldBy: this.getSoldByForClient(code),
+            packageStatus,
+            qualifiedCount: counts.qualified || 0,
+            creditedCount: counts.credited || 0,
+            soldBy,
+            packageLabel: pkgLabel,
+            packageRatio: pkgRatio,
+            leadsToday,
+            leadsYesterday,
           };
         });
       },
@@ -1125,26 +1346,66 @@
       setupFilters(rows) {
         const statusSel = document.getElementById("health-filter-status");
         const pkgSel = document.getElementById("health-filter-package");
-        const statuses = ["CRITICAL", "AT RISK", "HEALTHY", "NOT STARTED"];
+
+        const alwaysStatuses = ["CRITICAL", "AT RISK", "HEALTHY", "NOT STARTED"];
+        const foundStatuses = [...new Set(rows.map(r => r.status))].filter(Boolean);
+        const statuses = [...new Set([...alwaysStatuses, ...foundStatuses])];
+
         statusSel.innerHTML = `<option value="all">All Status</option>` + statuses.map(s => `<option value="${s}">${s}</option>`).join("");
-        
+
         if (!this._filtersBound) {
           this._filtersBound = true;
           document.getElementById("health-search").addEventListener("input", () => this.applyClientHealthFilters());
           statusSel.addEventListener("change", () => this.applyClientHealthFilters());
-          pkgSel?.addEventListener("change", () => this.applyClientHealthFilters());
+          if (pkgSel) pkgSel.addEventListener("change", () => this.applyClientHealthFilters());
+
           document.getElementById("health-clear").addEventListener("click", () => {
             document.getElementById("health-search").value = "";
-            statusSel.value = "all"; if (pkgSel) pkgSel.value = "all";
+            statusSel.value = "all";
+            if (pkgSel) pkgSel.value = "all";
             this.applyClientHealthFilters();
           });
-          document.querySelectorAll("th.sortable").forEach(th => th.addEventListener("click", () => { this.toggleSort(th.getAttribute("data-sort")); this.applyClientHealthFilters(); }));
+
+          document.querySelectorAll("th.sortable").forEach(th => {
+            th.addEventListener("click", () => {
+              const key = th.getAttribute("data-sort");
+              this.toggleSort(key);
+              this.applyClientHealthFilters();
+            });
+          });
+
+          const toggle = document.getElementById("custom-range-toggle");
+          const pop = document.getElementById("custom-range-popover");
+          const apply = document.getElementById("custom-apply");
+          const clear = document.getElementById("custom-clear");
+
+          if (toggle && pop && apply && clear && !this._customBound) {
+            this._customBound = true;
+            toggle.addEventListener("click", (e) => { e.preventDefault(); pop.classList.toggle("hidden"); });
+            document.addEventListener("click", (e) => { if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) pop.classList.add("hidden"); });
+            apply.addEventListener("click", () => {
+              const s = document.getElementById("custom-start").value;
+              const e = document.getElementById("custom-end").value;
+              if (!s || !e) return;
+              this._customRange.active = true;
+              this._customRange.start = s; this._customRange.end = e;
+              this.analyticsPeriod = "custom";
+              pop.classList.add("hidden");
+              this.updateAnalytics(this.analyticsPeriod);
+            });
+            clear.addEventListener("click", () => {
+              document.getElementById("custom-start").value = "";
+              document.getElementById("custom-end").value = "";
+              this._customRange.active = false; pop.classList.add("hidden");
+              this.updateAnalytics(this.analyticsPeriod === "custom" ? "today" : this.analyticsPeriod);
+            });
+          }
         }
       },
 
       toggleSort(key) {
-        this.sortState.dir = (this.sortState.key === key) ? (this.sortState.dir === "asc" ? "desc" : "asc") : "asc";
-        this.sortState.key = key;
+        if (this.sortState.key === key) { this.sortState.dir = this.sortState.dir === "asc" ? "desc" : "asc"; } 
+        else { this.sortState.key = key; this.sortState.dir = "asc"; }
         document.querySelectorAll(".sort-icon").forEach(i => i.textContent = "↕");
         const icon = document.getElementById(`sort-${key}`);
         if (icon) icon.textContent = this.sortState.dir === "asc" ? "↑" : "↓";
@@ -1152,32 +1413,52 @@
 
       applyClientHealthFilters() {
         const q = String(document.getElementById("health-search").value || "").toLowerCase().trim();
-        const st = document.getElementById("health-filter-status").value;
+        const status = document.getElementById("health-filter-status").value;
         const pkg = document.getElementById("health-filter-package")?.value || "all";
 
-        let filtered = this.clientHealthRaw.filter(r => (st === "all" || r.status === st) && (pkg === "all" || r.packageStatus === pkg));
-        if (q) filtered = filtered.filter(r => `${r.code} ${r.roofingCompany} ${r.clientName}`.toLowerCase().includes(q));
+        let filtered = [...this.clientHealthRaw];
 
-        if (this.sortState.key) {
-          filtered.sort((a,b) => {
-            const A = a[this.sortState.key]; const B = b[this.sortState.key];
-            const res = (typeof A === "number") ? A - B : String(A).localeCompare(String(B));
-            return this.sortState.dir === "asc" ? res : -res;
+        if (status !== "all") filtered = filtered.filter(r => r.status === status);
+        if (pkg !== "all") filtered = filtered.filter(r => String(r.packageStatus || "").toUpperCase() === pkg);
+
+        if (q) {
+          filtered = filtered.filter(r => {
+            const hay = `${r.code} ${r.roofingCompany} ${r.clientName}`.toLowerCase();
+            return hay.includes(q);
           });
         }
+
+        const { key, dir } = this.sortState;
+        if (key) {
+          filtered.sort((a,b) => {
+            const A = a[key]; const B = b[key];
+            if (typeof A === "number" && typeof B === "number") return dir === "asc" ? A - B : B - A;
+            return dir === "asc" ? String(A).localeCompare(String(B)) : String(B).localeCompare(String(A));
+          });
+        }
+
+        this.clientHealthView = filtered;
         this.renderClientHealthTable(filtered);
       },
 
       renderClientHealthTable(rows) {
         const tbody = document.getElementById("client-health-body");
-        if (!rows.length) { tbody.innerHTML = `<tr><td colspan="13" class="p-6 text-center text-gray-400 italic">No results found.</td></tr>`; return; }
+        if (!rows.length) {
+          tbody.innerHTML = `<tr><td colspan="13" class="p-6 text-center text-gray-400 italic">No results found.</td></tr>`;
+          return;
+        }
 
         tbody.innerHTML = rows.map(r => {
           const dotClass = this.statusDotClass(r.status);
           const soldByVal = r.soldBy || "";
           return `
             <tr class="hover:bg-gray-50">
-              <td class="p-4"><div class="status-container"><span class="status-dot ${dotClass}"></span><span class="tooltip-text"><b>${r.status}</b></span></div></td>
+              <td class="p-4">
+                <div class="status-container">
+                  <span class="status-dot ${dotClass}"></span>
+                  <span class="tooltip-text"><b>${r.status}</b></span>
+                </div>
+              </td>
               <td class="p-4 text-gray-700 font-semibold">${r.code || "N/A"}</td>
               <td class="p-4 font-bold text-gray-900 max-w-[260px] truncate" title="${r.roofingCompany}">${r.roofingCompany}</td>
               <td class="p-4 text-center text-gray-900 font-bold">${r.packageLabel}</td>
@@ -1200,38 +1481,28 @@
           `;
         }).join("");
 
-        tbody.querySelectorAll('select').forEach(sel => sel.addEventListener('change', (e) => {
-          const code = e.target.getAttribute('data-soldby-code');
-          this.setSoldByForClient(code, e.target.value);
-        }));
+        tbody.querySelectorAll('select[data-soldby-code]').forEach(sel => {
+          sel.addEventListener('change', (e) => {
+            const code = e.target.getAttribute('data-soldby-code');
+            this.setSoldByForClient(code, e.target.value);
+            const row = this.clientHealthRaw.find(x => x.code === code);
+            if (row) row.soldBy = e.target.value;
+          });
+        });
       },
 
       setAnalyticsPeriod(period, btnElement) {
         this.analyticsPeriod = period;
+        if (period !== "custom") { this._customRange.active = false; }
         if (btnElement) {
-          document.querySelectorAll('.analytics-btn').forEach(b => { b.classList.remove('bg-white', 'shadow', 'text-gray-900'); b.classList.add('text-gray-500'); });
-          btnElement.classList.add('bg-white', 'shadow', 'text-gray-900'); btnElement.classList.remove('text-gray-500');
+          document.querySelectorAll('.analytics-btn').forEach(b => {
+            b.classList.remove('bg-white', 'shadow', 'text-gray-900');
+            b.classList.add('text-gray-500');
+          });
+          btnElement.classList.add('bg-white', 'shadow', 'text-gray-900');
+          btnElement.classList.remove('text-gray-500');
         }
         this.updateAnalytics(period);
-      },
-
-      setTeamPeriod(period, btnElement) {
-        this.teamPeriod = period;
-        if (btnElement) {
-          document.querySelectorAll('.team-btn').forEach(b => { b.classList.remove('bg-white','shadow','text-gray-900'); b.classList.add('text-gray-500'); });
-          btnElement.classList.add('bg-white','shadow','text-gray-900'); btnElement.classList.remove('text-gray-500');
-        }
-        this.renderTeam();
-      },
-
-      _fmtWeekKey(d) {
-        // Payroll week starts Saturday
-        const x = new Date(d);
-        const day = x.getDay(); // 0=Sun..6=Sat
-        const diff = (day + 1) % 7; // Sat => 0, Sun => 1...
-        x.setDate(x.getDate() - diff);
-        x.setHours(0,0,0,0);
-        return this._fmtDateKey(x);
       },
 
       getRangeFor(period, leads) {
@@ -1239,60 +1510,52 @@
         const startOfDay = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
         const endOfDay   = (d) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
 
-        const getSaturdayStart = (d) => {
+        // Payroll week: Sat -> Fri
+        const getPayrollWeekRangeLocal = (d) => {
           const x = new Date(d);
-          const day = x.getDay();
-          const diff = (day + 1) % 7;
-          x.setDate(x.getDate() - diff);
-          x.setHours(0,0,0,0);
-          return x;
-        };
+          const day = x.getDay(); // 0=Sun ... 6=Sat
+          const diffToSat = (day - 6);
+          const start = new Date(x);
+          start.setDate(start.getDate() - diffToSat);
+          start.setHours(0,0,0,0);
 
-        const getFridayEndFromSaturday = (satStart) => {
-          const x = new Date(satStart);
-          x.setDate(x.getDate() + 6);
-          x.setHours(23,59,59,999);
-          return x;
+          const end = new Date(start);
+          end.setDate(end.getDate() + 6); // Sat + 6 = Fri
+          end.setHours(23,59,59,999);
+
+          return { start, end };
         };
 
         const payrollThis = window.portal?.getPayrollWeekRange ? window.portal.getPayrollWeekRange() : null;
         const payrollPrev = window.portal?.getPreviousPayrollWeekRange ? window.portal.getPreviousPayrollWeekRange() : null;
 
-        const thisWeekStart = (payrollThis?.start && !isNaN(new Date(payrollThis.start).getTime())) ? new Date(payrollThis.start) : getSaturdayStart(now);
-        const thisWeekEnd = (payrollThis?.end && !isNaN(new Date(payrollThis.end).getTime())) ? new Date(payrollThis.end) : getFridayEndFromSaturday(thisWeekStart);
+        const localThis = getPayrollWeekRangeLocal(now);
 
-        // Previous Week Sat-Fri computation
-        const computedPrevEnd = new Date(thisWeekStart);
-        computedPrevEnd.setDate(computedPrevEnd.getDate() - 1);
-        computedPrevEnd.setHours(23,59,59,999);
-        const computedPrevStart = getSaturdayStart(computedPrevEnd);
-        const computedPrevEndFinal = getFridayEndFromSaturday(computedPrevStart);
+        const thisWeekStart = (payrollThis?.start && !isNaN(new Date(payrollThis.start).getTime())) ? new Date(payrollThis.start) : localThis.start;
+        const thisWeekEnd = (payrollThis?.end && !isNaN(new Date(payrollThis.end).getTime())) ? new Date(payrollThis.end) : localThis.end;
 
-        const prevWeekStart = (payrollPrev?.start && !isNaN(new Date(payrollPrev.start).getTime())) ? new Date(payrollPrev.start) : computedPrevStart;
-        const prevWeekEndFinal = (payrollPrev?.end && !isNaN(new Date(payrollPrev.end).getTime())) ? new Date(payrollPrev.end) : computedPrevEndFinal;
+        const localPrevStart = new Date(thisWeekStart);
+        localPrevStart.setDate(localPrevStart.getDate() - 7);
+        const localPrev = getPayrollWeekRangeLocal(localPrevStart);
 
-        if (period === "all-time") {
-          const dates = (leads || []).map(l => this.getLeadDateObj(l)).filter(d => d).sort((a,b)=>a-b);
-          if (!dates.length) return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "All-Time" };
-          const start = startOfDay(dates[0]); const end = endOfDay(dates[dates.length-1]);
-          return { start, end, grain: (end-start > 1814400000 ? "week" : "day"), label: "All-Time" };
+        const prevWeekStart = (payrollPrev?.start && !isNaN(new Date(payrollPrev.start).getTime())) ? new Date(payrollPrev.start) : localPrev.start;
+        const prevWeekEndFinal = (payrollPrev?.end && !isNaN(new Date(payrollPrev.end).getTime())) ? new Date(payrollPrev.end) : localPrev.end;
+
+        if (period === "custom" && this._customRange.active) {
+          return { start: startOfDay(new Date(this._customRange.start + "T00:00:00")), end: endOfDay(new Date(this._customRange.end + "T23:59:59")), grain: "day", label: "Custom Range" };
         }
-
         if (period === "today") return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "Today" };
         if (period === "this-week") return { start: startOfDay(thisWeekStart), end: endOfDay(thisWeekEnd), grain: "day", label: "This Week" };
         if (period === "previous-week") return { start: startOfDay(prevWeekStart), end: endOfDay(prevWeekEndFinal), grain: "day", label: "Previous Week" };
-        
+
         if (period === "4-weeks") {
-          const end = endOfDay(thisWeekEnd);
-          const start = new Date(end.getTime() - (27 * 86400000));
-          return { start: startOfDay(start), end, grain: "week", label: "4 Weeks" };
+          const end = endOfDay(thisWeekEnd); const start = new Date(end); start.setDate(start.getDate() - 27); start.setHours(0,0,0,0);
+          return { start, end, grain: "week", label: "Last 4 Weeks" };
         }
         if (period === "6-weeks") {
-          const end = endOfDay(thisWeekEnd);
-          const start = new Date(end.getTime() - (41 * 86400000));
-          return { start: startOfDay(start), end, grain: "week", label: "6 Weeks" };
+          const end = endOfDay(thisWeekEnd); const start = new Date(end); start.setDate(start.getDate() - 41); start.setHours(0,0,0,0);
+          return { start, end, grain: "week", label: "Last 6 Weeks" };
         }
-
         return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "Today" };
       },
 
@@ -1302,80 +1565,164 @@
       isPendingReview(st) { const s = String(st || "").toLowerCase(); return s.includes("pending"); },
 
       _fmtDateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; },
+      _fmtWeekKey(d) {
+        // Payroll week starts Saturday
+        const x = new Date(d);
+        const day = x.getDay(); // 0=Sun ... 6=Sat
+        const diffToSat = (day - 6);
+        x.setDate(x.getDate() - diffToSat);
+        x.setHours(0,0,0,0);
+        return this._fmtDateKey(x);
+      },
+
+      _buildBuckets(start, end, grain) {
+        const buckets = []; const cursor = new Date(start); cursor.setHours(0,0,0,0);
+        if (grain === "day") { while (cursor <= end) { buckets.push(this._fmtDateKey(cursor)); cursor.setDate(cursor.getDate() + 1); } return buckets; }
+        if (grain === "week") { let wkCursor = new Date(this._fmtWeekKey(cursor) + "T00:00:00"); while (wkCursor <= end) { buckets.push(this._fmtDateKey(wkCursor)); wkCursor.setDate(wkCursor.getDate() + 7); } return buckets; }
+        return buckets;
+      },
+
+      _bucketKeyFor(dt, grain) {
+        if (grain === "day") return this._fmtDateKey(dt);
+        if (grain === "week") return this._fmtDateKey(new Date(this._fmtWeekKey(dt) + "T00:00:00"));
+        return this._fmtDateKey(dt);
+      },
 
       _renderAnalyticsChart(labels, series) {
         const ctx = document.getElementById("team-analytics-chart");
-        if (!ctx) return; if (this._analyticsChart) this._analyticsChart.destroy();
+        if (!ctx) return;
+        if (this._analyticsChart) { this._analyticsChart.destroy(); }
         this._analyticsChart = new Chart(ctx, {
           type: "bar",
           data: { labels, datasets: [
-            { label: "Qualified", data: series.qualified, backgroundColor: "#10B981", stack: "stack" },
-            { label: "QC Rejected", data: series.rejected, backgroundColor: "#EF4444", stack: "stack" },
-            { label: "Credited", data: series.credited, backgroundColor: "#FCA5A5", stack: "stack" },
-            { label: "Pending", data: series.pending, backgroundColor: "#FBBF24", stack: "stack" },
+            { label: "Qualified", data: series.qualified, stack: "stack" },
+            { label: "QC Rejected", data: series.rejected, stack: "stack" },
+            { label: "Credited", data: series.credited, stack: "stack" },
+            { label: "Pending", data: series.pending, stack: "stack" },
           ]},
           options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
         });
       },
 
       updateAnalytics(period) {
-        const state = this.getState(); const leads = state?.leads || [];
+        const state = this.getState();
+        const leads = (state && state.leads) ? state.leads : [];
         const { start, end, grain, label } = this.getRangeFor(period, leads);
-        document.getElementById("kpi-range").textContent = `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
-        document.getElementById("top10-label").textContent = label;
-        document.getElementById("bottom5-label").textContent = label;
 
-        let q = 0, r = 0, c = 0, p = 0;
-        const agentMap = new Map();
-        const buckets = []; let cursor = new Date(start); 
-        while (cursor <= end) { 
-          const key = (grain==="day") ? this._fmtDateKey(cursor) : this._fmtWeekKey(cursor);
-          if (!buckets.includes(key)) buckets.push(key);
-          cursor.setDate(cursor.getDate() + (grain==="day"?1:7)); 
-        }
-        const bucketData = new Map(); buckets.forEach(b => bucketData.set(b, { qualified:0, rejected:0, credited:0, pending:0 }));
+        const rangeEl = document.getElementById("kpi-range");
+        if (rangeEl) rangeEl.textContent = `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
+        
+        const topLabel = document.getElementById("top10-label");
+        if (topLabel) topLabel.textContent = label;
+        
+        const botLabel = document.getElementById("bottom5-label");
+        if (botLabel) botLabel.textContent = label;
+        
+        const grainEl = document.getElementById("trend-grain");
+        if (grainEl) grainEl.textContent = grain === "day" ? "Daily" : "Weekly";
+
+        let total = 0, qualified = 0, rejected = 0, credited = 0, pending = 0;
+        const agentAgg = new Map();
+        const buckets = this._buildBuckets(start, end, grain);
+        const seriesMap = new Map();
+        buckets.forEach(b => seriesMap.set(b, { qualified: 0, rejected: 0, credited: 0, pending: 0 }));
 
         leads.forEach(l => {
           const dt = this.getLeadDateObj(l);
           if (!dt || dt < start || dt > end) return;
-          const st = this.pick(l, ["Status"], "");
-          const ag = this.pick(l, ["Appointment Coordinator Name","Agent Name","AGENT"], "Unknown");
-          const aData = agentMap.get(ag) || { name: ag, total:0, qualified:0, rejected:0, credited:0, pending:0 };
-          const bk = (grain==="day") ? this._fmtDateKey(dt) : this._fmtWeekKey(dt);
-          const bRow = bucketData.get(bk);
+          const st = this.pick(l, ["Status","STATUS"], "");
+          const agent = String(this.pick(l, ["Appointment Coordinator Name","Agent Name","AGENT"], "Unknown")).trim();
+          total++;
+          const a = agentAgg.get(agent) || { name: agent, total: 0, qualified: 0, rejected: 0, credited: 0, pending: 0 };
+          a.total++;
+          const bk = this._bucketKeyFor(dt, grain);
+          const bRow = seriesMap.get(bk);
 
-          if (this.isQualified(st)) { q++; aData.qualified++; if (bRow) bRow.qualified++; }
-          else if (this.isRejected(st)) { r++; aData.rejected++; if (bRow) bRow.rejected++; }
-          else if (this.isCredited(st)) { c++; aData.credited++; if (bRow) bRow.credited++; }
-          else { p++; aData.pending++; if (bRow) bRow.pending++; }
-          aData.total++; agentMap.set(ag, aData);
+          if (this.isQualified(st)) { qualified++; a.qualified++; if (bRow) bRow.qualified++; }
+          else if (this.isRejected(st)) { rejected++; a.rejected++; if (bRow) bRow.rejected++; }
+          else if (this.isCredited(st)) { credited++; a.credited++; if (bRow) bRow.credited++; }
+          else { pending++; a.pending++; if (bRow) bRow.pending++; }
+          agentAgg.set(agent, a);
         });
 
-        document.getElementById("pulse-profit").textContent = `$${(q * 125).toFixed(2)}`;
-        document.getElementById("pulse-pending").textContent = p;
-        document.getElementById("kpi-total").textContent = q+r+c+p;
-        document.getElementById("kpi-qualified").textContent = q;
-        document.getElementById("kpi-credited").textContent = c;
-        document.getElementById("kpi-pending").textContent = p;
-        document.getElementById("kpi-qc-rejected").textContent = r;
-        document.getElementById("kpi-cancel").textContent = `${(q+c>0)?Math.round((c/(q+c))*100):0}%`;
+        const labelEl = document.getElementById("pulse-label");
+        if (labelEl) labelEl.textContent = "EST. VALUE";
 
-        const renderRows = (list) => list.map(a => `<tr><td class="p-4 font-bold">${a.name}</td><td class="p-4 text-center">${a.total}</td><td class="p-4 text-center text-red-500">${a.rejected}</td><td class="p-4 text-center text-emerald-600">${a.qualified}</td><td class="p-4 text-center text-red-500">${a.credited}</td><td class="p-4 text-center text-yellow-600">${a.pending}</td><td class="p-4 text-center">${(a.qualified+a.credited>0)?Math.round((a.credited/(a.qualified+a.credited))*100):0}%</td></tr>`).join("");
-        document.getElementById("top10-body").innerHTML = renderRows(Array.from(agentMap.values()).sort((a,b)=>b.qualified-a.qualified).slice(0,10));
-        document.getElementById("bottom5-body").innerHTML = renderRows(Array.from(agentMap.values()).filter(a => a.total <= 5).sort((a,b)=>a.total-b.total).slice(0,5));
+        const profitEl = document.getElementById("pulse-profit");
+        const estValue = qualified * 125;
+        if (profitEl) {
+           profitEl.textContent = estValue.toLocaleString("en-US", { style: "currency", currency: "USD" });
+        }
+
+        const pendingEl = document.getElementById("pulse-pending");
+        if (pendingEl) pendingEl.textContent = pending;
+
+        document.getElementById("kpi-total").textContent = total;
+        document.getElementById("kpi-qualified").textContent = qualified;
+        document.getElementById("kpi-qc-rejected").textContent = rejected;
+        document.getElementById("kpi-credited").textContent = credited;
+        document.getElementById("kpi-pending").textContent = pending;
+        document.getElementById("kpi-cancel").textContent = `${(qualified + credited > 0) ? Math.round((credited / (qualified + credited)) * 100) : 0}%`;
+
+        const top = Array.from(agentAgg.values()).sort((a,b) => b.qualified - a.qualified).slice(0, 10);
+        const bottom = Array.from(agentAgg.values()).filter(a => a.total <= 5).sort((a,b) => a.total - b.total).slice(0, 5);
+
+        const renderRow = (a) => {
+          const d = a.qualified + a.credited;
+          return `<tr><td class="p-4 font-bold text-gray-900">${a.name}</td><td class="p-4 text-center text-gray-600 font-semibold">${a.total}</td><td class="p-4 text-center text-red-500 font-bold">${a.rejected}</td><td class="p-4 text-center text-emerald-600 font-bold">${a.qualified}</td><td class="p-4 text-center text-red-500 font-bold">${a.credited}</td><td class="p-4 text-center text-yellow-600 font-bold">${a.pending}</td><td class="p-4 text-center text-gray-600 font-semibold">${d > 0 ? Math.round((a.credited/d)*100) : 0}%</td></tr>`;
+        };
+
+        document.getElementById("top10-body").innerHTML = top.map(renderRow).join("") || '<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No data</td></tr>';
+        document.getElementById("bottom5-body").innerHTML = bottom.map(renderRow).join("") || '<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No agents with ≤ 5 leads</td></tr>';
 
         this._renderAnalyticsChart(buckets, {
-          qualified: buckets.map(b => bucketData.get(b).qualified),
-          rejected: buckets.map(b => bucketData.get(b).rejected),
-          credited: buckets.map(b => bucketData.get(b).credited),
-          pending: buckets.map(b => bucketData.get(b).pending),
+          qualified: buckets.map(b => seriesMap.get(b).qualified),
+          rejected: buckets.map(b => seriesMap.get(b).rejected),
+          credited: buckets.map(b => seriesMap.get(b).credited),
+          pending: buckets.map(b => seriesMap.get(b).pending),
         });
       },
 
+      renderClientCards(clients) {
+        const container = document.getElementById('client-cards-container');
+        if (!container) return;
+        container.innerHTML = (clients || []).map(c => {
+          const code = this.extractCode(c);
+          return `<button type="button" class="text-left bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition" onclick="Admin.openPassbookClient('${String(code).replace(/'/g, "\\'")}')"><div class="flex items-center justify-between"><h3 class="font-bold text-gray-900 text-lg">${this.extractRoofingCompany(c)}</h3><span class="text-xs font-bold text-gray-500">${code}</span></div><p class="text-xs text-gray-500 mt-1">${this.extractCityState(c)}</p><p class="text-[10px] font-extrabold text-yellow-600 uppercase tracking-wider mt-3">Click to open</p></button>`;
+        }).join('') || '<div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">No results</div>';
+      },
+
+      openPassbookClient(codeName) { this._openPassbookModalShell(codeName); this._fetchAndRenderPassbookClient(codeName); },
+      _openPassbookModalShell(codeName) {
+        const modal = document.getElementById("passbook-modal"); document.getElementById("codeName").value = codeName;
+        document.getElementById("passbook-modal-sub").textContent = `Code: ${codeName}`;
+        document.getElementById("passbook-form-body").innerHTML = '<div class="p-4 text-sm text-gray-500 italic">Loading...</div>';
+        modal.classList.remove("hidden");
+      },
+      closePassbookModal() { document.getElementById("passbook-modal").classList.add("hidden"); },
+
+      async _fetchAndRenderPassbookClient(codeName) {
+        try {
+          const res = await fetch(window.portal.webhooks.passbookClientDetails, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codeName }) });
+          const json = await res.json(); this._renderPassbookForm(json);
+        } catch (err) { document.getElementById("passbook-form-body").innerHTML = '<div class="p-4 text-red-700">Failed to load details.</div>'; }
+      },
+
+      _renderPassbookForm(data) {
+        const client = data.client || data || {};
+        const packages = Array.isArray(data.packages) ? data.packages : [];
+        const val = (k) => client[k] ? String(client[k]).replace(/"/g, "&quot;") : "";
+        let html = `<div class="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-4"><div><h2 class="text-xl font-black">${val('companyName') || 'Unknown'}</h2><span class="px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 text-xs">${val('codeName')}</span></div></div><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label class="block text-[10px] font-bold text-gray-500 uppercase">Contact</label><input class="w-full px-3 py-2 border rounded-lg text-sm mb-2" name="CONTACT PERSON" value="${val('contactPerson')}"><label class="block text-[10px] font-bold text-gray-500 uppercase">Phone</label><input class="w-full px-3 py-2 border rounded-lg text-sm" name="PHONE" value="${val('phone')}"></div><div><label class="block text-[10px] font-bold text-gray-500 uppercase">Address</label><input class="w-full px-3 py-2 border rounded-lg text-sm mb-2" name="COMPANY ADDRESS" value="${val('address')}"><label class="block text-[10px] font-bold text-gray-500 uppercase">Notes</label><textarea class="w-full px-3 py-2 border rounded-lg text-sm h-20" name="ADDITIONAL NOTES">${val('notes')}</textarea></div></div>`;
+        document.getElementById("passbook-form-body").innerHTML = html;
+      },
+
       renderLeads(leads) {
+        const tbody = document.getElementById('leads-table-body');
+        const thead = document.getElementById('leads-table-head');
+        this.initLeadsColumnsUI();
         const visibleCols = this._leadsCols.filter(c => this._leadsVisibleCols.has(c.key));
-        document.getElementById("leads-table-head").innerHTML = `<tr>${visibleCols.map(c => `<th class="p-4">${c.label}</th>`).join("")}</tr>`;
-        document.getElementById("leads-table-body").innerHTML = leads.map(l => `<tr>${visibleCols.map(c => `<td class="p-4">${this.getLeadField(l, c.keys)}</td>`).join("")}</tr>`).join("");
+        thead.innerHTML = `<tr>${visibleCols.map(c => `<th class="p-4 ${c.key==='date_submitted'?'cursor-pointer':''}" ${c.key==='date_submitted'?'data-leads-sort="date_submitted"':''}>${c.label} ${c.key==='date_submitted'?'↕':''}</th>`).join("")}</tr>`;
+        tbody.innerHTML = leads.map(l => `<tr>${visibleCols.map(c => `<td class="p-4">${this.getLeadField(l, c.keys)}</td>`).join("")}</tr>`).join("");
       },
 
       setupPassbookFilters(clients) {
@@ -1387,17 +1734,13 @@
         const q = String(document.getElementById("passbook-search")?.value || "").toLowerCase().trim();
         const loc = document.getElementById("passbook-filter-location")?.value || "all";
         let rows = (clients || []).filter(c => (loc === "all" || this.extractCityState(c) === loc));
-        if (q) rows = rows.filter(c => `${this.extractRoofingCompany(c)} ${this.extractCode(c)} ${this.extractClientName(c)}`.toLowerCase().includes(q));
+        if (q) rows = rows.filter(c => `${this.extractRoofingCompany(c)} ${this.extractCode(c)}`.toLowerCase().includes(q));
         document.getElementById("passbook-count").textContent = rows.length;
         if (this._passbookView === "list") this.renderPassbookList(rows); else this.renderClientCards(rows);
       },
 
       renderPassbookList(clients) {
-        document.getElementById("passbook-list-body").innerHTML = clients.map(c => `<tr><td class="p-4">${this.extractCode(c)}</td><td class="p-4 font-bold">${this.extractRoofingCompany(c)}</td><td class="p-4">${this.extractCityState(c)}</td><td class="p-4">${this.extractClientName(c)}</td><td class="p-4 text-right"><button class="px-3 py-1 bg-gray-900 text-white rounded text-xs" onclick="Admin.openPassbookClient('${this.extractCode(c)}')">Open</button></td></tr>`).join("");
-      },
-
-      renderClientCards(clients) {
-        document.getElementById('client-cards-container').innerHTML = clients.map(c => `<button class="text-left bg-white p-6 rounded-2xl border border-gray-100 shadow-sm" onclick="Admin.openPassbookClient('${this.extractCode(c)}')"><div class="flex justify-between"><h3 class="font-bold">${this.extractRoofingCompany(c)}</h3><span class="text-xs text-gray-500">${this.extractCode(c)}</span></div><p class="text-xs text-gray-500 mt-1">${this.extractCityState(c)}</p></button>`).join("");
+        document.getElementById("passbook-list-body").innerHTML = (clients || []).map(c => `<tr class="hover:bg-gray-50"><td class="p-4">${this.extractCode(c)}</td><td class="p-4 font-bold">${this.extractRoofingCompany(c)}</td><td class="p-4">${this.extractCityState(c)}</td><td class="p-4">${this.extractClientName(c)}</td><td class="p-4 text-right"><button class="px-3 py-1 rounded bg-gray-900 text-white text-xs" onclick="Admin.openPassbookClient('${this.extractCode(c)}')">Open</button></td></tr>`).join("");
       },
 
       bindPassbookUI(clients) {
@@ -1408,14 +1751,37 @@
         document.getElementById("passbook-filter-location").addEventListener("change", () => this.applyPassbookFilters(clients));
       },
 
+      setTeamPeriod(period, btnElement) { this.teamPeriod = period; this.renderTeam(); },
+      getTeamRangeFor() { const state = this.getState(); return this.getRangeFor(this.teamPeriod, state?.leads || []); },
+      bindTeamUI() { if (this._teamBound) return; this._teamBound = true; document.getElementById("team-search").addEventListener("input", () => this.renderTeam()); },
+      getAgentStage(agent) { return String(this.pick(agent, ["Employment_Status", "Stage", "Status"], "")).toLowerCase().trim(); },
+      isAgentWarned(agent) { const s = String(this.pick(agent, ["Warned","Tags"], "")).toLowerCase(); return s.includes("warned"); },
+      
+      setTeamSort(key) {
+        if (this.teamSortKey === key) this.teamSortDir = this.teamSortDir === "asc" ? "desc" : "asc";
+        else { this.teamSortKey = key; this.teamSortDir = "desc"; }
+        this.renderTeam();
+      },
+
+      _computeAgentMetrics(name, leads, start, end) {
+        const inRange = leads.filter(l => {
+          const a = this.pick(l, ["Agent Name","AGENT"], "");
+          const dt = this.getLeadDateObj(l);
+          return dt && dt >= start && dt <= end && String(a).toLowerCase().includes(String(name).toLowerCase());
+        });
+        let q = 0, c = 0, r = 0, p = 0;
+        inRange.forEach(l => {
+          const st = this.pick(l, ["Status"], "");
+          if (this.isQualified(st)) q++; else if (this.isCredited(st)) c++; else if (this.isRejected(st)) r++; else p++;
+        });
+        return { total: inRange.length, qualified: q, credited: c, rejected: r, pending: p, cancelRate: (q+c>0)?Math.round((c/(q+c))*100):0, leads: inRange };
+      },
+
       renderTeam() {
         const state = this.getState(); const leads = state?.leads || []; const agents = state?.agents || [];
-        const { start, end } = this.getRangeFor(this.teamPeriod, leads);
-        const rows = agents.map(a => {
-          const name = this.pick(a, ["Name"], "Unknown");
-          return { name, stage: this.pick(a, ["Stage"], ""), ...this._computeAgentMetrics(name, leads, start, end) };
-        });
-        document.getElementById("team-body").innerHTML = rows.map(r => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold"><button onclick="Admin.openAgentModal('${r.name}')">${r.name}</button><div class="text-[10px] text-gray-400 uppercase">${r.stage}</div></td><td class="p-4 text-center">${r.total}</td><td class="p-4 text-center text-red-500">${r.rejected}</td><td class="p-4 text-center text-emerald-600">${r.qualified}</td><td class="p-4 text-center text-red-500">${r.credited}</td><td class="p-4 text-center text-yellow-600">${r.pending}</td><td class="p-4 text-center">${r.cancelRate}%</td></tr>`).join("");
+        const { start, end } = this.getTeamRangeFor();
+        let rows = agents.map(a => ({ name: this.pick(a, ["Name"], "Unknown"), stage: this.getAgentStage(a), warned: this.isAgentWarned(a), ...this._computeAgentMetrics(this.pick(a, ["Name"], ""), leads, start, end) }));
+        document.getElementById("team-body").innerHTML = rows.map(r => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold"><button onclick="Admin.openAgentModal('${r.name}')">${r.name}</button><div class="text-[10px] uppercase text-gray-400">${r.stage}</div></td><td class="p-4 text-center">${r.total}</td><td class="p-4 text-center text-red-500">${r.rejected}</td><td class="p-4 text-center text-emerald-600">${r.qualified}</td><td class="p-4 text-center text-red-500">${r.credited}</td><td class="p-4 text-center text-yellow-600">${r.pending}</td><td class="p-4 text-center">${r.cancelRate}%</td></tr>`).join("");
       },
 
       openAgentModal(name) { this._agentSelectedName = name; document.getElementById("agent-modal").classList.remove("hidden"); this.renderAgentLeads(); },
@@ -1424,21 +1790,8 @@
       renderAgentLeads() {
         const state = this.getState(); const { start, end } = this.getRangeFor(this.agentPeriod, state?.leads || []);
         const m = this._computeAgentMetrics(this._agentSelectedName, state?.leads || [], start, end);
-        document.getElementById("agent-leads-body").innerHTML = m.leads.map(l => `<tr><td class="p-3">${this.getLeadField(l, ["Date Submitted"])}</td><td class="p-3">${this.getLeadField(l, ["LEAD ID"])}</td><td class="p-3">${this.pick(l,["Status"],"")}</td></tr>`).join("");
+        document.getElementById("agent-leads-body").innerHTML = m.leads.map(l => `<tr><td class="p-3">${this.getLeadField(l, ["Date Submitted"])}</td><td class="p-3">${this.getLeadField(l, ["LEAD ID"])}</td><td class="p-3">${this.getLeadField(l, ["Status"])}</td></tr>`).join("");
       },
-
-      _computeAgentMetrics(name, leads, start, end) {
-        const inRange = leads.filter(l => {
-          const a = this.pick(l, ["Appointment Coordinator Name","Agent Name","AGENT"], "");
-          const dt = this.getLeadDateObj(l);
-          return dt && dt >= start && dt <= end && String(a).toLowerCase().includes(String(name).toLowerCase());
-        });
-        let q=0, c=0, r=0, p=0;
-        inRange.forEach(l => { const st = this.pick(l, ["Status"], ""); if (this.isQualified(st)) q++; else if (this.isCredited(st)) c++; else if (this.isRejected(st)) r++; else p++; });
-        return { total: inRange.length, qualified: q, credited: c, rejected: r, pending: p, cancelRate: (q+c>0)?Math.round((c/(q+c))*100):0, leads: inRange };
-      },
-
-      bindTeamUI() { if (this._teamBound) return; this._teamBound = true; document.getElementById("team-search")?.addEventListener("input", () => this.renderTeam()); },
 
       nav(viewId, linkEl) {
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
@@ -1448,6 +1801,7 @@
       }
     };
 
+    window.adminDashboard = AdminDashboard;
     window.Admin = AdminDashboard;
   </script>
 
