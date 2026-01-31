@@ -1319,6 +1319,21 @@
         return out;
       },
 
+      // ✅ ADDED HELPER: Compute Owed = Purchased - Qualified
+      computeOwedRemaining(purchased, qualified) {
+        const p = Number(purchased) || 0;
+        const q = Number(qualified) || 0;
+        return Math.max(p - q, 0);
+      },
+
+      // ✅ ADDED HELPER: Extract Purchased Leads robustly
+      getPurchasedLeads(c) {
+        return Number(this.pick(c, [
+          "purchased_leads","Purchased Leads","PURCHASED LEADS","Purchased",
+          "package_size","Package Size","PACKAGE SIZE"
+        ], 0)) || 0;
+      },
+
       normalizeClientHealthRows(clients) {
         return (clients || []).map(c => {
           const rawStatus = this.pick(c, ["status","Client Status","CLIENT STATUS","Status","STATUS"], "UNKNOWN");
@@ -1333,11 +1348,11 @@
           const leadsToday = Number(this.pick(c, ["leads_today","Leads Today"], 0)) || 0;
           const leadsYesterday = Number(this.pick(c, ["leads_yesterday","Leads Yesterday"], 0)) || 0;
 
-          const owed = Number(this.pick(c, ["owed_leads","Owed Leads","OWED LEADS","Owed"], 0)) || 0;
-          const purchased = Number(this.pick(c, ["purchased_leads","Purchased Leads","PURCHASED LEADS","Purchased"], 0)) || 0;
-
-          const pkgLabel = `${owed} / ${purchased}`;
-          const pkgRatio = purchased === 0 ? owed : (owed / purchased);
+          // ✅ UPDATED LOGIC: Get purchased first, owed calculated later
+          const purchased = this.getPurchasedLeads(c);
+          let owed = 0; 
+          let pkgLabel = `0 / ${purchased}`;
+          let pkgRatio = 0;
 
           const purchaseDate = this.pick(c, ["purchase_date","Purchase Date","PURCHASE DATE"], "—");
           const packageStatusRaw = this.pick(c, ["package_status","Package Status","PACKAGE STATUS"], "—");
@@ -1349,6 +1364,12 @@
 
           const list = this._leadsIndexByCode?.get(codeKey) || this._leadsIndexByCompany?.get(companyKey) || [];
           const counts = this.countQualifiedCreditedFrom(list, pDt);
+          
+          // ✅ UPDATED LOGIC: Owed is based on PURCHASED - QUALIFIED
+          owed = this.computeOwedRemaining(purchased, counts.qualified);
+          pkgLabel = `${owed} / ${purchased}`;
+          pkgRatio = purchased === 0 ? 0 : (owed / purchased);
+
           const soldBy = this.getSoldByForClient(code);
 
           return {
@@ -1368,6 +1389,9 @@
             packageRatio: pkgRatio,
             leadsToday,
             leadsYesterday,
+            // ✅ Add these for the KPI tile to use
+            owedRemaining: owed,
+            purchasedLeads: purchased
           };
         });
       },
@@ -1504,8 +1528,8 @@
               <td class="p-4 font-bold text-gray-900 max-w-[260px] truncate" title="${r.roofingCompany}">${r.roofingCompany}</td>
               <td class="p-4 text-gray-600 max-w-[180px] truncate" title="${r.cityState}">${r.cityState}</td>
               <td class="p-4 text-center text-gray-900 font-bold">${r.packageLabel}</td>
-              <td class="p-4 text-center text-emerald-600 font-bold">${r.qualifiedCount}</td>
-              <td class="p-4 text-center text-red-500 font-bold">${r.creditedCount}</td>
+              <td class="p-4 text-center text-blue-500 font-bold">${r.qualifiedCount}</td>
+              <td class="p-4 text-center text-purple-500 font-bold">${r.creditedCount}</td>
               <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsToday}</td>
               <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsYesterday}</td>
               <td class="p-4 text-gray-500">${r.packageStatus}</td>
@@ -1533,18 +1557,15 @@
         });
       },
 
-      // ✅ NEW: Compute Total Owed Leads
+      // ✅ NEW: Compute Total Owed Leads (Summing the Owed Remaining)
       computeTotalOwedLeads(packageStatus = "all") {
-        const state = this.getState();
-        const clients = Array.isArray(state?.clients) ? state.clients : [];
+        // ✅ Use the already-normalized rows (same math as the table)
+        const rows = Array.isArray(this.clientHealthRaw) ? this.clientHealthRaw : [];
 
         let total = 0;
-        for (const c of clients) {
-          const pkg = this.normalizePackageStatus(this.pick(c, ["package_status","Package Status","PACKAGE STATUS"], "—"));
-          if (packageStatus !== "all" && pkg !== packageStatus) continue;
-
-          const owed = Number(this.pick(c, ["owed_leads","Owed Leads","OWED LEADS","Owed"], 0)) || 0;
-          total += owed;
+        for (const r of rows) {
+          if (packageStatus !== "all" && String(r.packageStatus || "").toUpperCase() !== packageStatus) continue;
+          total += Number(r.owedRemaining) || 0;  // ✅ sum the "owed" part
         }
         return total;
       },
@@ -1896,7 +1917,17 @@
       renderTeam() {
         const state = this.getState(); const leads = state?.leads || []; const agents = state?.agents || [];
         const { start, end } = this.getTeamRangeFor();
-        let rows = agents.map(a => ({ name: this.pick(a, ["Name"], "Unknown"), stage: this.getAgentStage(a), warned: this.isAgentWarned(a), ...this._computeAgentMetrics(this.pick(a, ["Name"], ""), leads, start, end) }));
+        // ✅ PATCH: Fix Unknown Name by checking more headers
+        let rows = agents.map(a => {
+           const agentName = this.pick(a, ["Name","Agent Name","Full Name","Employee Name","APPOINTMENT COORDINATOR NAME"], "Unknown");
+           return {
+             name: agentName,
+             stage: this.getAgentStage(a),
+             warned: this.isAgentWarned(a),
+             ...this._computeAgentMetrics(agentName, leads, start, end)
+           };
+        });
+
         // ✅ Team Performance Colors
         document.getElementById("team-body").innerHTML = rows.map(r => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold"><button onclick="Admin.openAgentModal('${r.name}')">${r.name}</button><div class="text-[10px] uppercase text-gray-400">${r.stage}</div></td><td class="p-4 text-center">${r.total}</td><td class="p-4 text-center text-red-500">${r.rejected}</td><td class="p-4 text-center text-blue-500">${r.qualified}</td><td class="p-4 text-center text-purple-500">${r.credited}</td><td class="p-4 text-center text-yellow-500">${r.pending}</td><td class="p-4 text-center">${r.cancelRate}%</td></tr>`).join("");
       },
