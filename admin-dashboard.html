@@ -628,7 +628,7 @@
               <button onclick="Admin.setTeamPeriod('previous-week', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Previous Week</button>
               <button onclick="Admin.setTeamPeriod('4-weeks', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">4 Weeks</button>
               <button onclick="Admin.setTeamPeriod('6-weeks', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">6 Weeks</button>
-              <button onclick="Admin.setAnalyticsPeriod('all-time', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
+              <button onclick="Admin.setTeamPeriod('all-time', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
             </div>
 
             <div class="relative">
@@ -1083,7 +1083,8 @@
 
       countQualifiedCreditedFrom(list, startDt) {
         const out = { qualified: 0, credited: 0 };
-        const start = startDt ? new Date(startDt.setHours(0,0,0,0)) : null;
+        const start = startDt ? new Date(startDt) : null;
+        if (start) start.setHours(0,0,0,0);
         for (const item of (list || [])) {
           if (start && item.dt < start) continue;
           if (this.isQualified(item.status)) out.qualified++; else if (this.isCredited(item.status)) out.credited++;
@@ -1214,11 +1215,21 @@
         this.updateAnalytics(period);
       },
 
+      setTeamPeriod(period, btnElement) {
+        this.teamPeriod = period;
+        if (btnElement) {
+          document.querySelectorAll('.team-btn').forEach(b => { b.classList.remove('bg-white','shadow','text-gray-900'); b.classList.add('text-gray-500'); });
+          btnElement.classList.add('bg-white','shadow','text-gray-900'); btnElement.classList.remove('text-gray-500');
+        }
+        this.renderTeam();
+      },
+
       _fmtWeekKey(d) {
+        // Payroll week starts Saturday
         const x = new Date(d);
-        const day = x.getDay();
-        const diff = (day + 1) % 7; 
-        x.setDate(x.getDate() - diff); // Anchor to Saturday start
+        const day = x.getDay(); // 0=Sun..6=Sat
+        const diff = (day + 1) % 7; // Sat => 0, Sun => 1...
+        x.setDate(x.getDate() - diff);
         x.setHours(0,0,0,0);
         return this._fmtDateKey(x);
       },
@@ -1229,15 +1240,19 @@
         const endOfDay   = (d) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
 
         const getSaturdayStart = (d) => {
-          const x = new Date(d); const day = x.getDay();
-          const diff = (day + 1) % 7; // Sat=0
-          x.setDate(x.getDate() - diff); x.setHours(0,0,0,0);
+          const x = new Date(d);
+          const day = x.getDay();
+          const diff = (day + 1) % 7;
+          x.setDate(x.getDate() - diff);
+          x.setHours(0,0,0,0);
           return x;
         };
 
         const getFridayEndFromSaturday = (satStart) => {
-          const x = new Date(satStart); x.setDate(x.getDate() + 6);
-          x.setHours(23,59,59,999); return x;
+          const x = new Date(satStart);
+          x.setDate(x.getDate() + 6);
+          x.setHours(23,59,59,999);
+          return x;
         };
 
         const payrollThis = window.portal?.getPayrollWeekRange ? window.portal.getPayrollWeekRange() : null;
@@ -1246,8 +1261,15 @@
         const thisWeekStart = (payrollThis?.start && !isNaN(new Date(payrollThis.start).getTime())) ? new Date(payrollThis.start) : getSaturdayStart(now);
         const thisWeekEnd = (payrollThis?.end && !isNaN(new Date(payrollThis.end).getTime())) ? new Date(payrollThis.end) : getFridayEndFromSaturday(thisWeekStart);
 
-        const prevWeekEndFinal = (payrollPrev?.end && !isNaN(new Date(payrollPrev.end).getTime())) ? new Date(payrollPrev.end) : (new Date(thisWeekStart.getTime() - 1));
-        const prevWeekStart = (payrollPrev?.start && !isNaN(new Date(payrollPrev.start).getTime())) ? new Date(payrollPrev.start) : getSaturdayStart(prevWeekEndFinal);
+        // Previous Week Sat-Fri computation
+        const computedPrevEnd = new Date(thisWeekStart);
+        computedPrevEnd.setDate(computedPrevEnd.getDate() - 1);
+        computedPrevEnd.setHours(23,59,59,999);
+        const computedPrevStart = getSaturdayStart(computedPrevEnd);
+        const computedPrevEndFinal = getFridayEndFromSaturday(computedPrevStart);
+
+        const prevWeekStart = (payrollPrev?.start && !isNaN(new Date(payrollPrev.start).getTime())) ? new Date(payrollPrev.start) : computedPrevStart;
+        const prevWeekEndFinal = (payrollPrev?.end && !isNaN(new Date(payrollPrev.end).getTime())) ? new Date(payrollPrev.end) : computedPrevEndFinal;
 
         if (period === "all-time") {
           const dates = (leads || []).map(l => this.getLeadDateObj(l)).filter(d => d).sort((a,b)=>a-b);
@@ -1260,9 +1282,16 @@
         if (period === "this-week") return { start: startOfDay(thisWeekStart), end: endOfDay(thisWeekEnd), grain: "day", label: "This Week" };
         if (period === "previous-week") return { start: startOfDay(prevWeekStart), end: endOfDay(prevWeekEndFinal), grain: "day", label: "Previous Week" };
         
-        const fourWeeksEnd = endOfDay(thisWeekEnd);
-        const fourWeeksStart = new Date(fourWeeksEnd.getTime() - (27 * 86400000));
-        if (period === "4-weeks") return { start: startOfDay(fourWeeksStart), end: fourWeeksEnd, grain: "week", label: "4 Weeks" };
+        if (period === "4-weeks") {
+          const end = endOfDay(thisWeekEnd);
+          const start = new Date(end.getTime() - (27 * 86400000));
+          return { start: startOfDay(start), end, grain: "week", label: "4 Weeks" };
+        }
+        if (period === "6-weeks") {
+          const end = endOfDay(thisWeekEnd);
+          const start = new Date(end.getTime() - (41 * 86400000));
+          return { start: startOfDay(start), end, grain: "week", label: "6 Weeks" };
+        }
 
         return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "Today" };
       },
@@ -1310,7 +1339,7 @@
           const dt = this.getLeadDateObj(l);
           if (!dt || dt < start || dt > end) return;
           const st = this.pick(l, ["Status"], "");
-          const ag = this.pick(l, ["Appointment Coordinator Name","Agent Name"], "Unknown");
+          const ag = this.pick(l, ["Appointment Coordinator Name","Agent Name","AGENT"], "Unknown");
           const aData = agentMap.get(ag) || { name: ag, total:0, qualified:0, rejected:0, credited:0, pending:0 };
           const bk = (grain==="day") ? this._fmtDateKey(dt) : this._fmtWeekKey(dt);
           const bRow = bucketData.get(bk);
@@ -1358,7 +1387,7 @@
         const q = String(document.getElementById("passbook-search")?.value || "").toLowerCase().trim();
         const loc = document.getElementById("passbook-filter-location")?.value || "all";
         let rows = (clients || []).filter(c => (loc === "all" || this.extractCityState(c) === loc));
-        if (q) rows = rows.filter(c => `${this.extractRoofingCompany(c)} ${this.extractCode(c)}`.toLowerCase().includes(q));
+        if (q) rows = rows.filter(c => `${this.extractRoofingCompany(c)} ${this.extractCode(c)} ${this.extractClientName(c)}`.toLowerCase().includes(q));
         document.getElementById("passbook-count").textContent = rows.length;
         if (this._passbookView === "list") this.renderPassbookList(rows); else this.renderClientCards(rows);
       },
