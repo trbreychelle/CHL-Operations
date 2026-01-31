@@ -151,7 +151,7 @@
 
           <div class="flex gap-4">
             <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
-              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Est. Value (Today)</p>
+              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider" id="pulse-label">Est. Value</p>
               <p class="text-lg font-bold text-emerald-600 mt-1" id="pulse-profit">$0.00</p>
             </div>
             <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
@@ -207,6 +207,13 @@
                 <option value="all">All City/State</option>
               </select>
 
+              <select id="health-filter-package" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[190px]">
+                <option value="all">All Package Status</option>
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="PAUSE">PAUSE</option>
+                <option value="REFUNDED">REFUNDED</option>
+              </select>
+
               <button id="health-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
                 Clear
               </button>
@@ -218,20 +225,47 @@
               <thead class="bg-white sticky top-0 z-10 shadow-sm">
                 <tr>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase w-10">Status</th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="code">Code <span class="sort-icon" id="sort-code">↕</span></th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="roofingCompany">Roofing Company <span class="sort-icon" id="sort-roofingCompany">↕</span></th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="cityState">City, State <span class="sort-icon" id="sort-cityState">↕</span></th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="clientName">Client Name <span class="sort-icon" id="sort-clientName">↕</span></th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase">Last Lead Received</th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase">Purchase Date</th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase">Package Status</th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="code">
+                    Code <span class="sort-icon" id="sort-code">↕</span>
+                  </th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="roofingCompany">
+                    Roofing Company <span class="sort-icon" id="sort-roofingCompany">↕</span>
+                  </th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="cityState">
+                    City, State <span class="sort-icon" id="sort-cityState">↕</span>
+                  </th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="packageRatio">
+                    Package (Owed/Purchased) <span class="sort-icon" id="sort-packageRatio">↕</span>
+                  </th>
+
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Qualified</th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Credited</th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="clientName">
+                    Client Name <span class="sort-icon" id="sort-clientName">↕</span>
+                  </th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase">Purchase Date</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase">Package Status</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase">Last Lead Received</th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="hoursSince">
+                    Hours Since <span class="sort-icon" id="sort-hoursSince">↕</span>
+                  </th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsToday">
+                    Leads Today <span class="sort-icon" id="sort-leadsToday">↕</span>
+                  </th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsYesterday">
+                    Leads Yesterday <span class="sort-icon" id="sort-leadsYesterday">↕</span>
+                  </th>
+
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Sold By</th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="packageRatio">Package (Owed/Purchased) <span class="sort-icon" id="sort-packageRatio">↕</span></th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="hoursSince">Hours Since <span class="sort-icon" id="sort-hoursSince">↕</span></th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsToday">Leads Today <span class="sort-icon" id="sort-leadsToday">↕</span></th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsYesterday">Leads Yesterday <span class="sort-icon" id="sort-leadsYesterday">↕</span></th>
                 </tr>
               </thead>
               <tbody id="client-health-body" class="text-sm divide-y divide-gray-50">
@@ -881,7 +915,6 @@
         this._leadsIndexByCompany = idx.byCompany;
         this._leadsIndexByCode = idx.byCode;
 
-        try { this.renderPulse(leads); } catch(e) {}
         try {
           this.clientHealthRaw = this.normalizeClientHealthRows(clients);
           this.setupFilters(this.clientHealthRaw);
@@ -925,10 +958,8 @@
       // ✅ Define ALL columns you want (RAW leads style)
       getLeadsColumns() {
         return [
-          // ✅ EXACT headers from RAW LEADS
           { key: "date_submitted", label: "Date Submitted", keys: ["Date Submitted"] },
           { key: "lead_id", label: "LEAD ID", keys: ["LEAD ID"] },
-          // ✅ Use Roofing Company label (pero source header is Company Name)
           { key: "roofing_company", label: "Roofing Company", keys: ["Company Name"] },
           { key: "appointment_coordinator", label: "Appointment Coordinator Name", keys: ["Appointment Coordinator Name"] },
           { key: "homeowner_name", label: "Homeowner Name(s)", keys: ["Homeowner Name(s)"] },
@@ -1198,6 +1229,14 @@
         return s || "UNKNOWN";
       },
 
+      normalizePackageStatus(v) {
+        const s = String(v || "").trim().toUpperCase();
+        if (s.startsWith("PAUS")) return "PAUSE";
+        if (s.includes("REFUND")) return "REFUNDED";
+        if (s.includes("ACTIVE")) return "ACTIVE";
+        return s || "—";
+      },
+
       statusDotClass(clientStatus) {
         if (clientStatus === "CRITICAL") return "st-critical";
         if (clientStatus === "AT RISK") return "st-risk";
@@ -1206,69 +1245,31 @@
       },
 
       extractRoofingCompany(c) {
-        return this.pick(c, [
-          "roofing_company",
-          "Roofing Company",
-          "Roofing Company Name",
-          "ROOFING COMPANY",
-          "Company Name",
-          "COMPANY NAME"
-        ], "—");
+        return this.pick(c, ["roofing_company","Roofing Company","ROOFING COMPANY","Company Name","COMPANY NAME"], "—");
       },
 
       extractCityState(c) {
-        return this.pick(c, [
-          "city_state",
-          "CITY STATE",
-          "CITY, STATE",
-          "City, State",
-          "City State",
-          "Location",
-          "location"
-        ], "—");
+        return this.pick(c, ["city_state","CITY STATE","CITY, STATE","City, State","City State","Location","location"], "—");
       },
 
       extractClientName(c) {
-        return this.pick(c, [
-          "client_name",
-          "CLIENT NAME",
-          "Client Name",
-          "client_name",
-          "clientName",
-          "Client",
-          "CLIENT"
-        ], "—");
+        return this.pick(c, ["client_name","CLIENT NAME","Client Name","clientName","Client","CLIENT"], "—");
       },
 
       extractCode(c) {
-        return this.pick(c, [
-          "code_name",
-          "CODE NAME",
-          "Code Name",
-          "codeName",
-          "code_name",
-          "CODE",
-          "code",
-          "Client Code",
-          "CLIENT CODE",
-          "Client ID",
-          "ClientID"
-        ], "N/A");
+        return this.pick(c, ["code_name","CODE NAME","Code Name","codeName","CODE","code","Client Code","CLIENT CODE","Client ID","ClientID"], "N/A");
       },
 
       buildLeadIndex(leads) {
-        const byCompany = new Map(); // key -> [{dt, status}]
+        const byCompany = new Map();
         const byCode = new Map();
 
         for (const l of (leads || [])) {
           const company = this.pick(l, ["Company Name","COMPANY NAME","Client"], "");
           const companyKey = this.normalizeCompanyName(company);
-
           const leadCode = this.pick(l, ["Client Code","CLIENT CODE","Code Name","CODE NAME","Code","CODE"], "");
           const codeKey = this.normalizeCode(leadCode);
-
           const st = this.pick(l, ["Status","STATUS"], "");
-
           const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
           const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
           if (!dt || isNaN(dt.getTime())) continue;
@@ -1283,7 +1284,6 @@
           push(byCompany, companyKey);
           push(byCode, codeKey);
         }
-
         return { byCompany, byCode };
       },
 
@@ -1299,13 +1299,12 @@
           if (this.isQualified(item.status)) out.qualified += 1;
           else if (this.isCredited(item.status)) out.credited += 1;
         }
-
         return out;
       },
 
       normalizeClientHealthRows(clients) {
         return (clients || []).map(c => {
-          const rawStatus = this.pick(c, ["status","Client Status","CLIENT STATUS","Status","STATUS","status"], "UNKNOWN");
+          const rawStatus = this.pick(c, ["status","Client Status","CLIENT STATUS","Status","STATUS"], "UNKNOWN");
           const clientStatus = this.normalizeClientStatus(rawStatus);
 
           const roofingCompany = this.extractRoofingCompany(c);
@@ -1313,35 +1312,27 @@
           const cityState = this.extractCityState(c);
           const clientName = this.extractClientName(c);
 
-          const lastLead = this.pick(c, ["last_lead_received","Last Lead Received","last_lead_received"], "—");
+          const lastLead = this.pick(c, ["last_lead_received","Last Lead Received"], "—");
+          const hoursSince = Number(this.pick(c, ["hours_since_last_lead","Hours Since Last Lead","Hours Since"], 0)) || 0;
+          const leadsToday = Number(this.pick(c, ["leads_today","Leads Today"], 0)) || 0;
+          const leadsYesterday = Number(this.pick(c, ["leads_yesterday","Leads Yesterday"], 0)) || 0;
 
-          const hoursSince = Number(this.pick(c, ["hours_since_last_lead","Hours Since Last Lead","Hours Since","hours_since_last_lead"], 0)) || 0;
-          const leadsToday = Number(this.pick(c, ["leads_today","Leads Today","leads_today"], 0)) || 0;
-          const leadsYesterday = Number(this.pick(c, ["leads_yesterday","Leads Yesterday","leads_yesterday"], 0)) || 0;
-
-          const owed = Number(this.pick(c, ["owed_leads","Owed Leads","OWED LEADS","owed_leads","Owed"], 0)) || 0;
-          const purchased = Number(this.pick(c, ["purchased_leads","Purchased Leads","PURCHASED LEADS","purchased_leads","Purchased"], 0)) || 0;
+          const owed = Number(this.pick(c, ["owed_leads","Owed Leads","OWED LEADS","Owed"], 0)) || 0;
+          const purchased = Number(this.pick(c, ["purchased_leads","Purchased Leads","PURCHASED LEADS","Purchased"], 0)) || 0;
 
           const pkgLabel = `${owed} / ${purchased}`;
           const pkgRatio = purchased === 0 ? owed : (owed / purchased);
 
           const purchaseDate = this.pick(c, ["purchase_date","Purchase Date","PURCHASE DATE"], "—");
-          const packageStatus = this.pick(c, ["package_status","Package Status","PACKAGE STATUS"], "—");
+          const packageStatusRaw = this.pick(c, ["package_status","Package Status","PACKAGE STATUS"], "—");
+          const packageStatus = this.normalizePackageStatus(packageStatusRaw);
 
-          // ✅ purchase-date based counting: try CODE first, then company
           const codeKey = this.normalizeCode(code);
           const companyKey = this.normalizeCompanyName(roofingCompany);
+          const pDt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(purchaseDate) : new Date(purchaseDate);
 
-          // parse purchase date of the (active) package on this row
-          const pRaw = purchaseDate;
-          const pDt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(pRaw) : new Date(pRaw);
-
-          const listByCode = this._leadsIndexByCode?.get(codeKey) || null;
-          const listByCompany = this._leadsIndexByCompany?.get(companyKey) || null;
-
-          const list = listByCode || listByCompany || [];
+          const list = this._leadsIndexByCode?.get(codeKey) || this._leadsIndexByCompany?.get(companyKey) || [];
           const counts = this.countQualifiedCreditedFrom(list, pDt);
-
           const soldBy = this.getSoldByForClient(code);
 
           return {
@@ -1369,29 +1360,28 @@
       setupFilters(rows) {
         const statusSel = document.getElementById("health-filter-status");
         const citySel = document.getElementById("health-filter-city");
+        const pkgSel = document.getElementById("health-filter-package");
 
         const alwaysStatuses = ["CRITICAL", "AT RISK", "HEALTHY", "NOT STARTED"];
         const foundStatuses = [...new Set(rows.map(r => r.status))].filter(Boolean);
         const statuses = [...new Set([...alwaysStatuses, ...foundStatuses])];
 
-        statusSel.innerHTML =
-          `<option value="all">All Status</option>` +
-          statuses.map(s => `<option value="${s}">${s}</option>`).join("");
-
+        statusSel.innerHTML = `<option value="all">All Status</option>` + statuses.map(s => `<option value="${s}">${s}</option>`).join("");
         const cities = [...new Set(rows.map(r => r.cityState).filter(Boolean))].sort();
         citySel.innerHTML = `<option value="all">All City/State</option>` + cities.map(s => `<option value="${s}">${s}</option>`).join("");
 
         if (!this._filtersBound) {
           this._filtersBound = true;
-
           document.getElementById("health-search").addEventListener("input", () => this.applyClientHealthFilters());
           statusSel.addEventListener("change", () => this.applyClientHealthFilters());
           citySel.addEventListener("change", () => this.applyClientHealthFilters());
+          if (pkgSel) pkgSel.addEventListener("change", () => this.applyClientHealthFilters());
 
           document.getElementById("health-clear").addEventListener("click", () => {
             document.getElementById("health-search").value = "";
             statusSel.value = "all";
             citySel.value = "all";
+            if (pkgSel) pkgSel.value = "all";
             this.applyClientHealthFilters();
           });
 
@@ -1403,7 +1393,6 @@
             });
           });
 
-          // ✅ Custom range popover handlers (added)
           const toggle = document.getElementById("custom-range-toggle");
           const pop = document.getElementById("custom-range-popover");
           const apply = document.getElementById("custom-apply");
@@ -1411,41 +1400,22 @@
 
           if (toggle && pop && apply && clear && !this._customBound) {
             this._customBound = true;
-
-            toggle.addEventListener("click", (e) => {
-              e.preventDefault();
-              pop.classList.toggle("hidden");
-            });
-
-            document.addEventListener("click", (e) => {
-              if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
-                pop.classList.add("hidden");
-              }
-            });
-
+            toggle.addEventListener("click", (e) => { e.preventDefault(); pop.classList.toggle("hidden"); });
+            document.addEventListener("click", (e) => { if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) pop.classList.add("hidden"); });
             apply.addEventListener("click", () => {
               const s = document.getElementById("custom-start").value;
               const e = document.getElementById("custom-end").value;
               if (!s || !e) return;
-
               this._customRange.active = true;
-              this._customRange.start = s;
-              this._customRange.end = e;
-
-              // use period marker, but preserve preset buttons
+              this._customRange.start = s; this._customRange.end = e;
               this.analyticsPeriod = "custom";
               pop.classList.add("hidden");
               this.updateAnalytics(this.analyticsPeriod);
             });
-
             clear.addEventListener("click", () => {
               document.getElementById("custom-start").value = "";
               document.getElementById("custom-end").value = "";
-              this._customRange.active = false;
-              this._customRange.start = null;
-              this._customRange.end = null;
-              pop.classList.add("hidden");
-              // keep current preset period
+              this._customRange.active = false; pop.classList.add("hidden");
               this.updateAnalytics(this.analyticsPeriod === "custom" ? "today" : this.analyticsPeriod);
             });
           }
@@ -1453,13 +1423,8 @@
       },
 
       toggleSort(key) {
-        if (this.sortState.key === key) {
-          this.sortState.dir = this.sortState.dir === "asc" ? "desc" : "asc";
-        } else {
-          this.sortState.key = key;
-          this.sortState.dir = "asc";
-        }
-
+        if (this.sortState.key === key) { this.sortState.dir = this.sortState.dir === "asc" ? "desc" : "asc"; } 
+        else { this.sortState.key = key; this.sortState.dir = "asc"; }
         document.querySelectorAll(".sort-icon").forEach(i => i.textContent = "↕");
         const icon = document.getElementById(`sort-${key}`);
         if (icon) icon.textContent = this.sortState.dir === "asc" ? "↑" : "↓";
@@ -1469,11 +1434,13 @@
         const q = String(document.getElementById("health-search").value || "").toLowerCase().trim();
         const status = document.getElementById("health-filter-status").value;
         const city = document.getElementById("health-filter-city").value;
+        const pkg = document.getElementById("health-filter-package")?.value || "all";
 
         let filtered = [...this.clientHealthRaw];
 
         if (status !== "all") filtered = filtered.filter(r => r.status === status);
         if (city !== "all") filtered = filtered.filter(r => r.cityState === city);
+        if (pkg !== "all") filtered = filtered.filter(r => String(r.packageStatus || "").toUpperCase() === pkg);
 
         if (q) {
           filtered = filtered.filter(r => {
@@ -1485,8 +1452,7 @@
         const { key, dir } = this.sortState;
         if (key) {
           filtered.sort((a,b) => {
-            const A = a[key];
-            const B = b[key];
+            const A = a[key]; const B = b[key];
             if (typeof A === "number" && typeof B === "number") return dir === "asc" ? A - B : B - A;
             return dir === "asc" ? String(A).localeCompare(String(B)) : String(B).localeCompare(String(A));
           });
@@ -1517,13 +1483,16 @@
               <td class="p-4 text-gray-700 font-semibold">${r.code || "N/A"}</td>
               <td class="p-4 font-bold text-gray-900 max-w-[260px] truncate" title="${r.roofingCompany}">${r.roofingCompany}</td>
               <td class="p-4 text-gray-500 max-w-[170px] truncate" title="${r.cityState}">${r.cityState}</td>
-              <td class="p-4 text-gray-700 max-w-[220px] truncate" title="${r.clientName}">${r.clientName}</td>
-              <td class="p-4 text-gray-500">${r.lastLead}</td>
-
-              <td class="p-4 text-gray-500">${r.purchaseDate}</td>
-              <td class="p-4 text-gray-500">${r.packageStatus}</td>
+              <td class="p-4 text-center text-gray-900 font-bold">${r.packageLabel}</td>
               <td class="p-4 text-center text-emerald-600 font-bold">${r.qualifiedCount}</td>
               <td class="p-4 text-center text-red-500 font-bold">${r.creditedCount}</td>
+              <td class="p-4 text-gray-700 max-w-[260px] truncate" title="${r.clientName}">${r.clientName}</td>
+              <td class="p-4 text-gray-500">${r.purchaseDate}</td>
+              <td class="p-4 text-gray-500">${r.packageStatus}</td>
+              <td class="p-4 text-gray-500">${r.lastLead}</td>
+              <td class="p-4 text-center text-gray-700 font-semibold">${r.hoursSince}</td>
+              <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsToday}</td>
+              <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsYesterday}</td>
               <td class="p-4 text-center">
                 <select class="px-2 py-1 border border-gray-200 rounded-md text-xs bg-white" data-soldby-code="${r.code}">
                   <option value="" ${soldByVal===""?"selected":""}>—</option>
@@ -1531,11 +1500,6 @@
                   <option value="CHL" ${soldByVal==="CHL"?"selected":""}>CHL</option>
                 </select>
               </td>
-
-              <td class="p-4 text-center text-gray-900 font-bold">${r.packageLabel}</td>
-              <td class="p-4 text-center text-gray-700 font-semibold">${r.hoursSince}</td>
-              <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsToday}</td>
-              <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsYesterday}</td>
             </tr>
           `;
         }).join("");
@@ -1543,50 +1507,16 @@
         tbody.querySelectorAll('select[data-soldby-code]').forEach(sel => {
           sel.addEventListener('change', (e) => {
             const code = e.target.getAttribute('data-soldby-code');
-            const val = e.target.value;
-
-            this.setSoldByForClient(code, val);
-
+            this.setSoldByForClient(code, e.target.value);
             const row = this.clientHealthRaw.find(x => x.code === code);
-            if (row) row.soldBy = val;
+            if (row) row.soldBy = e.target.value;
           });
         });
       },
 
-      renderPulse(leads) {
-        const today = new Date().toDateString();
-
-        const todayLeads = (leads || []).filter(l => {
-          const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
-          const d = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
-          return d && !isNaN(d.getTime()) && d.toDateString() === today;
-        });
-
-        const confirmed = todayLeads.filter(l => {
-          const st = this.pick(l, ["Status","STATUS"], "");
-          return this.isQualified(st);
-        });
-
-        const value = confirmed.length * 50;
-
-        const pending = (leads || []).filter(l =>
-          String(this.pick(l, ["Status","STATUS"], "")).toLowerCase().includes("pending")
-        );
-
-        document.getElementById('pulse-profit').textContent = `$${value.toFixed(2)}`;
-        document.getElementById('pulse-pending').textContent = pending.length;
-      },
-
       setAnalyticsPeriod(period, btnElement) {
         this.analyticsPeriod = period;
-
-        // ✅ if preset clicked, disable custom
-        if (period !== "custom") {
-          this._customRange.active = false;
-          this._customRange.start = null;
-          this._customRange.end = null;
-        }
-
+        if (period !== "custom") { this._customRange.active = false; }
         if (btnElement) {
           document.querySelectorAll('.analytics-btn').forEach(b => {
             b.classList.remove('bg-white', 'shadow', 'text-gray-900');
@@ -1595,1295 +1525,275 @@
           btnElement.classList.add('bg-white', 'shadow', 'text-gray-900');
           btnElement.classList.remove('text-gray-500');
         }
-
         this.updateAnalytics(period);
       },
 
       getRangeFor(period, leads) {
         const now = new Date();
+        const startOfDay = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+        const endOfDay   = (d) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
+
+        const getMondayStart = (d) => {
+          const x = new Date(d);
+          const day = x.getDay();
+          const diff = (day === 0 ? -6 : 1) - day;
+          x.setDate(x.getDate() + diff);
+          x.setHours(0,0,0,0);
+          return x;
+        };
+        const getSundayEndFromMonday = (monday) => {
+          const x = new Date(monday);
+          x.setDate(x.getDate() + 6);
+          x.setHours(23,59,59,999);
+          return x;
+        };
+
         const payrollThis = window.portal?.getPayrollWeekRange ? window.portal.getPayrollWeekRange() : null;
         const payrollPrev = window.portal?.getPreviousPayrollWeekRange ? window.portal.getPreviousPayrollWeekRange() : null;
 
-        const startOfDay = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
-        const endOfDay = (d) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
+        const thisWeekStart = (payrollThis?.start && !isNaN(new Date(payrollThis.start).getTime())) ? new Date(payrollThis.start) : getMondayStart(now);
+        const thisWeekEnd = (payrollThis?.end && !isNaN(new Date(payrollThis.end).getTime())) ? new Date(payrollThis.end) : getSundayEndFromMonday(thisWeekStart);
 
-        // ✅ custom timeframe
-        if (period === "custom" && this._customRange.active && this._customRange.start && this._customRange.end) {
-          const s = new Date(this._customRange.start + "T00:00:00");
-          const e = new Date(this._customRange.end + "T23:59:59");
-          const start = startOfDay(s);
-          const end = endOfDay(e);
-          return { start, end, grain: "day", label: "Custom Range" };
+        const prevWeekEnd = new Date(thisWeekStart); prevWeekEnd.setDate(prevWeekEnd.getDate() - 1); prevWeekEnd.setHours(23,59,59,999);
+        const prevWeekStart = (payrollPrev?.start && !isNaN(new Date(payrollPrev.start).getTime())) ? new Date(payrollPrev.start) : getMondayStart(prevWeekEnd);
+        const prevWeekEndFinal = (payrollPrev?.end && !isNaN(new Date(payrollPrev.end).getTime())) ? new Date(payrollPrev.end) : getSundayEndFromMonday(prevWeekStart);
+
+        if (period === "custom" && this._customRange.active) {
+          return { start: startOfDay(new Date(this._customRange.start + "T00:00:00")), end: endOfDay(new Date(this._customRange.end + "T23:59:59")), grain: "day", label: "Custom Range" };
         }
-
         if (period === "today") return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "Today" };
-        if (period === "this-week" && payrollThis) return { start: payrollThis.start, end: payrollThis.end, grain: "day", label: "This Week" };
-        if (period === "previous-week" && payrollPrev) return { start: payrollPrev.start, end: payrollPrev.end, grain: "day", label: "Previous Week" };
+        if (period === "this-week") return { start: startOfDay(thisWeekStart), end: endOfDay(thisWeekEnd), grain: "day", label: "This Week" };
+        if (period === "previous-week") return { start: startOfDay(prevWeekStart), end: endOfDay(prevWeekEndFinal), grain: "day", label: "Previous Week" };
 
         if (period === "4-weeks") {
-          const end = payrollThis ? payrollThis.end : endOfDay(now);
-          const start = new Date(end); start.setDate(start.getDate() - 27); start.setHours(0,0,0,0);
+          const end = endOfDay(thisWeekEnd); const start = new Date(end); start.setDate(start.getDate() - 27); start.setHours(0,0,0,0);
           return { start, end, grain: "week", label: "Last 4 Weeks" };
         }
-
         if (period === "6-weeks") {
-          const end = payrollThis ? payrollThis.end : endOfDay(now);
-          const start = new Date(end); start.setDate(start.getDate() - 41); start.setHours(0,0,0,0);
+          const end = endOfDay(thisWeekEnd); const start = new Date(end); start.setDate(start.getDate() - 41); start.setHours(0,0,0,0);
           return { start, end, grain: "week", label: "Last 6 Weeks" };
         }
-
-        // all-time
-        const all = Array.isArray(leads) ? leads : [];
-        let min = null;
-        for (const l of all) {
-          const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED"], "");
-          const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
-          if (!dt || isNaN(dt.getTime())) continue;
-          if (!min || dt < min) min = dt;
-        }
-        const start = min ? startOfDay(min) : startOfDay(now);
-        const end = payrollThis ? payrollThis.end : endOfDay(now);
-        return { start, end, grain: "month", label: "All-Time" };
+        return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "Today" };
       },
 
-      isQualified(st) {
-        const s = String(st || "").toLowerCase();
-        return s.includes("confirm") || s.includes("approve");
-      },
+      isQualified(st) { const s = String(st || "").toLowerCase(); return s.includes("confirm") || s.includes("approve"); },
+      isRejected(st) { const s = String(st || "").toLowerCase(); return s.includes("reject"); },
+      isCredited(st) { const s = String(st || "").toLowerCase(); return s.includes("credit"); },
+      isPendingReview(st) { const s = String(st || "").toLowerCase(); return s.includes("pending"); },
 
-      isRejected(st) {
-        const s = String(st || "").toLowerCase();
-        return s.includes("reject");
-      },
-
-      isCredited(st) {
-        const s = String(st || "").toLowerCase();
-        return s.includes("credit");
-      },
-
-      isPendingReview(st) {
-        const s = String(st || "").toLowerCase();
-        return s.includes("pending");
-      },
-
-      // ✅ Chart helpers
-      _fmtDateKey(d) {
-        const y = d.getFullYear();
-        const m = String(d.getMonth()+1).padStart(2,"0");
-        const day = String(d.getDate()).padStart(2,"0");
-        return `${y}-${m}-${day}`;
-      },
-
+      _fmtDateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; },
       _fmtWeekKey(d) {
-        // week bucket by Monday
-        const x = new Date(d);
-        const day = x.getDay(); // 0..6 (Sun..Sat)
-        const diff = (day === 0 ? -6 : 1) - day; // to Monday
-        x.setDate(x.getDate() + diff);
-        x.setHours(0,0,0,0);
+        const x = new Date(d); const day = x.getDay();
+        x.setDate(x.getDate() + ((day === 0 ? -6 : 1) - day)); x.setHours(0,0,0,0);
         return this._fmtDateKey(x);
       },
 
       _buildBuckets(start, end, grain) {
-        const buckets = [];
-        const cursor = new Date(start);
-        cursor.setHours(0,0,0,0);
-
-        if (grain === "day") {
-          while (cursor <= end) {
-            buckets.push(this._fmtDateKey(cursor));
-            cursor.setDate(cursor.getDate() + 1);
-          }
-          return buckets;
-        }
-
-        if (grain === "week") {
-          // start at week key of start
-          const wkStartKey = this._fmtWeekKey(cursor);
-          let wkCursor = new Date(wkStartKey + "T00:00:00");
-          while (wkCursor <= end) {
-            buckets.push(this._fmtDateKey(wkCursor));
-            wkCursor.setDate(wkCursor.getDate() + 7);
-          }
-          return buckets;
-        }
-
-        // month (all-time): bucket by YYYY-MM
-        const mcur = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
-        const mend = new Date(end.getFullYear(), end.getMonth(), 1);
-        while (mcur <= mend) {
-          const y = mcur.getFullYear();
-          const m = String(mcur.getMonth()+1).padStart(2,"0");
-          buckets.push(`${y}-${m}`);
-          mcur.setMonth(mcur.getMonth() + 1);
-        }
+        const buckets = []; const cursor = new Date(start); cursor.setHours(0,0,0,0);
+        if (grain === "day") { while (cursor <= end) { buckets.push(this._fmtDateKey(cursor)); cursor.setDate(cursor.getDate() + 1); } return buckets; }
+        if (grain === "week") { let wkCursor = new Date(this._fmtWeekKey(cursor) + "T00:00:00"); while (wkCursor <= end) { buckets.push(this._fmtDateKey(wkCursor)); wkCursor.setDate(wkCursor.getDate() + 7); } return buckets; }
         return buckets;
       },
 
       _bucketKeyFor(dt, grain) {
         if (grain === "day") return this._fmtDateKey(dt);
         if (grain === "week") return this._fmtDateKey(new Date(this._fmtWeekKey(dt) + "T00:00:00"));
-        // month
-        const y = dt.getFullYear();
-        const m = String(dt.getMonth()+1).padStart(2,"0");
-        return `${y}-${m}`;
+        return this._fmtDateKey(dt);
       },
 
       _renderAnalyticsChart(labels, series) {
         const ctx = document.getElementById("team-analytics-chart");
         if (!ctx) return;
-
-        if (this._analyticsChart) {
-          try { this._analyticsChart.destroy(); } catch(e) {}
-          this._analyticsChart = null;
-        }
-
+        if (this._analyticsChart) { this._analyticsChart.destroy(); }
         this._analyticsChart = new Chart(ctx, {
           type: "bar",
-          data: {
-            labels,
-            datasets: [
-              { label: "Qualified", data: series.qualified, stack: "stack" },
-              { label: "QC Rejected", data: series.rejected, stack: "stack" },
-              { label: "Credited", data: series.credited, stack: "stack" },
-              { label: "Pending", data: series.pending, stack: "stack" },
-            ]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { position: "top" },
-              tooltip: { mode: "index", intersect: false }
-            },
-            interaction: { mode: "index", intersect: false },
-            scales: {
-              x: { stacked: true, grid: { display: false } },
-              y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } }
-            }
-          }
+          data: { labels, datasets: [
+            { label: "Qualified", data: series.qualified, stack: "stack" },
+            { label: "QC Rejected", data: series.rejected, stack: "stack" },
+            { label: "Credited", data: series.credited, stack: "stack" },
+            { label: "Pending", data: series.pending, stack: "stack" },
+          ]},
+          options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
         });
       },
 
       updateAnalytics(period) {
         const state = this.getState();
         const leads = (state && state.leads) ? state.leads : [];
-
         const { start, end, grain, label } = this.getRangeFor(period, leads);
 
         document.getElementById("kpi-range").textContent = `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
         document.getElementById("top10-label").textContent = label;
         document.getElementById("bottom5-label").textContent = label;
-
-        document.getElementById("trend-grain").textContent =
-          grain === "day" ? "Daily" : (grain === "week" ? "Weekly" : "Monthly");
+        document.getElementById("trend-grain").textContent = grain === "day" ? "Daily" : "Weekly";
 
         let total = 0, qualified = 0, rejected = 0, credited = 0, pending = 0;
-
         const agentAgg = new Map();
-
-        // ✅ trend buckets
         const buckets = this._buildBuckets(start, end, grain);
         const seriesMap = new Map();
-        for (const b of buckets) {
-          seriesMap.set(b, { qualified: 0, rejected: 0, credited: 0, pending: 0 });
-        }
+        buckets.forEach(b => seriesMap.set(b, { qualified: 0, rejected: 0, credited: 0, pending: 0 }));
 
-        for (const l of (leads || [])) {
-          const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
-          const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
-          if (!dt || isNaN(dt.getTime())) continue;
-          if (dt < start || dt > end) continue;
-
+        leads.forEach(l => {
+          const dt = this.getLeadDateObj(l);
+          if (!dt || dt < start || dt > end) return;
           const st = this.pick(l, ["Status","STATUS"], "");
-
-          const agent = String(this.pick(l, [
-            "Appointment Coordinator Name",
-            "Appointment Coordinator",
-            "Setter",
-            "Agent",
-            "Agent Name",
-            "AGENT"
-          ], "Unknown")).trim() || "Unknown";
-
-          total += 1;
-
+          const agent = String(this.pick(l, ["Appointment Coordinator Name","Agent Name","AGENT"], "Unknown")).trim();
+          total++;
           const a = agentAgg.get(agent) || { name: agent, total: 0, qualified: 0, rejected: 0, credited: 0, pending: 0 };
-          a.total += 1;
-
+          a.total++;
           const bk = this._bucketKeyFor(dt, grain);
-          const bRow = seriesMap.get(bk) || null;
+          const bRow = seriesMap.get(bk);
 
-          if (this.isQualified(st)) {
-            qualified += 1; a.qualified += 1;
-            if (bRow) bRow.qualified += 1;
-          } else if (this.isRejected(st)) {
-            rejected += 1; a.rejected += 1;
-            if (bRow) bRow.rejected += 1;
-          } else if (this.isCredited(st)) {
-            credited += 1; a.credited += 1;
-            if (bRow) bRow.credited += 1;
-          } else {
-            pending += 1; a.pending += 1;
-            if (bRow) bRow.pending += 1;
-          }
-
+          if (this.isQualified(st)) { qualified++; a.qualified++; if (bRow) bRow.qualified++; }
+          else if (this.isRejected(st)) { rejected++; a.rejected++; if (bRow) bRow.rejected++; }
+          else if (this.isCredited(st)) { credited++; a.credited++; if (bRow) bRow.credited++; }
+          else { pending++; a.pending++; if (bRow) bRow.pending++; }
           agentAgg.set(agent, a);
-        }
+        });
 
-        const denom = qualified + credited;
-        const cancelRate = denom > 0 ? Math.round((credited / denom) * 100) : 0;
+        // ✅ Est. Value follow calculation (Qualified * $125)
+        const estValue = qualified * 125;
+        const profitEl = document.getElementById("pulse-profit");
+        if (profitEl) profitEl.textContent = `$${estValue.toFixed(2)}`;
 
+        const pendingEl = document.getElementById("pulse-pending");
+        if (pendingEl) pendingEl.textContent = pending;
+
+        document.getElementById("pulse-label").textContent = "Est. Value";
         document.getElementById("kpi-total").textContent = total;
         document.getElementById("kpi-qualified").textContent = qualified;
         document.getElementById("kpi-qc-rejected").textContent = rejected;
         document.getElementById("kpi-credited").textContent = credited;
         document.getElementById("kpi-pending").textContent = pending;
-        document.getElementById("kpi-cancel").textContent = `${cancelRate}%`;
+        document.getElementById("kpi-cancel").textContent = `${(qualified + credited > 0) ? Math.round((credited / (qualified + credited)) * 100) : 0}%`;
 
-        // ✅ Top 10: keep ranking by Qualified (same metric you care about)
-        const top = Array.from(agentAgg.values())
-          .sort((a,b) => (b.qualified - a.qualified) || (b.total - a.total))
-          .slice(0, 10);
-
-        // ✅ Bottom 5: ONLY agents with total <= 5 (your requirement)
-        const bottomCandidates = Array.from(agentAgg.values()).filter(a => a.total > 0 && a.total <= 5);
-        const bottom = bottomCandidates
-          .sort((a,b) => (a.total - b.total) || (a.qualified - b.qualified))
-          .slice(0, 5);
+        const top = Array.from(agentAgg.values()).sort((a,b) => b.qualified - a.qualified).slice(0, 10);
+        const bottom = Array.from(agentAgg.values()).filter(a => a.total <= 5).sort((a,b) => a.total - b.total).slice(0, 5);
 
         const renderRow = (a) => {
           const d = a.qualified + a.credited;
-          const cr = d > 0 ? Math.round((a.credited / d) * 100) : 0;
-          return `
-            <tr>
-              <td class="p-4 font-bold text-gray-900">${a.name}</td>
-              <td class="p-4 text-center text-gray-600 font-semibold">${a.total}</td>
-              <td class="p-4 text-center text-red-500 font-bold">${a.rejected}</td>
-              <td class="p-4 text-center text-emerald-600 font-bold">${a.qualified}</td>
-              <td class="p-4 text-center text-red-500 font-bold">${a.credited}</td>
-              <td class="p-4 text-center text-yellow-600 font-bold">${a.pending}</td>
-              <td class="p-4 text-center text-gray-600 font-semibold">${cr}%</td>
-            </tr>
-          `;
+          return `<tr><td class="p-4 font-bold text-gray-900">${a.name}</td><td class="p-4 text-center text-gray-600 font-semibold">${a.total}</td><td class="p-4 text-center text-red-500 font-bold">${a.rejected}</td><td class="p-4 text-center text-emerald-600 font-bold">${a.qualified}</td><td class="p-4 text-center text-red-500 font-bold">${a.credited}</td><td class="p-4 text-center text-yellow-600 font-bold">${a.pending}</td><td class="p-4 text-center text-gray-600 font-semibold">${d > 0 ? Math.round((a.credited/d)*100) : 0}%</td></tr>`;
         };
 
-        const topBody = document.getElementById("top10-body");
-        topBody.innerHTML = top.length
-          ? top.map(renderRow).join("")
-          : `<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No leads in this period.</td></tr>`;
+        document.getElementById("top10-body").innerHTML = top.map(renderRow).join("") || '<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No data</td></tr>';
+        document.getElementById("bottom5-body").innerHTML = bottom.map(renderRow).join("") || '<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No agents with ≤ 5 leads</td></tr>';
 
-        const bottomBody = document.getElementById("bottom5-body");
-        bottomBody.innerHTML = bottom.length
-          ? bottom.map(renderRow).join("")
-          : `<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No agents with ≤ 5 leads in this period.</td></tr>`;
-
-        // ✅ trend chart render
-        const chartLabels = buckets.map(b => b);
-        const seriesData = {
-          qualified: buckets.map(b => seriesMap.get(b)?.qualified || 0),
-          rejected: buckets.map(b => seriesMap.get(b)?.rejected || 0),
-          credited: buckets.map(b => seriesMap.get(b)?.credited || 0),
-          pending: buckets.map(b => seriesMap.get(b)?.pending || 0),
-        };
-        this._renderAnalyticsChart(chartLabels, seriesData);
+        this._renderAnalyticsChart(buckets, {
+          qualified: buckets.map(b => seriesMap.get(b).qualified),
+          rejected: buckets.map(b => seriesMap.get(b).rejected),
+          credited: buckets.map(b => seriesMap.get(b).credited),
+          pending: buckets.map(b => seriesMap.get(b).pending),
+        });
       },
 
       renderClientCards(clients) {
         const container = document.getElementById('client-cards-container');
         if (!container) return;
-
-        if (!clients || !clients.length) {
-          container.innerHTML = `
-            <div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">
-              No clients found.
-            </div>
-          `;
-          return;
-        }
-
-        container.innerHTML = clients.map(c => {
-          const name = this.extractRoofingCompany(c);
+        container.innerHTML = (clients || []).map(c => {
           const code = this.extractCode(c);
-          const city = this.extractCityState(c);
-
-          return `
-            <button
-              type="button"
-              class="text-left bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition"
-              onclick="Admin.openPassbookClient('${String(code).replace(/'/g, "\\'")}')"
-            >
-              <div class="flex items-center justify-between">
-                <h3 class="font-bold text-gray-900 text-lg">${name}</h3>
-                <span class="text-xs font-bold text-gray-500">${code}</span>
-              </div>
-              <p class="text-xs text-gray-500 mt-1">${city}</p>
-              <p class="text-[10px] font-extrabold text-yellow-600 uppercase tracking-wider mt-3">Click to open</p>
-            </button>
-          `;
-        }).join('');
+          return `<button type="button" class="text-left bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition" onclick="Admin.openPassbookClient('${String(code).replace(/'/g, "\\'")}')"><div class="flex items-center justify-between"><h3 class="font-bold text-gray-900 text-lg">${this.extractRoofingCompany(c)}</h3><span class="text-xs font-bold text-gray-500">${code}</span></div><p class="text-xs text-gray-500 mt-1">${this.extractCityState(c)}</p><p class="text-[10px] font-extrabold text-yellow-600 uppercase tracking-wider mt-3">Click to open</p></button>`;
+        }).join('') || '<div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">No results</div>';
       },
 
-      // ✅ ADDED: Passbook Logic methods
-      openPassbookClient(codeName) {
-        this._openPassbookModalShell(codeName);
-        this._fetchAndRenderPassbookClient(codeName);
-      },
-
+      openPassbookClient(codeName) { this._openPassbookModalShell(codeName); this._fetchAndRenderPassbookClient(codeName); },
       _openPassbookModalShell(codeName) {
-        const modal = document.getElementById("passbook-modal");
-        const title = document.getElementById("passbook-modal-title");
-        const sub = document.getElementById("passbook-modal-sub");
-        const body = document.getElementById("passbook-form-body");
-        const codeInput = document.getElementById("codeName");
-
-        if (!modal || !body || !codeInput) return;
-
-        codeInput.value = codeName || "";
-        title.textContent = "Client Details";
-        sub.textContent = codeName ? `Code: ${codeName}` : "—";
-
-        body.innerHTML = `
-          <div class="p-4 rounded-xl border border-gray-100 bg-gray-50/40 text-sm text-gray-500 italic">
-            Loading client details...
-          </div>
-        `;
-
+        const modal = document.getElementById("passbook-modal"); document.getElementById("codeName").value = codeName;
+        document.getElementById("passbook-modal-sub").textContent = `Code: ${codeName}`;
+        document.getElementById("passbook-form-body").innerHTML = '<div class="p-4 text-sm text-gray-500 italic">Loading...</div>';
         modal.classList.remove("hidden");
       },
-
-      closePassbookModal() {
-        const modal = document.getElementById("passbook-modal");
-        if (modal) modal.classList.add("hidden");
-      },
+      closePassbookModal() { document.getElementById("passbook-modal").classList.add("hidden"); },
 
       async _fetchAndRenderPassbookClient(codeName) {
-        const body = document.getElementById("passbook-form-body");
-        if (!body) return;
-
         try {
-          // uses your main.js webhook
-          const res = await fetch(window.portal.webhooks.passbookClientDetails, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Accept": "application/json" },
-            body: JSON.stringify({ codeName })
-          });
-
-          if (!res.ok) throw new Error(`Details fetch failed (HTTP ${res.status})`);
-
-          const json = await res.json().catch(() => ({}));
-
-          // try common shapes
-          const record =
-            json?.client ||
-            json?.data?.client ||
-            json?.data ||
-            json ||
-            {};
-
-          // If the n8n structure returns { client: {}, packages: [] } directly
-          // record might be the whole response.
-          this._renderPassbookForm(json); 
-        } catch (err) {
-          console.error(err);
-          body.innerHTML = `
-            <div class="p-4 rounded-xl border border-red-100 bg-red-50 text-sm text-red-700">
-              Failed to load client details. ${err?.message || ""}
-            </div>
-          `;
-        }
+          const res = await fetch(window.portal.webhooks.passbookClientDetails, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codeName }) });
+          const json = await res.json(); this._renderPassbookForm(json);
+        } catch (err) { document.getElementById("passbook-form-body").innerHTML = '<div class="p-4 text-red-700">Failed to load details.</div>'; }
       },
 
       _renderPassbookForm(data) {
-        const body = document.getElementById("passbook-form-body");
-        if (!body) return;
-
-        // Handle data structure from n8n (client object + packages array)
         const client = data.client || data || {};
         const packages = Array.isArray(data.packages) ? data.packages : [];
-
-        // Helper to safe-print values
-        const val = (k) => {
-          const v = client[k];
-          return (v === null || v === undefined) ? "" : String(v).replace(/"/g, "&quot;");
-        };
-
-        // ✅ 1. Header Section (Non-editable Code/Name)
-        let html = `
-          <div class="col-span-1 md:col-span-2 bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
-            <div>
-              <h2 class="text-xl font-black text-gray-900">${val('companyName') || 'Unknown Company'}</h2>
-              <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-yellow-100 text-yellow-800">
-                ${val('codeName')}
-              </span>
-            </div>
-            <div class="flex items-center gap-2">
-               <div class="text-right">
-                 <label class="block text-[10px] uppercase font-bold text-gray-400">Status</label>
-                 <select name="STATUS" class="text-sm font-bold bg-transparent text-gray-900 border-none focus:ring-0 p-0 text-right cursor-pointer">
-                    <option value="ACTIVE" ${val('status')==='ACTIVE'?'selected':''}>ACTIVE</option>
-                    <option value="PAUSED" ${val('status')==='PAUSED'?'selected':''}>PAUSED</option>
-                    <option value="BLACKLISTED" ${val('status')==='BLACKLISTED'?'selected':''}>BLACKLISTED</option>
-                 </select>
-               </div>
-            </div>
-          </div>
-        `;
-
-        // ✅ 2. Editable Profile Grid
-        html += `
-          <div class="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-12 gap-6">
-            
-            <div class="md:col-span-5 space-y-4">
-              <div class="pb-2 border-b border-gray-100 text-xs font-extrabold text-gray-400 uppercase tracking-wider">Contact Information</div>
-              
-              <div class="grid grid-cols-1 gap-3">
-                <div>
-                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Contact Person</label>
-                  <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
-                    name="CONTACT PERSON" value="${val('contactPerson')}">
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                  <div>
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Phone</label>
-                    <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
-                      name="PHONE" value="${val('phone')}">
-                  </div>
-                  <div>
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Email</label>
-                    <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
-                      name="EMAIL" value="${val('email')}">
-                  </div>
-                </div>
-                <div>
-                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Company Address</label>
-                  <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
-                    name="COMPANY ADDRESS" value="${val('address')}">
-                </div>
-                <div>
-                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Website</label>
-                  <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-blue-600 underline focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
-                    name="WEBSITE" value="${val('website')}">
-                </div>
-              </div>
-
-              <div class="pt-4 pb-2 border-b border-gray-100 text-xs font-extrabold text-gray-400 uppercase tracking-wider">Internal Notes</div>
-              <div>
-                <textarea class="w-full px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition h-24 resize-none" 
-                  name="ADDITIONAL NOTES / REQUESTS" placeholder="Add internal notes here...">${val('notes')}</textarea>
-              </div>
-            </div>
-
-            <div class="md:col-span-7 space-y-4">
-              <div class="pb-2 border-b border-gray-100 text-xs font-extrabold text-gray-400 uppercase tracking-wider">Operational Configuration</div>
-              
-              <div class="grid grid-cols-2 gap-3">
-                <div class="col-span-2">
-                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Target Area / Regions</label>
-                  <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
-                    name="AREA" value="${val('area')}">
-                </div>
-                <div>
-                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Target Area Codes</label>
-                  <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
-                    name="AREA CODES TO CALL" value="${val('areaCodes')}">
-                </div>
-                <div>
-                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">City / Zip List</label>
-                  <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
-                    name="REGIONS / CITIES / ZIP CODES" value="${val('regionsCitiesZip')}">
-                </div>
-                
-                <div>
-                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Days of Op</label>
-                  <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
-                    name="DAYS OF OPERATION" value="${val('daysOfOperation')}">
-                </div>
-                <div>
-                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Hours of Op</label>
-                  <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
-                    name="HOURS OF OPERATION" value="${val('hoursOfOperation')}">
-                </div>
-
-                <div>
-                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Lead Limit / Day</label>
-                  <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
-                    name="LEADS PER DAY LIMIT" value="${val('leadsPerDayLimit')}">
-                </div>
-                <div>
-                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sales Reps</label>
-                  <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
-                    name="SALES REP COUNT" value="${val('salesRepCount')}">
-                </div>
-
-                <div class="col-span-2">
-                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Roof Types</label>
-                  <input class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition" 
-                    name="ROOF TYPES" value="${val('roofTypes')}">
-                </div>
-              </div>
-            </div>
-          </div>
-        `;
-
-        // ✅ 3. Package History Section (Read-Only Table)
-        if (packages.length > 0) {
-          // Sort packages by Purchase Date (newest first)
-          packages.sort((a, b) => {
-            const da = new Date(a["Purchase Date"]);
-            const db = new Date(b["Purchase Date"]);
-            return db - da;
-          });
-
-          html += `
-            <div class="col-span-1 md:col-span-2 mt-6">
-              <div class="flex items-center justify-between mb-3">
-                <h4 class="font-bold text-gray-900 flex items-center gap-2">
-                  <i class="fa-solid fa-box-archive text-yellow-500"></i> Package History
-                </h4>
-              </div>
-              
-              <div class="overflow-hidden border border-gray-200 rounded-xl">
-                <table class="w-full text-sm text-left">
-                  <thead class="bg-gray-50 text-xs font-bold text-gray-500 uppercase">
-                    <tr>
-                      <th class="p-3">Date</th>
-                      <th class="p-3 text-center">Purchased</th>
-                      <th class="p-3 text-center">Qualified</th>
-                      <th class="p-3 text-center">Credited</th>
-                      <th class="p-3 text-center">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-gray-100 bg-white">
-          `;
-
-          packages.forEach(pkg => {
-            const date = pkg["Purchase Date"] || "—";
-            const bought = parseInt(pkg["Purchased Leads"] || 0);
-            const qualified = parseInt(pkg["Qualified Leads\n(Confirmed)"] || 0);
-            const qVal = parseInt(pkg["Qualified Leads"] || pkg["Qualified Leads\n(Confirmed)"] || 0);
-            const cVal = parseInt(pkg["Unqualified Leads\n(Credited)"] || pkg["Unqualified Leads"] || 0);
-            
-            const isComplete = qVal >= bought;
-            const statusHtml = isComplete 
-              ? `<span class="px-2 py-1 rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase">Completed</span>`
-              : `<span class="px-2 py-1 rounded bg-blue-100 text-blue-700 text-[10px] font-bold uppercase">Active</span>`;
-
-            html += `
-              <tr>
-                <td class="p-3 font-medium text-gray-900">${date}</td>
-                <td class="p-3 text-center text-gray-500">${bought}</td>
-                <td class="p-3 text-center text-emerald-600 font-bold">${qVal}</td>
-                <td class="p-3 text-center text-red-500">${cVal}</td>
-                <td class="p-3 text-center">${statusHtml}</td>
-              </tr>
-            `;
-          });
-
-          html += `
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          `;
-        } else {
-          html += `
-            <div class="col-span-1 md:col-span-2 mt-6 p-4 rounded-xl border border-gray-100 bg-gray-50 text-center text-xs text-gray-400 italic">
-              No package history found for this client.
-            </div>
-          `;
-        }
-
-        // Hidden input for consistency
-        html += `<input type="hidden" name="codeName" value="${val('codeName')}">`;
-
-        body.innerHTML = html;
-
-        // Re-bind listener if needed (already in main function)
-        if (!this._passbookEventBound) {
-          this._passbookEventBound = true;
-          window.addEventListener("passbook:client-updated", (e) => {
-            const code = e?.detail?.codeName;
-            const codeInput = document.getElementById("codeName");
-            if (codeInput && code && codeInput.value === code) {
-              this._fetchAndRenderPassbookClient(code);
-            }
-          });
-        }
+        const val = (k) => client[k] ? String(client[k]).replace(/"/g, "&quot;") : "";
+        let html = `<div class="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-4"><div><h2 class="text-xl font-black">${val('companyName') || 'Unknown'}</h2><span class="px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 text-xs">${val('codeName')}</span></div></div><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label class="block text-[10px] font-bold text-gray-500 uppercase">Contact</label><input class="w-full px-3 py-2 border rounded-lg text-sm mb-2" name="CONTACT PERSON" value="${val('contactPerson')}"><label class="block text-[10px] font-bold text-gray-500 uppercase">Phone</label><input class="w-full px-3 py-2 border rounded-lg text-sm" name="PHONE" value="${val('phone')}"></div><div><label class="block text-[10px] font-bold text-gray-500 uppercase">Address</label><input class="w-full px-3 py-2 border rounded-lg text-sm mb-2" name="COMPANY ADDRESS" value="${val('address')}"><label class="block text-[10px] font-bold text-gray-500 uppercase">Notes</label><textarea class="w-full px-3 py-2 border rounded-lg text-sm h-20" name="ADDITIONAL NOTES">${val('notes')}</textarea></div></div>`;
+        document.getElementById("passbook-form-body").innerHTML = html;
       },
 
       renderLeads(leads) {
         const tbody = document.getElementById('leads-table-body');
         const thead = document.getElementById('leads-table-head');
-        if (!tbody || !thead) return;
-
-        // init columns config if not yet
         this.initLeadsColumnsUI();
-        const cols = this._leadsCols || this.getLeadsColumns();
-        const visible = this._leadsVisibleCols || this.getLeadsDefaultVisibleCols();
-
-        const visibleCols = cols.filter(c => visible.has(c.key));
-
-        // render thead with SORTABLE Date Submitted
-        const sortKey = this._leadsSort?.key;
-        const sortDir = this._leadsSort?.dir;
-
-        thead.innerHTML = `
-          <tr>
-            ${visibleCols.map(c => {
-              const isSortable = (c.key === "date_submitted"); // only date submitted for now
-              const isActive = isSortable && sortKey === c.key;
-              const arrow = !isSortable ? "" : (isActive ? (sortDir === "asc" ? "↑" : "↓") : "↕");
-
-              return `
-                <th
-                  class="p-4 ${isSortable ? "cursor-pointer select-none hover:bg-gray-50" : ""}"
-                  ${isSortable ? `data-leads-sort="${c.key}"` : ""}
-                  title="${isSortable ? "Sort by Date Submitted" : ""}"
-                >
-                  ${c.label} ${isSortable ? `<span class="text-[11px] text-gray-400 ml-1">${arrow}</span>` : ""}
-                </th>
-              `;
-            }).join("")}
-          </tr>
-        `;
-
-        if (!leads || !leads.length) {
-          tbody.innerHTML = `<tr><td colspan="${visibleCols.length || 1}" class="p-6 text-center text-gray-400">No leads found.</td></tr>`;
-          return;
-        }
-
-        const badge = (status) => {
-          const s = String(status || "").toLowerCase();
-          let cls = "text-gray-700 bg-gray-100";
-          if (s.includes("confirm") || s.includes("approve")) cls = "text-emerald-700 bg-emerald-100";
-          else if (s.includes("reject")) cls = "text-red-700 bg-red-100";
-          else if (s.includes("credit")) cls = "text-red-700 bg-red-100";
-          else if (s.includes("pending")) cls = "text-yellow-700 bg-yellow-100";
-          return `<span class="px-2 py-1 rounded text-xs font-bold uppercase ${cls}">${status || "—"}</span>`;
-        };
-
-        tbody.innerHTML = leads.map(l => {
-          const cells = visibleCols.map(c => {
-            const val = this.getLeadField(l, c.keys, "—");
-            if (c.key === "status") return `<td class="p-4">${badge(val)}</td>`;
-            return `<td class="p-4 text-gray-700">${String(val || "—")}</td>`;
-          }).join("");
-
-          return `<tr class="hover:bg-gray-50 transition">${cells}</tr>`;
-        }).join("");
-
-        // bind sort click (thead re-renders, so bind after render)
-        thead.querySelectorAll("[data-leads-sort]").forEach(th => {
-          th.addEventListener("click", () => {
-            const k = th.getAttribute("data-leads-sort");
-            if (!k) return;
-
-            if (!this._leadsSort) this._leadsSort = { key: k, dir: "asc" };
-
-            if (this._leadsSort.key === k) {
-              this._leadsSort.dir = this._leadsSort.dir === "asc" ? "desc" : "asc";
-            } else {
-              this._leadsSort.key = k;
-              this._leadsSort.dir = "asc";
-            }
-
-            this.applyLeadsFilters(); // re-filter + re-render sorted
-          });
-        });
+        const visibleCols = this._leadsCols.filter(c => this._leadsVisibleCols.has(c.key));
+        thead.innerHTML = `<tr>${visibleCols.map(c => `<th class="p-4 ${c.key==='date_submitted'?'cursor-pointer':''}" ${c.key==='date_submitted'?'data-leads-sort="date_submitted"':''}>${c.label} ${c.key==='date_submitted'?'↕':''}</th>`).join("")}</tr>`;
+        tbody.innerHTML = leads.map(l => `<tr>${visibleCols.map(c => `<td class="p-4">${this.getLeadField(l, c.keys)}</td>`).join("")}</tr>`).join("");
       },
 
       setupPassbookFilters(clients) {
-        const locSel = document.getElementById("passbook-filter-location");
-        if (!locSel) return;
-
         const locs = [...new Set((clients || []).map(c => this.extractCityState(c)).filter(Boolean))].sort();
-        locSel.innerHTML = `<option value="all">All Locations</option>` + locs.map(l => `<option value="${l}">${l}</option>`).join("");
+        document.getElementById("passbook-filter-location").innerHTML = `<option value="all">All Locations</option>` + locs.map(l => `<option value="${l}">${l}</option>`).join("");
       },
 
       applyPassbookFilters(clients) {
         const q = String(document.getElementById("passbook-search")?.value || "").toLowerCase().trim();
         const loc = document.getElementById("passbook-filter-location")?.value || "all";
-
-        let rows = [...(clients || [])];
-
-        if (loc !== "all") rows = rows.filter(c => this.extractCityState(c) === loc);
-
-        if (q) {
-          rows = rows.filter(c => {
-            const company = this.extractRoofingCompany(c);
-            const code = this.extractCode(c);
-            const city = this.extractCityState(c);
-            const clientName = this.extractClientName(c);
-
-            const hay = `${company} ${code} ${city} ${clientName}`.toLowerCase();
-            return hay.includes(q);
-          });
-        }
-
-        const countEl = document.getElementById("passbook-count");
-        if (countEl) countEl.textContent = rows.length;
-
-        // render based on view
-        if (this._passbookView === "list") this.renderPassbookList(rows);
-        else this.renderClientCards(rows);
+        let rows = (clients || []).filter(c => (loc === "all" || this.extractCityState(c) === loc));
+        if (q) rows = rows.filter(c => `${this.extractRoofingCompany(c)} ${this.extractCode(c)}`.toLowerCase().includes(q));
+        document.getElementById("passbook-count").textContent = rows.length;
+        if (this._passbookView === "list") this.renderPassbookList(rows); else this.renderClientCards(rows);
       },
 
       renderPassbookList(clients) {
-        const wrap = document.getElementById("passbook-list-wrap");
-        const body = document.getElementById("passbook-list-body");
-        if (!wrap || !body) return;
-
-        body.innerHTML = (clients || []).map(c => {
-          const name = this.extractRoofingCompany(c);
-          const code = this.extractCode(c);
-          const city = this.extractCityState(c);
-          const clientName = this.extractClientName(c);
-
-          return `
-            <tr class="hover:bg-gray-50">
-              <td class="p-4 font-semibold text-gray-700">${code || "—"}</td>
-              <td class="p-4 font-bold text-gray-900">${name || "—"}</td>
-              <td class="p-4 text-gray-600">${city || "—"}</td>
-              <td class="p-4 text-gray-600">${clientName || "—"}</td>
-              <td class="p-4 text-right">
-                <button
-                  class="px-3 py-1 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800"
-                  onclick="Admin.openPassbookClient('${String(code).replace(/'/g,"\\'")}')"
-                >
-                  Open
-                </button>
-              </td>
-            </tr>
-          `;
-        }).join("") || `<tr><td colspan="5" class="p-6 text-center text-gray-400">No clients found.</td></tr>`;
+        document.getElementById("passbook-list-body").innerHTML = (clients || []).map(c => `<tr class="hover:bg-gray-50"><td class="p-4">${this.extractCode(c)}</td><td class="p-4 font-bold">${this.extractRoofingCompany(c)}</td><td class="p-4">${this.extractCityState(c)}</td><td class="p-4">${this.extractClientName(c)}</td><td class="p-4 text-right"><button class="px-3 py-1 rounded bg-gray-900 text-white text-xs" onclick="Admin.openPassbookClient('${this.extractCode(c)}')">Open</button></td></tr>`).join("");
       },
 
       bindPassbookUI(clients) {
-        if (this._passbookFiltersBound) return;
-        this._passbookFiltersBound = true;
-
-        const cardsBtn = document.getElementById("passbook-view-cards");
-        const listBtn = document.getElementById("passbook-view-list");
-        const cardsWrap = document.getElementById("client-cards-container");
-        const listWrap = document.getElementById("passbook-list-wrap");
-
-        const setView = (view) => {
-          this._passbookView = view;
-
-          if (view === "list") {
-            if (listWrap) listWrap.classList.remove("hidden");
-            if (cardsWrap) cardsWrap.classList.add("hidden");
-            if (listBtn) {
-              listBtn.classList.add("bg-white","shadow","text-gray-900");
-              listBtn.classList.remove("text-gray-500");
-            }
-            if (cardsBtn) {
-              cardsBtn.classList.remove("bg-white","shadow","text-gray-900");
-              cardsBtn.classList.add("text-gray-500");
-            }
-          } else {
-            if (listWrap) listWrap.classList.add("hidden");
-            if (cardsWrap) cardsWrap.classList.remove("hidden");
-            if (cardsBtn) {
-              cardsBtn.classList.add("bg-white","shadow","text-gray-900");
-              cardsBtn.classList.remove("text-gray-500");
-            }
-            if (listBtn) {
-              listBtn.classList.remove("bg-white","shadow","text-gray-900");
-              listBtn.classList.add("text-gray-500");
-            }
-          }
-
-          this.applyPassbookFilters(clients);
-        };
-
-        if (cardsBtn) cardsBtn.addEventListener("click", () => setView("cards"));
-        if (listBtn) listBtn.addEventListener("click", () => setView("list"));
-
-        const watch = ["passbook-search","passbook-filter-location"];
-        watch.forEach(id => {
-          const el = document.getElementById(id);
-          if (!el) return;
-          el.addEventListener(id === "passbook-search" ? "input" : "change", () => this.applyPassbookFilters(clients));
-        });
-
-        const clearBtn = document.getElementById("passbook-clear");
-        if (clearBtn) {
-          clearBtn.addEventListener("click", () => {
-            const s = document.getElementById("passbook-search"); if (s) s.value = "";
-            const l = document.getElementById("passbook-filter-location"); if (l) l.value = "all";
-            this.applyPassbookFilters(clients);
-          });
-        }
-
-        // default view
-        setView("cards");
+        if (this._passbookFiltersBound) return; this._passbookFiltersBound = true;
+        document.getElementById("passbook-view-cards").addEventListener("click", () => { this._passbookView="cards"; this.applyPassbookFilters(clients); });
+        document.getElementById("passbook-view-list").addEventListener("click", () => { this._passbookView="list"; this.applyPassbookFilters(clients); });
+        document.getElementById("passbook-search").addEventListener("input", () => this.applyPassbookFilters(clients));
+        document.getElementById("passbook-filter-location").addEventListener("change", () => this.applyPassbookFilters(clients));
       },
 
-      // ------------------------
-      // ✅ TEAM TAB LOGIC
-      // ------------------------
-      setTeamPeriod(period, btnElement) {
-        this.teamPeriod = period;
-
-        if (period !== "custom") {
-          this._teamCustomRange.active = false;
-          this._teamCustomRange.start = null;
-          this._teamCustomRange.end = null;
-        }
-
-        if (btnElement) {
-          document.querySelectorAll('.team-btn').forEach(b => {
-            b.classList.remove('bg-white','shadow','text-gray-900');
-            b.classList.add('text-gray-500');
-          });
-          btnElement.classList.add('bg-white','shadow','text-gray-900');
-          btnElement.classList.remove('text-gray-500');
-        }
-        this.renderTeam();
-      },
-
-      getTeamRangeFor() {
-        const state = this.getState();
-        const leads = (state && Array.isArray(state.leads)) ? state.leads : [];
-
-        if (this.teamPeriod === "custom" && this._teamCustomRange.active && this._teamCustomRange.start && this._teamCustomRange.end) {
-          const s = new Date(this._teamCustomRange.start + "T00:00:00");
-          const e = new Date(this._teamCustomRange.end + "T23:59:59");
-          return { start: new Date(s.setHours(0,0,0,0)), end: new Date(e.setHours(23,59,59,999)), label: "Custom Range" };
-        }
-
-        const { start, end, label } = this.getRangeFor(this.teamPeriod, leads);
-        return { start, end, label };
-      },
-
-      bindTeamUI() {
-        if (this._teamBound) return;
-        this._teamBound = true;
-
-        const search = document.getElementById("team-search");
-        if (search) search.addEventListener("input", () => this.renderTeam());
-
-        const stageSel = document.getElementById("team-stage-filter");
-        if (stageSel) {
-          stageSel.addEventListener("change", () => {
-            this.teamStageFilter = stageSel.value;
-            this.renderTeam();
-          });
-          // sync initial
-          stageSel.value = this.teamStageFilter || "active";
-        }
-
-        const warnedSel = document.getElementById("team-warned-filter");
-        if (warnedSel) {
-          warnedSel.addEventListener("change", () => {
-            this.teamWarnedFilter = warnedSel.value;
-            this.renderTeam();
-          });
-          warnedSel.value = this.teamWarnedFilter || "all";
-        }
-
-        // custom popover
-        const toggle = document.getElementById("team-custom-toggle");
-        const pop = document.getElementById("team-custom-popover");
-        const apply = document.getElementById("team-custom-apply");
-        const clear = document.getElementById("team-custom-clear");
-
-        if (toggle && pop) {
-          toggle.addEventListener("click", (e) => {
-            e.preventDefault();
-            pop.classList.toggle("hidden");
-          });
-          document.addEventListener("click", (e) => {
-            if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
-              pop.classList.add("hidden");
-            }
-          });
-        }
-
-        if (apply) {
-          apply.addEventListener("click", () => {
-            const s = document.getElementById("team-custom-start")?.value || "";
-            const e = document.getElementById("team-custom-end")?.value || "";
-            if (!s || !e) return;
-            this._teamCustomRange.active = true;
-            this._teamCustomRange.start = s;
-            this._teamCustomRange.end = e;
-            this.teamPeriod = "custom";
-            if (pop) pop.classList.add("hidden");
-            this.renderTeam();
-          });
-        }
-
-        if (clear) {
-          clear.addEventListener("click", () => {
-            const s = document.getElementById("team-custom-start"); if (s) s.value = "";
-            const e = document.getElementById("team-custom-end"); if (e) e.value = "";
-            this._teamCustomRange.active = false;
-            this._teamCustomRange.start = null;
-            this._teamCustomRange.end = null;
-            if (pop) pop.classList.add("hidden");
-            this.teamPeriod = "today";
-            this.renderTeam();
-          });
-        }
-      },
-
-      // Helpers for Agent Data
-     getAgentStage(agent) {
-        // ✅ ADDED "Employment_Status" to match your Google Sheet
-        const raw = this.pick(agent, [
-          "Employment_Status", 
-          "Employment Status",
-          "employment_status",
-          "Stage",
-          "stage",
-          "Status",
-          "status",
-          "Employee Status",
-          "employeeStatus"
-        ], "");
-        
-        return String(raw || "").toLowerCase().trim(); 
-      },
-
-      isAgentWarned(agent) {
-        const raw = this.pick(agent, ["Warned","warned","Agent Warned","agentWarned","Tags","tags"], "");
-        if (typeof raw === "boolean") return raw;
-        const s = String(raw || "").toLowerCase();
-        return s.includes("warned");
-      },
-
-      _stageRank(stage) {
-        const s = String(stage || "").toLowerCase();
-        if (s.includes("active")) return 0;
-        if (s.includes("onboard")) return 1;
-        if (s.includes("offboard")) return 2;
-        return 3; 
-      },
-
+      setTeamPeriod(period, btnElement) { this.teamPeriod = period; this.renderTeam(); },
+      getTeamRangeFor() { const state = this.getState(); return this.getRangeFor(this.teamPeriod, state?.leads || []); },
+      bindTeamUI() { if (this._teamBound) return; this._teamBound = true; document.getElementById("team-search").addEventListener("input", () => this.renderTeam()); },
+      getAgentStage(agent) { return String(this.pick(agent, ["Employment_Status", "Stage", "Status"], "")).toLowerCase().trim(); },
+      isAgentWarned(agent) { const s = String(this.pick(agent, ["Warned","Tags"], "")).toLowerCase(); return s.includes("warned"); },
+      
       setTeamSort(key) {
-        if (this.teamSortKey === key) {
-          this.teamSortDir = (this.teamSortDir === "asc") ? "desc" : "asc";
-        } else {
-          this.teamSortKey = key;
-          this.teamSortDir = (key === "name") ? "asc" : "desc";
-        }
-        this._updateTeamSortIcons();
+        if (this.teamSortKey === key) this.teamSortDir = this.teamSortDir === "asc" ? "desc" : "asc";
+        else { this.teamSortKey = key; this.teamSortDir = "desc"; }
         this.renderTeam();
       },
 
-      _updateTeamSortIcons() {
-        const keys = ["name","total","rejected","qualified","credited","pending","cancelRate"];
-        keys.forEach(k => {
-          const el = document.getElementById(`team-sort-${k}`);
-          if (!el) return;
-          if (this.teamSortKey !== k) {
-            el.textContent = "↕";
-            el.classList.add("text-gray-300");
-            return;
-          }
-          el.classList.remove("text-gray-300");
-          el.textContent = (this.teamSortDir === "asc") ? "↑" : "↓";
+      _computeAgentMetrics(name, leads, start, end) {
+        const inRange = leads.filter(l => {
+          const a = this.pick(l, ["Agent Name","AGENT"], "");
+          const dt = this.getLeadDateObj(l);
+          return dt && dt >= start && dt <= end && String(a).toLowerCase().includes(String(name).toLowerCase());
         });
-      },
-
-      _computeAgentMetrics(agentName, leads, start, end) {
-        const name = String(agentName || "").trim();
-        const inRange = (leads || []).filter(l => {
-          const lAgent = this.pick(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent","Agent Name","AGENT"], "");
-          const dStr   = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
-          const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
-          if (!dt || isNaN(dt.getTime())) return false;
-          if (dt < start || dt > end) return false;
-          return String(lAgent).toLowerCase().includes(name.toLowerCase());
+        let q = 0, c = 0, r = 0, p = 0;
+        inRange.forEach(l => {
+          const st = this.pick(l, ["Status"], "");
+          if (this.isQualified(st)) q++; else if (this.isCredited(st)) c++; else if (this.isRejected(st)) r++; else p++;
         });
-
-        let total = inRange.length, qualified = 0, rejected = 0, credited = 0, pending = 0;
-        for (const l of inRange) {
-          const st = this.pick(l, ["Status","STATUS"], "");
-          if (this.isQualified(st)) qualified++;
-          else if (this.isRejected(st)) rejected++;
-          else if (this.isCredited(st)) credited++;
-          else if (this.isPendingReview(st)) pending++;
-          else pending++;
-        }
-        const denom = qualified + credited;
-        const cancelRate = denom > 0 ? Math.round((credited / denom) * 100) : 0;
-        return { total, qualified, rejected, credited, pending, cancelRate, leads: inRange };
+        return { total: inRange.length, qualified: q, credited: c, rejected: r, pending: p, cancelRate: (q+c>0)?Math.round((c/(q+c))*100):0, leads: inRange };
       },
 
       renderTeam() {
-        const state = this.getState();
-        const agents = (state && Array.isArray(state.agents)) ? state.agents : [];
-        const leads  = (state && Array.isArray(state.leads)) ? state.leads : [];
-        const tbody = document.getElementById("team-body");
-        if (!tbody) return;
-
-        if (!agents.length) {
-          tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No agents found.</td></tr>`;
-          return;
-        }
-
-        const q = String(document.getElementById("team-search")?.value || "").toLowerCase().trim();
+        const state = this.getState(); const leads = state?.leads || []; const agents = state?.agents || [];
         const { start, end } = this.getTeamRangeFor();
-
-        const rangeLabel = document.getElementById("team-range-label");
-        if (rangeLabel) rangeLabel.textContent = `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
-
-        // Compute metrics & add stage info
-        let rows = agents.map(a => {
-          const name = this.pick(a, ["employeeName","Employee Name","EMPLOYEE NAME","name","Name"], "Unknown");
-          const stage = this.getAgentStage(a);
-          const warned = this.isAgentWarned(a);
-          const m = this._computeAgentMetrics(name, leads, start, end);
-          return { name, stage, warned, ...m };
-        });
-
-        // 1. Stage filter
-        const stageFilter = (this.teamStageFilter || "active").toLowerCase();
-        if (stageFilter !== "all") {
-          rows = rows.filter(r => String(r.stage || "").toLowerCase().includes(stageFilter));
-        }
-
-        // 2. Warned filter
-        const warnedFilter = (this.teamWarnedFilter || "all").toLowerCase();
-        if (warnedFilter === "warned") rows = rows.filter(r => r.warned === true);
-        if (warnedFilter === "not-warned") rows = rows.filter(r => r.warned !== true);
-
-        // 3. Search filter
-        if (q) rows = rows.filter(r => String(r.name).toLowerCase().includes(q));
-
-        const countEl = document.getElementById("team-count");
-        if (countEl) countEl.textContent = rows.length;
-
-        // 4. Sorting logic
-        const dir = (this.teamSortDir === "asc") ? 1 : -1;
-        
-        if (!this.teamSortKey || this.teamSortKey === "default") {
-          // Default: active first (stage rank), then A-Z
-          rows.sort((a, b) => {
-            const sa = this._stageRank(a.stage);
-            const sb = this._stageRank(b.stage);
-            if (sa !== sb) return sa - sb;
-            return String(a.name).localeCompare(String(b.name));
-          });
-        } else {
-          rows.sort((a, b) => {
-            // Always keep stage priority as a primary sort
-            const sa = this._stageRank(a.stage);
-            const sb = this._stageRank(b.stage);
-            if (sa !== sb) return sa - sb;
-
-            const k = this.teamSortKey;
-            if (k === "name") {
-              return dir * String(a.name).localeCompare(String(b.name));
-            }
-            const av = Number(a[k] || 0);
-            const bv = Number(b[k] || 0);
-            if (av !== bv) return dir * (av - bv);
-            return String(a.name).localeCompare(String(b.name));
-          });
-        }
-
-        const esc = (s) => String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-
-        tbody.innerHTML = rows.map(r => `
-          <tr class="hover:bg-gray-50">
-            <td class="p-4 font-bold text-gray-900">
-              <button class="text-left hover:underline" onclick="Admin.openAgentModal('${esc(r.name)}')">
-                ${esc(r.name)}
-              </button>
-              <div class="mt-1 flex items-center gap-2 text-[10px] font-extrabold uppercase">
-                <span class="px-2 py-1 rounded bg-gray-100 text-gray-700">${esc(r.stage || "unknown")}</span>
-                ${r.warned ? `<span class="px-2 py-1 rounded bg-red-100 text-red-700">warned</span>` : ``}
-              </div>
-            </td>
-            <td class="p-4 text-center text-gray-600 font-semibold">${r.total}</td>
-            <td class="p-4 text-center text-red-500 font-bold">${r.rejected}</td>
-            <td class="p-4 text-center text-emerald-600 font-bold">${r.qualified}</td>
-            <td class="p-4 text-center text-red-500 font-bold">${r.credited}</td>
-            <td class="p-4 text-center text-yellow-600 font-bold">${r.pending}</td>
-            <td class="p-4 text-center text-gray-600 font-semibold">${r.cancelRate}%</td>
-          </tr>
-        `).join("") || `<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No results found.</td></tr>`;
+        let rows = agents.map(a => ({ name: this.pick(a, ["Name"], "Unknown"), stage: this.getAgentStage(a), warned: this.isAgentWarned(a), ...this._computeAgentMetrics(this.pick(a, ["Name"], ""), leads, start, end) }));
+        document.getElementById("team-body").innerHTML = rows.map(r => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold"><button onclick="Admin.openAgentModal('${r.name}')">${r.name}</button><div class="text-[10px] uppercase text-gray-400">${r.stage}</div></td><td class="p-4 text-center">${r.total}</td><td class="p-4 text-center text-red-500">${r.rejected}</td><td class="p-4 text-center text-emerald-600">${r.qualified}</td><td class="p-4 text-center text-red-500">${r.credited}</td><td class="p-4 text-center text-yellow-600">${r.pending}</td><td class="p-4 text-center">${r.cancelRate}%</td></tr>`).join("");
       },
 
-      // ------------------------
-      // ✅ AGENT DRILLDOWN LOGIC
-      // ------------------------
-      openAgentModal(agentName) {
-        this._agentSelectedName = String(agentName || "").trim();
-        this.agentPeriod = "today";
-        this._agentCustomRange.active = false;
-        this._agentCustomRange.start = null;
-        this._agentCustomRange.end = null;
-
-        const modal = document.getElementById("agent-modal");
-        const title = document.getElementById("agent-modal-title");
-        const sub = document.getElementById("agent-modal-sub");
-
-        if (title) title.textContent = this._agentSelectedName || "Agent Leads";
-        if (sub) sub.textContent = "Leads Master Record (filtered by agent)";
-        if (modal) modal.classList.remove("hidden");
-
-        this.bindAgentUI();
-        this.renderAgentLeads();
-      },
-
-      closeAgentModal() {
-        const modal = document.getElementById("agent-modal");
-        if (modal) modal.classList.add("hidden");
-      },
-
-      setAgentPeriod(period, btnElement) {
-        this.agentPeriod = period;
-        if (period !== "custom") {
-          this._agentCustomRange.active = false;
-          this._agentCustomRange.start = null;
-          this._agentCustomRange.end = null;
-        }
-
-        if (btnElement) {
-          document.querySelectorAll('.agent-btn').forEach(b => {
-            b.classList.remove('bg-white','shadow','text-gray-900');
-            b.classList.add('text-gray-500');
-          });
-          btnElement.classList.add('bg-white','shadow','text-gray-900');
-          btnElement.classList.remove('text-gray-500');
-        }
-        this.renderAgentLeads();
-      },
-
-      _getAgentRangeFor() {
-        const state = this.getState();
-        const leads = (state && Array.isArray(state.leads)) ? state.leads : [];
-
-        if (this.agentPeriod === "custom" && this._agentCustomRange.active && this._agentCustomRange.start && this._agentCustomRange.end) {
-          const s = new Date(this._agentCustomRange.start + "T00:00:00");
-          const e = new Date(this._agentCustomRange.end + "T23:59:59");
-          return { start: new Date(s.setHours(0,0,0,0)), end: new Date(e.setHours(23,59,59,999)), label: "Custom Range" };
-        }
-        const { start, end, label } = this.getRangeFor(this.agentPeriod, leads);
-        return { start, end, label };
-      },
-
-      bindAgentUI() {
-        if (this._agentBound) return;
-        this._agentBound = true;
-
-        const toggle = document.getElementById("agent-custom-toggle");
-        const pop = document.getElementById("agent-custom-popover");
-        const apply = document.getElementById("agent-custom-apply");
-        const clear = document.getElementById("agent-custom-clear");
-
-        if (toggle && pop) {
-          toggle.addEventListener("click", (e) => {
-            e.preventDefault();
-            pop.classList.toggle("hidden");
-          });
-          document.addEventListener("click", (e) => {
-            if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
-              pop.classList.add("hidden");
-            }
-          });
-        }
-
-        if (apply) {
-          apply.addEventListener("click", () => {
-            const s = document.getElementById("agent-custom-start")?.value || "";
-            const e = document.getElementById("agent-custom-end")?.value || "";
-            if (!s || !e) return;
-            this._agentCustomRange.active = true;
-            this._agentCustomRange.start = s;
-            this._agentCustomRange.end = e;
-            this.agentPeriod = "custom";
-            if (pop) pop.classList.add("hidden");
-            this.renderAgentLeads();
-          });
-        }
-
-        if (clear) {
-          clear.addEventListener("click", () => {
-            const s = document.getElementById("agent-custom-start"); if (s) s.value = "";
-            const e = document.getElementById("agent-custom-end"); if (e) e.value = "";
-            this._agentCustomRange.active = false;
-            this._agentCustomRange.start = null;
-            this._agentCustomRange.end = null;
-            if (pop) pop.classList.add("hidden");
-            this.agentPeriod = "today";
-            this.renderAgentLeads();
-          });
-        }
-      },
-
+      openAgentModal(name) { this._agentSelectedName = name; document.getElementById("agent-modal").classList.remove("hidden"); this.renderAgentLeads(); },
+      closeAgentModal() { document.getElementById("agent-modal").classList.add("hidden"); },
+      setAgentPeriod(p) { this.agentPeriod = p; this.renderAgentLeads(); },
       renderAgentLeads() {
-        const agent = this._agentSelectedName;
-        const state = this.getState();
-        const leads = (state && Array.isArray(state.leads)) ? state.leads : [];
-        const tbody = document.getElementById("agent-leads-body");
-        if (!tbody) return;
-
-        if (!agent) {
-          tbody.innerHTML = `<tr><td colspan="14" class="p-6 text-center text-gray-400 italic">No agent selected.</td></tr>`;
-          return;
-        }
-
-        const { start, end } = this._getAgentRangeFor();
-        const rangeLabel = document.getElementById("agent-range-label");
-        if (rangeLabel) rangeLabel.textContent = `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
-
-        const m = this._computeAgentMetrics(agent, leads, start, end);
-        const rows = m.leads || [];
-
-        const countEl = document.getElementById("agent-leads-count");
-        if (countEl) countEl.textContent = rows.length;
-
-        const get = (l, keys) => this.getLeadField(l, keys, "—");
-
-        rows.sort((a,b) => {
-          const da = this.getLeadDateObj(a);
-          const db = this.getLeadDateObj(b);
-          if (!da && !db) return 0;
-          if (!da) return 1;
-          if (!db) return -1;
-          return db.getTime() - da.getTime();
-        });
-
-        const badge = (status) => {
-          const s = String(status || "").toLowerCase();
-          let cls = "text-gray-700 bg-gray-100";
-          if (s.includes("confirm") || s.includes("approve")) cls = "text-emerald-700 bg-emerald-100";
-          else if (s.includes("reject")) cls = "text-red-700 bg-red-100";
-          else if (s.includes("credit")) cls = "text-red-700 bg-red-100";
-          else if (s.includes("pending")) cls = "text-yellow-700 bg-yellow-100";
-          return `<span class="px-2 py-1 rounded text-xs font-bold uppercase ${cls}">${status || "—"}</span>`;
-        };
-
-        tbody.innerHTML = rows.map(l => {
-          const status = get(l, ["Status","STATUS"]);
-          return `
-            <tr class="hover:bg-gray-50">
-              <td class="p-3 text-gray-700">${get(l, ["Date Submitted"])}</td>
-              <td class="p-3 text-gray-700">${get(l, ["LEAD ID","Lead ID","lead_id","ID"])}</td>
-              <td class="p-3 text-gray-700">${get(l, ["Company Name","COMPANY NAME"])}</td>
-              <td class="p-3 text-gray-700">${get(l, ["Appointment Coordinator Name"])}</td>
-              <td class="p-3 text-gray-700">${get(l, ["Homeowner Name(s)"])}</td>
-              <td class="p-3 text-gray-700">${get(l, ["Email of Homeowner","Email","EMAIL"])}</td>
-              <td class="p-3 text-gray-700">${get(l, ["Homeowner Phone Number(s)","Phone","PHONE"])}</td>
-              <td class="p-3 text-gray-700">${get(l, ["Appointment Date /Time","Appointment Date / Time"])}</td>
-              <td class="p-3 text-gray-700">${get(l, ["Address","ADDRESS"])}</td>
-              <td class="p-3 text-gray-700">${get(l, ["Age of Roof"])}</td>
-              <td class="p-3 text-gray-700">${get(l, ["Insurance Company"])}</td>
-              <td class="p-3 text-gray-700 max-w-[320px] truncate" title="${String(get(l, ["Additional Notes"], "—")).replace(/"/g,"&quot;")}">
-                ${get(l, ["Additional Notes"])}
-              </td>
-              <td class="p-3">${badge(status)}</td>
-              <td class="p-3 text-gray-700">${get(l, ["Reviewed By"])}</td>
-            </tr>
-          `;
-        }).join("") || `<tr><td colspan="14" class="p-6 text-center text-gray-400 italic">No leads in this period.</td></tr>`;
+        const state = this.getState(); const { start, end } = this.getRangeFor(this.agentPeriod, state?.leads || []);
+        const m = this._computeAgentMetrics(this._agentSelectedName, state?.leads || [], start, end);
+        document.getElementById("agent-leads-body").innerHTML = m.leads.map(l => `<tr><td class="p-3">${this.getLeadField(l, ["Date Submitted"])}</td><td class="p-3">${this.getLeadField(l, ["LEAD ID"])}</td><td class="p-3">${this.getLeadField(l, ["Status"])}</td></tr>`).join("");
       },
 
       nav(viewId, linkEl) {
