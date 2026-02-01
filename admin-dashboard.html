@@ -1831,9 +1831,22 @@
 
       async _fetchAndRenderPassbookClient(codeName) {
         try {
-          const res = await fetch(window.portal.webhooks.passbookClientDetails, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codeName }) });
-          const json = await res.json(); this._renderPassbookForm(json);
-        } catch (err) { document.getElementById("passbook-form-body").innerHTML = '<div class="p-4 text-red-700">Failed to load details.</div>'; }
+          const base = window.portal.webhooks.passbookClientDetails;
+
+          const url = base.includes("?")
+            ? `${base}&codeName=${encodeURIComponent(codeName)}`
+            : `${base}?codeName=${encodeURIComponent(codeName)}`;
+
+          const res = await fetch(url, { method: "GET" });
+
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const json = await res.json();
+
+          this._renderPassbookForm(json);
+        } catch (err) {
+          document.getElementById("passbook-form-body").innerHTML =
+            '<div class="p-4 text-red-700">Failed to load details.</div>';
+        }
       },
 
       _renderPassbookForm(data) {
