@@ -1850,10 +1850,107 @@
       },
 
       _renderPassbookForm(data) {
-        const client = data.client || data || {};
-        const packages = Array.isArray(data.packages) ? data.packages : [];
-        const val = (k) => client[k] ? String(client[k]).replace(/"/g, "&quot;") : "";
-        let html = `<div class="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-4"><div><h2 class="text-xl font-black">${val('companyName') || 'Unknown'}</h2><span class="px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 text-xs">${val('codeName')}</span></div></div><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label class="block text-[10px] font-bold text-gray-500 uppercase">Contact</label><input class="w-full px-3 py-2 border rounded-lg text-sm mb-2" name="CONTACT PERSON" value="${val('contactPerson')}"><label class="block text-[10px] font-bold text-gray-500 uppercase">Phone</label><input class="w-full px-3 py-2 border rounded-lg text-sm" name="PHONE" value="${val('phone')}"></div><div><label class="block text-[10px] font-bold text-gray-500 uppercase">Address</label><input class="w-full px-3 py-2 border rounded-lg text-sm mb-2" name="COMPANY ADDRESS" value="${val('address')}"><label class="block text-[10px] font-bold text-gray-500 uppercase">Notes</label><textarea class="w-full px-3 py-2 border rounded-lg text-sm h-20" name="ADDITIONAL NOTES">${val('notes')}</textarea></div></div>`;
+        // data might be: { client: {...}, packages:[...] } OR just the row itself
+        const raw = data?.client ? data.client : (data || {});
+
+        // helper: read either "camelCase" keys OR sheet header keys
+        const get = (...keys) => {
+          for (const k of keys) {
+            const v = raw?.[k];
+            if (v !== undefined && v !== null && String(v).trim() !== "") return String(v);
+          }
+          return "";
+        };
+
+        // Map your Google Sheet headers to the UI fields
+        const fields = [
+          { label: "Code Name", key: "CODE NAME", keys: ["codeName","CODE NAME","Code Name"] },
+          { label: "Company Name", key: "COMPANY NAME", keys: ["companyName","COMPANY NAME","Company Name"] },
+          { label: "Phone", key: "PHONE", keys: ["phone","PHONE"] },
+          { label: "Contact Person", key: "CONTACT PERSON", keys: ["contactPerson","CONTACT PERSON"] },
+          { label: "Area", key: "AREA", keys: ["area","AREA"] },
+          { label: "Area Codes To Use", key: "AREA CODES TO USE", keys: ["areaCodesToUse","AREA CODES TO USE"] },
+          { label: "Email", key: "EMAIL", keys: ["email","EMAIL"] },
+          { label: "Website", key: "WEBSITE", keys: ["website","WEBSITE"] },
+          { label: "Status", key: "STATUS", keys: ["status","STATUS"] },
+          { label: "Company Address", key: "COMPANY ADDRESS", keys: ["companyAddress","COMPANY ADDRESS","address"] },
+          { label: "Sales Rep Count", key: "SALES REP COUNT", keys: ["salesRepCount","SALES REP COUNT"] },
+          { label: "Regions / Cities / Zip Codes", key: "REGIONS / CITIES / ZIP CODES", keys: ["regions","REGIONS / CITIES / ZIP CODES","REGIONS / CITIES / ZIP CODES "] },
+          { label: "Days of Operation", key: "DAYS OF OPERATION", keys: ["daysOfOperation","DAYS OF OPERATION"] },
+          { label: "Hours of Operation", key: "HOURS OF OPERATION", keys: ["hoursOfOperation","HOURS OF OPERATION"] },
+          { label: "Appointment Interval", key: "APPT INTERVAL", keys: ["appointmentInterval","APPT INTERVAL","APPOINTMENT INTERVAL"] },
+          { label: "Roof Types", key: "ROOF TYPES", keys: ["roofTypes","ROOF TYPES"] },
+          { label: "Leads Per Day Limit", key: "LEADS PER DAY LIMIT", keys: ["leadsPerDayLimit","LEADS PER DAY LIMIT"] },
+          { label: "Double Bookings", key: "DOUBLE BOOKINGS", keys: ["doubleBookings","DOUBLE BOOKINGS"] },
+          { label: "Additional Notes / Requests", key: "ADDITIONAL NOTES / REQUESTS", keys: ["additionalNotes","ADDITIONAL NOTES / REQUESTS","notes"] },
+          { label: "Last Updated", key: "LAST UPDATED", keys: ["lastUpdated","LAST UPDATED"] },
+          { label: "Updated By", key: "UPDATED BY", keys: ["updatedBy","UPDATED BY"] },
+        ];
+
+        const liveSheet = get("liveSheet","Live Sheet","LIVE SHEET");
+
+        const codeName = get("codeName","CODE NAME","Code Name") || "—";
+        const companyName = get("companyName","COMPANY NAME","Company Name") || "Unknown";
+        const cityState = get("cityState","CITY/STATE","City/State","Location") || "—";
+
+        document.getElementById("passbook-modal-title").textContent = companyName;
+        document.getElementById("passbook-modal-sub").textContent = `Code: ${codeName} • ${cityState}`;
+        document.getElementById("codeName").value = codeName;
+
+        // Render layout
+        let html = `
+          <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+              <div>
+                <div class="text-xl font-black text-gray-900">${companyName}</div>
+                <div class="text-sm text-gray-500 mt-1">${cityState}</div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="px-3 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-extrabold">${codeName}</span>
+                ${
+                  liveSheet
+                    ? `<a href="${liveSheet}" target="_blank" class="px-3 py-1 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">Open Live Sheet</a>`
+                    : `<span class="px-3 py-1 rounded-lg bg-gray-100 text-gray-500 text-xs font-extrabold">No Live Sheet</span>`
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        `;
+
+        for (const f of fields) {
+          const value = get(...f.keys);
+          const safe = value.replace(/"/g, "&quot;");
+
+          // make Website clickable
+          if (f.label === "Website" && value) {
+            html += `
+              <div>
+                <label class="block text-[10px] font-bold text-gray-500 uppercase">${f.label}</label>
+                <a href="${safe}" target="_blank" class="text-sm text-blue-600 underline break-words">${safe}</a>
+              </div>
+            `;
+            continue;
+          }
+
+          // long text fields as textarea
+          const isLong = ["Additional Notes / Requests", "Regions / Cities / Zip Codes"].includes(f.label);
+
+          html += `
+            <div>
+              <label class="block text-[10px] font-bold text-gray-500 uppercase">${f.label}</label>
+              ${
+                isLong
+                  ? `<textarea class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm h-24" name="${f.key}">${safe}</textarea>`
+                  : `<input class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" name="${f.key}" value="${safe}">`
+              }
+            </div>
+          `;
+        }
+
+        html += `</div>`;
+
         document.getElementById("passbook-form-body").innerHTML = html;
       },
 
@@ -1878,14 +1975,35 @@
         const locs = [...new Set((clients || []).map(c => this.extractCityState(c)).filter(Boolean))].sort();
         document.getElementById("passbook-filter-location").innerHTML = `<option value="all">All Locations</option>` + locs.map(l => `<option value="${l}">${l}</option>`).join("");
       },
+      
+      getClientSortNumber(code) {
+        // supports "Client 001" or "001" or "client001"
+        const s = String(code || "");
+        const m = s.match(/(\d+)/);
+        return m ? parseInt(m[1], 10) : 999999;
+      },
 
       applyPassbookFilters(clients) {
         const q = String(document.getElementById("passbook-search")?.value || "").toLowerCase().trim();
         const loc = document.getElementById("passbook-filter-location")?.value || "all";
+
         let rows = (clients || []).filter(c => (loc === "all" || this.extractCityState(c) === loc));
-        if (q) rows = rows.filter(c => `${this.extractRoofingCompany(c)} ${this.extractCode(c)}`.toLowerCase().includes(q));
+
+        if (q) {
+          rows = rows.filter(c =>
+            `${this.extractRoofingCompany(c)} ${this.extractCode(c)} ${this.extractCityState(c)}`
+              .toLowerCase()
+              .includes(q)
+          );
+        }
+
+        // ✅ chronological sort
+        rows.sort((a,b) => this.getClientSortNumber(this.extractCode(a)) - this.getClientSortNumber(this.extractCode(b)));
+
         document.getElementById("passbook-count").textContent = rows.length;
-        if (this._passbookView === "list") this.renderPassbookList(rows); else this.renderClientCards(rows);
+
+        if (this._passbookView === "list") this.renderPassbookList(rows);
+        else this.renderClientCards(rows);
       },
 
       renderPassbookList(clients) {
@@ -1898,12 +2016,119 @@
         document.getElementById("passbook-view-list").addEventListener("click", () => { this._passbookView="list"; this.applyPassbookFilters(clients); });
         document.getElementById("passbook-search").addEventListener("input", () => this.applyPassbookFilters(clients));
         document.getElementById("passbook-filter-location").addEventListener("change", () => this.applyPassbookFilters(clients));
+        
+        const clearBtn = document.getElementById("passbook-clear");
+        if (clearBtn) {
+          clearBtn.addEventListener("click", () => {
+            const s = document.getElementById("passbook-search"); if (s) s.value = "";
+            const l = document.getElementById("passbook-filter-location"); if (l) l.value = "all";
+            this._passbookView = "cards";
+            document.getElementById("passbook-list-wrap").classList.add("hidden");
+            this.applyPassbookFilters(clients);
+          });
+        }
       },
 
       setTeamPeriod(period, btnElement) { this.teamPeriod = period; this.renderTeam(); },
-      getTeamRangeFor() { const state = this.getState(); return this.getRangeFor(this.teamPeriod, state?.leads || []); },
-      bindTeamUI() { if (this._teamBound) return; this._teamBound = true; document.getElementById("team-search").addEventListener("input", () => this.renderTeam()); },
-      getAgentStage(agent) { return String(this.pick(agent, ["Employment_Status", "Stage", "Status"], "")).toLowerCase().trim(); },
+      
+      getTeamRangeFor() {
+        const state = this.getState();
+        const leads = state?.leads || [];
+
+        if (this.teamPeriod === "custom" && this._teamCustomRange.active) {
+          const start = new Date(this._teamCustomRange.start + "T00:00:00");
+          const end = new Date(this._teamCustomRange.end + "T23:59:59");
+          return { start, end, grain: "day", label: "Custom Range" };
+        }
+
+        return this.getRangeFor(this.teamPeriod, leads);
+      },
+      
+      bindTeamUI() {
+        if (this._teamBound) return;
+        this._teamBound = true;
+
+        const search = document.getElementById("team-search");
+        const stageSel = document.getElementById("team-stage-filter");
+        const warnedSel = document.getElementById("team-warned-filter");
+
+        if (search) search.addEventListener("input", () => this.renderTeam());
+
+        if (stageSel) {
+          stageSel.addEventListener("change", () => {
+            this.teamStageFilter = stageSel.value; // "all|active|onboarding|offboarded"
+            this.renderTeam();
+          });
+        }
+
+        if (warnedSel) {
+          warnedSel.addEventListener("change", () => {
+            this.teamWarnedFilter = warnedSel.value; // "all|warned|not-warned"
+            this.renderTeam();
+          });
+        }
+
+        // ✅ Custom popover wiring
+        const toggle = document.getElementById("team-custom-toggle");
+        const pop = document.getElementById("team-custom-popover");
+        const apply = document.getElementById("team-custom-apply");
+        const clear = document.getElementById("team-custom-clear");
+
+        if (toggle && pop) {
+          toggle.addEventListener("click", (e) => {
+            e.preventDefault();
+            pop.classList.toggle("hidden");
+          });
+
+          document.addEventListener("click", (e) => {
+            if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
+              pop.classList.add("hidden");
+            }
+          });
+        }
+
+        if (apply) {
+          apply.addEventListener("click", () => {
+            const s = document.getElementById("team-custom-start")?.value;
+            const e = document.getElementById("team-custom-end")?.value;
+            if (!s || !e) return;
+
+            this._teamCustomRange.active = true;
+            this._teamCustomRange.start = s;
+            this._teamCustomRange.end = e;
+            this.teamPeriod = "custom";
+            pop?.classList.add("hidden");
+            this.renderTeam();
+          });
+        }
+
+        if (clear) {
+          clear.addEventListener("click", () => {
+            document.getElementById("team-custom-start").value = "";
+            document.getElementById("team-custom-end").value = "";
+            this._teamCustomRange.active = false;
+            this.teamPeriod = "today";
+            pop?.classList.add("hidden");
+            this.renderTeam();
+          });
+        }
+      },
+      
+      getAgentStage(agent) {
+        const s = String(this.pick(agent, [
+          "Employment Status",
+          "Employment_Status",
+          "Stage",
+          "Status"
+        ], "")).toLowerCase().trim();
+
+        // normalize possible values
+        if (s.includes("active")) return "active";
+        if (s.includes("onboard")) return "onboarding";
+        if (s.includes("offboard")) return "offboarded";
+        return s || "unknown";
+      },
+      
       isAgentWarned(agent) { const s = String(this.pick(agent, ["Warned","Tags"], "")).toLowerCase(); return s.includes("warned"); },
       
       setTeamSort(key) {
@@ -1928,21 +2153,92 @@
       },
 
       renderTeam() {
-        const state = this.getState(); const leads = state?.leads || []; const agents = state?.agents || [];
-        const { start, end } = this.getTeamRangeFor();
-        // ✅ PATCH: Fix Unknown Name by checking more headers
+        const state = this.getState();
+        const leads = state?.leads || [];
+        const agents = state?.agents || [];
+
+        const { start, end, label } = this.getTeamRangeFor();
+
+        const q = String(document.getElementById("team-search")?.value || "").toLowerCase().trim();
+        const stageFilter = this.teamStageFilter || (document.getElementById("team-stage-filter")?.value || "active");
+        const warnedFilter = this.teamWarnedFilter || (document.getElementById("team-warned-filter")?.value || "all");
+
         let rows = agents.map(a => {
-           const agentName = this.pick(a, ["Name","Agent Name","Full Name","Employee Name","APPOINTMENT COORDINATOR NAME"], "Unknown");
-           return {
-             name: agentName,
-             stage: this.getAgentStage(a),
-             warned: this.isAgentWarned(a),
-             ...this._computeAgentMetrics(agentName, leads, start, end)
-           };
+          const agentName = this.pick(a, ["Employee Name","Name","Agent Name","Full Name"], "Unknown");
+          const stage = this.getAgentStage(a);
+          const warned = this.isAgentWarned(a);
+
+          return {
+            name: agentName,
+            stage,
+            warned,
+            ...this._computeAgentMetrics(agentName, leads, start, end)
+          };
         });
 
-        // ✅ Team Performance Colors
-        document.getElementById("team-body").innerHTML = rows.map(r => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold"><button onclick="Admin.openAgentModal('${r.name}')">${r.name}</button><div class="text-[10px] uppercase text-gray-400">${r.stage}</div></td><td class="p-4 text-center">${r.total}</td><td class="p-4 text-center text-red-500">${r.rejected}</td><td class="p-4 text-center text-blue-500">${r.qualified}</td><td class="p-4 text-center text-purple-500">${r.credited}</td><td class="p-4 text-center text-yellow-500">${r.pending}</td><td class="p-4 text-center">${r.cancelRate}%</td></tr>`).join("");
+        // ✅ stage filter
+        if (stageFilter !== "all") {
+          rows = rows.filter(r => r.stage === stageFilter);
+        }
+
+        // ✅ warned filter
+        if (warnedFilter === "warned") rows = rows.filter(r => r.warned);
+        if (warnedFilter === "not-warned") rows = rows.filter(r => !r.warned);
+
+        // ✅ search filter
+        if (q) rows = rows.filter(r => String(r.name).toLowerCase().includes(q));
+
+        // ✅ sorting
+        const key = this.teamSortKey;
+        const dir = this.teamSortDir === "asc" ? 1 : -1;
+
+        const sorters = {
+          name: (a,b) => a.name.localeCompare(b.name) * dir,
+          total: (a,b) => (a.total - b.total) * dir,
+          rejected: (a,b) => (a.rejected - b.rejected) * dir,
+          qualified: (a,b) => (a.qualified - b.qualified) * dir,
+          credited: (a,b) => (a.credited - b.credited) * dir,
+          pending: (a,b) => (a.pending - b.pending) * dir,
+          cancelRate: (a,b) => (a.cancelRate - b.cancelRate) * dir,
+        };
+
+        if (sorters[key]) rows.sort(sorters[key]);
+
+        // ✅ show correct count + range label
+        const countEl = document.getElementById("team-count");
+        if (countEl) countEl.textContent = rows.length;
+
+        const rangeEl = document.getElementById("team-range-label");
+        if (rangeEl) rangeEl.textContent = `${label}: ${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
+
+        const stageBadge = (stage) => {
+          if (stage === "active") return `<span class="text-[10px] font-extrabold uppercase text-emerald-600">ACTIVE</span>`;
+          if (stage === "onboarding") return `<span class="text-[10px] font-extrabold uppercase text-blue-600">ONBOARDING</span>`;
+          if (stage === "offboarded") return `<span class="text-[10px] font-extrabold uppercase text-red-600">OFFBOARDED</span>`;
+          return `<span class="text-[10px] font-extrabold uppercase text-gray-400">${stage || "UNKNOWN"}</span>`;
+        };
+
+        const tbody = document.getElementById("team-body");
+
+        if (!rows.length) {
+          tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No agents found.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = rows.map(r => `
+          <tr class="hover:bg-gray-50">
+            <td class="p-4 font-bold text-gray-900">
+              <button class="hover:underline" onclick="Admin.openAgentModal('${String(r.name).replace(/'/g,"\\'")}')">${r.name}</button>
+              <div class="mt-1">${stageBadge(r.stage)} ${r.warned ? `<span class="ml-2 text-[10px] font-extrabold text-orange-600">WARNED</span>` : ""}</div>
+            </td>
+            <td class="p-4 text-center text-gray-700 font-semibold">${r.total}</td>
+            <td class="p-4 text-center text-red-500 font-bold">${r.rejected}</td>
+            <td class="p-4 text-center text-blue-500 font-bold">${r.qualified}</td>
+            <td class="p-4 text-center text-purple-500 font-bold">${r.credited}</td>
+            <td class="p-4 text-center text-yellow-600 font-bold">${r.pending}</td>
+            <td class="p-4 text-center text-gray-700 font-semibold">${r.cancelRate}%</td>
+          </tr>
+        `).join("");
       },
 
       openAgentModal(name) { this._agentSelectedName = name; document.getElementById("agent-modal").classList.remove("hidden"); this.renderAgentLeads(); },
