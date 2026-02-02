@@ -34,7 +34,7 @@ class CallHammerPortal {
       changePassword: 'https://automate.callhammerleads.com/webhook/change-password',
       manageEmployee: 'https://automate.callhammerleads.com/webhook/manage-employee',
       // ✅ PASSBOOK
-      passbookClientsList: 'https://automate.callhammerleads.com/webhook-test/passbook-clients-list',
+      passbookClientsList: 'https://automate.callhammerleads.com/webhook/passbook-clients-list',
       passbookClientDetails: 'https://automate.callhammerleads.com/webhook/passbook-client',
       passbookClientUpdate: 'https://automate.callhammerleads.com/webhook/passbook-client-update',
     };
