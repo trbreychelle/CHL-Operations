@@ -219,6 +219,12 @@ class CallHammerPortal {
     // ✅ ADDED ONLY: wire Passbook update UI (no-op on pages without the button/form)
     this.bindPassbookUpdateButton();
 
+    // Step 4 — Call it on page load (ito yung pinaka-missing)
+    const onPassbookPage = path.includes('passbook') || document.querySelector('[data-page="passbook-clients"]');
+    if (onPassbookPage) {
+      setTimeout(() => this.loadPassbookClientsList(true), 300);
+    }
+
     const onAnyDashboard = path.includes('dashboard');
     const onAdminDashboard = path.includes('admin-dashboard');
 
@@ -943,6 +949,48 @@ class CallHammerPortal {
   // ============================================================
   // ✅ ADDED ONLY: PASSBOOK UPDATE → calls n8n webhook + refreshes UI
   // ============================================================
+
+  // Step 3 — Add a function sa main.js to actually load the Passbook Clients List
+  async loadPassbookClientsList(force = false) {
+    try {
+      const url = new URL(this.webhooks.passbookClientsList);
+
+      // ✅ cache-bust para sure tatama sa n8n at hindi cached
+      url.searchParams.set('ts', Date.now());
+
+      const res = await fetch(url.toString(), {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        cache: 'no-store',
+      });
+
+      if (!res.ok) throw new Error(`Passbook list failed (HTTP ${res.status}).`);
+
+      const data = await res.json();
+
+      // support multiple response shapes
+      const clients =
+        data?.clients ||
+        data?.data?.clients ||
+        data?.data ||
+        [];
+
+      console.log('✅ Passbook clients list loaded:', clients.length);
+
+      // TODO: dito mo i-render/update UI count + cards
+      // Example: update count element if meron ka
+      const countEl = document.querySelector('#passbookClientsCount');
+      if (countEl) countEl.textContent = `Showing ${clients.length} clients`;
+
+      // optional: store
+      this.adminState.passbookClients = clients;
+
+      return clients;
+    } catch (e) {
+      console.error('❌ loadPassbookClientsList error:', e);
+      return [];
+    }
+  }
 
   bindPassbookUpdateButton() {
     // This safely does nothing on pages that don't have Passbook UI
