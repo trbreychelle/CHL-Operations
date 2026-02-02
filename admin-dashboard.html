@@ -940,16 +940,11 @@
         // ✅ Bind Team UI + Render
         try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
         
-        // ✅ New Passbook Logic (UPDATED FIX)
+        // ✅ New Passbook Logic
         try {
-          // ✅ Passbook Clients must use passbookClients, NOT health monitor clients
-          const passbookClients = Array.isArray(state.passbookClients)
-            ? state.passbookClients
-            : [];
-
-          this.setupPassbookFilters(passbookClients);
-          this.bindPassbookUI(passbookClients);
-          this.applyPassbookFilters(passbookClients);
+          this.setupPassbookFilters(clients);
+          this.bindPassbookUI(clients);
+          this.applyPassbookFilters(clients);
         } catch(e) {}
         
         try {
@@ -2264,11 +2259,6 @@
       },
 
       nav(viewId, linkEl) {
-        if (viewId === 'clients' && window.portal?.loadPassbookClientsList) {
-          window.portal.loadPassbookClientsList(true).then(() => {
-            this.refreshDashboard();
-          });
-        }
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.getElementById('view-' + viewId).classList.add('active');
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
