@@ -940,11 +940,15 @@
         // ✅ Bind Team UI + Render
         try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
         
-        // ✅ New Passbook Logic (UPDATED FIXES)
+        // ✅ New Passbook Logic (UPDATED FIX)
         try {
-          const passbookClients = Array.isArray(state.passbookClients) ? state.passbookClients : [];
+          // ✅ Passbook Clients must use passbookClients, NOT health monitor clients
+          const passbookClients = Array.isArray(state.passbookClients)
+            ? state.passbookClients
+            : [];
+
           this.setupPassbookFilters(passbookClients);
-          this.bindPassbookUI(); // FIX #2: No argument
+          this.bindPassbookUI(passbookClients);
           this.applyPassbookFilters(passbookClients);
         } catch(e) {}
         
@@ -2003,52 +2007,20 @@
 
         document.getElementById("passbook-count").textContent = rows.length;
 
-        // ✅ FIX #1: Explicitly Toggle List vs Cards
-        const listWrap = document.getElementById("passbook-list-wrap");
-        const cardsWrap = document.getElementById("client-cards-container");
-
-        if (this._passbookView === "list") {
-          listWrap?.classList.remove("hidden");
-          cardsWrap?.classList.add("hidden");
-          this.renderPassbookList(rows);
-        } else {
-          listWrap?.classList.add("hidden");
-          cardsWrap?.classList.remove("hidden");
-          this.renderClientCards(rows);
-        }
+        if (this._passbookView === "list") this.renderPassbookList(rows);
+        else this.renderClientCards(rows);
       },
 
       renderPassbookList(clients) {
         document.getElementById("passbook-list-body").innerHTML = (clients || []).map(c => `<tr class="hover:bg-gray-50"><td class="p-4">${this.extractCode(c)}</td><td class="p-4 font-bold">${this.extractRoofingCompany(c)}</td><td class="p-4">${this.extractCityState(c)}</td><td class="p-4">${this.extractClientName(c)}</td><td class="p-4 text-right"><button class="px-3 py-1 rounded bg-gray-900 text-white text-xs" onclick="Admin.openPassbookClient('${this.extractCode(c)}')">Open</button></td></tr>`).join("");
       },
 
-      // ✅ FIX #2: bindPassbookUI reads fresh state, no stale closure
-      bindPassbookUI() {
-        if (this._passbookFiltersBound) return;
-        this._passbookFiltersBound = true;
-
-        const getPB = () => {
-          const state = this.getState();
-          return Array.isArray(state?.passbookClients) ? state.passbookClients : [];
-        };
-
-        document.getElementById("passbook-view-cards").addEventListener("click", () => {
-          this._passbookView = "cards";
-          this.applyPassbookFilters(getPB());
-        });
-
-        document.getElementById("passbook-view-list").addEventListener("click", () => {
-          this._passbookView = "list";
-          this.applyPassbookFilters(getPB());
-        });
-
-        document.getElementById("passbook-search").addEventListener("input", () => {
-          this.applyPassbookFilters(getPB());
-        });
-
-        document.getElementById("passbook-filter-location").addEventListener("change", () => {
-          this.applyPassbookFilters(getPB());
-        });
+      bindPassbookUI(clients) {
+        if (this._passbookFiltersBound) return; this._passbookFiltersBound = true;
+        document.getElementById("passbook-view-cards").addEventListener("click", () => { this._passbookView="cards"; this.applyPassbookFilters(clients); });
+        document.getElementById("passbook-view-list").addEventListener("click", () => { this._passbookView="list"; this.applyPassbookFilters(clients); });
+        document.getElementById("passbook-search").addEventListener("input", () => this.applyPassbookFilters(clients));
+        document.getElementById("passbook-filter-location").addEventListener("change", () => this.applyPassbookFilters(clients));
         
         const clearBtn = document.getElementById("passbook-clear");
         if (clearBtn) {
@@ -2056,12 +2028,8 @@
             const s = document.getElementById("passbook-search"); if (s) s.value = "";
             const l = document.getElementById("passbook-filter-location"); if (l) l.value = "all";
             this._passbookView = "cards";
-            
-            // Force reset visuals
-            document.getElementById("passbook-list-wrap")?.classList.add("hidden");
-            document.getElementById("client-cards-container")?.classList.remove("hidden");
-            
-            this.applyPassbookFilters(getPB());
+            document.getElementById("passbook-list-wrap").classList.add("hidden");
+            this.applyPassbookFilters(clients);
           });
         }
       },
