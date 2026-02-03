@@ -246,6 +246,9 @@ class CallHammerPortal {
     if (onAdminDashboard) {
       document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
       setTimeout(() => this.fetchAdminData(false), 300);
+
+      // ✅ 1) Start polling (Auto-refresh)
+      this.startAdminAutoRefresh();
     }
   }
 
@@ -1141,6 +1144,19 @@ class CallHammerPortal {
     updates['UPDATED BY'] = 'Passbook';
 
     return { codeName, updates };
+  }
+
+  // ✅ 1) ADDED: Admin Auto-Refresh Method
+  startAdminAutoRefresh() {
+    // Refresh every 20 seconds (polling)
+    setInterval(() => {
+        this.fetchAdminData(true);
+    }, 20000);
+
+    // Refresh immediately when you return to the tab
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) this.fetchAdminData(true);
+    });
   }
 }
 
