@@ -1752,16 +1752,32 @@
         const seriesMap = new Map();
         buckets.forEach(b => seriesMap.set(b, { qualified: 0, rejected: 0, credited: 0, pending: 0 }));
 
+        // ✅ 1. SEED: Initialize analytics with ACTIVE agents so 0-lead agents appear
+        const agents = (state && Array.isArray(state.agents)) ? state.agents : [];
+
+        agents.forEach(a => {
+          const stage = this.getAgentStage(a); // uses same logic as Team tab
+          if (stage !== "active") return;
+
+          const name = String(this.pick(a, ["Employee Name","Name","Agent Name","Full Name"], "Unknown")).trim();
+          if (!name) return;
+
+          agentAgg.set(name, { name, total: 0, qualified: 0, rejected: 0, credited: 0, pending: 0 });
+        });
+
+        // ✅ 2. UPDATE: Process leads (increments existing seeded agents or adds unknown ones)
         leads.forEach(l => {
           const dt = this.getLeadDateObj(l);
           if (!dt || dt < start || dt > end) return;
+
           const st = this.pick(l, ["Status","STATUS"], "");
-          // ✅ Fix: use analytics matching fields
           const agent = String(this.pick(l, ["Appointment Coordinator Name","Agent Name","AGENT"], "Unknown")).trim();
           
           total++;
+
           const a = agentAgg.get(agent) || { name: agent, total: 0, qualified: 0, rejected: 0, credited: 0, pending: 0 };
           a.total++;
+
           const bk = this._bucketKeyFor(dt, grain);
           const bRow = seriesMap.get(bk);
 
@@ -1769,6 +1785,7 @@
           else if (this.isRejected(st)) { rejected++; a.rejected++; if (bRow) bRow.rejected++; }
           else if (this.isCredited(st)) { credited++; a.credited++; if (bRow) bRow.credited++; }
           else { pending++; a.pending++; if (bRow) bRow.pending++; }
+
           agentAgg.set(agent, a);
         });
 
@@ -1791,8 +1808,19 @@
         document.getElementById("kpi-pending").textContent = pending;
         document.getElementById("kpi-cancel").textContent = `${(qualified + credited > 0) ? Math.round((credited / (qualified + credited)) * 100) : 0}%`;
 
-        const top = Array.from(agentAgg.values()).sort((a,b) => b.qualified - a.qualified).slice(0, 10);
-        const bottom = Array.from(agentAgg.values()).filter(a => a.total <= 5).sort((a,b) => a.total - b.total).slice(0, 5);
+        // ✅ 3. SORT: Update sorting logic to handle ties better
+        const top = Array.from(agentAgg.values())
+          .sort((a,b) => (b.qualified - a.qualified) || (b.total - a.total))
+          .slice(0, 10);
+
+        const bottom = Array.from(agentAgg.values())
+          .filter(a => a.total <= 5)
+          .sort((a,b) => 
+            (a.total - b.total) || 
+            (a.qualified - b.qualified) || 
+            a.name.localeCompare(b.name)
+          )
+          .slice(0, 5);
 
         const renderRow = (a) => {
           const d = a.qualified + a.credited;
