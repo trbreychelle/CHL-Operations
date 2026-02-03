@@ -84,6 +84,9 @@
     .table-min {
       min-width: 1100px;
     }
+
+    /* ✅ Added tabular-nums for crisp clock digits */
+    .tabular-nums { font-variant-numeric: tabular-nums; }
   </style>
 </head>
 
@@ -128,11 +131,19 @@
     </div>
 
     <div class="p-4 border-t border-gray-700 bg-gray-800/50">
-      <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-gray-700 to-gray-600 flex items-center justify-center text-xs font-bold text-white border border-gray-500">AD</div>
-        <div>
-          <p class="text-xs font-bold text-white">Admin Access</p>
-          <button onclick="portal.logout()" class="text-[10px] text-gray-400 hover:text-yellow-400 uppercase font-bold tracking-wide transition-colors">Log Out</button>
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full bg-gradient-to-br from-gray-700 to-gray-600 flex items-center justify-center text-xs font-bold text-white border border-gray-500">AD</div>
+          <div>
+            <p class="text-xs font-bold text-white">Admin Access</p>
+            <button onclick="portal.logout()" class="text-[10px] text-gray-400 hover:text-yellow-400 uppercase font-bold tracking-wide transition-colors">Log Out</button>
+          </div>
+        </div>
+
+        <div class="text-right leading-tight">
+          <div class="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">MST</div>
+          <div id="mst-clock" class="font-extrabold text-white tabular-nums text-sm">--:--:--</div>
+          <div id="mst-date" class="text-[10px] font-semibold text-gray-400">—</div>
         </div>
       </div>
     </div>
@@ -957,6 +968,9 @@
 
         // ✅ NEW: Update Owed KPI
         try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
+
+        // ✅ MST Clock
+        try { this.startMSTClock(); } catch(e) {}
       },
 
       // ✅ Generic: highlights the clicked button in a segmented control
@@ -2462,6 +2476,39 @@
             <td class="p-3">${this.getLeadField(l, ["Reviewed By","REVIEWED BY","Reviewer","REVIEWER"])}</td>
           </tr>
         `).join("");
+      },
+
+      // ✅ ADDED MST CLOCK FUNCTIONALITY
+      startMSTClock() {
+        const clockEl = document.getElementById("mst-clock");
+        const dateEl  = document.getElementById("mst-date");
+        if (!clockEl || !dateEl) return;
+
+        const tz = "America/Denver"; // MST/MDT region-safe
+
+        const tick = () => {
+          const now = new Date();
+
+          clockEl.textContent = new Intl.DateTimeFormat("en-US", {
+            timeZone: tz,
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: true
+          }).format(now);
+
+          dateEl.textContent = new Intl.DateTimeFormat("en-US", {
+            timeZone: tz,
+            weekday: "short",
+            month: "short",
+            day: "2-digit",
+            year: "numeric"
+          }).format(now);
+        };
+
+        tick();
+        if (this._mstClockInterval) clearInterval(this._mstClockInterval);
+        this._mstClockInterval = setInterval(tick, 1000);
       },
 
       nav(viewId, linkEl) {
