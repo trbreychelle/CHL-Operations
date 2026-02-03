@@ -959,6 +959,26 @@
         try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
       },
 
+      // ✅ Generic: highlights the clicked button in a segmented control
+      _setActiveButton(btnSelector, btnElement) {
+        document.querySelectorAll(btnSelector).forEach(b => {
+          b.classList.remove("bg-white", "shadow", "text-gray-900");
+          b.classList.add("text-gray-500");
+        });
+        if (btnElement) {
+          btnElement.classList.add("bg-white", "shadow", "text-gray-900");
+          btnElement.classList.remove("text-gray-500");
+        }
+      },
+
+      // ✅ Optional: show custom is active (adds a ring to the Custom button)
+      _setCustomActive(toggleId, isActive) {
+        const t = document.getElementById(toggleId);
+        if (!t) return;
+        t.classList.toggle("ring-2", isActive);
+        t.classList.toggle("ring-yellow-400", isActive);
+      },
+
       pick(obj, keys, fallback = "") {
         for (const k of keys) {
           const v = obj?.[k];
@@ -2057,7 +2077,23 @@
         }
       },
 
-      setTeamPeriod(period, btnElement) { this.teamPeriod = period; this.renderTeam(); },
+      // ✅ Replace your setTeamPeriod with this:
+      setTeamPeriod(period, btnElement) {
+        this.teamPeriod = period;
+
+        // presets: move the white pill
+        if (period !== "custom") {
+          this._teamCustomRange.active = false;
+          this._setCustomActive("team-custom-toggle", false);
+          this._setActiveButton(".team-btn", btnElement);
+        } else {
+          // custom: remove pill from presets, ring the custom button
+          this._setActiveButton(".team-btn", null);
+          this._setCustomActive("team-custom-toggle", true);
+        }
+
+        this.renderTeam();
+      },
       
       getTeamRangeFor() {
         const state = this.getState();
@@ -2174,7 +2210,8 @@
         });
         let q = 0, c = 0, r = 0, p = 0;
         inRange.forEach(l => {
-          const st = this.pick(l, ["Status"], "");
+          // ✅ Quick fix: make _computeAgentMetrics status extraction more robust
+          const st = this.pick(l, ["Status","STATUS"], "");
           if (this.isQualified(st)) q++; else if (this.isCredited(st)) c++; else if (this.isRejected(st)) r++; else p++;
         });
         return { total: inRange.length, qualified: q, credited: c, rejected: r, pending: p, cancelRate: (q+c>0)?Math.round((c/(q+c))*100):0, leads: inRange };
@@ -2269,19 +2306,160 @@
         `).join("");
       },
 
-      openAgentModal(name) { this._agentSelectedName = name; document.getElementById("agent-modal").classList.remove("hidden"); this.renderAgentLeads(); },
+      // ✅ Update openAgentModal so it binds UI + sets title
+      openAgentModal(name) {
+        this._agentSelectedName = name;
+        this.bindAgentUI();
+
+        // default: mirror whatever Team tab is using (optional but feels consistent)
+        this.agentPeriod = this.teamPeriod || "today";
+        this._agentCustomRange.active = false;
+        this._setCustomActive("agent-custom-toggle", false);
+
+        document.getElementById("agent-modal").classList.remove("hidden");
+        this.renderAgentLeads();
+      },
+
+      // ✅ Add a real Agent UI binder + custom wiring
+      bindAgentUI() {
+        if (this._agentBound) return;
+        this._agentBound = true;
+
+        const toggle = document.getElementById("agent-custom-toggle");
+        const pop = document.getElementById("agent-custom-popover");
+        const apply = document.getElementById("agent-custom-apply");
+        const clear = document.getElementById("agent-custom-clear");
+
+        if (toggle && pop) {
+          toggle.addEventListener("click", (e) => {
+            e.preventDefault();
+            pop.classList.toggle("hidden");
+          });
+
+          document.addEventListener("click", (e) => {
+            if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
+              pop.classList.add("hidden");
+            }
+          });
+        }
+
+        if (apply) {
+          apply.addEventListener("click", () => {
+            const s = document.getElementById("agent-custom-start")?.value;
+            const e = document.getElementById("agent-custom-end")?.value;
+            if (!s || !e) return;
+
+            this._agentCustomRange.active = true;
+            this._agentCustomRange.start = s;
+            this._agentCustomRange.end = e;
+
+            // make "Custom" the active period visually
+            this.agentPeriod = "custom";
+            this._setActiveButton(".agent-btn", null);
+            this._setCustomActive("agent-custom-toggle", true);
+
+            pop?.classList.add("hidden");
+            this.renderAgentLeads();
+          });
+        }
+
+        if (clear) {
+          clear.addEventListener("click", () => {
+            document.getElementById("agent-custom-start").value = "";
+            document.getElementById("agent-custom-end").value = "";
+            this._agentCustomRange.active = false;
+
+            // reset to today and move pill to Today
+            this.agentPeriod = "today";
+            const todayBtn = document.querySelector(".agent-btn"); // first one is Today
+            this._setActiveButton(".agent-btn", todayBtn);
+            this._setCustomActive("agent-custom-toggle", false);
+
+            pop?.classList.add("hidden");
+            this.renderAgentLeads();
+          });
+        }
+      },
+
+      // ✅ Add agent-specific range getter (so custom works):
+      getAgentRangeFor() {
+        const state = this.getState();
+        const leads = state?.leads || [];
+
+        if (this.agentPeriod === "custom" && this._agentCustomRange.active) {
+          const start = new Date(this._agentCustomRange.start + "T00:00:00");
+          const end = new Date(this._agentCustomRange.end + "T23:59:59");
+          return { start, end, grain: "day", label: "Custom Range" };
+        }
+        return this.getRangeFor(this.agentPeriod, leads);
+      },
+
       closeAgentModal() { document.getElementById("agent-modal").classList.add("hidden"); },
-      setAgentPeriod(p) { this.agentPeriod = p; this.renderAgentLeads(); },
+      
+      // ✅ Replace setAgentPeriod with this (so pill moves)
+      setAgentPeriod(period, btnElement) {
+        this.agentPeriod = period;
+
+        if (period !== "custom") {
+          this._agentCustomRange.active = false;
+          this._setCustomActive("agent-custom-toggle", false);
+          this._setActiveButton(".agent-btn", btnElement);
+        } else {
+          this._setActiveButton(".agent-btn", null);
+          this._setCustomActive("agent-custom-toggle", true);
+        }
+
+        this.renderAgentLeads();
+      },
+
+      // ✅ Replace renderAgentLeads() with this full version:
       renderAgentLeads() {
-        const state = this.getState(); const { start, end } = this.getRangeFor(this.agentPeriod, state?.leads || []);
-        const m = this._computeAgentMetrics(this._agentSelectedName, state?.leads || [], start, end);
-        
-        // ✅ Patch: Use Badge + Correct Columns
-        document.getElementById("agent-leads-body").innerHTML = m.leads.map(l => `
+        const state = this.getState();
+        const leads = state?.leads || [];
+        const name = this._agentSelectedName || "Agent";
+
+        const { start, end, label } = this.getAgentRangeFor();
+
+        // compute metrics + leads list
+        const m = this._computeAgentMetrics(name, leads, start, end);
+
+        // ✅ Title shows agent name
+        const titleEl = document.getElementById("agent-modal-title");
+        if (titleEl) titleEl.textContent = `${name} — Leads`;
+
+        // ✅ Count updates
+        const countEl = document.getElementById("agent-leads-count");
+        if (countEl) countEl.textContent = m.leads.length;
+
+        // ✅ Range label updates
+        const rangeEl = document.getElementById("agent-range-label");
+        if (rangeEl) rangeEl.textContent = `${label}: ${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
+
+        // ✅ Render ALL 14 columns (matches your table header)
+        const tbody = document.getElementById("agent-leads-body");
+        if (!tbody) return;
+
+        if (!m.leads.length) {
+          tbody.innerHTML = `<tr><td colspan="14" class="p-6 text-center text-gray-400 italic">No leads in this period.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = m.leads.map(l => `
           <tr>
-            <td class="p-3">${this.getLeadField(l, ["Date Submitted"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["LEAD ID"])}</td>
-            <td class="p-3">${this.statusBadge(this.getLeadField(l, ["Status"]))}</td>
+            <td class="p-3">${this.getLeadField(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["LEAD ID","Lead ID","lead_id","ID"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["Company Name","COMPANY NAME","Roofing Company","Client","CLIENT"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent","Agent Name"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["Homeowner Name(s)","Homeowner Name","Homeowner"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["Email of Homeowner","Homeowner Email","Email","EMAIL"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["Homeowner Phone Number(s)","Homeowner Phone Number","Phone","PHONE","Phone Number"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["Appointment Date /Time","Appointment Date / Time","Appointment Date","Appointment Time"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["Address","ADDRESS","Job Address"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["Age of Roof","AGE OF ROOF"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["Insurance Company","INSURANCE COMPANY"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["Additional Notes","ADDITIONAL NOTES","Notes","NOTES"])}</td>
+            <td class="p-3">${this.statusBadge(this.getLeadField(l, ["Status","STATUS"]))}</td>
+            <td class="p-3">${this.getLeadField(l, ["Reviewed By","REVIEWED BY","Reviewer","REVIEWER"])}</td>
           </tr>
         `).join("");
       },
