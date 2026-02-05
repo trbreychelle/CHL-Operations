@@ -1421,17 +1421,29 @@
         const pkgSel = document.getElementById("health-filter-package");
         const locSel = document.getElementById("health-filter-location");
 
+        // ✅ Save current selections
+        const prevStatus = statusSel.value;
+        const prevLoc = locSel ? locSel.value : "all";
+
         const alwaysStatuses = ["CRITICAL", "AT RISK", "HEALTHY", "NOT STARTED"];
         const foundStatuses = [...new Set(rows.map(r => r.status))].filter(Boolean);
         const statuses = [...new Set([...alwaysStatuses, ...foundStatuses])];
 
         statusSel.innerHTML = `<option value="all">All Status</option>` + statuses.map(s => `<option value="${s}">${s}</option>`).join("");
 
+        // ✅ Restore status selection safely
+        const statusExists = Array.from(statusSel.options).some(o => o.value === prevStatus);
+        statusSel.value = statusExists ? prevStatus : "all";
+
         // ✅ NEW: Populate Location Filter
         if (locSel) {
            const uniq = (arr) => [...new Set(arr.filter(x => String(x||"").trim() !== ""))].sort((a,b)=>String(a).localeCompare(String(b)));
            const locs = uniq(rows.map(r => r.cityState));
            locSel.innerHTML = `<option value="all">All Locations</option>` + locs.map(l => `<option value="${String(l).replace(/"/g,'&quot;')}">${l}</option>`).join("");
+           
+           // ✅ Restore location selection safely
+           const locExists = Array.from(locSel.options).some(o => o.value === prevLoc);
+           locSel.value = locExists ? prevLoc : "all";
         }
 
         if (!this._filtersBound) {
@@ -2038,7 +2050,7 @@
         let rows = (clients || []).filter(c => (loc === "all" || this.extractCityState(c) === loc));
 
         if (q) {
-          rows = rows.filter(c =>
+          rows = rows.filter(c => 
             `${this.extractRoofingCompany(c)} ${this.extractCode(c)} ${this.extractCityState(c)}`
               .toLowerCase()
               .includes(q)
