@@ -117,7 +117,7 @@
       <div>
         <div class="px-6 mb-2 text-[10px] font-bold uppercase text-gray-400 tracking-wider">Management</div>
         <nav class="space-y-1">
-          <a href="#" class="nav-item flex items-center px-6 py-3 text-sm opacity-50 cursor-not-allowed">
+          <a href="#payroll" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('payroll', this)">
             <i class="fa-solid fa-file-invoice-dollar w-5 text-center"></i> Payroll & Finance
           </a>
           <a href="#" class="nav-item flex items-center px-6 py-3 text-sm opacity-50 cursor-not-allowed">
@@ -856,6 +856,71 @@
         </div>
       </div>
 
+      <div id="view-payroll" class="view-section">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">Payroll & Finance</h2>
+            <p class="text-sm text-gray-500 mt-1">Weekly payroll rollups + financial totals (based on Payroll Week Start).</p>
+          </div>
+
+          <div class="flex items-center gap-2 flex-wrap">
+            <div>
+              <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Payroll Week</label>
+              <select id="payroll-week-select" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
+                <option value="latest" selected>Latest</option>
+              </select>
+            </div>
+
+            <button id="payroll-export"
+                    class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800">
+              <i class="fa-solid fa-file-export mr-2"></i> Export CSV
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-5">
+          <div class="kpi-tile">
+            <div class="kpi-label">Qualified Appointments</div>
+            <div class="kpi-value text-blue-500" id="payroll-kpi-qualified">0</div>
+            <div class="kpi-sub">Confirmed / Approved</div>
+          </div>
+          <div class="kpi-tile">
+            <div class="kpi-label">Unqualified Appointments</div>
+            <div class="kpi-value text-purple-500" id="payroll-kpi-unqualified">0</div>
+            <div class="kpi-sub">Credited only</div>
+          </div>
+          <div class="kpi-tile">
+            <div class="kpi-label">Est. Revenue</div>
+            <div class="kpi-value text-emerald-600" id="payroll-kpi-revenue">$0.00</div>
+            <div class="kpi-sub">$125 × Qualified</div>
+          </div>
+          <div class="kpi-tile">
+            <div class="kpi-label">Payroll Week Range</div>
+            <div class="kpi-value" style="font-size:14px;" id="payroll-kpi-range">—</div>
+            <div class="kpi-sub">Based on Payroll Week Start</div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div class="table-scroll">
+            <table class="table-min w-full text-left text-sm whitespace-nowrap">
+              <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+                <tr>
+                  <th class="p-4">Appointment Coordinator</th>
+                  <th class="p-4 text-center">Qualified</th>
+                  <th class="p-4 text-center">Unqualified</th>
+                  <th class="p-4 text-center">Total</th>
+                  <th class="p-4 text-right">Est. Revenue</th>
+                </tr>
+              </thead>
+              <tbody id="payroll-body" class="divide-y divide-gray-50">
+                <tr><td colspan="5" class="p-6 text-center text-gray-400 italic">Loading payroll...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
     </div>
   </main>
 
@@ -878,6 +943,9 @@
       agentPeriod: 'today',
       _agentCustomRange: { active: false, start: null, end: null },
       _agentBound: false,
+      
+      // ✅ PAYROLL STATE
+      _payrollBound: false,
 
       clientHealthRaw: [],
       clientHealthView: [],
@@ -956,6 +1024,9 @@
 
         // ✅ NEW: Update Owed KPI
         try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
+
+        // ✅ NEW: Update Payroll
+        try { this.bindPayrollUI(); this.renderPayrollFinance(); } catch(e) {}
       },
 
       // ✅ Generic: highlights the clicked button in a segmented control
@@ -2470,11 +2541,218 @@
         `).join("");
       },
 
+      // ===== PAYROLL & FINANCE (NEW) =====
+
+      // read payroll week start from each lead row
+      getLeadPayrollWeekStart(l) {
+        // supports multiple header spellings
+        const s = this.pick(l, [
+          "Payroll Week Start",
+          "PAYROLL WEEK START",
+          "payroll_week_start",
+          "PayrollWeekStart"
+        ], "");
+
+        // If missing, fallback to existing Sat->Fri logic using lead Date Submitted
+        if (!s) {
+          const dt = this.getLeadDateObj(l);
+          if (!dt) return "";
+          // start-of-week Saturday
+          const x = new Date(dt);
+          const day = x.getDay(); // 0 Sun ... 6 Sat
+          const diffToSat = (day - 6);
+          x.setDate(x.getDate() - diffToSat);
+          x.setHours(0,0,0,0);
+          return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`;
+        }
+
+        // normalize to YYYY-MM-DD
+        const d = window.portal?.parseDateSafe ? window.portal.parseDateSafe(s) : new Date(s);
+        if (!d || isNaN(d.getTime())) return String(s);
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+      },
+
+      // compute payroll aggregation from raw leads
+      computePayrollFromLeads(leads) {
+        const rows = Array.isArray(leads) ? leads : [];
+        const weekSet = new Set();
+        const weekAgentMap = new Map(); // key: `${week}||${agent}` -> { qualified, unqualified }
+
+        for (const l of rows) {
+          const week = this.getLeadPayrollWeekStart(l);
+          if (!week) continue;
+          weekSet.add(week);
+
+          const agent = String(this.pick(l, [
+            "Appointment Coordinator Name",
+            "Appointment Coordinator",
+            "Setter",
+            "Agent",
+            "Agent Name"
+          ], "Unknown")).trim() || "Unknown";
+
+          const status = this.pick(l, ["Status","STATUS"], "");
+          const k = `${week}||${agent}`;
+
+          const agg = weekAgentMap.get(k) || { week, agent, qualified: 0, unqualified: 0 };
+
+          if (this.isQualified(status)) agg.qualified += 1;
+          else if (this.isCredited(status)) agg.unqualified += 1;
+
+          weekAgentMap.set(k, agg);
+        }
+
+        const weeks = [...weekSet].sort((a,b) => String(b).localeCompare(String(a))); // latest first
+        const byWeek = new Map(); // week -> [rows...]
+
+        for (const v of weekAgentMap.values()) {
+          const arr = byWeek.get(v.week) || [];
+          arr.push(v);
+          byWeek.set(v.week, arr);
+        }
+
+        // sort agents per week (qualified desc, then total desc)
+        for (const [wk, arr] of byWeek.entries()) {
+          arr.sort((a,b) => (b.qualified - a.qualified) || ((b.qualified+b.unqualified) - (a.qualified+a.unqualified)) || a.agent.localeCompare(b.agent));
+        }
+
+        return { weeks, byWeek };
+      },
+
+      getPayrollWeekRangeLabel(weekStartStr) {
+        if (!weekStartStr) return "—";
+        const start = new Date(weekStartStr + "T00:00:00");
+        if (isNaN(start.getTime())) return weekStartStr;
+
+        const end = new Date(start);
+        end.setDate(end.getDate() + 6);
+
+        return `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
+      },
+
+      renderPayrollFinance() {
+        const state = this.getState();
+        const leads = (state && Array.isArray(state.leads)) ? state.leads : [];
+
+        const { weeks, byWeek } = this.computePayrollFromLeads(leads);
+
+        // populate dropdown once (or refresh safely)
+        const sel = document.getElementById("payroll-week-select");
+        if (sel) {
+          const current = sel.value || "latest";
+          const opts = [`<option value="latest">Latest</option>`]
+            .concat(weeks.map(w => `<option value="${w}">${w}</option>`));
+          sel.innerHTML = opts.join("");
+
+          // restore if possible
+          if (current !== "latest" && weeks.includes(current)) sel.value = current;
+          else sel.value = "latest";
+        }
+
+        const chosenWeek = (sel?.value && sel.value !== "latest") ? sel.value : (weeks[0] || "");
+        const rows = chosenWeek ? (byWeek.get(chosenWeek) || []) : [];
+
+        // KPI totals
+        let q = 0, u = 0;
+        for (const r of rows) { q += r.qualified; u += r.unqualified; }
+        const estRevenue = q * 125;
+
+        const kQ = document.getElementById("payroll-kpi-qualified");
+        const kU = document.getElementById("payroll-kpi-unqualified");
+        const kR = document.getElementById("payroll-kpi-revenue");
+        const kRange = document.getElementById("payroll-kpi-range");
+
+        if (kQ) kQ.textContent = q;
+        if (kU) kU.textContent = u;
+        if (kR) kR.textContent = estRevenue.toLocaleString("en-US", { style: "currency", currency: "USD" });
+        if (kRange) kRange.textContent = this.getPayrollWeekRangeLabel(chosenWeek);
+
+        // table
+        const tbody = document.getElementById("payroll-body");
+        if (!tbody) return;
+
+        if (!chosenWeek) {
+          tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No payroll data found.</td></tr>`;
+          return;
+        }
+
+        if (!rows.length) {
+          tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No rows for ${chosenWeek}.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = rows.map(r => {
+          const total = r.qualified + r.unqualified;
+          const rev = (r.qualified * 125);
+          return `
+            <tr class="hover:bg-gray-50">
+              <td class="p-4 font-bold text-gray-900">${r.agent}</td>
+              <td class="p-4 text-center text-blue-500 font-extrabold">${r.qualified}</td>
+              <td class="p-4 text-center text-purple-500 font-extrabold">${r.unqualified}</td>
+              <td class="p-4 text-center text-gray-700 font-semibold">${total}</td>
+              <td class="p-4 text-right text-emerald-700 font-extrabold">${rev.toLocaleString("en-US", { style: "currency", currency: "USD" })}</td>
+            </tr>
+          `;
+        }).join("");
+      },
+
+      bindPayrollUI() {
+        if (this._payrollBound) return;
+        this._payrollBound = true;
+
+        const sel = document.getElementById("payroll-week-select");
+        if (sel) sel.addEventListener("change", () => this.renderPayrollFinance());
+
+        const btn = document.getElementById("payroll-export");
+        if (btn) {
+          btn.addEventListener("click", () => {
+            const state = this.getState();
+            const leads = (state && Array.isArray(state.leads)) ? state.leads : [];
+            const { weeks, byWeek } = this.computePayrollFromLeads(leads);
+
+            const chosen = (sel?.value && sel.value !== "latest") ? sel.value : (weeks[0] || "");
+            const rows = chosen ? (byWeek.get(chosen) || []) : [];
+
+            const header = ["payroll_week_start","appointment_coordinator","qualified","unqualified","total","est_revenue_usd"];
+            const lines = [header.join(",")];
+
+            for (const r of rows) {
+              const total = r.qualified + r.unqualified;
+              const rev = r.qualified * 125;
+              lines.push([
+                chosen,
+                `"${String(r.agent).replace(/"/g,'""')}"`,
+                r.qualified,
+                r.unqualified,
+                total,
+                rev
+              ].join(","));
+            }
+
+            const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `payroll_${chosen || "no_week"}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+          });
+        }
+      },
+
       nav(viewId, linkEl) {
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.getElementById('view-' + viewId).classList.add('active');
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
         linkEl.classList.add('active');
+        
+        // ✅ optional: render payroll on demand
+        if (viewId === "payroll") {
+          try { this.renderPayrollFinance(); } catch(e) {}
+        }
       }
     };
 
