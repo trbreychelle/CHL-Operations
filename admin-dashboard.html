@@ -11,9 +11,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <link href="https://unpkg.com/tabulator-tables@5.6.2/dist/css/tabulator.min.css" rel="stylesheet">
-  <script src="https://unpkg.com/tabulator-tables@5.6.2/dist/js/tabulator.min.js"></script>
-
   <style>
     * { font-family: 'Inter', sans-serif; }
     body { background-color: #F9FAFB; color: #111827; }
@@ -61,35 +58,32 @@
     .kpi-sub { font-size: 12px; font-weight: 600; margin-top: 2px; color: #6B7280; }
 
     /* Client Health fixed scroll height */
-    .client-health-scroll { max-height: 315px; overflow-y: auto; }
+    .client-health-scroll {
+      max-height: 315px; /* ~5 rows visible */
+      overflow-y: auto;
+    }
 
-    /* Helps when zooming */
-    .controls-wrap { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
-    .controls-wrap > * { min-width: 180px; }
-    @media (max-width: 1024px) { .controls-wrap > * { min-width: 160px; } }
+    /* Helps when zooming: keep controls from overlapping */
+    .controls-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    .controls-wrap > * {
+      min-width: 180px;
+    }
+    @media (max-width: 1024px) {
+      .controls-wrap > * { min-width: 160px; }
+    }
 
-    /* Table stays readable */
-    .table-scroll { overflow-x: auto; }
-    .table-min { min-width: 1100px; }
-
-    /* Tabulator (Branded) Overrides */
-    .tabulator { font-family: 'Inter', sans-serif !important; border: 1px solid #F3F4F6 !important; border-radius: 16px !important; overflow: hidden !important; background: #fff !important; }
-    .tabulator .tabulator-header { background: #fff !important; border-bottom: 1px solid #F3F4F6 !important; }
-    .tabulator .tabulator-header .tabulator-col { background: #fff !important; border-right: 0 !important; }
-    .tabulator .tabulator-header .tabulator-col .tabulator-col-content { padding: 12px 12px !important; }
-    .tabulator .tabulator-header .tabulator-col .tabulator-col-title { font-size: 11px !important; font-weight: 800 !important; text-transform: uppercase !important; letter-spacing: .12em !important; color: #9CA3AF !important; }
-    .tabulator-row { border-bottom: 1px solid #F9FAFB !important; }
-    .tabulator-row:hover { background: #F9FAFB !important; }
-    .tabulator-cell { padding: 10px 12px !important; font-size: 13px !important; color: #111827 !important; border-right: 0 !important; }
-    .tabulator .tabulator-footer { border-top: 1px solid #F3F4F6 !important; background: #fff !important; }
-    .tabulator .tabulator-page { border-radius: 10px !important; border: 1px solid #E5E7EB !important; background: #fff !important; font-weight: 800 !important; font-size: 12px !important; }
-    .tabulator .tabulator-page.active { background: rgba(251, 191, 36, 0.15) !important; border-color: #FBBF24 !important; color: #92400E !important; }
-    .tabulator-editing input, .tabulator-editing select, .tabulator-editing textarea { border: 1px solid #E5E7EB !important; border-radius: 10px !important; padding: 8px 10px !important; font-size: 13px !important; outline: none !important; }
-    .tabulator-editing input:focus, .tabulator-editing select:focus, .tabulator-editing textarea:focus { box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.5) !important; border-color: #FBBF24 !important; }
-    .chl-badge { display:inline-flex; align-items:center; gap:6px; font-size: 11px; font-weight: 900; letter-spacing:.06em; padding: 4px 10px; border-radius: 999px; border: 1px solid #E5E7EB; }
-    .chl-badge.good { background:#ECFDF5; color:#065F46; border-color:#A7F3D0; }
-    .chl-badge.warn { background:#FFFBEB; color:#92400E; border-color:#FDE68A; }
-    .chl-badge.bad  { background:#FEF2F2; color:#991B1B; border-color:#FECACA; }
+    /* Table stays readable, scroll instead of collapsing */
+    .table-scroll {
+      overflow-x: auto;
+    }
+    .table-min {
+      min-width: 1100px;
+    }
   </style>
 </head>
 
@@ -148,16 +142,19 @@
     <div class="flex-1 overflow-y-auto p-6 lg:p-8" id="main-scroll">
 
       <div id="view-overview" class="view-section active">
+
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
           <div>
             <h1 class="text-3xl font-bold text-gray-900">Mission Control</h1>
             <p class="text-sm text-gray-500 mt-1">Daily decision support & system health.</p>
           </div>
+
           <div class="flex gap-4 flex-wrap">
             <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
               <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider" id="pulse-label">EST. VALUE</p>
               <p class="text-lg font-bold text-emerald-600 mt-1" id="pulse-profit">$0.00</p>
             </div>
+
             <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm min-w-[220px]">
               <div class="flex items-center justify-between gap-3">
                 <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Owed Leads</p>
@@ -171,6 +168,7 @@
               <p class="text-lg font-bold text-gray-900 mt-1" id="pulse-owed">0</p>
               <p class="text-[11px] font-semibold text-gray-500" id="pulse-owed-sub">All package statuses</p>
             </div>
+
             <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
               <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pending</p>
               <p class="text-lg font-bold text-yellow-500 mt-1" id="pulse-pending">0</p>
@@ -184,44 +182,98 @@
               <h3 class="font-bold text-gray-900 flex items-center gap-2">
                 <i class="fa-solid fa-heart-pulse text-red-500"></i> Client Health Monitor
               </h3>
+
               <div class="flex items-center gap-3">
-                <div class="status-container"><span class="status-dot st-critical"></span><span class="tooltip-text"><b>CRITICAL</b><br>No lead > 48h.</span></div>
-                <div class="status-container"><span class="status-dot st-risk"></span><span class="tooltip-text"><b>AT RISK</b><br>Lead < 48h but slow.</span></div>
-                <div class="status-container"><span class="status-dot st-healthy"></span><span class="tooltip-text"><b>HEALTHY</b><br>Active leads.</span></div>
-                <div class="status-container"><span class="status-dot st-new"></span><span class="tooltip-text"><b>NOT STARTED</b></span></div>
+                <div class="status-container">
+                  <span class="status-dot st-critical"></span>
+                  <span class="tooltip-text"><b>CRITICAL</b><br>No lead delivered in more than 48 hours.</span>
+                </div>
+                <div class="status-container">
+                  <span class="status-dot st-risk"></span>
+                  <span class="tooltip-text"><b>AT RISK</b><br>Lead within 48 hours but not healthy / no lead today & yesterday.</span>
+                </div>
+                <div class="status-container">
+                  <span class="status-dot st-healthy"></span>
+                  <span class="tooltip-text"><b>HEALTHY</b><br>At least 1 lead today AND at least 1 lead yesterday.</span>
+                </div>
+                <div class="status-container">
+                  <span class="status-dot st-new"></span>
+                  <span class="tooltip-text"><b>NOT STARTED</b><br>New campaign.</span>
+                </div>
               </div>
             </div>
+
             <div class="flex flex-col md:flex-row gap-3">
               <div class="flex-1 relative">
                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
-                <input id="health-search" type="text" placeholder="Search by code, company, or client..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+                <input
+                  id="health-search"
+                  type="text"
+                  placeholder="Search by code, roofing company, or client name..."
+                  class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                />
               </div>
-              <select id="health-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]"><option value="all">All Status</option></select>
+
+              <select id="health-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
+                <option value="all">All Status</option>
+              </select>
+
               <select id="health-filter-package" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[190px]">
                 <option value="all">All Package Status</option>
                 <option value="ACTIVE">ACTIVE</option>
                 <option value="PAUSE">PAUSE</option>
                 <option value="REFUNDED">REFUNDED</option>
               </select>
-              <select id="health-filter-location" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[190px]"><option value="all">All Locations</option></select>
-              <button id="health-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">Clear</button>
+
+              <select id="health-filter-location" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[190px]">
+                <option value="all">All Locations</option>
+              </select>
+
+              <button id="health-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
+                Clear
+              </button>
             </div>
           </div>
+
           <div class="client-health-scroll">
             <table class="w-full text-left border-collapse">
               <thead class="bg-white sticky top-0 z-10 shadow-sm">
                 <tr>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase w-10">Status</th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="code">Code <span class="sort-icon" id="sort-code">↕</span></th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="roofingCompany">Roofing Company <span class="sort-icon" id="sort-roofingCompany">↕</span></th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="cityState">City/State <span class="sort-icon" id="sort-cityState">↕</span></th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="packageRatio">Package (Owed/Purchased) <span class="sort-icon" id="sort-packageRatio">↕</span></th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="code">
+                    Code <span class="sort-icon" id="sort-code">↕</span>
+                  </th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="roofingCompany">
+                    Roofing Company <span class="sort-icon" id="sort-roofingCompany">↕</span>
+                  </th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="cityState">
+                    City/State <span class="sort-icon" id="sort-cityState">↕</span>
+                  </th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="packageRatio">
+                    Package (Owed/Purchased) <span class="sort-icon" id="sort-packageRatio">↕</span>
+                  </th>
+
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Qualified</th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Credited</th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsToday">Leads Today <span class="sort-icon" id="sort-leadsToday">↕</span></th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsYesterday">Leads Yesterday <span class="sort-icon" id="sort-leadsYesterday">↕</span></th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsToday">
+                    Leads Today <span class="sort-icon" id="sort-leadsToday">↕</span>
+                  </th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsYesterday">
+                    Leads Yesterday <span class="sort-icon" id="sort-leadsYesterday">↕</span>
+                  </th>
+
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase">Package Status</th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="clientName">Client Name <span class="sort-icon" id="sort-clientName">↕</span></th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="clientName">
+                    Client Name <span class="sort-icon" id="sort-clientName">↕</span>
+                  </th>
+
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase">Purchase Date</th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase">Last Lead Received</th>
                 </tr>
@@ -235,7 +287,10 @@
 
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8 overflow-hidden">
           <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-gray-50/50">
-            <h3 class="font-bold text-gray-900 flex items-center gap-2"><i class="fa-solid fa-chart-column text-yellow-500"></i> Team Performance Analytics</h3>
+            <h3 class="font-bold text-gray-900 flex items-center gap-2">
+              <i class="fa-solid fa-chart-column text-yellow-500"></i> Team Performance Analytics
+            </h3>
+
             <div class="flex items-center gap-2 flex-wrap">
               <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
                 <button onclick="Admin.setAnalyticsPeriod('today', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
@@ -245,56 +300,141 @@
                 <button onclick="Admin.setAnalyticsPeriod('6-weeks', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">6 Weeks</button>
                 <button onclick="Admin.setAnalyticsPeriod('all-time', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
               </div>
+
               <div class="relative">
-                <button id="custom-range-toggle" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2"><i class="fa-regular fa-calendar"></i> Custom</button>
-                <div id="custom-range-popover" class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
-                  <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">Custom Timeframe</div>
+                <button id="custom-range-toggle"
+                        class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                  <i class="fa-regular fa-calendar"></i> Custom
+                </button>
+
+                <div id="custom-range-popover"
+                     class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                  <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">
+                    Custom Timeframe
+                  </div>
                   <div class="grid grid-cols-2 gap-2">
-                    <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label><input id="custom-start" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/></div>
-                    <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label><input id="custom-end" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/></div>
+                    <div>
+                      <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+                      <input id="custom-start" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
+                    </div>
+                    <div>
+                      <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+                      <input id="custom-end" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
+                    </div>
                   </div>
                   <div class="flex justify-end gap-2 mt-3">
-                    <button id="custom-clear" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">Clear</button>
-                    <button id="custom-apply" class="px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">Apply</button>
+                    <button id="custom-clear"
+                            class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
+                      Clear
+                    </button>
+                    <button id="custom-apply"
+                            class="px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">
+                      Apply
+                    </button>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+
           <div class="p-5">
             <div class="grid grid-cols-1 md:grid-cols-6 gap-3 mb-5">
-              <div class="kpi-tile"><div class="kpi-label">Total Leads</div><div class="kpi-value" id="kpi-total">0</div><div class="kpi-sub" id="kpi-range">—</div></div>
-              <div class="kpi-tile"><div class="kpi-label">QC Rejected</div><div class="kpi-value text-red-500" id="kpi-qc-rejected">0</div><div class="kpi-sub">Rejected</div></div>
-              <div class="kpi-tile"><div class="kpi-label">Qualified</div><div class="kpi-value text-blue-500" id="kpi-qualified">0</div><div class="kpi-sub">Confirmed / Approved</div></div>
-              <div class="kpi-tile"><div class="kpi-label">Credited</div><div class="kpi-value text-purple-500" id="kpi-credited">0</div><div class="kpi-sub">Credited only</div></div>
-              <div class="kpi-tile"><div class="kpi-label">Pending</div><div class="kpi-value text-yellow-500" id="kpi-pending">0</div><div class="kpi-sub">Pending review</div></div>
-              <div class="kpi-tile"><div class="kpi-label">Cancellation Rate</div><div class="kpi-value" id="kpi-cancel">0%</div><div class="kpi-sub">Credited / (Qualified + Credited)</div></div>
+              <div class="kpi-tile">
+                <div class="kpi-label">Total Leads</div>
+                <div class="kpi-value" id="kpi-total">0</div>
+                <div class="kpi-sub" id="kpi-range">—</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">QC Rejected</div>
+                <div class="kpi-value text-red-500" id="kpi-qc-rejected">0</div>
+                <div class="kpi-sub">Rejected</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">Qualified</div>
+                <div class="kpi-value text-blue-500" id="kpi-qualified">0</div>
+                <div class="kpi-sub">Confirmed / Approved</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">Credited</div>
+                <div class="kpi-value text-purple-500" id="kpi-credited">0</div>
+                <div class="kpi-sub">Credited only</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">Pending</div>
+                <div class="kpi-value text-yellow-500" id="kpi-pending">0</div>
+                <div class="kpi-sub">Pending review</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">Cancellation Rate</div>
+                <div class="kpi-value" id="kpi-cancel">0%</div>
+                <div class="kpi-sub">Credited / (Qualified + Credited)</div>
+              </div>
             </div>
+
             <div class="bg-white border border-gray-100 rounded-2xl p-4">
-              <div class="flex items-center justify-between mb-2"><p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Trend (stacked)</p><p class="text-xs text-gray-400" id="trend-grain">—</p></div>
-              <div class="w-full overflow-x-auto"><div class="min-w-[720px]"><canvas id="team-analytics-chart" height="110"></canvas></div></div>
+              <div class="flex items-center justify-between mb-2">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Trend (stacked)</p>
+                <p class="text-xs text-gray-400" id="trend-grain">—</p>
+              </div>
+              <div class="w-full overflow-x-auto">
+                <div class="min-w-[720px]">
+                  <canvas id="team-analytics-chart" height="110"></canvas>
+                </div>
+              </div>
             </div>
           </div>
+
           <div class="border-t border-gray-100 p-5 bg-gray-50/40 space-y-6">
             <div>
-              <div class="flex items-center justify-between mb-3"><h4 class="font-bold text-gray-900 flex items-center gap-2"><i class="fa-solid fa-trophy text-yellow-500"></i> Top 10 Agents</h4><span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider" id="top10-label">—</span></div>
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="font-bold text-gray-900 flex items-center gap-2">
+                  <i class="fa-solid fa-trophy text-yellow-500"></i> Top 10 Agents
+                </h4>
+                <span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider" id="top10-label">—</span>
+              </div>
               <div class="overflow-x-auto bg-white rounded-2xl border border-gray-100">
                 <table class="w-full text-left text-sm">
                   <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
-                    <tr><th class="p-4">Agent</th><th class="p-4 text-center">Total</th><th class="p-4 text-center text-red-500">QC Rejected</th><th class="p-4 text-center text-blue-500">Qualified</th><th class="p-4 text-center text-purple-500">Credited</th><th class="p-4 text-center text-yellow-500">Pending</th><th class="p-4 text-center">Cancellation Rate</th></tr>
+                    <tr>
+                      <th class="p-4">Agent</th>
+                      <th class="p-4 text-center">Total</th>
+                      <th class="p-4 text-center text-red-500">QC Rejected</th>
+                      <th class="p-4 text-center text-blue-500">Qualified</th>
+                      <th class="p-4 text-center text-purple-500">Credited</th>
+                      <th class="p-4 text-center text-yellow-500">Pending</th>
+                      <th class="p-4 text-center">Cancellation Rate</th>
+                    </tr>
                   </thead>
-                  <tbody id="top10-body" class="divide-y divide-gray-50"><tr><td colspan="7" class="p-6 text-center text-gray-400 italic">Calculating...</td></tr></tbody>
+                  <tbody id="top10-body" class="divide-y divide-gray-50">
+                    <tr><td colspan="7" class="p-6 text-center text-gray-400 italic">Calculating...</td></tr>
+                  </tbody>
                 </table>
               </div>
             </div>
+
             <div>
-              <div class="flex items-center justify-between mb-3"><h4 class="font-bold text-gray-900 flex items-center gap-2"><i class="fa-solid fa-arrow-down-wide-short text-red-500"></i> Bottom 5 Agents (≤ 5 Total Leads)</h4><span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider" id="bottom5-label">—</span></div>
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="font-bold text-gray-900 flex items-center gap-2">
+                  <i class="fa-solid fa-arrow-down-wide-short text-red-500"></i> Bottom 5 Agents (≤ 5 Total Leads)
+                </h4>
+                <span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider" id="bottom5-label">—</span>
+              </div>
               <div class="overflow-x-auto bg-white rounded-2xl border border-gray-100">
                 <table class="w-full text-left text-sm">
                   <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
-                    <tr><th class="p-4">Agent</th><th class="p-4 text-center">Total</th><th class="p-4 text-center text-red-500">QC Rejected</th><th class="p-4 text-center text-blue-500">Qualified</th><th class="p-4 text-center text-purple-500">Credited</th><th class="p-4 text-center text-yellow-500">Pending</th><th class="p-4 text-center">Cancellation Rate</th></tr>
+                    <tr>
+                      <th class="p-4">Agent</th>
+                      <th class="p-4 text-center">Total</th>
+                      <th class="p-4 text-center text-red-500">QC Rejected</th>
+                      <th class="p-4 text-center text-blue-500">Qualified</th>
+                      <th class="p-4 text-center text-purple-500">Credited</th>
+                      <th class="p-4 text-center text-yellow-500">Pending</th>
+                      <th class="p-4 text-center">Cancellation Rate</th>
+                    </tr>
                   </thead>
-                  <tbody id="bottom5-body" class="divide-y divide-gray-50"><tr><td colspan="7" class="p-6 text-center text-gray-400 italic">Calculating...</td></tr></tbody>
+                  <tbody id="bottom5-body" class="divide-y divide-gray-50">
+                    <tr><td colspan="7" class="p-6 text-center text-gray-400 italic">Calculating...</td></tr>
+                  </tbody>
                 </table>
               </div>
             </div>
@@ -304,47 +444,103 @@
 
       <div id="view-clients" class="view-section">
         <h2 class="text-2xl font-bold text-gray-900 mb-6">Passbook Clients</h2>
+        
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
           <div class="flex flex-col lg:flex-row gap-3 lg:items-end">
             <div class="flex-1 relative">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
-              <input id="passbook-search" type="text" placeholder="Search roofing company, code, city/state, client name..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+              <input
+                id="passbook-search"
+                type="text"
+                placeholder="Search roofing company, code, city/state, client name..."
+                class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              />
             </div>
-            <select id="passbook-filter-location" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]"><option value="all">All Locations</option></select>
+
+            <select id="passbook-filter-location"
+                    class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
+              <option value="all">All Locations</option>
+            </select>
+
             <div class="flex bg-gray-200 p-1 rounded-lg">
-              <button id="passbook-view-cards" class="px-3 py-2 text-xs font-extrabold rounded-md bg-white shadow text-gray-900">Cards</button>
-              <button id="passbook-view-list" class="px-3 py-2 text-xs font-extrabold rounded-md text-gray-500 hover:text-gray-900">List</button>
+              <button id="passbook-view-cards"
+                      class="px-3 py-2 text-xs font-extrabold rounded-md bg-white shadow text-gray-900">
+                Cards
+              </button>
+              <button id="passbook-view-list"
+                      class="px-3 py-2 text-xs font-extrabold rounded-md text-gray-500 hover:text-gray-900">
+                List
+              </button>
             </div>
-            <button id="passbook-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">Clear</button>
+
+            <button id="passbook-clear"
+                    class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
+              Clear
+            </button>
           </div>
-          <div class="mt-3 text-xs text-gray-500">Showing <span class="font-bold" id="passbook-count">0</span> clients</div>
+
+          <div class="mt-3 text-xs text-gray-500">
+            Showing <span class="font-bold" id="passbook-count">0</span> clients
+          </div>
         </div>
+
         <div id="passbook-list-wrap" class="hidden bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-6">
           <div class="overflow-x-auto">
             <table class="w-full text-left text-sm whitespace-nowrap">
               <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
-                <tr><th class="p-4">Code</th><th class="p-4">Roofing Company</th><th class="p-4">City/State</th><th class="p-4">Client Name</th><th class="p-4 text-right">Open</th></tr>
+                <tr>
+                  <th class="p-4">Code</th>
+                  <th class="p-4">Roofing Company</th>
+                  <th class="p-4">City/State</th>
+                  <th class="p-4">Client Name</th>
+                  <th class="p-4 text-right">Open</th>
+                </tr>
               </thead>
               <tbody id="passbook-list-body" class="divide-y divide-gray-50"></tbody>
             </table>
           </div>
         </div>
+
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="client-cards-container">
-          <div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">Waiting for admin data...</div>
+          <div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">
+            Waiting for admin data...
+          </div>
         </div>
+
         <div id="passbook-modal" class="hidden fixed inset-0 z-50">
           <div class="absolute inset-0 bg-black/40" onclick="Admin.closePassbookModal()"></div>
+
           <div class="relative mx-auto mt-10 w-[94%] max-w-5xl bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
             <div class="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-              <div><h3 class="font-extrabold text-gray-900" id="passbook-modal-title">Client Details</h3><p class="text-xs text-gray-500 mt-1" id="passbook-modal-sub">—</p></div>
-              <button class="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50" onclick="Admin.closePassbookModal()"><i class="fa-solid fa-xmark"></i></button>
+              <div>
+                <h3 class="font-extrabold text-gray-900" id="passbook-modal-title">Client Details</h3>
+                <p class="text-xs text-gray-500 mt-1" id="passbook-modal-sub">—</p>
+              </div>
+              <button class="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                      onclick="Admin.closePassbookModal()">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
             </div>
+
             <form id="passbookClientForm" class="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
               <input type="hidden" id="codeName" name="codeName" value="">
-              <div id="passbook-form-body"><div class="p-4 rounded-xl border border-gray-100 bg-gray-50/40 text-sm text-gray-500 italic">Loading client details...</div></div>
+
+              <div id="passbook-form-body">
+                <div class="p-4 rounded-xl border border-gray-100 bg-gray-50/40 text-sm text-gray-500 italic">
+                  Loading client details...
+                </div>
+              </div>
+
               <div class="flex items-center justify-end gap-2 pt-4 border-t border-gray-100">
-                <button type="button" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50" onclick="Admin.closePassbookModal()">Cancel</button>
-                <button id="passbookSaveButton" type="submit" class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800">Save Changes</button>
+                <button type="button"
+                        class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50"
+                        onclick="Admin.closePassbookModal()">
+                  Cancel
+                </button>
+                <button id="passbookSaveButton" type="submit"
+                        class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800">
+                  Save Changes
+                </button>
               </div>
             </form>
           </div>
@@ -353,40 +549,91 @@
 
       <div id="view-leads" class="view-section">
         <h2 class="text-2xl font-bold text-gray-900 mb-4">Leads Master Record</h2>
+
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
           <div class="controls-wrap">
             <div class="flex-1 relative" style="min-width: 260px;">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
-              <input id="leads-search" type="text" placeholder="Search..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+              <input
+                id="leads-search"
+                type="text"
+                placeholder="Search homeowner, appointment coordinator, roofing company, status, lead ID, email, phone..."
+                class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              />
             </div>
-            <select id="leads-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]"><option value="all">All Status</option></select>
-            <select id="leads-filter-company" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[240px]"><option value="all">All Roofing Company</option></select>
-            <select id="leads-filter-ac" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]"><option value="all">All Appointment Coordinators</option></select>
-            <select id="leads-filter-homeowner" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]"><option value="all">All Homeowners</option></select>
+
+            <select id="leads-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
+              <option value="all">All Status</option>
+            </select>
+
+            <select id="leads-filter-company" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[240px]">
+              <option value="all">All Roofing Company</option>
+            </select>
+
+            <select id="leads-filter-ac" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
+              <option value="all">All Appointment Coordinators</option>
+            </select>
+
+            <select id="leads-filter-homeowner" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
+              <option value="all">All Homeowners</option>
+            </select>
+
             <div class="flex items-center gap-2">
-              <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label><input id="leads-date-start" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/></div>
-              <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label><input id="leads-date-end" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/></div>
+              <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+                <input id="leads-date-start" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+                <input id="leads-date-end" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
+              </div>
             </div>
-            <button id="leads-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">Clear</button>
+
+            <button id="leads-clear"
+                    class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
+              Clear
+            </button>
+
             <div class="relative">
-              <button id="leads-columns-toggle" class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800 flex items-center gap-2"><i class="fa-solid fa-table-columns"></i> Columns</button>
-              <div id="leads-columns-popover" class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
-                <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">Visible Columns</div>
+              <button id="leads-columns-toggle"
+                      class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800 flex items-center gap-2">
+                <i class="fa-solid fa-table-columns"></i> Columns
+              </button>
+
+              <div id="leads-columns-popover"
+                   class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">
+                  Visible Columns
+                </div>
                 <div id="leads-columns-box" class="max-h-[280px] overflow-y-auto space-y-2 pr-1"></div>
+
                 <div class="flex justify-end gap-2 mt-3">
-                  <button id="leads-columns-all" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">All</button>
-                  <button id="leads-columns-min" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">Minimal</button>
+                  <button id="leads-columns-all"
+                          class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
+                    All
+                  </button>
+                  <button id="leads-columns-min"
+                          class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
+                    Minimal
+                  </button>
                 </div>
               </div>
             </div>
+
           </div>
-          <div class="mt-3 text-xs text-gray-500">Showing <span class="font-bold" id="leads-count">0</span> leads</div>
+
+          <div class="mt-3 text-xs text-gray-500">
+            Showing <span class="font-bold" id="leads-count">0</span> leads
+          </div>
         </div>
+
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div class="table-scroll">
             <table class="table-min w-full text-left text-sm whitespace-nowrap">
               <thead id="leads-table-head" class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100"></thead>
-              <tbody id="leads-table-body" class="divide-y divide-gray-50"><tr><td class="p-6 text-center text-gray-400">Loading leads...</td></tr></tbody>
+              <tbody id="leads-table-body" class="divide-y divide-gray-50">
+                <tr><td class="p-6 text-center text-gray-400">Loading leads...</td></tr>
+              </tbody>
             </table>
           </div>
         </div>
@@ -394,7 +641,11 @@
 
       <div id="view-team" class="view-section">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
-          <div><h2 class="text-2xl font-bold text-gray-900">Team</h2><p class="text-sm text-gray-500 mt-1">Monitor all agents + drill into each agent’s leads.</p></div>
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">Team</h2>
+            <p class="text-sm text-gray-500 mt-1">Monitor all agents + drill into each agent’s leads.</p>
+          </div>
+
           <div class="flex items-center gap-2 flex-wrap">
             <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
               <button onclick="Admin.setTeamPeriod('today', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
@@ -404,62 +655,121 @@
               <button onclick="Admin.setTeamPeriod('6-weeks', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">6 Weeks</button>
               <button onclick="Admin.setTeamPeriod('all-time', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
             </div>
+
             <div class="relative">
-              <button id="team-custom-toggle" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2"><i class="fa-regular fa-calendar"></i> Custom</button>
-              <div id="team-custom-popover" class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
-                <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">Custom Timeframe</div>
+              <button id="team-custom-toggle"
+                      class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                <i class="fa-regular fa-calendar"></i> Custom
+              </button>
+
+              <div id="team-custom-popover"
+                   class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">
+                  Custom Timeframe
+                </div>
                 <div class="grid grid-cols-2 gap-2">
-                  <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label><input id="team-custom-start" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/></div>
-                  <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label><input id="team-custom-end" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/></div>
+                  <div>
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+                    <input id="team-custom-start" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+                    <input id="team-custom-end" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
+                  </div>
                 </div>
                 <div class="flex justify-end gap-2 mt-3">
-                  <button id="team-custom-clear" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">Clear</button>
-                  <button id="team-custom-apply" class="px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">Apply</button>
+                  <button id="team-custom-clear"
+                          class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
+                    Clear
+                  </button>
+                  <button id="team-custom-apply"
+                          class="px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">
+                    Apply
+                  </button>
                 </div>
               </div>
             </div>
           </div>
         </div>
+
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
           <div class="flex flex-col md:flex-row md:items-center gap-3">
             <div class="flex-1 relative">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
-              <input id="team-search" type="text" placeholder="Search agent name..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+              <input
+                id="team-search"
+                type="text"
+                placeholder="Search agent name..."
+                class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              />
             </div>
             <div class="flex items-center gap-2">
-              <select id="team-stage-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
-                <option value="all">All Stages</option><option value="active" selected>Active</option><option value="onboarding">Onboarding</option><option value="offboarded">Offboarded</option>
+              <select id="team-stage-filter"
+                      class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
+                <option value="all">All Stages</option>
+                <option value="active" selected>Active</option>
+                <option value="onboarding">Onboarding</option>
+                <option value="offboarded">Offboarded</option>
               </select>
-              <select id="team-warned-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
-                <option value="all" selected>Warned: All</option><option value="warned">Warned Only</option><option value="not-warned">Not Warned</option>
+              <select id="team-warned-filter"
+                      class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
+                <option value="all" selected>Warned: All</option>
+                <option value="warned">Warned Only</option>
+                <option value="not-warned">Not Warned</option>
               </select>
             </div>
           </div>
-          <div class="mt-3 text-xs text-gray-500">Showing <span class="font-bold" id="team-count">0</span> agents <span class="ml-2 text-gray-400" id="team-range-label">—</span></div>
+
+          <div class="mt-3 text-xs text-gray-500">
+            Showing <span class="font-bold" id="team-count">0</span> agents
+            <span class="ml-2 text-gray-400" id="team-range-label">—</span>
+          </div>
         </div>
+
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div class="overflow-x-auto">
             <table class="w-full text-left text-sm whitespace-nowrap">
               <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
                 <tr>
-                  <th class="p-4 cursor-pointer select-none" onclick="Admin.setTeamSort('name')">Agent <span id="team-sort-name" class="text-[10px] ml-1 text-gray-300">↕</span></th>
-                  <th class="p-4 text-center cursor-pointer select-none" onclick="Admin.setTeamSort('total')">Total <span id="team-sort-total" class="text-[10px] ml-1 text-gray-300">↕</span></th>
-                  <th class="p-4 text-center text-red-500 cursor-pointer select-none" onclick="Admin.setTeamSort('rejected')">QC Rejected <span id="team-sort-rejected" class="text-[10px] ml-1 text-gray-300">↕</span></th>
-                  <th class="p-4 text-center text-blue-500 cursor-pointer select-none" onclick="Admin.setTeamSort('qualified')">Qualified <span id="team-sort-qualified" class="text-[10px] ml-1 text-gray-300">↕</span></th>
-                  <th class="p-4 text-center text-purple-500 cursor-pointer select-none" onclick="Admin.setTeamSort('credited')">Credited <span id="team-sort-credited" class="text-[10px] ml-1 text-gray-300">↕</span></th>
-                  <th class="p-4 text-center text-yellow-500 cursor-pointer select-none" onclick="Admin.setTeamSort('pending')">Pending <span id="team-sort-pending" class="text-[10px] ml-1 text-gray-300">↕</span></th>
-                  <th class="p-4 text-center cursor-pointer select-none" onclick="Admin.setTeamSort('cancelRate')">Cancellation Rate <span id="team-sort-cancelRate" class="text-[10px] ml-1 text-gray-300">↕</span></th>
+                  <th class="p-4 cursor-pointer select-none" onclick="Admin.setTeamSort('name')">
+                    Agent <span id="team-sort-name" class="text-[10px] ml-1 text-gray-300">↕</span>
+                  </th>
+                  <th class="p-4 text-center cursor-pointer select-none" onclick="Admin.setTeamSort('total')">
+                    Total <span id="team-sort-total" class="text-[10px] ml-1 text-gray-300">↕</span>
+                  </th>
+                  <th class="p-4 text-center text-red-500 cursor-pointer select-none" onclick="Admin.setTeamSort('rejected')">
+                    QC Rejected <span id="team-sort-rejected" class="text-[10px] ml-1 text-gray-300">↕</span>
+                  </th>
+                  <th class="p-4 text-center text-blue-500 cursor-pointer select-none" onclick="Admin.setTeamSort('qualified')">
+                    Qualified <span id="team-sort-qualified" class="text-[10px] ml-1 text-gray-300">↕</span>
+                  </th>
+                  <th class="p-4 text-center text-purple-500 cursor-pointer select-none" onclick="Admin.setTeamSort('credited')">
+                    Credited <span id="team-sort-credited" class="text-[10px] ml-1 text-gray-300">↕</span>
+                  </th>
+                  <th class="p-4 text-center text-yellow-500 cursor-pointer select-none" onclick="Admin.setTeamSort('pending')">
+                    Pending <span id="team-sort-pending" class="text-[10px] ml-1 text-gray-300">↕</span>
+                  </th>
+                  <th class="p-4 text-center cursor-pointer select-none" onclick="Admin.setTeamSort('cancelRate')">
+                    Cancellation Rate <span id="team-sort-cancelRate" class="text-[10px] ml-1 text-gray-300">↕</span>
+                  </th>
                 </tr>
               </thead>
-              <tbody id="team-body" class="divide-y divide-gray-50"><tr><td colspan="7" class="p-6 text-center text-gray-400 italic">Loading team performance...</td></tr></tbody>
+              <tbody id="team-body" class="divide-y divide-gray-50">
+                <tr><td colspan="7" class="p-6 text-center text-gray-400 italic">Loading team performance...</td></tr>
+              </tbody>
             </table>
           </div>
         </div>
+
         <div id="agent-modal" class="hidden fixed inset-0 z-50">
           <div class="absolute inset-0 bg-black/40" onclick="Admin.closeAgentModal()"></div>
           <div class="relative mx-auto mt-10 w-[94%] max-w-6xl bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
             <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-gray-50/50">
-              <div><h3 class="font-extrabold text-gray-900" id="agent-modal-title">Agent Leads</h3><p class="text-xs text-gray-500 mt-1" id="agent-modal-sub">—</p></div>
+              <div>
+                <h3 class="font-extrabold text-gray-900" id="agent-modal-title">Agent Leads</h3>
+                <p class="text-xs text-gray-500 mt-1" id="agent-modal-sub">—</p>
+              </div>
+
               <div class="flex items-center gap-2 flex-wrap">
                 <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
                   <button onclick="Admin.setAgentPeriod('today', this)" class="agent-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
@@ -469,31 +779,76 @@
                   <button onclick="Admin.setAgentPeriod('6-weeks', this)" class="agent-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">6 Weeks</button>
                   <button onclick="Admin.setAgentPeriod('all-time', this)" class="agent-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
                 </div>
+
                 <div class="relative">
-                  <button id="agent-custom-toggle" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2"><i class="fa-regular fa-calendar"></i> Custom</button>
-                  <div id="agent-custom-popover" class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
-                    <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">Custom Timeframe</div>
+                  <button id="agent-custom-toggle"
+                          class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                    <i class="fa-regular fa-calendar"></i> Custom
+                  </button>
+
+                  <div id="agent-custom-popover"
+                       class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                    <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">
+                      Custom Timeframe
+                    </div>
                     <div class="grid grid-cols-2 gap-2">
-                      <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label><input id="agent-custom-start" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/></div>
-                      <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label><input id="agent-custom-end" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/></div>
+                      <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+                        <input id="agent-custom-start" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
+                      </div>
+                      <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+                        <input id="agent-custom-end" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
+                      </div>
                     </div>
                     <div class="flex justify-end gap-2 mt-3">
-                      <button id="agent-custom-clear" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">Clear</button>
-                      <button id="agent-custom-apply" class="px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">Apply</button>
+                      <button id="agent-custom-clear"
+                              class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
+                        Clear
+                      </button>
+                      <button id="agent-custom-apply"
+                              class="px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">
+                        Apply
+                      </button>
                     </div>
                   </div>
                 </div>
-                <button class="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50" onclick="Admin.closeAgentModal()"><i class="fa-solid fa-xmark"></i></button>
+
+                <button class="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                        onclick="Admin.closeAgentModal()">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
               </div>
             </div>
+
             <div class="p-4">
-              <div class="text-xs text-gray-500 mb-3">Showing <span class="font-bold" id="agent-leads-count">0</span> leads <span class="ml-2 text-gray-400" id="agent-range-label">—</span></div>
+              <div class="text-xs text-gray-500 mb-3">
+                Showing <span class="font-bold" id="agent-leads-count">0</span> leads
+                <span class="ml-2 text-gray-400" id="agent-range-label">—</span>
+              </div>
               <div class="overflow-x-auto">
                 <table class="min-w-[1400px] w-full text-left text-sm whitespace-nowrap">
                   <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
-                    <tr><th class="p-3">Date Submitted</th><th class="p-3">Lead ID</th><th class="p-3">Roofing Company</th><th class="p-3">Appointment Coordinator Name</th><th class="p-3">Homeowner Name(s)</th><th class="p-3">Email of Homeowner</th><th class="p-3">Homeowner Phone Number</th><th class="p-3">Appointment Date / Time</th><th class="p-3">Address</th><th class="p-3">Age of Roof</th><th class="p-3">Insurance Company</th><th class="p-3">Additional Notes</th><th class="p-3">Status</th><th class="p-3">Reviewed By</th></tr>
+                    <tr>
+                      <th class="p-3">Date Submitted</th>
+                      <th class="p-3">Lead ID</th>
+                      <th class="p-3">Roofing Company</th>
+                      <th class="p-3">Appointment Coordinator Name</th>
+                      <th class="p-3">Homeowner Name(s)</th>
+                      <th class="p-3">Email of Homeowner</th>
+                      <th class="p-3">Homeowner Phone Number</th>
+                      <th class="p-3">Appointment Date / Time</th>
+                      <th class="p-3">Address</th>
+                      <th class="p-3">Age of Roof</th>
+                      <th class="p-3">Insurance Company</th>
+                      <th class="p-3">Additional Notes</th>
+                      <th class="p-3">Status</th>
+                      <th class="p-3">Reviewed By</th>
+                    </tr>
                   </thead>
-                  <tbody id="agent-leads-body" class="divide-y divide-gray-50"><tr><td colspan="14" class="p-6 text-center text-gray-400 italic">Loading leads...</td></tr></tbody>
+                  <tbody id="agent-leads-body" class="divide-y divide-gray-50">
+                    <tr><td colspan="14" class="p-6 text-center text-gray-400 italic">Loading leads...</td></tr>
+                  </tbody>
                 </table>
               </div>
             </div>
@@ -503,73 +858,78 @@
 
       <div id="view-payroll" class="view-section">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
-          <div><h2 class="text-2xl font-bold text-gray-900">Payroll & Finance</h2><p class="text-sm text-gray-500 mt-1">Weekly payroll rollups + history. Edit in dashboard, auto-saves to Google Sheets.</p></div>
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">Payroll & Finance</h2>
+            <p class="text-sm text-gray-500 mt-1">Weekly payroll rollups + financial totals (based on Payroll Week Start).</p>
+          </div>
+
           <div class="flex items-center gap-2 flex-wrap">
-            <div class="flex bg-gray-200 p-1 rounded-lg gap-1">
-              <button id="pf-tab-weekly" class="px-3 py-2 text-xs font-extrabold rounded-md bg-white shadow text-gray-900">Weekly Payroll</button>
-              <button id="pf-tab-history" class="px-3 py-2 text-xs font-extrabold rounded-md text-gray-500 hover:text-gray-900">Payroll History</button>
+            <div>
+              <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Payroll Week</label>
+              <select id="payroll-week-select" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
+                <option value="latest" selected>Latest</option>
+              </select>
             </div>
-            <div id="pf-weekly-controls" class="flex items-end gap-2 flex-wrap">
-              <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Payroll Week</label><select id="pf-week-select" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]"><option>Loading…</option></select></div>
-              <button id="pf-export-week" class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800"><i class="fa-solid fa-file-export mr-2"></i> Export CSV</button>
-            </div>
-            <div id="pf-history-controls" class="hidden flex items-end gap-2 flex-wrap">
-              <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label><input id="pf-hist-start" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/></div>
-              <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label><input id="pf-hist-end" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/></div>
-              <button id="pf-hist-apply" class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800">Apply</button>
-            </div>
+
+            <button id="payroll-export"
+                    class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800">
+              <i class="fa-solid fa-file-export mr-2"></i> Export CSV
+            </button>
           </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-5">
-          <div class="kpi-tile"><div class="kpi-label">Total Weekly Pay</div><div class="kpi-value text-gray-900" id="pf-kpi-totalpay">$0.00</div><div class="kpi-sub">Sum of Total Weekly Pay</div></div>
-          <div class="kpi-tile"><div class="kpi-label">Agents Paid</div><div class="kpi-value text-emerald-600" id="pf-kpi-paid">0</div><div class="kpi-sub">Payroll Status = Paid</div></div>
-          <div class="kpi-tile"><div class="kpi-label">Agents Unpaid</div><div class="kpi-value text-yellow-600" id="pf-kpi-unpaid">0</div><div class="kpi-sub">Needs payment/review</div></div>
-          <div class="kpi-tile"><div class="kpi-label">Active Agents Shown</div><div class="kpi-value" id="pf-kpi-active">0</div><div class="kpi-sub">Stage filter applied</div></div>
-          <div class="kpi-tile"><div class="kpi-label">Payroll Week Range</div><div class="kpi-value" style="font-size:14px;" id="pf-kpi-range">—</div><div class="kpi-sub">Sat → Fri</div></div>
-        </div>
-        <div id="pf-weekly-filters" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
-          <div class="controls-wrap">
-            <div class="flex-1 relative" style="min-width: 260px;">
-              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
-              <input id="pf-search" type="text" placeholder="Search agent name or email..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
-            </div>
-            <select id="pf-stage-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[190px]">
-              <option value="active" selected>Active Agents</option><option value="all">All Stages</option><option value="onboarding">Onboarding</option><option value="offboarded">Offboarded</option>
-            </select>
-            <select id="pf-pay-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
-              <option value="all" selected>All Pay Status</option><option value="paid">Paid Only</option><option value="unpaid">Unpaid Only</option>
-            </select>
-            <select id="pf-haspay-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[210px]">
-              <option value="all" selected>All Agents</option><option value="haspay">Has Salary This Week</option><option value="zero">Zero This Week</option>
-            </select>
-            <button id="pf-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">Clear</button>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-5">
+          <div class="kpi-tile">
+            <div class="kpi-label">Qualified Appointments</div>
+            <div class="kpi-value text-blue-500" id="payroll-kpi-qualified">0</div>
+            <div class="kpi-sub">Confirmed / Approved</div>
           </div>
-          <div class="mt-3 text-xs text-gray-500 flex items-center gap-2"><span>Showing <span class="font-bold" id="pf-count">0</span> rows</span><span class="text-gray-300">•</span><span class="font-bold" id="pf-save-status"></span></div>
+          <div class="kpi-tile">
+            <div class="kpi-label">Unqualified Appointments</div>
+            <div class="kpi-value text-purple-500" id="payroll-kpi-unqualified">0</div>
+            <div class="kpi-sub">Credited only</div>
+          </div>
+          <div class="kpi-tile">
+            <div class="kpi-label">Est. Revenue</div>
+            <div class="kpi-value text-emerald-600" id="payroll-kpi-revenue">$0.00</div>
+            <div class="kpi-sub">$125 × Qualified</div>
+          </div>
+          <div class="kpi-tile">
+            <div class="kpi-label">Payroll Week Range</div>
+            <div class="kpi-value" style="font-size:14px;" id="payroll-kpi-range">—</div>
+            <div class="kpi-sub">Based on Payroll Week Start</div>
+          </div>
         </div>
-        <div id="pf-weekly-wrap" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-6"><div id="pf-weekly-grid"></div></div>
-        <div id="pf-history-wrap" class="hidden bg-white rounded-2xl border border-gray-100 shadow-sm p-4"><div class="text-xs text-gray-500 mb-3"><span class="font-bold" id="pf-save-status-hist"></span></div><div id="pf-history-grid"></div></div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div class="table-scroll">
+            <table class="table-min w-full text-left text-sm whitespace-nowrap">
+              <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+                <tr>
+                  <th class="p-4">Appointment Coordinator</th>
+                  <th class="p-4 text-center">Qualified</th>
+                  <th class="p-4 text-center">Unqualified</th>
+                  <th class="p-4 text-center">Total</th>
+                  <th class="p-4 text-right">Est. Revenue</th>
+                </tr>
+              </thead>
+              <tbody id="payroll-body" class="divide-y divide-gray-50">
+                <tr><td colspan="5" class="p-6 text-center text-gray-400 italic">Loading payroll...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
     </div>
   </main>
 
   <script>
-    window.portal = window.portal || {};
-    window.portal.webhooks = window.portal.webhooks || {};
-
-    // REQUIRED for Payroll grids:
-    window.portal.webhooks.payrollWeeks       = "YOUR_N8N_GET_WEEKS_URL";
-    window.portal.webhooks.payrollWeekly      = "YOUR_N8N_GET_WEEKLY_ROWS_URL";   // ?weekStart=YYYY-MM-DD
-    window.portal.webhooks.payrollHistory     = "YOUR_N8N_GET_HISTORY_URL";       // ?start=YYYY-MM-DD&end=YYYY-MM-DD
-    window.portal.webhooks.payrollUpdateCell  = "YOUR_N8N_POST_UPDATE_CELL_URL";  // {sheet,rowKey,column,value}
-  </script>
-
-  <script>
     const AdminDashboard = {
       perfPeriod: 'today',
       analyticsPeriod: 'today',
 
-      // TEAM STATE
+      // ✅ TEAM STATE
       teamPeriod: 'today',
       _teamCustomRange: { active: false, start: null, end: null },
       teamStageFilter: 'active',
@@ -578,42 +938,42 @@
       teamSortDir: 'asc',
       _teamBound: false,
 
-      // AGENT DRILLDOWN STATE
+      // ✅ AGENT DRILLDOWN STATE
       _agentSelectedName: null,
       agentPeriod: 'today',
       _agentCustomRange: { active: false, start: null, end: null },
       _agentBound: false,
-
-      // PAYROLL GRID STATE (new)
-      _pf: {
-        tab: "weekly",
-        weeklyTable: null,
-        historyTable: null,
-        weeks: [],
-        currentWeek: "",
-        saveTimer: null,
-        bound: false,
-        weeklyRaw: [],
-        weeklyView: [],
-      },
       
-      // Existing states
+      // ✅ PAYROLL STATE
       _payrollBound: false,
+
       clientHealthRaw: [],
       clientHealthView: [],
       sortState: { key: null, dir: 'asc' },
+
       _companyToCodeMap: null,
       _companyToPackageMap: null,
+
       _analyticsChart: null,
+
+      // ✅ lead index (by company + by code) for purchase-date based counting
       _leadsIndexByCompany: null,
       _leadsIndexByCode: null,
+
+      // ✅ custom range for analytics
       _customRange: { active: false, start: null, end: null },
+
+      // ✅ Leads Master Record UI state
       _leadsCols: null,
       _leadsVisibleCols: null,
       _leadsFiltersBound: false,
-      _leadsSort: { key: "date_submitted", dir: "desc" },
+      _leadsSort: { key: "date_submitted", dir: "desc" }, // default newest first
+
+      // ✅ Passbook View state
       _passbookView: "cards",
       _passbookFiltersBound: false,
+
+      // ✅ NEW: Owed KPI
       _owedKpiBound: false,
 
       getState() {
@@ -622,10 +982,7 @@
 
       refreshDashboard() {
         const state = this.getState();
-        if (!state) {
-          console.warn("AdminDashboard: No state found.");
-          return;
-        }
+        if (!state) return;
 
         const clients = Array.isArray(state.clients) ? state.clients : [];
         const leads   = Array.isArray(state.leads) ? state.leads : [];
@@ -634,7 +991,7 @@
         this._companyToCodeMap = null;
         this._companyToPackageMap = null;
 
-        // build lead index
+        // ✅ build lead index (so we can count FROM purchase date per client row)
         const idx = this.buildLeadIndex(leads);
         this._leadsIndexByCompany = idx.byCompany;
         this._leadsIndexByCode = idx.byCode;
@@ -643,47 +1000,36 @@
           this.clientHealthRaw = this.normalizeClientHealthRows(clients);
           this.setupFilters(this.clientHealthRaw);
           this.applyClientHealthFilters();
-        } catch(e) { console.error("Client Health Error:", e); }
+        } catch(e) {}
 
-        try { this.updateAnalytics(this.analyticsPeriod); } catch(e) { console.error("Analytics Error:", e); }
-        try { this.bindTeamUI(); this.renderTeam(); } catch(e) { console.error("Team Error:", e); }
+        try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
+
+        // ✅ Bind Team UI + Render
+        try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
         
+        // ✅ New Passbook Logic
         try {
           this.setupPassbookFilters(clients);
           this.bindPassbookUI(clients);
           this.applyPassbookFilters(clients);
-        } catch(e) { console.error("Passbook Error:", e); }
+        } catch(e) {}
         
         try {
+          // ✅ setup lead filters UI + columns UI + render filtered view
           this.initLeadsColumnsUI();
           this.setupLeadFilters(leads);
           this.bindLeadsMasterEvents();
-          this.applyLeadsFilters();
-        } catch(e) { console.error("Leads Master Error:", e); }
+          this.applyLeadsFilters(); // renders with filters/search applied
+        } catch(e) {}
 
-        try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) { console.error("Owed KPI Error:", e); }
+        // ✅ NEW: Update Owed KPI
+        try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
 
-        // Start new payroll logic (uncommented to ensure it loads)
-        try { this.pfInit(); } catch(e) { console.error("Payroll Init Error:", e); }
+        // ✅ NEW: Update Payroll
+        try { this.bindPayrollUI(); this.renderPayrollFinance(); } catch(e) {}
       },
 
-      // Fallback for main.js compatibility
-      renderPayrollFinance() {
-        console.log("Legacy renderPayrollFinance called. Redirecting to pfInit...");
-        this.pfInit();
-      },
-
-      nav(viewId, linkEl) {
-        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-        document.getElementById('view-' + viewId).classList.add('active');
-        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        linkEl.classList.add('active');
-
-        if (viewId === "payroll") {
-          try { this.pfInit(); } catch(e) {}
-        }
-      },
-
+      // ✅ Generic: highlights the clicked button in a segmented control
       _setActiveButton(btnSelector, btnElement) {
         document.querySelectorAll(btnSelector).forEach(b => {
           b.classList.remove("bg-white", "shadow", "text-gray-900");
@@ -695,6 +1041,7 @@
         }
       },
 
+      // ✅ Optional: show custom is active (adds a ring to the Custom button)
       _setCustomActive(toggleId, isActive) {
         const t = document.getElementById(toggleId);
         if (!t) return;
@@ -710,8 +1057,12 @@
         return fallback;
       },
 
-      getLeadField(l, keys, fallback="—") { return this.pick(l, keys, fallback); },
+      // ✅ Lead field getter (supports many header spellings)
+      getLeadField(l, keys, fallback="—") {
+        return this.pick(l, keys, fallback);
+      },
 
+      // ✅ Define ALL columns you want (RAW leads style)
       getLeadsColumns() {
         return [
           { key: "date_submitted", label: "Date Submitted", keys: ["Date Submitted"] },
@@ -731,16 +1082,19 @@
         ];
       },
 
+      // ✅ Default visible columns (minimal view)
       getLeadsDefaultVisibleCols() {
         return new Set(["date_submitted","homeowner_name","appointment_coordinator","roofing_company","status"]);
       },
 
+      // ✅ Parse lead date using existing portal.parseDateSafe
       getLeadDateObj(l) {
         const dStr = this.getLeadField(l, ["Date Submitted"], "");
         const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
         return (dt && !isNaN(dt.getTime())) ? dt : null;
       },
 
+      // ✅ Build dropdown filter options
       setupLeadFilters(leads) {
         const statusSel = document.getElementById("leads-filter-status");
         const compSel = document.getElementById("leads-filter-company");
@@ -760,6 +1114,7 @@
         hoSel.innerHTML = `<option value="all">All Homeowners</option>` + homeowners.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
       },
 
+      // ✅ Column selector UI
       initLeadsColumnsUI() {
         if (this._leadsCols) return;
 
@@ -791,7 +1146,7 @@
               if (!k) return;
               if (chk.checked) this._leadsVisibleCols.add(k);
               else this._leadsVisibleCols.delete(k);
-              this.applyLeadsFilters();
+              this.applyLeadsFilters(); // re-render
             });
           });
         };
@@ -822,6 +1177,7 @@
         renderChecks();
       },
 
+      // ✅ Apply search + dropdown filters + date range
       applyLeadsFilters() {
         const state = this.getState();
         const leads = (state && Array.isArray(state.leads)) ? state.leads : [];
@@ -853,6 +1209,7 @@
           filtered = filtered.filter(l => String(this.getLeadField(l, ["Homeowner Name(s)","Homeowner Name","Homeowner","HOMEOWNER NAME"], "")).trim() === hoVal);
         }
 
+        // date range filter
         if (startDt || endDt) {
           filtered = filtered.filter(l => {
             const dt = this.getLeadDateObj(l);
@@ -863,6 +1220,7 @@
           });
         }
 
+        // text search across many fields
         if (q) {
           filtered = filtered.filter(l => {
             const hay = [
@@ -879,11 +1237,14 @@
           });
         }
 
+        // ✅ apply sorting (Date Submitted)
         if (this._leadsSort?.key === "date_submitted") {
           const dir = this._leadsSort.dir === "asc" ? 1 : -1;
+
           filtered.sort((a, b) => {
             const da = this.getLeadDateObj(a);
             const db = this.getLeadDateObj(b);
+            // put invalid dates at bottom
             if (!da && !db) return 0;
             if (!da) return 1;
             if (!db) return -1;
@@ -891,17 +1252,27 @@
           });
         }
 
+        // update count + render
         const countEl = document.getElementById("leads-count");
         if (countEl) countEl.textContent = filtered.length;
 
         this.renderLeads(filtered);
       },
 
+      // ✅ Bind once
       bindLeadsMasterEvents() {
         if (this._leadsFiltersBound) return;
         this._leadsFiltersBound = true;
 
-        const els = ["leads-search","leads-filter-status","leads-filter-company","leads-filter-ac","leads-filter-homeowner","leads-date-start","leads-date-end"];
+        const els = [
+          "leads-search",
+          "leads-filter-status",
+          "leads-filter-company",
+          "leads-filter-ac",
+          "leads-filter-homeowner",
+          "leads-date-start",
+          "leads-date-end"
+        ];
 
         els.forEach(id => {
           const el = document.getElementById(id);
@@ -938,6 +1309,7 @@
         return String(code || "").toLowerCase().replace(/\s+/g, "").trim();
       },
 
+      // ✅ Sold-By mapping persisted locally
       getSoldByForClient(code) {
         try {
           const raw = localStorage.getItem("ch_soldby_map");
@@ -998,6 +1370,7 @@
       buildLeadIndex(leads) {
         const byCompany = new Map();
         const byCode = new Map();
+
         for (const l of (leads || [])) {
           const company = this.pick(l, ["Company Name","COMPANY NAME","Client"], "");
           const companyKey = this.normalizeCompanyName(company);
@@ -1014,6 +1387,7 @@
             arr.push({ dt, status: st });
             map.set(key, arr);
           };
+
           push(byCompany, companyKey);
           push(byCode, codeKey);
         }
@@ -1035,12 +1409,14 @@
         return out;
       },
 
+      // ✅ ADDED HELPER: Compute Owed = Purchased - Qualified
       computeOwedRemaining(purchased, qualified) {
         const p = Number(purchased) || 0;
         const q = Number(qualified) || 0;
         return Math.max(p - q, 0);
       },
 
+      // ✅ ADDED HELPER: Extract Purchased Leads robustly
       getPurchasedLeads(c) {
         return Number(this.pick(c, [
           "purchased_leads","Purchased Leads","PURCHASED LEADS","Purchased",
@@ -1062,6 +1438,7 @@
           const leadsToday = Number(this.pick(c, ["leads_today","Leads Today"], 0)) || 0;
           const leadsYesterday = Number(this.pick(c, ["leads_yesterday","Leads Yesterday"], 0)) || 0;
 
+          // ✅ UPDATED LOGIC: Get purchased first, owed calculated later
           const purchased = this.getPurchasedLeads(c);
           let owed = 0; 
           let pkgLabel = `0 / ${purchased}`;
@@ -1078,6 +1455,7 @@
           const list = this._leadsIndexByCode?.get(codeKey) || this._leadsIndexByCompany?.get(companyKey) || [];
           const counts = this.countQualifiedCreditedFrom(list, pDt);
           
+          // ✅ UPDATED LOGIC: Owed is based on PURCHASED - QUALIFIED
           owed = this.computeOwedRemaining(purchased, counts.qualified);
           pkgLabel = `${owed} / ${purchased}`;
           pkgRatio = purchased === 0 ? 0 : (owed / purchased);
@@ -1101,6 +1479,7 @@
             packageRatio: pkgRatio,
             leadsToday,
             leadsYesterday,
+            // ✅ Add these for the KPI tile to use
             owedRemaining: owed,
             purchasedLeads: purchased
           };
@@ -1112,6 +1491,7 @@
         const pkgSel = document.getElementById("health-filter-package");
         const locSel = document.getElementById("health-filter-location");
 
+        // ✅ Save current selections
         const prevStatus = statusSel.value;
         const prevLoc = locSel ? locSel.value : "all";
 
@@ -1121,14 +1501,17 @@
 
         statusSel.innerHTML = `<option value="all">All Status</option>` + statuses.map(s => `<option value="${s}">${s}</option>`).join("");
 
+        // ✅ Restore status selection safely
         const statusExists = Array.from(statusSel.options).some(o => o.value === prevStatus);
         statusSel.value = statusExists ? prevStatus : "all";
 
+        // ✅ NEW: Populate Location Filter
         if (locSel) {
            const uniq = (arr) => [...new Set(arr.filter(x => String(x||"").trim() !== ""))].sort((a,b)=>String(a).localeCompare(String(b)));
            const locs = uniq(rows.map(r => r.cityState));
            locSel.innerHTML = `<option value="all">All Locations</option>` + locs.map(l => `<option value="${String(l).replace(/"/g,'&quot;')}">${l}</option>`).join("");
            
+           // ✅ Restore location selection safely
            const locExists = Array.from(locSel.options).some(o => o.value === prevLoc);
            locSel.value = locExists ? prevLoc : "all";
         }
@@ -1255,6 +1638,8 @@
               <td class="p-4 text-gray-700 max-w-[260px] truncate" title="${r.clientName}">${r.clientName}</td>
               <td class="p-4 text-gray-500">${r.purchaseDate}</td>
               <td class="p-4 text-gray-500">${r.lastLead}</td>
+              <td class="p-4 text-center">
+              </td>
             </tr>
           `;
         }).join("");
@@ -1269,12 +1654,15 @@
         });
       },
 
+      // ✅ NEW: Compute Total Owed Leads (Summing the Owed Remaining)
       computeTotalOwedLeads(packageStatus = "all") {
+        // ✅ Use the already-normalized rows (same math as the table)
         const rows = Array.isArray(this.clientHealthRaw) ? this.clientHealthRaw : [];
+
         let total = 0;
         for (const r of rows) {
           if (packageStatus !== "all" && String(r.packageStatus || "").toUpperCase() !== packageStatus) continue;
-          total += Number(r.owedRemaining) || 0;
+          total += Number(r.owedRemaining) || 0;  // ✅ sum the "owed" part
         }
         return total;
       },
@@ -1289,9 +1677,11 @@
       updateOwedLeadsKPI() {
         const sel = document.getElementById("owed-package-filter");
         const val = sel ? sel.value : "all";
+
         const total = this.computeTotalOwedLeads(val);
         const el = document.getElementById("pulse-owed");
         if (el) el.textContent = total;
+
         const sub = document.getElementById("pulse-owed-sub");
         if (sub) sub.textContent = (val === "all") ? "All package statuses" : `${val} packages`;
       },
@@ -1350,6 +1740,7 @@
           return { start: startOfDay(new Date(this._customRange.start + "T00:00:00")), end: endOfDay(new Date(this._customRange.end + "T23:59:59")), grain: "day", label: "Custom Range" };
         }
         
+        // ✅ Patch: All-Time Support
         if (period === "all-time") {
           const dates = (leads || [])
             .map(l => this.getLeadDateObj(l))
@@ -1383,18 +1774,22 @@
       isCredited(st) { const s = String(st || "").toLowerCase(); return s.includes("credit"); },
       isPendingReview(st) { const s = String(st || "").toLowerCase(); return s.includes("pending"); },
 
+      // ✅ NEW: Status Badge Helper
       statusBadge(status) {
         const s = String(status || "").toLowerCase();
         let cls = "bg-gray-100 text-gray-700 border-gray-200";
+
         if (s.includes("approved") || s.includes("confirmed")) cls = "bg-emerald-100 text-emerald-800 border-emerald-200";
         if (s.includes("rejected") || s.includes("credit"))    cls = "bg-red-100 text-red-800 border-red-200";
+
         return `<span class="px-2 py-1 rounded-full text-xs font-extrabold border ${cls}">${status || "—"}</span>`;
       },
 
       _fmtDateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; },
       _fmtWeekKey(d) {
+        // Payroll week starts Saturday
         const x = new Date(d);
-        const day = x.getDay(); 
+        const day = x.getDay(); // 0=Sun ... 6=Sat
         const diffToSat = (day - 6);
         x.setDate(x.getDate() - diffToSat);
         x.setHours(0,0,0,0);
@@ -1421,10 +1816,11 @@
         this._analyticsChart = new Chart(ctx, {
           type: "bar",
           data: { labels, datasets: [
-            { label: "Qualified",   data: series.qualified, stack: "stack", backgroundColor: "#3B82F6" }, 
-            { label: "QC Rejected", data: series.rejected,  stack: "stack", backgroundColor: "#EF4444" },
-            { label: "Credited",    data: series.credited,  stack: "stack", backgroundColor: "#A855F7" },
-            { label: "Pending",     data: series.pending,   stack: "stack", backgroundColor: "#FACC15" },
+            // ✅ Team Performance Colors
+            { label: "Qualified",   data: series.qualified, stack: "stack", backgroundColor: "#3B82F6" }, // blue
+            { label: "QC Rejected", data: series.rejected,  stack: "stack", backgroundColor: "#EF4444" }, // red
+            { label: "Credited",    data: series.credited,  stack: "stack", backgroundColor: "#A855F7" }, // purple
+            { label: "Pending",     data: series.pending,   stack: "stack", backgroundColor: "#FACC15" }, // yellow
           ]},
           options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
         });
@@ -1453,16 +1849,20 @@
         const seriesMap = new Map();
         buckets.forEach(b => seriesMap.set(b, { qualified: 0, rejected: 0, credited: 0, pending: 0 }));
 
+        // ✅ 1. SEED: Initialize analytics with ACTIVE agents so 0-lead agents appear
         const agents = (state && Array.isArray(state.agents)) ? state.agents : [];
 
         agents.forEach(a => {
-          const stage = this.getAgentStage(a);
+          const stage = this.getAgentStage(a); // uses same logic as Team tab
           if (stage !== "active") return;
+
           const name = String(this.pick(a, ["Employee Name","Name","Agent Name","Full Name"], "Unknown")).trim();
           if (!name) return;
+
           agentAgg.set(name, { name, total: 0, qualified: 0, rejected: 0, credited: 0, pending: 0 });
         });
 
+        // ✅ 2. UPDATE: Process leads (increments existing seeded agents or adds unknown ones)
         leads.forEach(l => {
           const dt = this.getLeadDateObj(l);
           if (!dt || dt < start || dt > end) return;
@@ -1505,6 +1905,7 @@
         document.getElementById("kpi-pending").textContent = pending;
         document.getElementById("kpi-cancel").textContent = `${(qualified + credited > 0) ? Math.round((credited / (qualified + credited)) * 100) : 0}%`;
 
+        // ✅ 3. SORT: Update sorting logic to handle ties better
         const top = Array.from(agentAgg.values())
           .sort((a,b) => (b.qualified - a.qualified) || (b.total - a.total))
           .slice(0, 10);
@@ -1520,6 +1921,7 @@
 
         const renderRow = (a) => {
           const d = a.qualified + a.credited;
+          // ✅ Team Performance Colors applied here
           return `<tr><td class="p-4 font-bold text-gray-900">${a.name}</td><td class="p-4 text-center text-gray-600 font-semibold">${a.total}</td><td class="p-4 text-center text-red-500 font-bold">${a.rejected}</td><td class="p-4 text-center text-blue-500 font-bold">${a.qualified}</td><td class="p-4 text-center text-purple-500 font-bold">${a.credited}</td><td class="p-4 text-center text-yellow-600 font-bold">${a.pending}</td><td class="p-4 text-center text-gray-600 font-semibold">${d > 0 ? Math.round((a.credited/d)*100) : 0}%</td></tr>`;
         };
 
@@ -1555,20 +1957,28 @@
       async _fetchAndRenderPassbookClient(codeName) {
         try {
           const base = window.portal.webhooks.passbookClientDetails;
+
           const url = base.includes("?")
             ? `${base}&codeName=${encodeURIComponent(codeName)}`
             : `${base}?codeName=${encodeURIComponent(codeName)}`;
+
           const res = await fetch(url, { method: "GET" });
+
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const json = await res.json();
+
           this._renderPassbookForm(json);
         } catch (err) {
-          document.getElementById("passbook-form-body").innerHTML = '<div class="p-4 text-red-700">Failed to load details.</div>';
+          document.getElementById("passbook-form-body").innerHTML =
+            '<div class="p-4 text-red-700">Failed to load details.</div>';
         }
       },
 
       _renderPassbookForm(data) {
+        // data might be: { client: {...}, packages:[...] } OR just the row itself
         const raw = data?.client ? data.client : (data || {});
+
+        // helper: read either "camelCase" keys OR sheet header keys
         const get = (...keys) => {
           for (const k of keys) {
             const v = raw?.[k];
@@ -1577,6 +1987,7 @@
           return "";
         };
 
+        // Map your Google Sheet headers to the UI fields
         const fields = [
           { label: "Code Name", key: "CODE NAME", keys: ["codeName","CODE NAME","Code Name"] },
           { label: "Company Name", key: "COMPANY NAME", keys: ["companyName","COMPANY NAME","Company Name"] },
@@ -1602,6 +2013,7 @@
         ];
 
         const liveSheet = get("liveSheet","Live Sheet","LIVE SHEET");
+
         const codeName = get("codeName","CODE NAME","Code Name") || "—";
         const companyName = get("companyName","COMPANY NAME","Company Name") || "Unknown";
         const cityState = get("cityState","CITY/STATE","City/State","Location") || "—";
@@ -1610,6 +2022,7 @@
         document.getElementById("passbook-modal-sub").textContent = `Code: ${codeName} • ${cityState}`;
         document.getElementById("codeName").value = codeName;
 
+        // Render layout
         let html = `
           <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
@@ -1619,25 +2032,50 @@
               </div>
               <div class="flex items-center gap-2">
                 <span class="px-3 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-extrabold">${codeName}</span>
-                ${ liveSheet ? `<a href="${liveSheet}" target="_blank" class="px-3 py-1 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">Open Live Sheet</a>` : `<span class="px-3 py-1 rounded-lg bg-gray-100 text-gray-500 text-xs font-extrabold">No Live Sheet</span>` }
+                ${
+                  liveSheet
+                    ? `<a href="${liveSheet}" target="_blank" class="px-3 py-1 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">Open Live Sheet</a>`
+                    : `<span class="px-3 py-1 rounded-lg bg-gray-100 text-gray-500 text-xs font-extrabold">No Live Sheet</span>`
+                }
               </div>
             </div>
           </div>
+
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         `;
 
         for (const f of fields) {
           const value = get(...f.keys);
           const safe = value.replace(/"/g, "&quot;");
+
+          // make Website clickable
           if (f.label === "Website" && value) {
-            html += `<div><label class="block text-[10px] font-bold text-gray-500 uppercase">${f.label}</label><a href="${safe}" target="_blank" class="text-sm text-blue-600 underline break-words">${safe}</a></div>`;
+            html += `
+              <div>
+                <label class="block text-[10px] font-bold text-gray-500 uppercase">${f.label}</label>
+                <a href="${safe}" target="_blank" class="text-sm text-blue-600 underline break-words">${safe}</a>
+              </div>
+            `;
             continue;
           }
+
+          // long text fields as textarea
           const isLong = ["Additional Notes / Requests", "Regions / Cities / Zip Codes"].includes(f.label);
-          html += `<div><label class="block text-[10px] font-bold text-gray-500 uppercase">${f.label}</label>${isLong ? `<textarea class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm h-24" name="${f.key}">${safe}</textarea>` : `<input class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" name="${f.key}" value="${safe}">`}</div>`;
+
+          html += `
+            <div>
+              <label class="block text-[10px] font-bold text-gray-500 uppercase">${f.label}</label>
+              ${
+                isLong
+                  ? `<textarea class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm h-24" name="${f.key}">${safe}</textarea>`
+                  : `<input class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" name="${f.key}" value="${safe}">`
+              }
+            </div>
+          `;
         }
 
         html += `</div>`;
+
         document.getElementById("passbook-form-body").innerHTML = html;
       },
 
@@ -1647,7 +2085,15 @@
         this.initLeadsColumnsUI();
         const visibleCols = this._leadsCols.filter(c => this._leadsVisibleCols.has(c.key));
         thead.innerHTML = `<tr>${visibleCols.map(c => `<th class="p-4 ${c.key==='date_submitted'?'cursor-pointer':''}" ${c.key==='date_submitted'?'data-leads-sort="date_submitted"':''}>${c.label} ${c.key==='date_submitted'?'↕':''}</th>`).join("")}</tr>`;
-        tbody.innerHTML = leads.map(l => `<tr>${visibleCols.map(c => { const raw = this.getLeadField(l, c.keys); if (c.key === "status") return `<td class="p-4">${this.statusBadge(raw)}</td>`; return `<td class="p-4">${raw}</td>`; }).join("")}</tr>`).join("");
+        
+        // ✅ Patch: Use Status Badge
+        tbody.innerHTML = leads.map(l => `<tr>
+          ${visibleCols.map(c => {
+            const raw = this.getLeadField(l, c.keys);
+            if (c.key === "status") return `<td class="p-4">${this.statusBadge(raw)}</td>`;
+            return `<td class="p-4">${raw}</td>`;
+          }).join("")}
+        </tr>`).join("");
       },
 
       setupPassbookFilters(clients) {
@@ -1656,6 +2102,7 @@
       },
       
       getClientSortNumber(code) {
+        // supports "Client 001" or "001" or "client001"
         const s = String(code || "");
         const m = s.match(/(\d+)/);
         return m ? parseInt(m[1], 10) : 999999;
@@ -1664,12 +2111,22 @@
       applyPassbookFilters(clients) {
         const q = String(document.getElementById("passbook-search")?.value || "").toLowerCase().trim();
         const loc = document.getElementById("passbook-filter-location")?.value || "all";
+
         let rows = (clients || []).filter(c => (loc === "all" || this.extractCityState(c) === loc));
+
         if (q) {
-          rows = rows.filter(c => `${this.extractRoofingCompany(c)} ${this.extractCode(c)} ${this.extractCityState(c)}`.toLowerCase().includes(q));
+          rows = rows.filter(c => 
+            `${this.extractRoofingCompany(c)} ${this.extractCode(c)} ${this.extractCityState(c)}`
+              .toLowerCase()
+              .includes(q)
+          );
         }
+
+        // ✅ chronological sort
         rows.sort((a,b) => this.getClientSortNumber(this.extractCode(a)) - this.getClientSortNumber(this.extractCode(b)));
+
         document.getElementById("passbook-count").textContent = rows.length;
+
         if (this._passbookView === "list") this.renderPassbookList(rows);
         else this.renderClientCards(rows);
       },
@@ -1697,54 +2154,86 @@
         }
       },
 
+      // ✅ Replace your setTeamPeriod with this:
       setTeamPeriod(period, btnElement) {
         this.teamPeriod = period;
+
+        // presets: move the white pill
         if (period !== "custom") {
           this._teamCustomRange.active = false;
           this._setCustomActive("team-custom-toggle", false);
           this._setActiveButton(".team-btn", btnElement);
         } else {
+          // custom: remove pill from presets, ring the custom button
           this._setActiveButton(".team-btn", null);
           this._setCustomActive("team-custom-toggle", true);
         }
+
         this.renderTeam();
       },
       
       getTeamRangeFor() {
         const state = this.getState();
         const leads = state?.leads || [];
+
         if (this.teamPeriod === "custom" && this._teamCustomRange.active) {
           const start = new Date(this._teamCustomRange.start + "T00:00:00");
           const end = new Date(this._teamCustomRange.end + "T23:59:59");
           return { start, end, grain: "day", label: "Custom Range" };
         }
+
         return this.getRangeFor(this.teamPeriod, leads);
       },
       
       bindTeamUI() {
         if (this._teamBound) return;
         this._teamBound = true;
+
         const search = document.getElementById("team-search");
         const stageSel = document.getElementById("team-stage-filter");
         const warnedSel = document.getElementById("team-warned-filter");
-        if (search) search.addEventListener("input", () => this.renderTeam());
-        if (stageSel) { stageSel.addEventListener("change", () => { this.teamStageFilter = stageSel.value; this.renderTeam(); }); }
-        if (warnedSel) { warnedSel.addEventListener("change", () => { this.teamWarnedFilter = warnedSel.value; this.renderTeam(); }); }
 
+        if (search) search.addEventListener("input", () => this.renderTeam());
+
+        if (stageSel) {
+          stageSel.addEventListener("change", () => {
+            this.teamStageFilter = stageSel.value; // "all|active|onboarding|offboarded"
+            this.renderTeam();
+          });
+        }
+
+        if (warnedSel) {
+          warnedSel.addEventListener("change", () => {
+            this.teamWarnedFilter = warnedSel.value; // "all|warned|not-warned"
+            this.renderTeam();
+          });
+        }
+
+        // ✅ Custom popover wiring
         const toggle = document.getElementById("team-custom-toggle");
         const pop = document.getElementById("team-custom-popover");
         const apply = document.getElementById("team-custom-apply");
         const clear = document.getElementById("team-custom-clear");
 
         if (toggle && pop) {
-          toggle.addEventListener("click", (e) => { e.preventDefault(); pop.classList.toggle("hidden"); });
-          document.addEventListener("click", (e) => { if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) { pop.classList.add("hidden"); } });
+          toggle.addEventListener("click", (e) => {
+            e.preventDefault();
+            pop.classList.toggle("hidden");
+          });
+
+          document.addEventListener("click", (e) => {
+            if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
+              pop.classList.add("hidden");
+            }
+          });
         }
+
         if (apply) {
           apply.addEventListener("click", () => {
             const s = document.getElementById("team-custom-start")?.value;
             const e = document.getElementById("team-custom-end")?.value;
             if (!s || !e) return;
+
             this._teamCustomRange.active = true;
             this._teamCustomRange.start = s;
             this._teamCustomRange.end = e;
@@ -1753,6 +2242,7 @@
             this.renderTeam();
           });
         }
+
         if (clear) {
           clear.addEventListener("click", () => {
             document.getElementById("team-custom-start").value = "";
@@ -1766,7 +2256,14 @@
       },
       
       getAgentStage(agent) {
-        const s = String(this.pick(agent, ["Employment Status","Employment_Status","Stage","Status"], "")).toLowerCase().trim();
+        const s = String(this.pick(agent, [
+          "Employment Status",
+          "Employment_Status",
+          "Stage",
+          "Status"
+        ], "")).toLowerCase().trim();
+
+        // normalize possible values
         if (s.includes("active")) return "active";
         if (s.includes("onboard")) return "onboarding";
         if (s.includes("offboard")) return "offboarded";
@@ -1783,12 +2280,14 @@
 
       _computeAgentMetrics(name, leads, start, end) {
         const inRange = leads.filter(l => {
+          // ✅ Patch: Match logic same as analytics + Exact Match
           const a = this.pick(l, ["Appointment Coordinator Name","Agent Name","AGENT"], "");
           const dt = this.getLeadDateObj(l);
           return dt && dt >= start && dt <= end && String(a).trim().toLowerCase() === String(name).trim().toLowerCase();
         });
         let q = 0, c = 0, r = 0, p = 0;
         inRange.forEach(l => {
+          // ✅ Quick fix: make _computeAgentMetrics status extraction more robust
           const st = this.pick(l, ["Status","STATUS"], "");
           if (this.isQualified(st)) q++; else if (this.isCredited(st)) c++; else if (this.isRejected(st)) r++; else p++;
         });
@@ -1799,7 +2298,9 @@
         const state = this.getState();
         const leads = state?.leads || [];
         const agents = state?.agents || [];
+
         const { start, end, label } = this.getTeamRangeFor();
+
         const q = String(document.getElementById("team-search")?.value || "").toLowerCase().trim();
         const stageFilter = this.teamStageFilter || (document.getElementById("team-stage-filter")?.value || "active");
         const warnedFilter = this.teamWarnedFilter || (document.getElementById("team-warned-filter")?.value || "all");
@@ -1808,16 +2309,31 @@
           const agentName = this.pick(a, ["Employee Name","Name","Agent Name","Full Name"], "Unknown");
           const stage = this.getAgentStage(a);
           const warned = this.isAgentWarned(a);
-          return { name: agentName, stage, warned, ...this._computeAgentMetrics(agentName, leads, start, end) };
+
+          return {
+            name: agentName,
+            stage,
+            warned,
+            ...this._computeAgentMetrics(agentName, leads, start, end)
+          };
         });
 
-        if (stageFilter !== "all") { rows = rows.filter(r => r.stage === stageFilter); }
+        // ✅ stage filter
+        if (stageFilter !== "all") {
+          rows = rows.filter(r => r.stage === stageFilter);
+        }
+
+        // ✅ warned filter
         if (warnedFilter === "warned") rows = rows.filter(r => r.warned);
         if (warnedFilter === "not-warned") rows = rows.filter(r => !r.warned);
+
+        // ✅ search filter
         if (q) rows = rows.filter(r => String(r.name).toLowerCase().includes(q));
 
+        // ✅ sorting
         const key = this.teamSortKey;
         const dir = this.teamSortDir === "asc" ? 1 : -1;
+
         const sorters = {
           name: (a,b) => a.name.localeCompare(b.name) * dir,
           total: (a,b) => (a.total - b.total) * dir,
@@ -1827,10 +2343,13 @@
           pending: (a,b) => (a.pending - b.pending) * dir,
           cancelRate: (a,b) => (a.cancelRate - b.cancelRate) * dir,
         };
+
         if (sorters[key]) rows.sort(sorters[key]);
 
+        // ✅ show correct count + range label
         const countEl = document.getElementById("team-count");
         if (countEl) countEl.textContent = rows.length;
+
         const rangeEl = document.getElementById("team-range-label");
         if (rangeEl) rangeEl.textContent = `${label}: ${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
 
@@ -1842,6 +2361,7 @@
         };
 
         const tbody = document.getElementById("team-body");
+
         if (!rows.length) {
           tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No agents found.</td></tr>`;
           return;
@@ -1863,61 +2383,86 @@
         `).join("");
       },
 
+      // ✅ Update openAgentModal so it binds UI + sets title
       openAgentModal(name) {
         this._agentSelectedName = name;
         this.bindAgentUI();
+
+        // default: mirror whatever Team tab is using (optional but feels consistent)
         this.agentPeriod = this.teamPeriod || "today";
         this._agentCustomRange.active = false;
         this._setCustomActive("agent-custom-toggle", false);
+
         document.getElementById("agent-modal").classList.remove("hidden");
         this.renderAgentLeads();
       },
 
+      // ✅ Add a real Agent UI binder + custom wiring
       bindAgentUI() {
         if (this._agentBound) return;
         this._agentBound = true;
+
         const toggle = document.getElementById("agent-custom-toggle");
         const pop = document.getElementById("agent-custom-popover");
         const apply = document.getElementById("agent-custom-apply");
         const clear = document.getElementById("agent-custom-clear");
 
         if (toggle && pop) {
-          toggle.addEventListener("click", (e) => { e.preventDefault(); pop.classList.toggle("hidden"); });
-          document.addEventListener("click", (e) => { if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) pop.classList.add("hidden"); });
+          toggle.addEventListener("click", (e) => {
+            e.preventDefault();
+            pop.classList.toggle("hidden");
+          });
+
+          document.addEventListener("click", (e) => {
+            if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
+              pop.classList.add("hidden");
+            }
+          });
         }
+
         if (apply) {
           apply.addEventListener("click", () => {
             const s = document.getElementById("agent-custom-start")?.value;
             const e = document.getElementById("agent-custom-end")?.value;
             if (!s || !e) return;
+
             this._agentCustomRange.active = true;
             this._agentCustomRange.start = s;
             this._agentCustomRange.end = e;
+
+            // make "Custom" the active period visually
             this.agentPeriod = "custom";
             this._setActiveButton(".agent-btn", null);
             this._setCustomActive("agent-custom-toggle", true);
+
             pop?.classList.add("hidden");
             this.renderAgentLeads();
           });
         }
+
         if (clear) {
           clear.addEventListener("click", () => {
             document.getElementById("agent-custom-start").value = "";
             document.getElementById("agent-custom-end").value = "";
             this._agentCustomRange.active = false;
+
+            // reset to today and move pill to Today
             this.agentPeriod = "today";
-            const todayBtn = document.querySelector(".agent-btn");
+            const todayBtn = document.querySelector(".agent-btn"); // first one is Today
             this._setActiveButton(".agent-btn", todayBtn);
             this._setCustomActive("agent-custom-toggle", false);
+
             pop?.classList.add("hidden");
             this.renderAgentLeads();
           });
         }
       },
 
+      // ✅ Add agent-specific range getter (so custom works):
       getAgentRangeFor() {
         const state = this.getState();
         const leads = state?.leads || [];
+
         if (this.agentPeriod === "custom" && this._agentCustomRange.active) {
           const start = new Date(this._agentCustomRange.start + "T00:00:00");
           const end = new Date(this._agentCustomRange.end + "T23:59:59");
@@ -1928,8 +2473,10 @@
 
       closeAgentModal() { document.getElementById("agent-modal").classList.add("hidden"); },
       
+      // ✅ Replace setAgentPeriod with this (so pill moves)
       setAgentPeriod(period, btnElement) {
         this.agentPeriod = period;
+
         if (period !== "custom") {
           this._agentCustomRange.active = false;
           this._setCustomActive("agent-custom-toggle", false);
@@ -1938,27 +2485,42 @@
           this._setActiveButton(".agent-btn", null);
           this._setCustomActive("agent-custom-toggle", true);
         }
+
         this.renderAgentLeads();
       },
 
+      // ✅ Replace renderAgentLeads() with this full version:
       renderAgentLeads() {
         const state = this.getState();
         const leads = state?.leads || [];
         const name = this._agentSelectedName || "Agent";
+
         const { start, end, label } = this.getAgentRangeFor();
+
+        // compute metrics + leads list
         const m = this._computeAgentMetrics(name, leads, start, end);
+
+        // ✅ Title shows agent name
         const titleEl = document.getElementById("agent-modal-title");
         if (titleEl) titleEl.textContent = `${name} — Leads`;
+
+        // ✅ Count updates
         const countEl = document.getElementById("agent-leads-count");
         if (countEl) countEl.textContent = m.leads.length;
+
+        // ✅ Range label updates
         const rangeEl = document.getElementById("agent-range-label");
         if (rangeEl) rangeEl.textContent = `${label}: ${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
+
+        // ✅ Render ALL 14 columns (matches your table header)
         const tbody = document.getElementById("agent-leads-body");
         if (!tbody) return;
+
         if (!m.leads.length) {
           tbody.innerHTML = `<tr><td colspan="14" class="p-6 text-center text-gray-400 italic">No leads in this period.</td></tr>`;
           return;
         }
+
         tbody.innerHTML = m.leads.map(l => `
           <tr>
             <td class="p-3">${this.getLeadField(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"])}</td>
@@ -1979,373 +2541,219 @@
         `).join("");
       },
 
-      pfInit() {
-        if (this._pf.bound) return;
-        this._pf.bound = true;
+      // ===== PAYROLL & FINANCE (NEW) =====
 
-        const tabWeeklyBtn = document.getElementById("pf-tab-weekly");
-        const tabHistBtn   = document.getElementById("pf-tab-history");
-        const weeklyWrap   = document.getElementById("pf-weekly-wrap");
-        const histWrap     = document.getElementById("pf-history-wrap");
-        const weeklyCtrls  = document.getElementById("pf-weekly-controls");
-        const histCtrls    = document.getElementById("pf-history-controls");
-        const weeklyFilters= document.getElementById("pf-weekly-filters");
+      // read payroll week start from each lead row
+      getLeadPayrollWeekStart(l) {
+        // supports multiple header spellings
+        const s = this.pick(l, [
+          "Payroll Week Start",
+          "PAYROLL WEEK START",
+          "payroll_week_start",
+          "PayrollWeekStart"
+        ], "");
 
-        const setTab = (tab) => {
-          this._pf.tab = tab;
+        // If missing, fallback to existing Sat->Fri logic using lead Date Submitted
+        if (!s) {
+          const dt = this.getLeadDateObj(l);
+          if (!dt) return "";
+          // start-of-week Saturday
+          const x = new Date(dt);
+          const day = x.getDay(); // 0 Sun ... 6 Sat
+          const diffToSat = (day - 6);
+          x.setDate(x.getDate() - diffToSat);
+          x.setHours(0,0,0,0);
+          return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`;
+        }
 
-          const isWeekly = tab === "weekly";
-          if (weeklyWrap) weeklyWrap.classList.toggle("hidden", !isWeekly);
-          if (weeklyCtrls) weeklyCtrls.classList.toggle("hidden", !isWeekly);
-          if (weeklyFilters) weeklyFilters.classList.toggle("hidden", !isWeekly);
-
-          if (histWrap) histWrap.classList.toggle("hidden", isWeekly);
-          if (histCtrls) histCtrls.classList.toggle("hidden", isWeekly);
-
-          const on = (btn, active) => {
-            if (!btn) return;
-            btn.classList.toggle("bg-white", active);
-            btn.classList.toggle("shadow", active);
-            btn.classList.toggle("text-gray-900", active);
-            btn.classList.toggle("text-gray-500", !active);
-          };
-          on(tabWeeklyBtn, isWeekly);
-          on(tabHistBtn, !isWeekly);
-        };
-
-        tabWeeklyBtn?.addEventListener("click", async () => {
-          setTab("weekly");
-          await this.pfLoadWeekly();
-        });
-
-        tabHistBtn?.addEventListener("click", async () => {
-          setTab("history");
-        });
-
-        document.getElementById("pf-week-select")?.addEventListener("change", async (e) => {
-          this._pf.currentWeek = e.target.value;
-          await this.pfLoadWeekly();
-        });
-
-        const filterIds = ["pf-search", "pf-stage-filter", "pf-pay-filter", "pf-haspay-filter"];
-        filterIds.forEach(id => {
-          document.getElementById(id)?.addEventListener(id === "pf-search" ? "input" : "change", () => {
-            this.pfApplyWeeklyFilters();
-            this.pfUpdateWeeklyKPIs();
-          });
-        });
-
-        document.getElementById("pf-clear")?.addEventListener("click", () => {
-          const s = document.getElementById("pf-search"); if (s) s.value = "";
-          const a = document.getElementById("pf-stage-filter"); if (a) a.value = "active";
-          const p = document.getElementById("pf-pay-filter"); if (p) p.value = "all";
-          const h = document.getElementById("pf-haspay-filter"); if (h) h.value = "all";
-          this.pfApplyWeeklyFilters();
-          this.pfUpdateWeeklyKPIs();
-        });
-
-        document.getElementById("pf-export-week")?.addEventListener("click", () => {
-          this.pfExportCSV();
-        });
-
-        document.getElementById("pf-hist-apply")?.addEventListener("click", async () => {
-          await this.pfLoadHistory();
-        });
-
-        setTab("weekly");
-        this.pfLoadWeeks().then(() => this.pfLoadWeekly());
+        // normalize to YYYY-MM-DD
+        const d = window.portal?.parseDateSafe ? window.portal.parseDateSafe(s) : new Date(s);
+        if (!d || isNaN(d.getTime())) return String(s);
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
       },
 
-      pfSetSaveStatus(text, isHist=false) {
-        const el = document.getElementById(isHist ? "pf-save-status-hist" : "pf-save-status");
-        if (!el) return;
-        el.textContent = text || "";
+      // compute payroll aggregation from raw leads
+      computePayrollFromLeads(leads) {
+        const rows = Array.isArray(leads) ? leads : [];
+        const weekSet = new Set();
+        const weekAgentMap = new Map(); // key: `${week}||${agent}` -> { qualified, unqualified }
+
+        for (const l of rows) {
+          const week = this.getLeadPayrollWeekStart(l);
+          if (!week) continue;
+          weekSet.add(week);
+
+          const agent = String(this.pick(l, [
+            "Appointment Coordinator Name",
+            "Appointment Coordinator",
+            "Setter",
+            "Agent",
+            "Agent Name"
+          ], "Unknown")).trim() || "Unknown";
+
+          const status = this.pick(l, ["Status","STATUS"], "");
+          const k = `${week}||${agent}`;
+
+          const agg = weekAgentMap.get(k) || { week, agent, qualified: 0, unqualified: 0 };
+
+          if (this.isQualified(status)) agg.qualified += 1;
+          else if (this.isCredited(status)) agg.unqualified += 1;
+
+          weekAgentMap.set(k, agg);
+        }
+
+        const weeks = [...weekSet].sort((a,b) => String(b).localeCompare(String(a))); // latest first
+        const byWeek = new Map(); // week -> [rows...]
+
+        for (const v of weekAgentMap.values()) {
+          const arr = byWeek.get(v.week) || [];
+          arr.push(v);
+          byWeek.set(v.week, arr);
+        }
+
+        // sort agents per week (qualified desc, then total desc)
+        for (const [wk, arr] of byWeek.entries()) {
+          arr.sort((a,b) => (b.qualified - a.qualified) || ((b.qualified+b.unqualified) - (a.qualified+a.unqualified)) || a.agent.localeCompare(b.agent));
+        }
+
+        return { weeks, byWeek };
       },
 
-      async pfLoadWeeks() {
-        const url = window.portal?.webhooks?.payrollWeeks;
-        if (!url) return;
-        try {
-          const res = await fetch(url);
-          const weeks = await res.json();
-          this._pf.weeks = Array.isArray(weeks) ? weeks : [];
-          this._pf.currentWeek = this._pf.currentWeek || this._pf.weeks[0] || "";
-          const sel = document.getElementById("pf-week-select");
-          if (sel) {
-            sel.innerHTML = this._pf.weeks.map(w => `<option value="${w}">${w}</option>`).join("");
-            sel.value = this._pf.currentWeek;
-          }
-        } catch(e) { console.error("pfLoadWeeks failed", e); }
-      },
-
-      pfGetWeekRangeLabel(weekStartStr) {
+      getPayrollWeekRangeLabel(weekStartStr) {
         if (!weekStartStr) return "—";
         const start = new Date(weekStartStr + "T00:00:00");
         if (isNaN(start.getTime())) return weekStartStr;
-        const end = new Date(start); end.setDate(end.getDate() + 6);
+
+        const end = new Date(start);
+        end.setDate(end.getDate() + 6);
+
         return `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
       },
 
-      pfGetAgentStageFromRow(row) {
-        const direct = String(this.pick(row, ["Employment Status","Stage","Status"], "")).toLowerCase().trim();
-        if (direct) {
-          if (direct.includes("active")) return "active";
-          if (direct.includes("onboard")) return "onboarding";
-          if (direct.includes("offboard")) return "offboarded";
-        }
-        const email = String(this.pick(row, ["Email","email"], "")).toLowerCase().trim();
-        const name  = String(this.pick(row, ["Agent Name","Employee Name","Name"], "")).toLowerCase().trim();
+      renderPayrollFinance() {
         const state = this.getState();
-        const agents = Array.isArray(state?.agents) ? state.agents : [];
-        const found = agents.find(a => String(this.pick(a, ["Email","EMAIL"], "")).toLowerCase().trim() === email)
-                   || agents.find(a => String(this.pick(a, ["Employee Name","Name","Agent Name","Full Name"], "")).toLowerCase().trim() === name);
-        if (!found) return "unknown";
-        return this.getAgentStage(found);
-      },
+        const leads = (state && Array.isArray(state.leads)) ? state.leads : [];
 
-      pfIsPaidRow(row) {
-        const s = String(this.pick(row, ["Payroll Status","Status"], "")).toLowerCase();
-        return s.includes("paid");
-      },
+        const { weeks, byWeek } = this.computePayrollFromLeads(leads);
 
-      pfRowHasPay(row) {
-        const total = Number(this.pick(row, ["Total Weekly Pay","Total Pay","Total"], 0)) || 0;
-        const base  = Number(this.pick(row, ["Base pay","Base Pay"], 0)) || 0;
-        const inc   = Number(this.pick(row, ["Incentive Pay","Incentives"], 0)) || 0;
-        return (total > 0) || ((base + inc) > 0);
-      },
+        // populate dropdown once (or refresh safely)
+        const sel = document.getElementById("payroll-week-select");
+        if (sel) {
+          const current = sel.value || "latest";
+          const opts = [`<option value="latest">Latest</option>`]
+            .concat(weeks.map(w => `<option value="${w}">${w}</option>`));
+          sel.innerHTML = opts.join("");
 
-      async pfLoadWeekly() {
-        const base = window.portal?.webhooks?.payrollWeekly;
-        const weekStart = this._pf.currentWeek;
-        if (!base || !weekStart) return;
-        this.pfSetSaveStatus("Loading…");
-        try {
-          const url = base.includes("?")
-            ? `${base}&weekStart=${encodeURIComponent(weekStart)}`
-            : `${base}?weekStart=${encodeURIComponent(weekStart)}`;
-          const res = await fetch(url);
-          const rows = await res.json();
-          this._pf.weeklyRaw = Array.isArray(rows) ? rows : [];
-          this.pfApplyWeeklyFilters();
-          this.pfRenderWeeklyGrid(this._pf.weeklyView);
-          const rangeEl = document.getElementById("pf-kpi-range");
-          if (rangeEl) rangeEl.textContent = this.pfGetWeekRangeLabel(weekStart);
-          this.pfUpdateWeeklyKPIs();
-        } catch(e) { console.error("pfLoadWeekly failed", e); }
-        this.pfSetSaveStatus("");
-      },
-
-      pfApplyWeeklyFilters() {
-        const q = String(document.getElementById("pf-search")?.value || "").toLowerCase().trim();
-        const stageVal = document.getElementById("pf-stage-filter")?.value || "active";
-        const payVal   = document.getElementById("pf-pay-filter")?.value || "all";
-        const hasPayVal= document.getElementById("pf-haspay-filter")?.value || "all";
-        let rows = [...(this._pf.weeklyRaw || [])];
-        if (stageVal !== "all") {
-          rows = rows.filter(r => this.pfGetAgentStageFromRow(r) === stageVal);
+          // restore if possible
+          if (current !== "latest" && weeks.includes(current)) sel.value = current;
+          else sel.value = "latest";
         }
-        if (payVal === "paid") rows = rows.filter(r => this.pfIsPaidRow(r));
-        if (payVal === "unpaid") rows = rows.filter(r => !this.pfIsPaidRow(r));
-        if (hasPayVal === "haspay") rows = rows.filter(r => this.pfRowHasPay(r));
-        if (hasPayVal === "zero") rows = rows.filter(r => !this.pfRowHasPay(r));
-        if (q) {
-          rows = rows.filter(r => {
-            const name = String(this.pick(r, ["Agent Name","Employee Name","Name"], "")).toLowerCase();
-            const email = String(this.pick(r, ["Email"], "")).toLowerCase();
-            return (name + " " + email).includes(q);
-          });
-        }
-        this._pf.weeklyView = rows;
-        const countEl = document.getElementById("pf-count");
-        if (countEl) countEl.textContent = rows.length;
-        if (this._pf.weeklyTable) {
-          this._pf.weeklyTable.setData(rows);
-        }
-      },
 
-      pfUpdateWeeklyKPIs() {
-        const rows = this._pf.weeklyView || [];
-        let totalPay = 0;
-        let paid = 0;
-        let unpaid = 0;
-        let activeShown = 0;
-        for (const r of rows) {
-          const stage = this.pfGetAgentStageFromRow(r);
-          if (stage === "active") activeShown += 1;
-          const isPaid = this.pfIsPaidRow(r);
-          if (isPaid) paid += 1;
-          else unpaid += 1;
-          const tp = Number(this.pick(r, ["Total Weekly Pay","Total Pay","Total"], 0)) || 0;
-          totalPay += tp;
-        }
-        const k1 = document.getElementById("pf-kpi-totalpay");
-        const k2 = document.getElementById("pf-kpi-paid");
-        const k3 = document.getElementById("pf-kpi-unpaid");
-        const k4 = document.getElementById("pf-kpi-active");
-        if (k1) k1.textContent = totalPay.toLocaleString("en-US", { style: "currency", currency: "USD" });
-        if (k2) k2.textContent = paid;
-        if (k3) k3.textContent = unpaid;
-        if (k4) k4.textContent = activeShown;
-      },
+        const chosenWeek = (sel?.value && sel.value !== "latest") ? sel.value : (weeks[0] || "");
+        const rows = chosenWeek ? (byWeek.get(chosenWeek) || []) : [];
 
-      pfRenderWeeklyGrid(rows) {
-        const mount = document.getElementById("pf-weekly-grid");
-        if (!mount) return;
-        if (this._pf.weeklyTable) { this._pf.weeklyTable.destroy(); this._pf.weeklyTable = null; }
-        const rowKeyField = "Snapshot Key"; 
-        const statusFormatter = (cell) => {
-          const v = String(cell.getValue() || "");
-          const s = v.toLowerCase();
-          let cls = "chl-badge warn";
-          if (s.includes("paid")) cls = "chl-badge good";
-          if (s.includes("hold") || s.includes("issue") || s.includes("wrong")) cls = "chl-badge bad";
-          return `<span class="${cls}">${v || "—"}</span>`;
-        };
-        const columns = [
-          { title:"Agent", field:"Agent Name", frozen:true, width:220, editor:"input" },
-          { title:"Email", field:"Email", frozen:true, width:260, editor:false },
-          { title:"Week Start", field:"Payroll Week Start", width:140, editor:false },
-          { title:"Sat", field:"Sat", width:85, hozAlign:"center", editor:"number" },
-          { title:"Sun", field:"Sun", width:85, hozAlign:"center", editor:"number" },
-          { title:"Mon", field:"Mon", width:85, hozAlign:"center", editor:"number" },
-          { title:"Tue", field:"Tue", width:85, hozAlign:"center", editor:"number" },
-          { title:"Wed", field:"Wed", width:85, hozAlign:"center", editor:"number" },
-          { title:"Thu", field:"Thu", width:85, hozAlign:"center", editor:"number" },
-          { title:"Fri", field:"Fri", width:85, hozAlign:"center", editor:"number" },
-          { title:"Total Hours", field:"Total Hours", width:120, hozAlign:"center", editor:"number" },
-          { title:"Effective Rate", field:"Effective Hourly Rate", width:150, hozAlign:"center", editor:"number" },
-          { title:"Base Pay", field:"Base pay", width:120, hozAlign:"right", editor:"number" },
-          { title:"Qualified", field:"Qualified Appointments", width:120, hozAlign:"center", editor:"number" },
-          { title:"Unqualified", field:"Unqualified Appointments", width:130, hozAlign:"center", editor:"number" },
-          { title:"Incentives", field:"Incentive Pay", width:130, hozAlign:"right", editor:"number" },
-          { title:"Total Pay", field:"Total Weekly Pay", width:130, hozAlign:"right", editor:"number" },
-          { title:"Payroll Status", field:"Payroll Status", width:160, editor:"input", formatter:statusFormatter },
-          { title:"Notes", field:"Notes", width:260, editor:"input" },
-        ];
-        this._pf.weeklyTable = new Tabulator(mount, {
-          data: rows,
-          reactiveData: true,
-          layout: "fitDataStretch",
-          height: "620px",
-          columns,
-          pagination: "local",
-          paginationSize: 25,
-          columnDefaults: { headerSort: true },
-          cellEdited: (cell) => this.pfQueueCellSave(cell, "Weekly_Payroll", rowKeyField, false),
-        });
-      },
+        // KPI totals
+        let q = 0, u = 0;
+        for (const r of rows) { q += r.qualified; u += r.unqualified; }
+        const estRevenue = q * 125;
 
-      pfQueueCellSave(cell, sheetName, rowKeyField, isHistory) {
-        const row = cell.getRow().getData();
-        const rowKey = row?.[rowKeyField];
-        const column = cell.getField();
-        const value = cell.getValue();
-        if (!rowKey) {
-          this.pfSetSaveStatus(`Missing "${rowKeyField}" — cannot save.`, isHistory);
+        const kQ = document.getElementById("payroll-kpi-qualified");
+        const kU = document.getElementById("payroll-kpi-unqualified");
+        const kR = document.getElementById("payroll-kpi-revenue");
+        const kRange = document.getElementById("payroll-kpi-range");
+
+        if (kQ) kQ.textContent = q;
+        if (kU) kU.textContent = u;
+        if (kR) kR.textContent = estRevenue.toLocaleString("en-US", { style: "currency", currency: "USD" });
+        if (kRange) kRange.textContent = this.getPayrollWeekRangeLabel(chosenWeek);
+
+        // table
+        const tbody = document.getElementById("payroll-body");
+        if (!tbody) return;
+
+        if (!chosenWeek) {
+          tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No payroll data found.</td></tr>`;
           return;
         }
-        clearTimeout(this._pf.saveTimer);
-        this.pfSetSaveStatus("Saving…", isHistory);
-        this._pf.saveTimer = setTimeout(async () => {
-          try {
-            await this.pfSaveCell({ sheet: sheetName, rowKey, column, value });
-            this.pfSetSaveStatus("Saved ✓", isHistory);
-            if (!isHistory) this.pfUpdateWeeklyKPIs();
-            setTimeout(() => this.pfSetSaveStatus("", isHistory), 1200);
-          } catch (e) {
-            this.pfSetSaveStatus("Save failed ✕", isHistory);
-          }
-        }, 350);
-      },
 
-      async pfSaveCell(payload) {
-        const url = window.portal?.webhooks?.payrollUpdateCell;
-        if (!url) throw new Error("Missing payrollUpdateCell webhook");
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      },
-
-      async pfLoadHistory() {
-        const base = window.portal?.webhooks?.payrollHistory;
-        if (!base) return;
-        const s = document.getElementById("pf-hist-start")?.value;
-        const e = document.getElementById("pf-hist-end")?.value;
-        if (!s || !e) return;
-        this.pfSetSaveStatus("Loading…", true);
-        try {
-          const url = base.includes("?")
-            ? `${base}&start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}`
-            : `${base}?start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}`;
-          const res = await fetch(url);
-          const rows = await res.json();
-          this.pfRenderHistoryGrid(Array.isArray(rows) ? rows : []);
-        } catch(e) { console.error(e); }
-        this.pfSetSaveStatus("", true);
-      },
-
-      pfRenderHistoryGrid(rows) {
-        const mount = document.getElementById("pf-history-grid");
-        if (!mount) return;
-        if (this._pf.historyTable) { this._pf.historyTable.destroy(); this._pf.historyTable = null; }
-        const rowKeyField = "Snapshot Key";
-        const columns = [
-          { title:"Saved At", field:"Saved At", frozen:true, width:160 },
-          { title:"Agent", field:"Agent Name", frozen:true, width:220, editor:"input" },
-          { title:"Email", field:"Email", frozen:true, width:260 },
-          { title:"Week Start", field:"Payroll Week Start", width:140 },
-          { title:"Total Hours", field:"Total Hours", width:120, hozAlign:"center", editor:"number" },
-          { title:"Total Pay", field:"Total Weekly Pay", width:130, hozAlign:"right", editor:"number" },
-          { title:"Payroll Status", field:"Payroll Status", width:160, editor:"input" },
-          { title:"Notes", field:"Notes", width:260, editor:"input" },
-        ];
-        this._pf.historyTable = new Tabulator(mount, {
-          data: rows,
-          reactiveData: true,
-          layout: "fitDataStretch",
-          height: "620px",
-          columns,
-          pagination: "local",
-          paginationSize: 25,
-          cellEdited: (cell) => this.pfQueueCellSave(cell, "Payroll_History", rowKeyField, true),
-        });
-      },
-
-      pfExportCSV() {
-        const rows = this._pf.weeklyView || [];
-        if (!rows.length) return;
-        const week = this._pf.currentWeek || "week";
-        const cols = [
-          "Agent Name","Email","Payroll Week Start",
-          "Sat","Sun","Mon","Tue","Wed","Thu","Fri",
-          "Total Hours","Effective Hourly Rate","Base pay",
-          "Qualified Appointments","Unqualified Appointments",
-          "Incentive Pay","Total Weekly Pay",
-          "Payroll Status","Notes","Snapshot Key"
-        ];
-        const escape = (v) => `"${String(v ?? "").replace(/"/g,'""')}"`;
-        const lines = [cols.join(",")];
-        for (const r of rows) {
-          lines.push(cols.map(c => {
-            const v = r?.[c];
-            if (typeof v === "number") return v;
-            return escape(v);
-          }).join(","));
+        if (!rows.length) {
+          tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No rows for ${chosenWeek}.</td></tr>`;
+          return;
         }
-        const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `weekly_payroll_${week}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
+
+        tbody.innerHTML = rows.map(r => {
+          const total = r.qualified + r.unqualified;
+          const rev = (r.qualified * 125);
+          return `
+            <tr class="hover:bg-gray-50">
+              <td class="p-4 font-bold text-gray-900">${r.agent}</td>
+              <td class="p-4 text-center text-blue-500 font-extrabold">${r.qualified}</td>
+              <td class="p-4 text-center text-purple-500 font-extrabold">${r.unqualified}</td>
+              <td class="p-4 text-center text-gray-700 font-semibold">${total}</td>
+              <td class="p-4 text-right text-emerald-700 font-extrabold">${rev.toLocaleString("en-US", { style: "currency", currency: "USD" })}</td>
+            </tr>
+          `;
+        }).join("");
       },
+
+      bindPayrollUI() {
+        if (this._payrollBound) return;
+        this._payrollBound = true;
+
+        const sel = document.getElementById("payroll-week-select");
+        if (sel) sel.addEventListener("change", () => this.renderPayrollFinance());
+
+        const btn = document.getElementById("payroll-export");
+        if (btn) {
+          btn.addEventListener("click", () => {
+            const state = this.getState();
+            const leads = (state && Array.isArray(state.leads)) ? state.leads : [];
+            const { weeks, byWeek } = this.computePayrollFromLeads(leads);
+
+            const chosen = (sel?.value && sel.value !== "latest") ? sel.value : (weeks[0] || "");
+            const rows = chosen ? (byWeek.get(chosen) || []) : [];
+
+            const header = ["payroll_week_start","appointment_coordinator","qualified","unqualified","total","est_revenue_usd"];
+            const lines = [header.join(",")];
+
+            for (const r of rows) {
+              const total = r.qualified + r.unqualified;
+              const rev = r.qualified * 125;
+              lines.push([
+                chosen,
+                `"${String(r.agent).replace(/"/g,'""')}"`,
+                r.qualified,
+                r.unqualified,
+                total,
+                rev
+              ].join(","));
+            }
+
+            const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `payroll_${chosen || "no_week"}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+          });
+        }
+      },
+
+      nav(viewId, linkEl) {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        document.getElementById('view-' + viewId).classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        linkEl.classList.add('active');
+        
+        // ✅ optional: render payroll on demand
+        if (viewId === "payroll") {
+          try { this.renderPayrollFinance(); } catch(e) {}
+        }
+      }
     };
 
     window.adminDashboard = AdminDashboard;
