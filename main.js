@@ -18,7 +18,9 @@ class CallHammerPortal {
       leads: [],          // raw leads (RAW LEADS tab)
       agents: [],         // normalized from AGENT_MASTER
       rawStatuses: [],    // raw client status rows (Client Lead Delivery Tracker)
-      rawPackages: []     // raw package rows (Lead Package tab)
+      rawPackages: [],    // raw package rows (Lead Package tab)
+      weeklyPayroll: [],  // ✅ Added for Payroll
+      payrollHistory: []  // ✅ Added for Payroll
     };
 
     // Cache to avoid Google Sheets quota/too-many-requests issues
@@ -30,6 +32,10 @@ class CallHammerPortal {
       fetchData: 'https://automate.callhammerleads.com/webhook/fetch-agent-data',
       fetchTLData: 'https://automate.callhammerleads.com/webhook/fetch-tl-data',
       fetchAdminData: 'https://automate.callhammerleads.com/webhook/dashboard-data',
+      
+      // ✅ PAYROLL
+      payrollData: 'https://automate.callhammerleads.com/webhook/payroll-data',
+
       timeOffRequest: 'https://automate.callhammerleads.com/webhook/timeoff-request',
       changePassword: 'https://automate.callhammerleads.com/webhook/change-password',
       manageEmployee: 'https://automate.callhammerleads.com/webhook/manage-employee',
@@ -245,7 +251,12 @@ class CallHammerPortal {
     // Admin dashboard (Mission Control / Overview)
     if (onAdminDashboard) {
       document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
-      setTimeout(() => this.fetchAdminData(false), 300);
+      
+      // ✅ UPDATED: Call both Admin Data and Payroll Data
+      setTimeout(() => {
+        this.fetchAdminData(false);
+        this.loadPayrollData(false); // ✅ ADDED THIS
+      }, 300);
 
       // ✅ 1) Start polling (Auto-refresh)
       this.startAdminAutoRefresh();
@@ -659,11 +670,11 @@ class CallHammerPortal {
     const tierCount = data.approvedAppointments || 0;
     const tierMax = 6; // Tier 1 goal
     const percentage = Math.min(100, (tierCount / tierMax) * 100);
-    
+     
     setText('tier-count-display', `${tierCount} / ${tierMax} approved appointments`);
     const progressBar = document.getElementById('tier-progress-bar');
     if (progressBar) progressBar.style.width = `${percentage}%`;
-    
+     
     // Handle loading text update
     const tierStatusText = document.getElementById('tier-status-text');
     if(tierStatusText) tierStatusText.innerText = 'Tier 1 Progress';
@@ -747,7 +758,7 @@ class CallHammerPortal {
   updateProfileUI(profile) {
     if (!profile) return;
     const setText = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
-    
+     
     setText('nav-user-name', profile.name || this.currentUser.name || 'Agent');
     setText('profileName', profile.name || this.currentUser.name);
     setText('profileEmail', profile.email || this.currentUser.email);
@@ -758,7 +769,7 @@ class CallHammerPortal {
     // Also update monthly incentive snapshots in profile tab if they exist
     setText('monthly-incentive-status-prof', profile.monthlyIncentiveStatus || 'Not qualified yet');
     setText('monthly-raffle-status-prof', profile.raffleStatus || '0 / 4 weeks qualified');
-    
+     
     if (profile.hourlyIncrease) {
         setText('milestone-hourly-increase', this.formatCurrency(profile.hourlyIncrease));
         setText('effective-hourly-rate', this.formatCurrency((profile.baseRate || 0) + profile.hourlyIncrease));
@@ -992,6 +1003,62 @@ class CallHammerPortal {
     } catch (e) {
       console.error('❌ loadPassbookClientsList error:', e);
       return [];
+    }
+  }
+  
+  // ✅ NEW METHOD: Load Payroll Data
+  async loadPayrollData(force = false) {
+    try {
+      const url = new URL(this.webhooks.payrollData);
+
+      // cache-bust
+      url.searchParams.set('ts', Date.now());
+
+      const res = await fetch(url.toString(), {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        cache: 'no-store',
+      });
+
+      if (!res.ok) throw new Error(`Payroll data failed (HTTP ${res.status}).`);
+
+      const json = await res.json();
+
+      // support multiple response shapes
+      const root = json?.data || json || {};
+
+      const weeklyPayroll =
+        root.weeklyPayroll ||
+        root.weekly_payroll ||
+        root.weekly ||
+        [];
+
+      const payrollHistory =
+        root.payrollHistory ||
+        root.payroll_history ||
+        root.history ||
+        [];
+
+      // Store on portal (so UI can read it)
+      this.weeklyPayroll = Array.isArray(weeklyPayroll) ? weeklyPayroll : [];
+      this.timeTracker = Array.isArray(root.timeTracker || root.time_tracker) ? (root.timeTracker || root.time_tracker) : [];
+
+      // Also store in adminState (so admin dashboard can read it if needed)
+      this.adminState.weeklyPayroll = this.weeklyPayroll;
+      this.adminState.payrollHistory = Array.isArray(payrollHistory) ? payrollHistory : [];
+
+      console.log('✅ Payroll data loaded:', {
+        weeklyPayroll: this.adminState.weeklyPayroll.length,
+        payrollHistory: this.adminState.payrollHistory.length,
+      });
+
+      return this.adminState;
+
+    } catch (e) {
+      console.error('❌ loadPayrollData error:', e);
+      this.adminState.weeklyPayroll = [];
+      this.adminState.payrollHistory = [];
+      return this.adminState;
     }
   }
 
