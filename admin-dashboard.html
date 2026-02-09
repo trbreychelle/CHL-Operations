@@ -863,12 +863,29 @@
             <p class="text-sm text-gray-500 mt-1">Weekly payroll rollups + financial totals (based on Payroll Week Start).</p>
           </div>
 
-          <div class="flex items-center gap-2 flex-wrap">
+          <div class="flex items-end gap-2 flex-wrap">
             <div>
               <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Payroll Week</label>
               <select id="payroll-week-select" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
                 <option value="latest" selected>Latest</option>
               </select>
+            </div>
+
+            <div class="flex items-end gap-2">
+              <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+                <input id="payroll-date-start" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+                <input id="payroll-date-end" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
+              </div>
+              <button id="payroll-date-apply" class="px-3 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800">
+                Apply
+              </button>
+              <button id="payroll-date-clear" class="px-3 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
+                Clear
+              </button>
             </div>
 
             <button id="payroll-export"
@@ -878,7 +895,36 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-5">
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+          <div class="flex flex-col lg:flex-row gap-3 lg:items-end">
+            <div class="flex-1 relative">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+              <input
+                id="payroll-search"
+                type="text"
+                placeholder="Search appointment coordinator..."
+                class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              />
+            </div>
+
+            <select id="payroll-filter-coordinator" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[260px]">
+              <option value="all">All Coordinators</option>
+            </select>
+
+            <select id="payroll-sort" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
+              <option value="qualified_desc" selected>Sort: Qualified (High → Low)</option>
+              <option value="total_desc">Sort: Total (High → Low)</option>
+              <option value="revenue_desc">Sort: Revenue (High → Low)</option>
+              <option value="name_asc">Sort: Name (A → Z)</option>
+            </select>
+          </div>
+
+          <div class="mt-3 text-xs text-gray-500">
+            Showing <span class="font-bold" id="payroll-count">0</span> coordinators
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-3 mb-5">
           <div class="kpi-tile">
             <div class="kpi-label">Qualified Appointments</div>
             <div class="kpi-value text-blue-500" id="payroll-kpi-qualified">0</div>
@@ -895,9 +941,45 @@
             <div class="kpi-sub">$125 × Qualified</div>
           </div>
           <div class="kpi-tile">
+            <div class="kpi-label">Est. Expense</div>
+            <div class="kpi-value text-red-600" id="payroll-kpi-expense">$0.00</div>
+            <div class="kpi-sub" id="payroll-kpi-expense-sub">From payroll data (if available)</div>
+          </div>
+          <div class="kpi-tile">
+            <div class="kpi-label">Net (Revenue - Expense)</div>
+            <div class="kpi-value" id="payroll-kpi-net">$0.00</div>
+            <div class="kpi-sub">Quick profitability check</div>
+          </div>
+          <div class="kpi-tile">
             <div class="kpi-label">Payroll Week Range</div>
             <div class="kpi-value" style="font-size:14px;" id="payroll-kpi-range">—</div>
             <div class="kpi-sub">Based on Payroll Week Start</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-5">
+          <div class="bg-white border border-gray-100 rounded-2xl p-4">
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Revenue Trend (by Payroll Week)</p>
+              <p class="text-xs text-gray-400" id="payroll-trend-label">—</p>
+            </div>
+            <div class="w-full overflow-x-auto">
+              <div class="min-w-[720px]">
+                <canvas id="payroll-revenue-chart" height="120"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white border border-gray-100 rounded-2xl p-4">
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Qualified vs Unqualified (by Coordinator)</p>
+              <p class="text-xs text-gray-400">Selected period</p>
+            </div>
+            <div class="w-full overflow-x-auto">
+              <div class="min-w-[720px]">
+                <canvas id="payroll-coordinator-chart" height="120"></canvas>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -946,6 +1028,8 @@
       
       // ✅ PAYROLL STATE
       _payrollBound: false,
+      _payrollCustomRange: { active: false, start: null, end: null },
+      _payrollCharts: { revenue: null, coordinator: null },
 
       clientHealthRaw: [],
       clientHealthView: [],
@@ -2636,64 +2720,136 @@
 
         const { weeks, byWeek } = this.computePayrollFromLeads(leads);
 
-        // populate dropdown once (or refresh safely)
+        // populate week dropdown
         const sel = document.getElementById("payroll-week-select");
         if (sel) {
           const current = sel.value || "latest";
           const opts = [`<option value="latest">Latest</option>`]
             .concat(weeks.map(w => `<option value="${w}">${w}</option>`));
           sel.innerHTML = opts.join("");
-
-          // restore if possible
           if (current !== "latest" && weeks.includes(current)) sel.value = current;
           else sel.value = "latest";
         }
 
-        const chosenWeek = (sel?.value && sel.value !== "latest") ? sel.value : (weeks[0] || "");
-        const rows = chosenWeek ? (byWeek.get(chosenWeek) || []) : [];
+        // determine selected period:
+        // if custom active, we filter by weekStart between start/end
+        let chosenWeek = "";
+        let rows = [];
+        let label = "";
 
-        // KPI totals
-        let q = 0, u = 0;
-        for (const r of rows) { q += r.qualified; u += r.unqualified; }
-        const estRevenue = q * 125;
+        if (this._payrollCustomRange.active) {
+          const s = new Date(this._payrollCustomRange.start + "T00:00:00");
+          const e = new Date(this._payrollCustomRange.end + "T23:59:59");
+
+          const inRangeWeeks = weeks.filter(w => {
+            const d = new Date(w + "T00:00:00");
+            return d && !isNaN(d.getTime()) && d >= s && d <= e;
+          });
+
+          // merge rows across those weeks
+          const agg = new Map(); // agent -> {qualified, unqualified}
+          for (const wk of inRangeWeeks) {
+            const wkRows = byWeek.get(wk) || [];
+            for (const r of wkRows) {
+              const cur = agg.get(r.agent) || { agent: r.agent, qualified: 0, unqualified: 0 };
+              cur.qualified += r.qualified;
+              cur.unqualified += r.unqualified;
+              agg.set(r.agent, cur);
+            }
+          }
+          rows = Array.from(agg.values());
+          label = `${new Date(this._payrollCustomRange.start).toLocaleDateString()} → ${new Date(this._payrollCustomRange.end).toLocaleDateString()}`;
+          chosenWeek = ""; // not a single week
+          const kRange = document.getElementById("payroll-kpi-range");
+          if (kRange) kRange.textContent = label;
+          const tl = document.getElementById("payroll-trend-label");
+          if (tl) tl.textContent = "Custom Range";
+        } else {
+          chosenWeek = (sel?.value && sel.value !== "latest") ? sel.value : (weeks[0] || "");
+          rows = chosenWeek ? (byWeek.get(chosenWeek) || []) : [];
+          const kRange = document.getElementById("payroll-kpi-range");
+          if (kRange) kRange.textContent = this.getPayrollWeekRangeLabel(chosenWeek);
+          const tl = document.getElementById("payroll-trend-label");
+          if (tl) tl.textContent = "Latest weeks";
+        }
+
+        // coordinator filter options (based on rows)
+        const coordSel = document.getElementById("payroll-filter-coordinator");
+        if (coordSel) {
+          const prev = coordSel.value || "all";
+          const names = [...new Set(rows.map(r => r.agent).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+          coordSel.innerHTML = `<option value="all">All Coordinators</option>` + names.map(n => `<option value="${String(n).replace(/"/g,"&quot;")}">${n}</option>`).join("");
+          if (prev !== "all" && names.includes(prev)) coordSel.value = prev;
+          else coordSel.value = "all";
+        }
+
+        // apply search + coordinator filter
+        const q = String(document.getElementById("payroll-search")?.value || "").toLowerCase().trim();
+        const coordVal = document.getElementById("payroll-filter-coordinator")?.value || "all";
+
+        let view = [...rows];
+        if (coordVal !== "all") view = view.filter(r => String(r.agent).trim() === coordVal);
+        if (q) view = view.filter(r => String(r.agent).toLowerCase().includes(q));
+
+        // sort
+        const sortVal = document.getElementById("payroll-sort")?.value || "qualified_desc";
+        const sorters = {
+          qualified_desc: (a,b) => (b.qualified - a.qualified) || ((b.qualified+b.unqualified) - (a.qualified+a.unqualified)) || a.agent.localeCompare(b.agent),
+          total_desc: (a,b) => ((b.qualified+b.unqualified) - (a.qualified+a.unqualified)) || (b.qualified - a.qualified) || a.agent.localeCompare(b.agent),
+          revenue_desc: (a,b) => ((b.qualified*125) - (a.qualified*125)) || (b.qualified - a.qualified) || a.agent.localeCompare(b.agent),
+          name_asc: (a,b) => a.agent.localeCompare(b.agent),
+        };
+        if (sorters[sortVal]) view.sort(sorters[sortVal]);
+
+        // KPIs
+        let qTot = 0, uTot = 0;
+        for (const r of view) { qTot += r.qualified; uTot += r.unqualified; }
+        const estRevenue = qTot * 125;
+
+        // Expense (auto-detect if you have payroll data in adminState)
+        // If your state includes a payroll table/history later, this will start showing real totals.
+        const expense = this._computePayrollExpenseFromState(state, chosenWeek);
+        const net = estRevenue - expense;
 
         const kQ = document.getElementById("payroll-kpi-qualified");
         const kU = document.getElementById("payroll-kpi-unqualified");
         const kR = document.getElementById("payroll-kpi-revenue");
-        const kRange = document.getElementById("payroll-kpi-range");
+        const kE = document.getElementById("payroll-kpi-expense");
+        const kN = document.getElementById("payroll-kpi-net");
 
-        if (kQ) kQ.textContent = q;
-        if (kU) kU.textContent = u;
+        if (kQ) kQ.textContent = qTot;
+        if (kU) kU.textContent = uTot;
         if (kR) kR.textContent = estRevenue.toLocaleString("en-US", { style: "currency", currency: "USD" });
-        if (kRange) kRange.textContent = this.getPayrollWeekRangeLabel(chosenWeek);
+        if (kE) kE.textContent = expense.toLocaleString("en-US", { style: "currency", currency: "USD" });
+        if (kN) kN.textContent = net.toLocaleString("en-US", { style: "currency", currency: "USD" });
+
+        const countEl = document.getElementById("payroll-count");
+        if (countEl) countEl.textContent = view.length;
 
         // table
         const tbody = document.getElementById("payroll-body");
         if (!tbody) return;
 
-        if (!chosenWeek) {
-          tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No payroll data found.</td></tr>`;
-          return;
+        if (!view.length) {
+          tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No payroll results found.</td></tr>`;
+        } else {
+          tbody.innerHTML = view.map(r => {
+            const total = r.qualified + r.unqualified;
+            const rev = (r.qualified * 125);
+            return `
+              <tr class="hover:bg-gray-50">
+                <td class="p-4 font-bold text-gray-900">${r.agent}</td>
+                <td class="p-4 text-center text-blue-500 font-extrabold">${r.qualified}</td>
+                <td class="p-4 text-center text-purple-500 font-extrabold">${r.unqualified}</td>
+                <td class="p-4 text-center text-gray-700 font-semibold">${total}</td>
+                <td class="p-4 text-right text-emerald-700 font-extrabold">${rev.toLocaleString("en-US", { style: "currency", currency: "USD" })}</td>
+              </tr>
+            `;
+          }).join("");
         }
 
-        if (!rows.length) {
-          tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No rows for ${chosenWeek}.</td></tr>`;
-          return;
-        }
-
-        tbody.innerHTML = rows.map(r => {
-          const total = r.qualified + r.unqualified;
-          const rev = (r.qualified * 125);
-          return `
-            <tr class="hover:bg-gray-50">
-              <td class="p-4 font-bold text-gray-900">${r.agent}</td>
-              <td class="p-4 text-center text-blue-500 font-extrabold">${r.qualified}</td>
-              <td class="p-4 text-center text-purple-500 font-extrabold">${r.unqualified}</td>
-              <td class="p-4 text-center text-gray-700 font-semibold">${total}</td>
-              <td class="p-4 text-right text-emerald-700 font-extrabold">${rev.toLocaleString("en-US", { style: "currency", currency: "USD" })}</td>
-            </tr>
-          `;
-        }).join("");
+        // charts
+        this._renderPayrollCharts({ weeks, byWeek, chosenWeek, view });
       },
 
       bindPayrollUI() {
@@ -2701,8 +2857,44 @@
         this._payrollBound = true;
 
         const sel = document.getElementById("payroll-week-select");
-        if (sel) sel.addEventListener("change", () => this.renderPayrollFinance());
+        const search = document.getElementById("payroll-search");
+        const coord = document.getElementById("payroll-filter-coordinator");
+        const sort = document.getElementById("payroll-sort");
 
+        if (sel) sel.addEventListener("change", () => {
+          // if user touches week dropdown, turn off custom range
+          this._payrollCustomRange.active = false;
+          this.renderPayrollFinance();
+        });
+
+        if (search) search.addEventListener("input", () => this.renderPayrollFinance());
+        if (coord) coord.addEventListener("change", () => this.renderPayrollFinance());
+        if (sort) sort.addEventListener("change", () => this.renderPayrollFinance());
+
+        // custom date range (by payroll week start)
+        const apply = document.getElementById("payroll-date-apply");
+        const clear = document.getElementById("payroll-date-clear");
+        if (apply) {
+          apply.addEventListener("click", () => {
+            const s = document.getElementById("payroll-date-start")?.value;
+            const e = document.getElementById("payroll-date-end")?.value;
+            if (!s || !e) return;
+            this._payrollCustomRange.active = true;
+            this._payrollCustomRange.start = s;
+            this._payrollCustomRange.end = e;
+            this.renderPayrollFinance();
+          });
+        }
+        if (clear) {
+          clear.addEventListener("click", () => {
+            const s = document.getElementById("payroll-date-start"); if (s) s.value = "";
+            const e = document.getElementById("payroll-date-end"); if (e) e.value = "";
+            this._payrollCustomRange.active = false;
+            this.renderPayrollFinance();
+          });
+        }
+
+        // export
         const btn = document.getElementById("payroll-export");
         if (btn) {
           btn.addEventListener("click", () => {
@@ -2710,10 +2902,35 @@
             const leads = (state && Array.isArray(state.leads)) ? state.leads : [];
             const { weeks, byWeek } = this.computePayrollFromLeads(leads);
 
-            const chosen = (sel?.value && sel.value !== "latest") ? sel.value : (weeks[0] || "");
-            const rows = chosen ? (byWeek.get(chosen) || []) : [];
+            let chosen = "";
+            let rows = [];
 
-            const header = ["payroll_week_start","appointment_coordinator","qualified","unqualified","total","est_revenue_usd"];
+            if (this._payrollCustomRange.active) {
+              const s = new Date(this._payrollCustomRange.start + "T00:00:00");
+              const e = new Date(this._payrollCustomRange.end + "T23:59:59");
+              const inRangeWeeks = weeks.filter(w => {
+                const d = new Date(w + "T00:00:00");
+                return d && !isNaN(d.getTime()) && d >= s && d <= e;
+              });
+
+              const agg = new Map();
+              for (const wk of inRangeWeeks) {
+                const wkRows = byWeek.get(wk) || [];
+                for (const r of wkRows) {
+                  const cur = agg.get(r.agent) || { agent: r.agent, qualified: 0, unqualified: 0 };
+                  cur.qualified += r.qualified;
+                  cur.unqualified += r.unqualified;
+                  agg.set(r.agent, cur);
+                }
+              }
+              rows = Array.from(agg.values());
+              chosen = `custom_${this._payrollCustomRange.start}_to_${this._payrollCustomRange.end}`;
+            } else {
+              chosen = (sel?.value && sel.value !== "latest") ? sel.value : (weeks[0] || "");
+              rows = chosen ? (byWeek.get(chosen) || []) : [];
+            }
+
+            const header = ["payroll_period","appointment_coordinator","qualified","unqualified","total","est_revenue_usd"];
             const lines = [header.join(",")];
 
             for (const r of rows) {
@@ -2734,11 +2951,94 @@
 
             const a = document.createElement("a");
             a.href = url;
-            a.download = `payroll_${chosen || "no_week"}.csv`;
+            a.download = `payroll_${chosen || "no_period"}.csv`;
             document.body.appendChild(a);
             a.click();
             a.remove();
             URL.revokeObjectURL(url);
+          });
+        }
+      },
+
+      _computePayrollExpenseFromState(state, chosenWeek) {
+        // Tries to find weekly payroll totals from whatever you already store in adminState.
+        // If you later feed your Weekly_Payroll sheet data into adminState (recommended),
+        // this will automatically show real expenses.
+
+        const candidates = [
+          state?.payroll,
+          state?.payroll_history,
+          state?.payrollHistory,
+          state?.weekly_payroll,
+          state?.weeklyPayroll
+        ].find(x => Array.isArray(x));
+
+        if (!candidates) return 0;
+
+        // Match rows by week if possible
+        const weekKey = String(chosenWeek || "").trim();
+
+        const get = (obj, keys) => {
+          for (const k of keys) {
+            const v = obj?.[k];
+            if (v !== undefined && v !== null && String(v).trim() !== "") return v;
+          }
+          return "";
+        };
+
+        let sum = 0;
+        for (const r of candidates) {
+          const wk = String(get(r, ["Payroll Week Start","PAYROLL WEEK START","payroll_week_start"]) || "").trim();
+          if (weekKey && wk && wk !== weekKey) continue;
+
+          const payRaw = get(r, ["Total Weekly Pay","TOTAL WEEKLY PAY","total_weekly_pay","Weekly Pay"]);
+          const pay = Number(String(payRaw || "").replace(/[^0-9.\-]/g,"")) || 0;
+          sum += pay;
+        }
+        return sum;
+      },
+
+      _renderPayrollCharts({ weeks, byWeek, chosenWeek, view }) {
+        // Revenue trend by week (qualified * 125)
+        const revLabels = weeks.slice().reverse(); // oldest -> newest for nicer line
+        const revData = revLabels.map(wk => {
+          const rows = byWeek.get(wk) || [];
+          const q = rows.reduce((a,r)=>a + (r.qualified||0), 0);
+          return q * 125;
+        });
+
+        const revCtx = document.getElementById("payroll-revenue-chart");
+        if (revCtx) {
+          if (this._payrollCharts.revenue) this._payrollCharts.revenue.destroy();
+          this._payrollCharts.revenue = new Chart(revCtx, {
+            type: "line",
+            data: { labels: revLabels, datasets: [{ label: "Est. Revenue", data: revData }] },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+          });
+        }
+
+        // Coordinator bar (current selected view)
+        const names = view.map(r => r.agent);
+        const qVals = view.map(r => r.qualified || 0);
+        const uVals = view.map(r => r.unqualified || 0);
+
+        const coordCtx = document.getElementById("payroll-coordinator-chart");
+        if (coordCtx) {
+          if (this._payrollCharts.coordinator) this._payrollCharts.coordinator.destroy();
+          this._payrollCharts.coordinator = new Chart(coordCtx, {
+            type: "bar",
+            data: {
+              labels: names,
+              datasets: [
+                { label: "Qualified", data: qVals, stack: "stack" },
+                { label: "Unqualified", data: uVals, stack: "stack" },
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
+            }
           });
         }
       },
