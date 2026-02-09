@@ -61,122 +61,32 @@
     .kpi-sub { font-size: 12px; font-weight: 600; margin-top: 2px; color: #6B7280; }
 
     /* Client Health fixed scroll height */
-    .client-health-scroll {
-      max-height: 315px; /* ~5 rows visible */
-      overflow-y: auto;
-    }
+    .client-health-scroll { max-height: 315px; overflow-y: auto; }
 
-    /* Helps when zooming: keep controls from overlapping */
-    .controls-wrap {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: flex-end;
-    }
-    .controls-wrap > * {
-      min-width: 180px;
-    }
-    @media (max-width: 1024px) {
-      .controls-wrap > * { min-width: 160px; }
-    }
+    /* Helps when zooming */
+    .controls-wrap { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+    .controls-wrap > * { min-width: 180px; }
+    @media (max-width: 1024px) { .controls-wrap > * { min-width: 160px; } }
 
-    /* Table stays readable, scroll instead of collapsing */
-    .table-scroll {
-      overflow-x: auto;
-    }
-    .table-min {
-      min-width: 1100px;
-    }
+    /* Table stays readable */
+    .table-scroll { overflow-x: auto; }
+    .table-min { min-width: 1100px; }
 
-    /* ✅ 1B) Tabulator (Branded) Overrides */
-    .tabulator {
-      font-family: 'Inter', sans-serif !important;
-      border: 1px solid #F3F4F6 !important;
-      border-radius: 16px !important;
-      overflow: hidden !important;
-      background: #fff !important;
-    }
-
-    .tabulator .tabulator-header {
-      background: #fff !important;
-      border-bottom: 1px solid #F3F4F6 !important;
-    }
-
-    .tabulator .tabulator-header .tabulator-col {
-      background: #fff !important;
-      border-right: 0 !important;
-    }
-
-    .tabulator .tabulator-header .tabulator-col .tabulator-col-content {
-      padding: 12px 12px !important;
-    }
-
-    .tabulator .tabulator-header .tabulator-col .tabulator-col-title {
-      font-size: 11px !important;
-      font-weight: 800 !important;
-      text-transform: uppercase !important;
-      letter-spacing: .12em !important;
-      color: #9CA3AF !important;
-    }
-
-    .tabulator-row {
-      border-bottom: 1px solid #F9FAFB !important;
-    }
-
-    .tabulator-row:hover {
-      background: #F9FAFB !important;
-    }
-
-    .tabulator-cell {
-      padding: 10px 12px !important;
-      font-size: 13px !important;
-      color: #111827 !important;
-      border-right: 0 !important;
-    }
-
-    .tabulator .tabulator-footer {
-      border-top: 1px solid #F3F4F6 !important;
-      background: #fff !important;
-    }
-
-    .tabulator .tabulator-page {
-      border-radius: 10px !important;
-      border: 1px solid #E5E7EB !important;
-      background: #fff !important;
-      font-weight: 800 !important;
-      font-size: 12px !important;
-    }
-
-    .tabulator .tabulator-page.active {
-      background: rgba(251, 191, 36, 0.15) !important;
-      border-color: #FBBF24 !important;
-      color: #92400E !important;
-    }
-
-    /* input editor */
-    .tabulator-editing input,
-    .tabulator-editing select,
-    .tabulator-editing textarea {
-      border: 1px solid #E5E7EB !important;
-      border-radius: 10px !important;
-      padding: 8px 10px !important;
-      font-size: 13px !important;
-      outline: none !important;
-    }
-
-    .tabulator-editing input:focus,
-    .tabulator-editing select:focus,
-    .tabulator-editing textarea:focus {
-      box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.5) !important; /* yellow ring */
-      border-color: #FBBF24 !important;
-    }
-
-    /* tiny badge styles for cells (optional) */
-    .chl-badge {
-      display:inline-flex; align-items:center; gap:6px;
-      font-size: 11px; font-weight: 900; letter-spacing:.06em;
-      padding: 4px 10px; border-radius: 999px; border: 1px solid #E5E7EB;
-    }
+    /* Tabulator (Branded) Overrides */
+    .tabulator { font-family: 'Inter', sans-serif !important; border: 1px solid #F3F4F6 !important; border-radius: 16px !important; overflow: hidden !important; background: #fff !important; }
+    .tabulator .tabulator-header { background: #fff !important; border-bottom: 1px solid #F3F4F6 !important; }
+    .tabulator .tabulator-header .tabulator-col { background: #fff !important; border-right: 0 !important; }
+    .tabulator .tabulator-header .tabulator-col .tabulator-col-content { padding: 12px 12px !important; }
+    .tabulator .tabulator-header .tabulator-col .tabulator-col-title { font-size: 11px !important; font-weight: 800 !important; text-transform: uppercase !important; letter-spacing: .12em !important; color: #9CA3AF !important; }
+    .tabulator-row { border-bottom: 1px solid #F9FAFB !important; }
+    .tabulator-row:hover { background: #F9FAFB !important; }
+    .tabulator-cell { padding: 10px 12px !important; font-size: 13px !important; color: #111827 !important; border-right: 0 !important; }
+    .tabulator .tabulator-footer { border-top: 1px solid #F3F4F6 !important; background: #fff !important; }
+    .tabulator .tabulator-page { border-radius: 10px !important; border: 1px solid #E5E7EB !important; background: #fff !important; font-weight: 800 !important; font-size: 12px !important; }
+    .tabulator .tabulator-page.active { background: rgba(251, 191, 36, 0.15) !important; border-color: #FBBF24 !important; color: #92400E !important; }
+    .tabulator-editing input, .tabulator-editing select, .tabulator-editing textarea { border: 1px solid #E5E7EB !important; border-radius: 10px !important; padding: 8px 10px !important; font-size: 13px !important; outline: none !important; }
+    .tabulator-editing input:focus, .tabulator-editing select:focus, .tabulator-editing textarea:focus { box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.5) !important; border-color: #FBBF24 !important; }
+    .chl-badge { display:inline-flex; align-items:center; gap:6px; font-size: 11px; font-weight: 900; letter-spacing:.06em; padding: 4px 10px; border-radius: 999px; border: 1px solid #E5E7EB; }
     .chl-badge.good { background:#ECFDF5; color:#065F46; border-color:#A7F3D0; }
     .chl-badge.warn { background:#FFFBEB; color:#92400E; border-color:#FDE68A; }
     .chl-badge.bad  { background:#FEF2F2; color:#991B1B; border-color:#FECACA; }
@@ -238,19 +148,16 @@
     <div class="flex-1 overflow-y-auto p-6 lg:p-8" id="main-scroll">
 
       <div id="view-overview" class="view-section active">
-
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
           <div>
             <h1 class="text-3xl font-bold text-gray-900">Mission Control</h1>
             <p class="text-sm text-gray-500 mt-1">Daily decision support & system health.</p>
           </div>
-
           <div class="flex gap-4 flex-wrap">
             <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
               <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider" id="pulse-label">EST. VALUE</p>
               <p class="text-lg font-bold text-emerald-600 mt-1" id="pulse-profit">$0.00</p>
             </div>
-
             <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm min-w-[220px]">
               <div class="flex items-center justify-between gap-3">
                 <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Owed Leads</p>
@@ -264,7 +171,6 @@
               <p class="text-lg font-bold text-gray-900 mt-1" id="pulse-owed">0</p>
               <p class="text-[11px] font-semibold text-gray-500" id="pulse-owed-sub">All package statuses</p>
             </div>
-
             <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
               <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pending</p>
               <p class="text-lg font-bold text-yellow-500 mt-1" id="pulse-pending">0</p>
@@ -278,98 +184,44 @@
               <h3 class="font-bold text-gray-900 flex items-center gap-2">
                 <i class="fa-solid fa-heart-pulse text-red-500"></i> Client Health Monitor
               </h3>
-
               <div class="flex items-center gap-3">
-                <div class="status-container">
-                  <span class="status-dot st-critical"></span>
-                  <span class="tooltip-text"><b>CRITICAL</b><br>No lead delivered in more than 48 hours.</span>
-                </div>
-                <div class="status-container">
-                  <span class="status-dot st-risk"></span>
-                  <span class="tooltip-text"><b>AT RISK</b><br>Lead within 48 hours but not healthy / no lead today & yesterday.</span>
-                </div>
-                <div class="status-container">
-                  <span class="status-dot st-healthy"></span>
-                  <span class="tooltip-text"><b>HEALTHY</b><br>At least 1 lead today AND at least 1 lead yesterday.</span>
-                </div>
-                <div class="status-container">
-                  <span class="status-dot st-new"></span>
-                  <span class="tooltip-text"><b>NOT STARTED</b><br>New campaign.</span>
-                </div>
+                <div class="status-container"><span class="status-dot st-critical"></span><span class="tooltip-text"><b>CRITICAL</b><br>No lead > 48h.</span></div>
+                <div class="status-container"><span class="status-dot st-risk"></span><span class="tooltip-text"><b>AT RISK</b><br>Lead < 48h but slow.</span></div>
+                <div class="status-container"><span class="status-dot st-healthy"></span><span class="tooltip-text"><b>HEALTHY</b><br>Active leads.</span></div>
+                <div class="status-container"><span class="status-dot st-new"></span><span class="tooltip-text"><b>NOT STARTED</b></span></div>
               </div>
             </div>
-
             <div class="flex flex-col md:flex-row gap-3">
               <div class="flex-1 relative">
                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
-                <input
-                  id="health-search"
-                  type="text"
-                  placeholder="Search by code, roofing company, or client name..."
-                  class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                />
+                <input id="health-search" type="text" placeholder="Search by code, company, or client..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
               </div>
-
-              <select id="health-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
-                <option value="all">All Status</option>
-              </select>
-
+              <select id="health-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]"><option value="all">All Status</option></select>
               <select id="health-filter-package" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[190px]">
                 <option value="all">All Package Status</option>
                 <option value="ACTIVE">ACTIVE</option>
                 <option value="PAUSE">PAUSE</option>
                 <option value="REFUNDED">REFUNDED</option>
               </select>
-
-              <select id="health-filter-location" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[190px]">
-                <option value="all">All Locations</option>
-              </select>
-
-              <button id="health-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
-                Clear
-              </button>
+              <select id="health-filter-location" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[190px]"><option value="all">All Locations</option></select>
+              <button id="health-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">Clear</button>
             </div>
           </div>
-
           <div class="client-health-scroll">
             <table class="w-full text-left border-collapse">
               <thead class="bg-white sticky top-0 z-10 shadow-sm">
                 <tr>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase w-10">Status</th>
-
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="code">
-                    Code <span class="sort-icon" id="sort-code">↕</span>
-                  </th>
-
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="roofingCompany">
-                    Roofing Company <span class="sort-icon" id="sort-roofingCompany">↕</span>
-                  </th>
-
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="cityState">
-                    City/State <span class="sort-icon" id="sort-cityState">↕</span>
-                  </th>
-
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="packageRatio">
-                    Package (Owed/Purchased) <span class="sort-icon" id="sort-packageRatio">↕</span>
-                  </th>
-
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="code">Code <span class="sort-icon" id="sort-code">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="roofingCompany">Roofing Company <span class="sort-icon" id="sort-roofingCompany">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="cityState">City/State <span class="sort-icon" id="sort-cityState">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="packageRatio">Package (Owed/Purchased) <span class="sort-icon" id="sort-packageRatio">↕</span></th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Qualified</th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Credited</th>
-
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsToday">
-                    Leads Today <span class="sort-icon" id="sort-leadsToday">↕</span>
-                  </th>
-
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsYesterday">
-                    Leads Yesterday <span class="sort-icon" id="sort-leadsYesterday">↕</span>
-                  </th>
-
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsToday">Leads Today <span class="sort-icon" id="sort-leadsToday">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsYesterday">Leads Yesterday <span class="sort-icon" id="sort-leadsYesterday">↕</span></th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase">Package Status</th>
-
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="clientName">
-                    Client Name <span class="sort-icon" id="sort-clientName">↕</span>
-                  </th>
-
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="clientName">Client Name <span class="sort-icon" id="sort-clientName">↕</span></th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase">Purchase Date</th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase">Last Lead Received</th>
                 </tr>
@@ -383,10 +235,7 @@
 
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8 overflow-hidden">
           <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-gray-50/50">
-            <h3 class="font-bold text-gray-900 flex items-center gap-2">
-              <i class="fa-solid fa-chart-column text-yellow-500"></i> Team Performance Analytics
-            </h3>
-
+            <h3 class="font-bold text-gray-900 flex items-center gap-2"><i class="fa-solid fa-chart-column text-yellow-500"></i> Team Performance Analytics</h3>
             <div class="flex items-center gap-2 flex-wrap">
               <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
                 <button onclick="Admin.setAnalyticsPeriod('today', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
@@ -396,141 +245,56 @@
                 <button onclick="Admin.setAnalyticsPeriod('6-weeks', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">6 Weeks</button>
                 <button onclick="Admin.setAnalyticsPeriod('all-time', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
               </div>
-
               <div class="relative">
-                <button id="custom-range-toggle"
-                        class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                  <i class="fa-regular fa-calendar"></i> Custom
-                </button>
-
-                <div id="custom-range-popover"
-                     class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
-                  <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">
-                    Custom Timeframe
-                  </div>
+                <button id="custom-range-toggle" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2"><i class="fa-regular fa-calendar"></i> Custom</button>
+                <div id="custom-range-popover" class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                  <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">Custom Timeframe</div>
                   <div class="grid grid-cols-2 gap-2">
-                    <div>
-                      <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
-                      <input id="custom-start" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
-                    </div>
-                    <div>
-                      <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
-                      <input id="custom-end" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
-                    </div>
+                    <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label><input id="custom-start" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/></div>
+                    <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label><input id="custom-end" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/></div>
                   </div>
                   <div class="flex justify-end gap-2 mt-3">
-                    <button id="custom-clear"
-                            class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
-                      Clear
-                    </button>
-                    <button id="custom-apply"
-                            class="px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">
-                      Apply
-                    </button>
+                    <button id="custom-clear" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">Clear</button>
+                    <button id="custom-apply" class="px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">Apply</button>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-
           <div class="p-5">
             <div class="grid grid-cols-1 md:grid-cols-6 gap-3 mb-5">
-              <div class="kpi-tile">
-                <div class="kpi-label">Total Leads</div>
-                <div class="kpi-value" id="kpi-total">0</div>
-                <div class="kpi-sub" id="kpi-range">—</div>
-              </div>
-              <div class="kpi-tile">
-                <div class="kpi-label">QC Rejected</div>
-                <div class="kpi-value text-red-500" id="kpi-qc-rejected">0</div>
-                <div class="kpi-sub">Rejected</div>
-              </div>
-              <div class="kpi-tile">
-                <div class="kpi-label">Qualified</div>
-                <div class="kpi-value text-blue-500" id="kpi-qualified">0</div>
-                <div class="kpi-sub">Confirmed / Approved</div>
-              </div>
-              <div class="kpi-tile">
-                <div class="kpi-label">Credited</div>
-                <div class="kpi-value text-purple-500" id="kpi-credited">0</div>
-                <div class="kpi-sub">Credited only</div>
-              </div>
-              <div class="kpi-tile">
-                <div class="kpi-label">Pending</div>
-                <div class="kpi-value text-yellow-500" id="kpi-pending">0</div>
-                <div class="kpi-sub">Pending review</div>
-              </div>
-              <div class="kpi-tile">
-                <div class="kpi-label">Cancellation Rate</div>
-                <div class="kpi-value" id="kpi-cancel">0%</div>
-                <div class="kpi-sub">Credited / (Qualified + Credited)</div>
-              </div>
+              <div class="kpi-tile"><div class="kpi-label">Total Leads</div><div class="kpi-value" id="kpi-total">0</div><div class="kpi-sub" id="kpi-range">—</div></div>
+              <div class="kpi-tile"><div class="kpi-label">QC Rejected</div><div class="kpi-value text-red-500" id="kpi-qc-rejected">0</div><div class="kpi-sub">Rejected</div></div>
+              <div class="kpi-tile"><div class="kpi-label">Qualified</div><div class="kpi-value text-blue-500" id="kpi-qualified">0</div><div class="kpi-sub">Confirmed / Approved</div></div>
+              <div class="kpi-tile"><div class="kpi-label">Credited</div><div class="kpi-value text-purple-500" id="kpi-credited">0</div><div class="kpi-sub">Credited only</div></div>
+              <div class="kpi-tile"><div class="kpi-label">Pending</div><div class="kpi-value text-yellow-500" id="kpi-pending">0</div><div class="kpi-sub">Pending review</div></div>
+              <div class="kpi-tile"><div class="kpi-label">Cancellation Rate</div><div class="kpi-value" id="kpi-cancel">0%</div><div class="kpi-sub">Credited / (Qualified + Credited)</div></div>
             </div>
-
             <div class="bg-white border border-gray-100 rounded-2xl p-4">
-              <div class="flex items-center justify-between mb-2">
-                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Trend (stacked)</p>
-                <p class="text-xs text-gray-400" id="trend-grain">—</p>
-              </div>
-              <div class="w-full overflow-x-auto">
-                <div class="min-w-[720px]">
-                  <canvas id="team-analytics-chart" height="110"></canvas>
-                </div>
-              </div>
+              <div class="flex items-center justify-between mb-2"><p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Trend (stacked)</p><p class="text-xs text-gray-400" id="trend-grain">—</p></div>
+              <div class="w-full overflow-x-auto"><div class="min-w-[720px]"><canvas id="team-analytics-chart" height="110"></canvas></div></div>
             </div>
           </div>
-
           <div class="border-t border-gray-100 p-5 bg-gray-50/40 space-y-6">
             <div>
-              <div class="flex items-center justify-between mb-3">
-                <h4 class="font-bold text-gray-900 flex items-center gap-2">
-                  <i class="fa-solid fa-trophy text-yellow-500"></i> Top 10 Agents
-                </h4>
-                <span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider" id="top10-label">—</span>
-              </div>
+              <div class="flex items-center justify-between mb-3"><h4 class="font-bold text-gray-900 flex items-center gap-2"><i class="fa-solid fa-trophy text-yellow-500"></i> Top 10 Agents</h4><span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider" id="top10-label">—</span></div>
               <div class="overflow-x-auto bg-white rounded-2xl border border-gray-100">
                 <table class="w-full text-left text-sm">
                   <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
-                    <tr>
-                      <th class="p-4">Agent</th>
-                      <th class="p-4 text-center">Total</th>
-                      <th class="p-4 text-center text-red-500">QC Rejected</th>
-                      <th class="p-4 text-center text-blue-500">Qualified</th>
-                      <th class="p-4 text-center text-purple-500">Credited</th>
-                      <th class="p-4 text-center text-yellow-500">Pending</th>
-                      <th class="p-4 text-center">Cancellation Rate</th>
-                    </tr>
+                    <tr><th class="p-4">Agent</th><th class="p-4 text-center">Total</th><th class="p-4 text-center text-red-500">QC Rejected</th><th class="p-4 text-center text-blue-500">Qualified</th><th class="p-4 text-center text-purple-500">Credited</th><th class="p-4 text-center text-yellow-500">Pending</th><th class="p-4 text-center">Cancellation Rate</th></tr>
                   </thead>
-                  <tbody id="top10-body" class="divide-y divide-gray-50">
-                    <tr><td colspan="7" class="p-6 text-center text-gray-400 italic">Calculating...</td></tr>
-                  </tbody>
+                  <tbody id="top10-body" class="divide-y divide-gray-50"><tr><td colspan="7" class="p-6 text-center text-gray-400 italic">Calculating...</td></tr></tbody>
                 </table>
               </div>
             </div>
-
             <div>
-              <div class="flex items-center justify-between mb-3">
-                <h4 class="font-bold text-gray-900 flex items-center gap-2">
-                  <i class="fa-solid fa-arrow-down-wide-short text-red-500"></i> Bottom 5 Agents (≤ 5 Total Leads)
-                </h4>
-                <span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider" id="bottom5-label">—</span>
-              </div>
+              <div class="flex items-center justify-between mb-3"><h4 class="font-bold text-gray-900 flex items-center gap-2"><i class="fa-solid fa-arrow-down-wide-short text-red-500"></i> Bottom 5 Agents (≤ 5 Total Leads)</h4><span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider" id="bottom5-label">—</span></div>
               <div class="overflow-x-auto bg-white rounded-2xl border border-gray-100">
                 <table class="w-full text-left text-sm">
                   <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
-                    <tr>
-                      <th class="p-4">Agent</th>
-                      <th class="p-4 text-center">Total</th>
-                      <th class="p-4 text-center text-red-500">QC Rejected</th>
-                      <th class="p-4 text-center text-blue-500">Qualified</th>
-                      <th class="p-4 text-center text-purple-500">Credited</th>
-                      <th class="p-4 text-center text-yellow-500">Pending</th>
-                      <th class="p-4 text-center">Cancellation Rate</th>
-                    </tr>
+                    <tr><th class="p-4">Agent</th><th class="p-4 text-center">Total</th><th class="p-4 text-center text-red-500">QC Rejected</th><th class="p-4 text-center text-blue-500">Qualified</th><th class="p-4 text-center text-purple-500">Credited</th><th class="p-4 text-center text-yellow-500">Pending</th><th class="p-4 text-center">Cancellation Rate</th></tr>
                   </thead>
-                  <tbody id="bottom5-body" class="divide-y divide-gray-50">
-                    <tr><td colspan="7" class="p-6 text-center text-gray-400 italic">Calculating...</td></tr>
-                  </tbody>
+                  <tbody id="bottom5-body" class="divide-y divide-gray-50"><tr><td colspan="7" class="p-6 text-center text-gray-400 italic">Calculating...</td></tr></tbody>
                 </table>
               </div>
             </div>
@@ -540,103 +304,47 @@
 
       <div id="view-clients" class="view-section">
         <h2 class="text-2xl font-bold text-gray-900 mb-6">Passbook Clients</h2>
-        
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
           <div class="flex flex-col lg:flex-row gap-3 lg:items-end">
             <div class="flex-1 relative">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
-              <input
-                id="passbook-search"
-                type="text"
-                placeholder="Search roofing company, code, city/state, client name..."
-                class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              />
+              <input id="passbook-search" type="text" placeholder="Search roofing company, code, city/state, client name..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
             </div>
-
-            <select id="passbook-filter-location"
-                    class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
-              <option value="all">All Locations</option>
-            </select>
-
+            <select id="passbook-filter-location" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]"><option value="all">All Locations</option></select>
             <div class="flex bg-gray-200 p-1 rounded-lg">
-              <button id="passbook-view-cards"
-                      class="px-3 py-2 text-xs font-extrabold rounded-md bg-white shadow text-gray-900">
-                Cards
-              </button>
-              <button id="passbook-view-list"
-                      class="px-3 py-2 text-xs font-extrabold rounded-md text-gray-500 hover:text-gray-900">
-                List
-              </button>
+              <button id="passbook-view-cards" class="px-3 py-2 text-xs font-extrabold rounded-md bg-white shadow text-gray-900">Cards</button>
+              <button id="passbook-view-list" class="px-3 py-2 text-xs font-extrabold rounded-md text-gray-500 hover:text-gray-900">List</button>
             </div>
-
-            <button id="passbook-clear"
-                    class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
-              Clear
-            </button>
+            <button id="passbook-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">Clear</button>
           </div>
-
-          <div class="mt-3 text-xs text-gray-500">
-            Showing <span class="font-bold" id="passbook-count">0</span> clients
-          </div>
+          <div class="mt-3 text-xs text-gray-500">Showing <span class="font-bold" id="passbook-count">0</span> clients</div>
         </div>
-
         <div id="passbook-list-wrap" class="hidden bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-6">
           <div class="overflow-x-auto">
             <table class="w-full text-left text-sm whitespace-nowrap">
               <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
-                <tr>
-                  <th class="p-4">Code</th>
-                  <th class="p-4">Roofing Company</th>
-                  <th class="p-4">City/State</th>
-                  <th class="p-4">Client Name</th>
-                  <th class="p-4 text-right">Open</th>
-                </tr>
+                <tr><th class="p-4">Code</th><th class="p-4">Roofing Company</th><th class="p-4">City/State</th><th class="p-4">Client Name</th><th class="p-4 text-right">Open</th></tr>
               </thead>
               <tbody id="passbook-list-body" class="divide-y divide-gray-50"></tbody>
             </table>
           </div>
         </div>
-
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="client-cards-container">
-          <div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">
-            Waiting for admin data...
-          </div>
+          <div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">Waiting for admin data...</div>
         </div>
-
         <div id="passbook-modal" class="hidden fixed inset-0 z-50">
           <div class="absolute inset-0 bg-black/40" onclick="Admin.closePassbookModal()"></div>
-
           <div class="relative mx-auto mt-10 w-[94%] max-w-5xl bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
             <div class="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-              <div>
-                <h3 class="font-extrabold text-gray-900" id="passbook-modal-title">Client Details</h3>
-                <p class="text-xs text-gray-500 mt-1" id="passbook-modal-sub">—</p>
-              </div>
-              <button class="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
-                      onclick="Admin.closePassbookModal()">
-                <i class="fa-solid fa-xmark"></i>
-              </button>
+              <div><h3 class="font-extrabold text-gray-900" id="passbook-modal-title">Client Details</h3><p class="text-xs text-gray-500 mt-1" id="passbook-modal-sub">—</p></div>
+              <button class="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50" onclick="Admin.closePassbookModal()"><i class="fa-solid fa-xmark"></i></button>
             </div>
-
             <form id="passbookClientForm" class="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
               <input type="hidden" id="codeName" name="codeName" value="">
-
-              <div id="passbook-form-body">
-                <div class="p-4 rounded-xl border border-gray-100 bg-gray-50/40 text-sm text-gray-500 italic">
-                  Loading client details...
-                </div>
-              </div>
-
+              <div id="passbook-form-body"><div class="p-4 rounded-xl border border-gray-100 bg-gray-50/40 text-sm text-gray-500 italic">Loading client details...</div></div>
               <div class="flex items-center justify-end gap-2 pt-4 border-t border-gray-100">
-                <button type="button"
-                        class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50"
-                        onclick="Admin.closePassbookModal()">
-                  Cancel
-                </button>
-                <button id="passbookSaveButton" type="submit"
-                        class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800">
-                  Save Changes
-                </button>
+                <button type="button" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50" onclick="Admin.closePassbookModal()">Cancel</button>
+                <button id="passbookSaveButton" type="submit" class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800">Save Changes</button>
               </div>
             </form>
           </div>
@@ -645,91 +353,40 @@
 
       <div id="view-leads" class="view-section">
         <h2 class="text-2xl font-bold text-gray-900 mb-4">Leads Master Record</h2>
-
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
           <div class="controls-wrap">
             <div class="flex-1 relative" style="min-width: 260px;">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
-              <input
-                id="leads-search"
-                type="text"
-                placeholder="Search homeowner, appointment coordinator, roofing company, status, lead ID, email, phone..."
-                class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              />
+              <input id="leads-search" type="text" placeholder="Search..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
             </div>
-
-            <select id="leads-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
-              <option value="all">All Status</option>
-            </select>
-
-            <select id="leads-filter-company" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[240px]">
-              <option value="all">All Roofing Company</option>
-            </select>
-
-            <select id="leads-filter-ac" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
-              <option value="all">All Appointment Coordinators</option>
-            </select>
-
-            <select id="leads-filter-homeowner" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
-              <option value="all">All Homeowners</option>
-            </select>
-
+            <select id="leads-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]"><option value="all">All Status</option></select>
+            <select id="leads-filter-company" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[240px]"><option value="all">All Roofing Company</option></select>
+            <select id="leads-filter-ac" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]"><option value="all">All Appointment Coordinators</option></select>
+            <select id="leads-filter-homeowner" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]"><option value="all">All Homeowners</option></select>
             <div class="flex items-center gap-2">
-              <div>
-                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
-                <input id="leads-date-start" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
-              </div>
-              <div>
-                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
-                <input id="leads-date-end" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
-              </div>
+              <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label><input id="leads-date-start" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/></div>
+              <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label><input id="leads-date-end" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/></div>
             </div>
-
-            <button id="leads-clear"
-                    class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
-              Clear
-            </button>
-
+            <button id="leads-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">Clear</button>
             <div class="relative">
-              <button id="leads-columns-toggle"
-                      class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800 flex items-center gap-2">
-                <i class="fa-solid fa-table-columns"></i> Columns
-              </button>
-
-              <div id="leads-columns-popover"
-                   class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
-                <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">
-                  Visible Columns
-                </div>
+              <button id="leads-columns-toggle" class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800 flex items-center gap-2"><i class="fa-solid fa-table-columns"></i> Columns</button>
+              <div id="leads-columns-popover" class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">Visible Columns</div>
                 <div id="leads-columns-box" class="max-h-[280px] overflow-y-auto space-y-2 pr-1"></div>
-
                 <div class="flex justify-end gap-2 mt-3">
-                  <button id="leads-columns-all"
-                          class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
-                    All
-                  </button>
-                  <button id="leads-columns-min"
-                          class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
-                    Minimal
-                  </button>
+                  <button id="leads-columns-all" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">All</button>
+                  <button id="leads-columns-min" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">Minimal</button>
                 </div>
               </div>
             </div>
-
           </div>
-
-          <div class="mt-3 text-xs text-gray-500">
-            Showing <span class="font-bold" id="leads-count">0</span> leads
-          </div>
+          <div class="mt-3 text-xs text-gray-500">Showing <span class="font-bold" id="leads-count">0</span> leads</div>
         </div>
-
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div class="table-scroll">
             <table class="table-min w-full text-left text-sm whitespace-nowrap">
               <thead id="leads-table-head" class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100"></thead>
-              <tbody id="leads-table-body" class="divide-y divide-gray-50">
-                <tr><td class="p-6 text-center text-gray-400">Loading leads...</td></tr>
-              </tbody>
+              <tbody id="leads-table-body" class="divide-y divide-gray-50"><tr><td class="p-6 text-center text-gray-400">Loading leads...</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -737,11 +394,7 @@
 
       <div id="view-team" class="view-section">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
-          <div>
-            <h2 class="text-2xl font-bold text-gray-900">Team</h2>
-            <p class="text-sm text-gray-500 mt-1">Monitor all agents + drill into each agent’s leads.</p>
-          </div>
-
+          <div><h2 class="text-2xl font-bold text-gray-900">Team</h2><p class="text-sm text-gray-500 mt-1">Monitor all agents + drill into each agent’s leads.</p></div>
           <div class="flex items-center gap-2 flex-wrap">
             <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
               <button onclick="Admin.setTeamPeriod('today', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
@@ -751,121 +404,62 @@
               <button onclick="Admin.setTeamPeriod('6-weeks', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">6 Weeks</button>
               <button onclick="Admin.setTeamPeriod('all-time', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
             </div>
-
             <div class="relative">
-              <button id="team-custom-toggle"
-                      class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                <i class="fa-regular fa-calendar"></i> Custom
-              </button>
-
-              <div id="team-custom-popover"
-                   class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
-                <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">
-                  Custom Timeframe
-                </div>
+              <button id="team-custom-toggle" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2"><i class="fa-regular fa-calendar"></i> Custom</button>
+              <div id="team-custom-popover" class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">Custom Timeframe</div>
                 <div class="grid grid-cols-2 gap-2">
-                  <div>
-                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
-                    <input id="team-custom-start" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
-                  </div>
-                  <div>
-                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
-                    <input id="team-custom-end" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
-                  </div>
+                  <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label><input id="team-custom-start" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/></div>
+                  <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label><input id="team-custom-end" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/></div>
                 </div>
                 <div class="flex justify-end gap-2 mt-3">
-                  <button id="team-custom-clear"
-                          class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
-                    Clear
-                  </button>
-                  <button id="team-custom-apply"
-                          class="px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">
-                    Apply
-                  </button>
+                  <button id="team-custom-clear" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">Clear</button>
+                  <button id="team-custom-apply" class="px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">Apply</button>
                 </div>
               </div>
             </div>
           </div>
         </div>
-
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
           <div class="flex flex-col md:flex-row md:items-center gap-3">
             <div class="flex-1 relative">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
-              <input
-                id="team-search"
-                type="text"
-                placeholder="Search agent name..."
-                class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              />
+              <input id="team-search" type="text" placeholder="Search agent name..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
             </div>
             <div class="flex items-center gap-2">
-              <select id="team-stage-filter"
-                      class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
-                <option value="all">All Stages</option>
-                <option value="active" selected>Active</option>
-                <option value="onboarding">Onboarding</option>
-                <option value="offboarded">Offboarded</option>
+              <select id="team-stage-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
+                <option value="all">All Stages</option><option value="active" selected>Active</option><option value="onboarding">Onboarding</option><option value="offboarded">Offboarded</option>
               </select>
-              <select id="team-warned-filter"
-                      class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
-                <option value="all" selected>Warned: All</option>
-                <option value="warned">Warned Only</option>
-                <option value="not-warned">Not Warned</option>
+              <select id="team-warned-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
+                <option value="all" selected>Warned: All</option><option value="warned">Warned Only</option><option value="not-warned">Not Warned</option>
               </select>
             </div>
           </div>
-
-          <div class="mt-3 text-xs text-gray-500">
-            Showing <span class="font-bold" id="team-count">0</span> agents
-            <span class="ml-2 text-gray-400" id="team-range-label">—</span>
-          </div>
+          <div class="mt-3 text-xs text-gray-500">Showing <span class="font-bold" id="team-count">0</span> agents <span class="ml-2 text-gray-400" id="team-range-label">—</span></div>
         </div>
-
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div class="overflow-x-auto">
             <table class="w-full text-left text-sm whitespace-nowrap">
               <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
                 <tr>
-                  <th class="p-4 cursor-pointer select-none" onclick="Admin.setTeamSort('name')">
-                    Agent <span id="team-sort-name" class="text-[10px] ml-1 text-gray-300">↕</span>
-                  </th>
-                  <th class="p-4 text-center cursor-pointer select-none" onclick="Admin.setTeamSort('total')">
-                    Total <span id="team-sort-total" class="text-[10px] ml-1 text-gray-300">↕</span>
-                  </th>
-                  <th class="p-4 text-center text-red-500 cursor-pointer select-none" onclick="Admin.setTeamSort('rejected')">
-                    QC Rejected <span id="team-sort-rejected" class="text-[10px] ml-1 text-gray-300">↕</span>
-                  </th>
-                  <th class="p-4 text-center text-blue-500 cursor-pointer select-none" onclick="Admin.setTeamSort('qualified')">
-                    Qualified <span id="team-sort-qualified" class="text-[10px] ml-1 text-gray-300">↕</span>
-                  </th>
-                  <th class="p-4 text-center text-purple-500 cursor-pointer select-none" onclick="Admin.setTeamSort('credited')">
-                    Credited <span id="team-sort-credited" class="text-[10px] ml-1 text-gray-300">↕</span>
-                  </th>
-                  <th class="p-4 text-center text-yellow-500 cursor-pointer select-none" onclick="Admin.setTeamSort('pending')">
-                    Pending <span id="team-sort-pending" class="text-[10px] ml-1 text-gray-300">↕</span>
-                  </th>
-                  <th class="p-4 text-center cursor-pointer select-none" onclick="Admin.setTeamSort('cancelRate')">
-                    Cancellation Rate <span id="team-sort-cancelRate" class="text-[10px] ml-1 text-gray-300">↕</span>
-                  </th>
+                  <th class="p-4 cursor-pointer select-none" onclick="Admin.setTeamSort('name')">Agent <span id="team-sort-name" class="text-[10px] ml-1 text-gray-300">↕</span></th>
+                  <th class="p-4 text-center cursor-pointer select-none" onclick="Admin.setTeamSort('total')">Total <span id="team-sort-total" class="text-[10px] ml-1 text-gray-300">↕</span></th>
+                  <th class="p-4 text-center text-red-500 cursor-pointer select-none" onclick="Admin.setTeamSort('rejected')">QC Rejected <span id="team-sort-rejected" class="text-[10px] ml-1 text-gray-300">↕</span></th>
+                  <th class="p-4 text-center text-blue-500 cursor-pointer select-none" onclick="Admin.setTeamSort('qualified')">Qualified <span id="team-sort-qualified" class="text-[10px] ml-1 text-gray-300">↕</span></th>
+                  <th class="p-4 text-center text-purple-500 cursor-pointer select-none" onclick="Admin.setTeamSort('credited')">Credited <span id="team-sort-credited" class="text-[10px] ml-1 text-gray-300">↕</span></th>
+                  <th class="p-4 text-center text-yellow-500 cursor-pointer select-none" onclick="Admin.setTeamSort('pending')">Pending <span id="team-sort-pending" class="text-[10px] ml-1 text-gray-300">↕</span></th>
+                  <th class="p-4 text-center cursor-pointer select-none" onclick="Admin.setTeamSort('cancelRate')">Cancellation Rate <span id="team-sort-cancelRate" class="text-[10px] ml-1 text-gray-300">↕</span></th>
                 </tr>
               </thead>
-              <tbody id="team-body" class="divide-y divide-gray-50">
-                <tr><td colspan="7" class="p-6 text-center text-gray-400 italic">Loading team performance...</td></tr>
-              </tbody>
+              <tbody id="team-body" class="divide-y divide-gray-50"><tr><td colspan="7" class="p-6 text-center text-gray-400 italic">Loading team performance...</td></tr></tbody>
             </table>
           </div>
         </div>
-
         <div id="agent-modal" class="hidden fixed inset-0 z-50">
           <div class="absolute inset-0 bg-black/40" onclick="Admin.closeAgentModal()"></div>
           <div class="relative mx-auto mt-10 w-[94%] max-w-6xl bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
             <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-gray-50/50">
-              <div>
-                <h3 class="font-extrabold text-gray-900" id="agent-modal-title">Agent Leads</h3>
-                <p class="text-xs text-gray-500 mt-1" id="agent-modal-sub">—</p>
-              </div>
-
+              <div><h3 class="font-extrabold text-gray-900" id="agent-modal-title">Agent Leads</h3><p class="text-xs text-gray-500 mt-1" id="agent-modal-sub">—</p></div>
               <div class="flex items-center gap-2 flex-wrap">
                 <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
                   <button onclick="Admin.setAgentPeriod('today', this)" class="agent-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
@@ -875,76 +469,31 @@
                   <button onclick="Admin.setAgentPeriod('6-weeks', this)" class="agent-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">6 Weeks</button>
                   <button onclick="Admin.setAgentPeriod('all-time', this)" class="agent-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
                 </div>
-
                 <div class="relative">
-                  <button id="agent-custom-toggle"
-                          class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                    <i class="fa-regular fa-calendar"></i> Custom
-                  </button>
-
-                  <div id="agent-custom-popover"
-                       class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
-                    <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">
-                      Custom Timeframe
-                    </div>
+                  <button id="agent-custom-toggle" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2"><i class="fa-regular fa-calendar"></i> Custom</button>
+                  <div id="agent-custom-popover" class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                    <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">Custom Timeframe</div>
                     <div class="grid grid-cols-2 gap-2">
-                      <div>
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
-                        <input id="agent-custom-start" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
-                      </div>
-                      <div>
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
-                        <input id="agent-custom-end" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
-                      </div>
+                      <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label><input id="agent-custom-start" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/></div>
+                      <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label><input id="agent-custom-end" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/></div>
                     </div>
                     <div class="flex justify-end gap-2 mt-3">
-                      <button id="agent-custom-clear"
-                              class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
-                        Clear
-                      </button>
-                      <button id="agent-custom-apply"
-                              class="px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">
-                        Apply
-                      </button>
+                      <button id="agent-custom-clear" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">Clear</button>
+                      <button id="agent-custom-apply" class="px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">Apply</button>
                     </div>
                   </div>
                 </div>
-
-                <button class="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
-                        onclick="Admin.closeAgentModal()">
-                  <i class="fa-solid fa-xmark"></i>
-                </button>
+                <button class="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50" onclick="Admin.closeAgentModal()"><i class="fa-solid fa-xmark"></i></button>
               </div>
             </div>
-
             <div class="p-4">
-              <div class="text-xs text-gray-500 mb-3">
-                Showing <span class="font-bold" id="agent-leads-count">0</span> leads
-                <span class="ml-2 text-gray-400" id="agent-range-label">—</span>
-              </div>
+              <div class="text-xs text-gray-500 mb-3">Showing <span class="font-bold" id="agent-leads-count">0</span> leads <span class="ml-2 text-gray-400" id="agent-range-label">—</span></div>
               <div class="overflow-x-auto">
                 <table class="min-w-[1400px] w-full text-left text-sm whitespace-nowrap">
                   <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
-                    <tr>
-                      <th class="p-3">Date Submitted</th>
-                      <th class="p-3">Lead ID</th>
-                      <th class="p-3">Roofing Company</th>
-                      <th class="p-3">Appointment Coordinator Name</th>
-                      <th class="p-3">Homeowner Name(s)</th>
-                      <th class="p-3">Email of Homeowner</th>
-                      <th class="p-3">Homeowner Phone Number</th>
-                      <th class="p-3">Appointment Date / Time</th>
-                      <th class="p-3">Address</th>
-                      <th class="p-3">Age of Roof</th>
-                      <th class="p-3">Insurance Company</th>
-                      <th class="p-3">Additional Notes</th>
-                      <th class="p-3">Status</th>
-                      <th class="p-3">Reviewed By</th>
-                    </tr>
+                    <tr><th class="p-3">Date Submitted</th><th class="p-3">Lead ID</th><th class="p-3">Roofing Company</th><th class="p-3">Appointment Coordinator Name</th><th class="p-3">Homeowner Name(s)</th><th class="p-3">Email of Homeowner</th><th class="p-3">Homeowner Phone Number</th><th class="p-3">Appointment Date / Time</th><th class="p-3">Address</th><th class="p-3">Age of Roof</th><th class="p-3">Insurance Company</th><th class="p-3">Additional Notes</th><th class="p-3">Status</th><th class="p-3">Reviewed By</th></tr>
                   </thead>
-                  <tbody id="agent-leads-body" class="divide-y divide-gray-50">
-                    <tr><td colspan="14" class="p-6 text-center text-gray-400 italic">Loading leads...</td></tr>
-                  </tbody>
+                  <tbody id="agent-leads-body" class="divide-y divide-gray-50"><tr><td colspan="14" class="p-6 text-center text-gray-400 italic">Loading leads...</td></tr></tbody>
                 </table>
               </div>
             </div>
@@ -954,134 +503,51 @@
 
       <div id="view-payroll" class="view-section">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
-          <div>
-            <h2 class="text-2xl font-bold text-gray-900">Payroll & Finance</h2>
-            <p class="text-sm text-gray-500 mt-1">Weekly payroll + history. Edit in dashboard, auto-saves to Google Sheets.</p>
-          </div>
-
+          <div><h2 class="text-2xl font-bold text-gray-900">Payroll & Finance</h2><p class="text-sm text-gray-500 mt-1">Weekly payroll rollups + history. Edit in dashboard, auto-saves to Google Sheets.</p></div>
           <div class="flex items-center gap-2 flex-wrap">
             <div class="flex bg-gray-200 p-1 rounded-lg gap-1">
-              <button id="pf-tab-weekly" class="px-3 py-2 text-xs font-extrabold rounded-md bg-white shadow text-gray-900">
-                Weekly Payroll
-              </button>
-              <button id="pf-tab-history" class="px-3 py-2 text-xs font-extrabold rounded-md text-gray-500 hover:text-gray-900">
-                Payroll History
-              </button>
+              <button id="pf-tab-weekly" class="px-3 py-2 text-xs font-extrabold rounded-md bg-white shadow text-gray-900">Weekly Payroll</button>
+              <button id="pf-tab-history" class="px-3 py-2 text-xs font-extrabold rounded-md text-gray-500 hover:text-gray-900">Payroll History</button>
             </div>
-
             <div id="pf-weekly-controls" class="flex items-end gap-2 flex-wrap">
-              <div>
-                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Payroll Week</label>
-                <select id="pf-week-select" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
-                  <option>Loading…</option>
-                </select>
-              </div>
-
-              <button id="pf-export-week"
-                      class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800">
-                <i class="fa-solid fa-file-export mr-2"></i> Export CSV
-              </button>
+              <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Payroll Week</label><select id="pf-week-select" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]"><option>Loading…</option></select></div>
+              <button id="pf-export-week" class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800"><i class="fa-solid fa-file-export mr-2"></i> Export CSV</button>
             </div>
-
             <div id="pf-history-controls" class="hidden flex items-end gap-2 flex-wrap">
-              <div>
-                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
-                <input id="pf-hist-start" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
-              </div>
-              <div>
-                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
-                <input id="pf-hist-end" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
-              </div>
-              <button id="pf-hist-apply"
-                      class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800">
-                Apply
-              </button>
+              <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label><input id="pf-hist-start" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/></div>
+              <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label><input id="pf-hist-end" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/></div>
+              <button id="pf-hist-apply" class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800">Apply</button>
             </div>
           </div>
         </div>
-
         <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-5">
-          <div class="kpi-tile">
-            <div class="kpi-label">Total Weekly Pay</div>
-            <div class="kpi-value text-gray-900" id="pf-kpi-totalpay">$0.00</div>
-            <div class="kpi-sub">Sum of Total Weekly Pay</div>
-          </div>
-          <div class="kpi-tile">
-            <div class="kpi-label">Agents Paid</div>
-            <div class="kpi-value text-emerald-600" id="pf-kpi-paid">0</div>
-            <div class="kpi-sub">Payroll Status = Paid</div>
-          </div>
-          <div class="kpi-tile">
-            <div class="kpi-label">Agents Unpaid</div>
-            <div class="kpi-value text-yellow-600" id="pf-kpi-unpaid">0</div>
-            <div class="kpi-sub">Needs payment/review</div>
-          </div>
-          <div class="kpi-tile">
-            <div class="kpi-label">Active Agents Shown</div>
-            <div class="kpi-value" id="pf-kpi-active">0</div>
-            <div class="kpi-sub">Stage filter applied</div>
-          </div>
-          <div class="kpi-tile">
-            <div class="kpi-label">Payroll Week Range</div>
-            <div class="kpi-value" style="font-size:14px;" id="pf-kpi-range">—</div>
-            <div class="kpi-sub">Sat → Fri</div>
-          </div>
+          <div class="kpi-tile"><div class="kpi-label">Total Weekly Pay</div><div class="kpi-value text-gray-900" id="pf-kpi-totalpay">$0.00</div><div class="kpi-sub">Sum of Total Weekly Pay</div></div>
+          <div class="kpi-tile"><div class="kpi-label">Agents Paid</div><div class="kpi-value text-emerald-600" id="pf-kpi-paid">0</div><div class="kpi-sub">Payroll Status = Paid</div></div>
+          <div class="kpi-tile"><div class="kpi-label">Agents Unpaid</div><div class="kpi-value text-yellow-600" id="pf-kpi-unpaid">0</div><div class="kpi-sub">Needs payment/review</div></div>
+          <div class="kpi-tile"><div class="kpi-label">Active Agents Shown</div><div class="kpi-value" id="pf-kpi-active">0</div><div class="kpi-sub">Stage filter applied</div></div>
+          <div class="kpi-tile"><div class="kpi-label">Payroll Week Range</div><div class="kpi-value" style="font-size:14px;" id="pf-kpi-range">—</div><div class="kpi-sub">Sat → Fri</div></div>
         </div>
-
         <div id="pf-weekly-filters" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
           <div class="controls-wrap">
             <div class="flex-1 relative" style="min-width: 260px;">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
-              <input
-                id="pf-search"
-                type="text"
-                placeholder="Search agent name or email..."
-                class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              />
+              <input id="pf-search" type="text" placeholder="Search agent name or email..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
             </div>
-
             <select id="pf-stage-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[190px]">
-              <option value="active" selected>Active Agents</option>
-              <option value="all">All Stages</option>
-              <option value="onboarding">Onboarding</option>
-              <option value="offboarded">Offboarded</option>
+              <option value="active" selected>Active Agents</option><option value="all">All Stages</option><option value="onboarding">Onboarding</option><option value="offboarded">Offboarded</option>
             </select>
-
             <select id="pf-pay-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
-              <option value="all" selected>All Pay Status</option>
-              <option value="paid">Paid Only</option>
-              <option value="unpaid">Unpaid Only</option>
+              <option value="all" selected>All Pay Status</option><option value="paid">Paid Only</option><option value="unpaid">Unpaid Only</option>
             </select>
-
             <select id="pf-haspay-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[210px]">
-              <option value="all" selected>All Agents</option>
-              <option value="haspay">Has Salary This Week</option>
-              <option value="zero">Zero This Week</option>
+              <option value="all" selected>All Agents</option><option value="haspay">Has Salary This Week</option><option value="zero">Zero This Week</option>
             </select>
-
-            <button id="pf-clear"
-                    class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
-              Clear
-            </button>
+            <button id="pf-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">Clear</button>
           </div>
-
-          <div class="mt-3 text-xs text-gray-500 flex items-center gap-2">
-            <span>Showing <span class="font-bold" id="pf-count">0</span> rows</span>
-            <span class="text-gray-300">•</span>
-            <span class="font-bold" id="pf-save-status"></span>
-          </div>
+          <div class="mt-3 text-xs text-gray-500 flex items-center gap-2"><span>Showing <span class="font-bold" id="pf-count">0</span> rows</span><span class="text-gray-300">•</span><span class="font-bold" id="pf-save-status"></span></div>
         </div>
-
-        <div id="pf-weekly-wrap" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-6">
-          <div id="pf-weekly-grid"></div>
-        </div>
-
-        <div id="pf-history-wrap" class="hidden bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <div class="text-xs text-gray-500 mb-3">
-            <span class="font-bold" id="pf-save-status-hist"></span>
-          </div>
-          <div id="pf-history-grid"></div>
-        </div>
+        <div id="pf-weekly-wrap" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-6"><div id="pf-weekly-grid"></div></div>
+        <div id="pf-history-wrap" class="hidden bg-white rounded-2xl border border-gray-100 shadow-sm p-4"><div class="text-xs text-gray-500 mb-3"><span class="font-bold" id="pf-save-status-hist"></span></div><div id="pf-history-grid"></div></div>
       </div>
 
     </div>
@@ -1118,7 +584,7 @@
       _agentCustomRange: { active: false, start: null, end: null },
       _agentBound: false,
 
-      // ✅ 4A) PAYROLL GRID STATE (new)
+      // PAYROLL GRID STATE (new)
       _pf: {
         tab: "weekly",
         weeklyTable: null,
@@ -1156,7 +622,10 @@
 
       refreshDashboard() {
         const state = this.getState();
-        if (!state) return;
+        if (!state) {
+          console.warn("AdminDashboard: No state found.");
+          return;
+        }
 
         const clients = Array.isArray(state.clients) ? state.clients : [];
         const leads   = Array.isArray(state.leads) ? state.leads : [];
@@ -1174,31 +643,36 @@
           this.clientHealthRaw = this.normalizeClientHealthRows(clients);
           this.setupFilters(this.clientHealthRaw);
           this.applyClientHealthFilters();
-        } catch(e) {}
+        } catch(e) { console.error("Client Health Error:", e); }
 
-        try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
-        try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
+        try { this.updateAnalytics(this.analyticsPeriod); } catch(e) { console.error("Analytics Error:", e); }
+        try { this.bindTeamUI(); this.renderTeam(); } catch(e) { console.error("Team Error:", e); }
         
         try {
           this.setupPassbookFilters(clients);
           this.bindPassbookUI(clients);
           this.applyPassbookFilters(clients);
-        } catch(e) {}
+        } catch(e) { console.error("Passbook Error:", e); }
         
         try {
           this.initLeadsColumnsUI();
           this.setupLeadFilters(leads);
           this.bindLeadsMasterEvents();
           this.applyLeadsFilters();
-        } catch(e) {}
+        } catch(e) { console.error("Leads Master Error:", e); }
 
-        try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
+        try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) { console.error("Owed KPI Error:", e); }
 
-        // We can optionally refresh payroll here if needed, but it self-inits on nav
-        // try { this.pfInit(); } catch(e) {}
+        // Start new payroll logic (uncommented to ensure it loads)
+        try { this.pfInit(); } catch(e) { console.error("Payroll Init Error:", e); }
       },
 
-      // ✅ 4B) Updated Nav to init Payroll
+      // Fallback for main.js compatibility
+      renderPayrollFinance() {
+        console.log("Legacy renderPayrollFinance called. Redirecting to pfInit...");
+        this.pfInit();
+      },
+
       nav(viewId, linkEl) {
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.getElementById('view-' + viewId).classList.add('active');
@@ -1210,7 +684,6 @@
         }
       },
 
-      // ... existing helper methods ...
       _setActiveButton(btnSelector, btnElement) {
         document.querySelectorAll(btnSelector).forEach(b => {
           b.classList.remove("bg-white", "shadow", "text-gray-900");
@@ -1782,8 +1255,6 @@
               <td class="p-4 text-gray-700 max-w-[260px] truncate" title="${r.clientName}">${r.clientName}</td>
               <td class="p-4 text-gray-500">${r.purchaseDate}</td>
               <td class="p-4 text-gray-500">${r.lastLead}</td>
-              <td class="p-4 text-center">
-              </td>
             </tr>
           `;
         }).join("");
@@ -2508,7 +1979,6 @@
         `).join("");
       },
 
-      // ✅ 4C) PAYROLL & FINANCE (Editable, branded grid) METHODS
       pfInit() {
         if (this._pf.bound) return;
         this._pf.bound = true;
@@ -2525,14 +1995,15 @@
           this._pf.tab = tab;
 
           const isWeekly = tab === "weekly";
-          weeklyWrap.classList.toggle("hidden", !isWeekly);
-          weeklyCtrls.classList.toggle("hidden", !isWeekly);
-          weeklyFilters.classList.toggle("hidden", !isWeekly);
+          if (weeklyWrap) weeklyWrap.classList.toggle("hidden", !isWeekly);
+          if (weeklyCtrls) weeklyCtrls.classList.toggle("hidden", !isWeekly);
+          if (weeklyFilters) weeklyFilters.classList.toggle("hidden", !isWeekly);
 
-          histWrap.classList.toggle("hidden", isWeekly);
-          histCtrls.classList.toggle("hidden", isWeekly);
+          if (histWrap) histWrap.classList.toggle("hidden", isWeekly);
+          if (histCtrls) histCtrls.classList.toggle("hidden", isWeekly);
 
           const on = (btn, active) => {
+            if (!btn) return;
             btn.classList.toggle("bg-white", active);
             btn.classList.toggle("shadow", active);
             btn.classList.toggle("text-gray-900", active);
@@ -2594,15 +2065,17 @@
       async pfLoadWeeks() {
         const url = window.portal?.webhooks?.payrollWeeks;
         if (!url) return;
-        const res = await fetch(url);
-        const weeks = await res.json();
-        this._pf.weeks = Array.isArray(weeks) ? weeks : [];
-        this._pf.currentWeek = this._pf.currentWeek || this._pf.weeks[0] || "";
-        const sel = document.getElementById("pf-week-select");
-        if (sel) {
-          sel.innerHTML = this._pf.weeks.map(w => `<option value="${w}">${w}</option>`).join("");
-          sel.value = this._pf.currentWeek;
-        }
+        try {
+          const res = await fetch(url);
+          const weeks = await res.json();
+          this._pf.weeks = Array.isArray(weeks) ? weeks : [];
+          this._pf.currentWeek = this._pf.currentWeek || this._pf.weeks[0] || "";
+          const sel = document.getElementById("pf-week-select");
+          if (sel) {
+            sel.innerHTML = this._pf.weeks.map(w => `<option value="${w}">${w}</option>`).join("");
+            sel.value = this._pf.currentWeek;
+          }
+        } catch(e) { console.error("pfLoadWeeks failed", e); }
       },
 
       pfGetWeekRangeLabel(weekStartStr) {
@@ -2647,17 +2120,19 @@
         const weekStart = this._pf.currentWeek;
         if (!base || !weekStart) return;
         this.pfSetSaveStatus("Loading…");
-        const url = base.includes("?")
-          ? `${base}&weekStart=${encodeURIComponent(weekStart)}`
-          : `${base}?weekStart=${encodeURIComponent(weekStart)}`;
-        const res = await fetch(url);
-        const rows = await res.json();
-        this._pf.weeklyRaw = Array.isArray(rows) ? rows : [];
-        this.pfApplyWeeklyFilters();
-        this.pfRenderWeeklyGrid(this._pf.weeklyView);
-        const rangeEl = document.getElementById("pf-kpi-range");
-        if (rangeEl) rangeEl.textContent = this.pfGetWeekRangeLabel(weekStart);
-        this.pfUpdateWeeklyKPIs();
+        try {
+          const url = base.includes("?")
+            ? `${base}&weekStart=${encodeURIComponent(weekStart)}`
+            : `${base}?weekStart=${encodeURIComponent(weekStart)}`;
+          const res = await fetch(url);
+          const rows = await res.json();
+          this._pf.weeklyRaw = Array.isArray(rows) ? rows : [];
+          this.pfApplyWeeklyFilters();
+          this.pfRenderWeeklyGrid(this._pf.weeklyView);
+          const rangeEl = document.getElementById("pf-kpi-range");
+          if (rangeEl) rangeEl.textContent = this.pfGetWeekRangeLabel(weekStart);
+          this.pfUpdateWeeklyKPIs();
+        } catch(e) { console.error("pfLoadWeekly failed", e); }
         this.pfSetSaveStatus("");
       },
 
@@ -2802,12 +2277,14 @@
         const e = document.getElementById("pf-hist-end")?.value;
         if (!s || !e) return;
         this.pfSetSaveStatus("Loading…", true);
-        const url = base.includes("?")
-          ? `${base}&start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}`
-          : `${base}?start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}`;
-        const res = await fetch(url);
-        const rows = await res.json();
-        this.pfRenderHistoryGrid(Array.isArray(rows) ? rows : []);
+        try {
+          const url = base.includes("?")
+            ? `${base}&start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}`
+            : `${base}?start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}`;
+          const res = await fetch(url);
+          const rows = await res.json();
+          this.pfRenderHistoryGrid(Array.isArray(rows) ? rows : []);
+        } catch(e) { console.error(e); }
         this.pfSetSaveStatus("", true);
       },
 
