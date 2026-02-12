@@ -983,21 +983,45 @@
           </div>
         </div>
 
-        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div class="table-scroll">
-            <table class="table-min w-full text-left text-sm whitespace-nowrap">
-              <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col h-full">
+          <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+            <div class="flex items-center gap-3">
+                <h3 class="font-bold text-gray-900">Weekly Payroll Ledger</h3>
+                <span class="px-2 py-1 rounded text-xs font-bold bg-blue-100 text-blue-700" id="payroll-ledger-period">Loading...</span>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="Admin.saveAllPayrollChanges()" id="btn-save-payroll" class="hidden px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20">
+                    <i class="fa-solid fa-floppy-disk mr-2"></i> Save Changes
+                </button>
+            </div>
+          </div>
+
+          <div class="table-scroll flex-1 overflow-auto">
+            <table class="w-full text-left text-sm whitespace-nowrap">
+              <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100 sticky top-0 z-10 shadow-sm">
                 <tr>
-                  <th class="p-4">Appointment Coordinator</th>
-                  <th class="p-4 text-center">Qualified</th>
-                  <th class="p-4 text-center">Unqualified</th>
-                  <th class="p-4 text-center">Total</th>
-                  <th class="p-4 text-right">Est. Revenue</th>
+                  <th class="p-4 bg-gray-50">Agent</th>
+                  <th class="p-4 bg-gray-50 text-center">Week Start</th>
+                  <th class="p-4 bg-gray-50 text-center w-32">Total Hours</th> <th class="p-4 bg-gray-50 text-center">Hrly Rate</th>
+                  <th class="p-4 bg-gray-50 text-right">Base Pay</th> <th class="p-4 bg-gray-50 text-right">Incentives</th>
+                  <th class="p-4 bg-gray-50 text-right text-emerald-600">Total Pay</th>
+                  <th class="p-4 bg-gray-50 text-center">Status</th>
+                  <th class="p-4 bg-gray-50 text-center">Actions</th>
                 </tr>
               </thead>
-              <tbody id="payroll-body" class="divide-y divide-gray-50">
-                <tr><td colspan="5" class="p-6 text-center text-gray-400 italic">Loading payroll...</td></tr>
+              <tbody id="payroll-ledger-body" class="divide-y divide-gray-50">
+                <tr><td colspan="9" class="p-6 text-center text-gray-400 italic">Loading ledger...</td></tr>
               </tbody>
+              <tfoot class="bg-gray-100 font-bold text-gray-900 sticky bottom-0 z-10 border-t border-gray-200">
+                <tr>
+                    <td class="p-4">TOTALS</td>
+                    <td colspan="3"></td>
+                    <td class="p-4 text-right" id="footer-base-pay">$0.00</td>
+                    <td class="p-4 text-right" id="footer-incentives">$0.00</td>
+                    <td class="p-4 text-right text-emerald-700 text-base" id="footer-total-pay">$0.00</td>
+                    <td colspan="2"></td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
@@ -1030,6 +1054,11 @@
       _payrollBound: false,
       _payrollCustomRange: { active: false, start: null, end: null },
       _payrollCharts: { revenue: null, coordinator: null },
+      // Part C: New Payroll Logic State
+      payrollState: {
+        rawRows: [], // Data from API
+        unsavedChanges: new Set(), // Track modified row IDs
+      },
 
       clientHealthRaw: [],
       clientHealthView: [],
@@ -2625,9 +2654,212 @@
         `).join("");
       },
 
-      // ===== PAYROLL & FINANCE (NEW) =====
+      // ===== PAYROLL & FINANCE (NEW LOGIC + OLD HELPERS) =====
 
-      // read payroll week start from each lead row
+      // Part C: New Controller Logic for Payroll
+      renderPayrollFinance() {
+        const state = this.getState();
+        // Determine source: Weekly Payroll or History based on a filter toggle
+        // For now, let's merge them or just use Weekly for the active view
+        const weeklyData = state.weeklyPayroll || [];
+        
+        // Filter based on Date Range & Search
+        const q = String(document.getElementById("payroll-search")?.value || "").toLowerCase().trim();
+        const range = this._payrollCustomRange.active ? this._payrollCustomRange : null;
+        
+        let rows = weeklyData.map((r, index) => ({...r, _id: index})); // Add temp ID
+
+        // 1. Apply Search
+        if (q) {
+            rows = rows.filter(r => 
+                String(r['Agent Name'] || "").toLowerCase().includes(q) ||
+                String(r['Email'] || "").toLowerCase().includes(q)
+            );
+        }
+
+        // 2. Apply Date Filter (if custom range active)
+        if (range) {
+              const start = new Date(range.start);
+              const end = new Date(range.end);
+              rows = rows.filter(r => {
+                  const d = window.portal.parseDateSafe(r['Payroll Week Start']);
+                  return d && d >= start && d <= end;
+              });
+        }
+
+        this.payrollState.rawRows = rows; // Store for calculation
+        this.renderPayrollLedger(rows);
+        this.updatePayrollKPIs(rows);
+      },
+
+      // New Method: Render Ledger
+      renderPayrollLedger(rows) {
+        const tbody = document.getElementById("payroll-ledger-body");
+        if (!tbody) return;
+
+        if (!rows.length) {
+            tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-400 italic">No payroll records found.</td></tr>`;
+            return;
+        }
+
+        let totalBase = 0;
+        let totalIncentive = 0;
+        let grandTotal = 0;
+
+        tbody.innerHTML = rows.map(r => {
+            // Safe Number Parsing
+            const hourlyRate = parseFloat(String(r['Hourly Rate'] || "0").replace(/[$,]/g, '')) || 0;
+            const hours = parseFloat(String(r['Total Hours'] || "0")) || 0;
+            const incentive = parseFloat(String(r['Incentive Pay'] || "0").replace(/[$,]/g, '')) || 0;
+            
+            // Calculate Base & Total (Frontend Logic)
+            const basePay = hours * hourlyRate;
+            const totalPay = basePay + incentive;
+
+            // Update Totals
+            totalBase += basePay;
+            totalIncentive += incentive;
+            grandTotal += totalPay;
+
+            const isSaved = !this.payrollState.unsavedChanges.has(r._id);
+            const rowClass = isSaved ? "" : "bg-yellow-50";
+
+            return `
+            <tr class="hover:bg-gray-50 transition-colors ${rowClass}" id="pay-row-${r._id}">
+              <td class="p-4">
+                <div class="font-bold text-gray-900">${r['Agent Name']}</div>
+                <div class="text-xs text-gray-500">${r['Email']}</div>
+              </td>
+              <td class="p-4 text-center text-gray-500 text-xs">
+                ${window.portal.formatDate(r['Payroll Week Start'])}
+              </td>
+              <td class="p-4 text-center">
+                <input 
+                    type="number" 
+                    step="0.5" 
+                    min="0"
+                    value="${hours}" 
+                    data-id="${r._id}"
+                    data-rate="${hourlyRate}"
+                    data-incentive="${incentive}"
+                    class="w-20 text-center font-bold border border-gray-300 rounded focus:ring-2 focus:ring-yellow-400 focus:outline-none py-1"
+                    onchange="Admin.handlePayrollChange(this)"
+                />
+              </td>
+              <td class="p-4 text-center text-gray-600">$${hourlyRate.toFixed(2)}</td>
+              <td class="p-4 text-right text-gray-600 font-mono" id="base-${r._id}">
+                $${basePay.toFixed(2)}
+              </td>
+              <td class="p-4 text-right text-gray-600 font-mono">
+                $${incentive.toFixed(2)}
+              </td>
+              <td class="p-4 text-right font-extrabold text-emerald-700 font-mono" id="total-${r._id}">
+                $${totalPay.toFixed(2)}
+              </td>
+              <td class="p-4 text-center">
+                ${this.renderPayrollStatus(r['Payroll Status'])}
+              </td>
+              <td class="p-4 text-center">
+                <button onclick="Admin.saveSingleRow(${r._id})" class="text-gray-400 hover:text-emerald-600 transition-colors" title="Save Row">
+                    <i class="fa-solid fa-save"></i>
+                </button>
+              </td>
+            </tr>
+            `;
+        }).join("");
+
+        // Update Footer Totals
+        document.getElementById("footer-base-pay").textContent = "$" + totalBase.toLocaleString(undefined, {minimumFractionDigits: 2});
+        document.getElementById("footer-incentives").textContent = "$" + totalIncentive.toLocaleString(undefined, {minimumFractionDigits: 2});
+        document.getElementById("footer-total-pay").textContent = "$" + grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2});
+        
+        // Sync "Est. Expense" KPI tile
+        const expenseEl = document.getElementById("payroll-kpi-expense");
+        if(expenseEl) expenseEl.textContent = "$" + grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2});
+      },
+
+      // New Method: Handle Input Change
+      handlePayrollChange(input) {
+        const id = input.getAttribute("data-id");
+        const newHours = parseFloat(input.value) || 0;
+        const rate = parseFloat(input.getAttribute("data-rate")) || 0;
+        const incentive = parseFloat(input.getAttribute("data-incentive")) || 0;
+
+        // Recalculate
+        const newBase = newHours * rate;
+        const newTotal = newBase + incentive;
+
+        // Update DOM immediately
+        document.getElementById(`base-${id}`).textContent = "$" + newBase.toFixed(2);
+        document.getElementById(`total-${id}`).textContent = "$" + newTotal.toFixed(2);
+
+        // Mark as unsaved
+        this.payrollState.unsavedChanges.add(parseInt(id));
+        document.getElementById(`pay-row-${id}`).classList.add("bg-yellow-50");
+        document.getElementById("btn-save-payroll").classList.remove("hidden");
+      },
+
+      // New Method: Render Status
+      renderPayrollStatus(status) {
+        const s = String(status || "PENDING").toUpperCase();
+        let color = "bg-gray-100 text-gray-600";
+        if(s === "PAID") color = "bg-emerald-100 text-emerald-700";
+        if(s === "PROCESSING") color = "bg-blue-100 text-blue-700";
+        return `<span class="px-2 py-1 rounded text-[10px] font-extrabold ${color}">${s}</span>`;
+      },
+
+      // New Method: Save Row
+      async saveSingleRow(id) {
+        const rowData = this.payrollState.rawRows[id];
+        const input = document.querySelector(`input[data-id="${id}"]`);
+        const newHours = input.value;
+
+        // Visual Feedback
+        const btn = input.closest('tr').querySelector('button');
+        const originalIcon = btn.innerHTML;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+
+        try {
+            await window.portal.updatePayrollRow({
+                email: rowData['Email'], // Key to find row in Sheet
+                weekStart: rowData['Payroll Week Start'], // Key to find row
+                totalHours: newHours
+            });
+
+            // Success State
+            this.payrollState.unsavedChanges.delete(id);
+            document.getElementById(`pay-row-${id}`).classList.remove("bg-yellow-50");
+            btn.innerHTML = `<i class="fa-solid fa-check text-emerald-500"></i>`;
+            setTimeout(() => btn.innerHTML = originalIcon, 2000);
+
+            // Hide main save button if no changes left
+            if(this.payrollState.unsavedChanges.size === 0) {
+                document.getElementById("btn-save-payroll").classList.add("hidden");
+            }
+
+        } catch(e) {
+            alert("Failed to save. Check console.");
+            btn.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red-500"></i>`;
+        }
+      },
+
+      // New Method: Basic KPI update (Sums the table rows to avoid NaN errors)
+      updatePayrollKPIs(rows) {
+         let totalPay = 0;
+         rows.forEach(r => {
+             const hourly = parseFloat(String(r['Hourly Rate']||"0").replace(/[$,]/g,''))||0;
+             const hours = parseFloat(String(r['Total Hours']||"0"))||0;
+             const inc = parseFloat(String(r['Incentive Pay']||"0").replace(/[$,]/g,''))||0;
+             totalPay += (hourly * hours) + inc;
+         });
+         // Updates the expense tile with the sum of the visible table
+         const expEl = document.getElementById("payroll-kpi-expense");
+         if(expEl) expEl.textContent = "$" + totalPay.toLocaleString(undefined, {minimumFractionDigits: 2});
+      },
+
+      // --- OLD HELPERS (PRESERVED) ---
+      // These are kept so you don't lose chart logic or old helpers, even if the new table logic bypasses them for now.
+
       getLeadPayrollWeekStart(l) {
         // supports multiple header spellings
         const s = this.pick(l, [
@@ -2656,7 +2888,6 @@
         return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
       },
 
-      // compute payroll aggregation from raw leads
       computePayrollFromLeads(leads) {
         const rows = Array.isArray(leads) ? leads : [];
         const weekSet = new Set();
@@ -2714,142 +2945,83 @@
         return `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
       },
 
-      renderPayrollFinance() {
-        const state = this.getState();
-        const leads = (state && Array.isArray(state.leads)) ? state.leads : [];
+      _computePayrollExpenseFromState(state, chosenWeek) {
+        const candidates = [
+          state?.payroll,
+          state?.payroll_history,
+          state?.payrollHistory,
+          state?.weekly_payroll,
+          state?.weeklyPayroll
+        ].find(x => Array.isArray(x));
 
-        const { weeks, byWeek } = this.computePayrollFromLeads(leads);
+        if (!candidates) return 0;
 
-        // populate week dropdown
-        const sel = document.getElementById("payroll-week-select");
-        if (sel) {
-          const current = sel.value || "latest";
-          const opts = [`<option value="latest">Latest</option>`]
-            .concat(weeks.map(w => `<option value="${w}">${w}</option>`));
-          sel.innerHTML = opts.join("");
-          if (current !== "latest" && weeks.includes(current)) sel.value = current;
-          else sel.value = "latest";
-        }
+        // Match rows by week if possible
+        const weekKey = String(chosenWeek || "").trim();
 
-        // determine selected period:
-        // if custom active, we filter by weekStart between start/end
-        let chosenWeek = "";
-        let rows = [];
-        let label = "";
-
-        if (this._payrollCustomRange.active) {
-          const s = new Date(this._payrollCustomRange.start + "T00:00:00");
-          const e = new Date(this._payrollCustomRange.end + "T23:59:59");
-
-          const inRangeWeeks = weeks.filter(w => {
-            const d = new Date(w + "T00:00:00");
-            return d && !isNaN(d.getTime()) && d >= s && d <= e;
-          });
-
-          // merge rows across those weeks
-          const agg = new Map(); // agent -> {qualified, unqualified}
-          for (const wk of inRangeWeeks) {
-            const wkRows = byWeek.get(wk) || [];
-            for (const r of wkRows) {
-              const cur = agg.get(r.agent) || { agent: r.agent, qualified: 0, unqualified: 0 };
-              cur.qualified += r.qualified;
-              cur.unqualified += r.unqualified;
-              agg.set(r.agent, cur);
-            }
+        const get = (obj, keys) => {
+          for (const k of keys) {
+            const v = obj?.[k];
+            if (v !== undefined && v !== null && String(v).trim() !== "") return v;
           }
-          rows = Array.from(agg.values());
-          label = `${new Date(this._payrollCustomRange.start).toLocaleDateString()} → ${new Date(this._payrollCustomRange.end).toLocaleDateString()}`;
-          chosenWeek = ""; // not a single week
-          const kRange = document.getElementById("payroll-kpi-range");
-          if (kRange) kRange.textContent = label;
-          const tl = document.getElementById("payroll-trend-label");
-          if (tl) tl.textContent = "Custom Range";
-        } else {
-          chosenWeek = (sel?.value && sel.value !== "latest") ? sel.value : (weeks[0] || "");
-          rows = chosenWeek ? (byWeek.get(chosenWeek) || []) : [];
-          const kRange = document.getElementById("payroll-kpi-range");
-          if (kRange) kRange.textContent = this.getPayrollWeekRangeLabel(chosenWeek);
-          const tl = document.getElementById("payroll-trend-label");
-          if (tl) tl.textContent = "Latest weeks";
-        }
-
-        // coordinator filter options (based on rows)
-        const coordSel = document.getElementById("payroll-filter-coordinator");
-        if (coordSel) {
-          const prev = coordSel.value || "all";
-          const names = [...new Set(rows.map(r => r.agent).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
-          coordSel.innerHTML = `<option value="all">All Coordinators</option>` + names.map(n => `<option value="${String(n).replace(/"/g,"&quot;")}">${n}</option>`).join("");
-          if (prev !== "all" && names.includes(prev)) coordSel.value = prev;
-          else coordSel.value = "all";
-        }
-
-        // apply search + coordinator filter
-        const q = String(document.getElementById("payroll-search")?.value || "").toLowerCase().trim();
-        const coordVal = document.getElementById("payroll-filter-coordinator")?.value || "all";
-
-        let view = [...rows];
-        if (coordVal !== "all") view = view.filter(r => String(r.agent).trim() === coordVal);
-        if (q) view = view.filter(r => String(r.agent).toLowerCase().includes(q));
-
-        // sort
-        const sortVal = document.getElementById("payroll-sort")?.value || "qualified_desc";
-        const sorters = {
-          qualified_desc: (a,b) => (b.qualified - a.qualified) || ((b.qualified+b.unqualified) - (a.qualified+a.unqualified)) || a.agent.localeCompare(b.agent),
-          total_desc: (a,b) => ((b.qualified+b.unqualified) - (a.qualified+a.unqualified)) || (b.qualified - a.qualified) || a.agent.localeCompare(b.agent),
-          revenue_desc: (a,b) => ((b.qualified*125) - (a.qualified*125)) || (b.qualified - a.qualified) || a.agent.localeCompare(b.agent),
-          name_asc: (a,b) => a.agent.localeCompare(b.agent),
+          return "";
         };
-        if (sorters[sortVal]) view.sort(sorters[sortVal]);
 
-        // KPIs
-        let qTot = 0, uTot = 0;
-        for (const r of view) { qTot += r.qualified; uTot += r.unqualified; }
-        const estRevenue = qTot * 125;
+        let sum = 0;
+        for (const r of candidates) {
+          const wk = String(get(r, ["Payroll Week Start","PAYROLL WEEK START","payroll_week_start"]) || "").trim();
+          if (weekKey && wk && wk !== weekKey) continue;
 
-        // Expense (auto-detect if you have payroll data in adminState)
-        // If your state includes a payroll table/history later, this will start showing real totals.
-        const expense = this._computePayrollExpenseFromState(state, chosenWeek);
-        const net = estRevenue - expense;
+          const payRaw = get(r, ["Total Weekly Pay","TOTAL WEEKLY PAY","total_weekly_pay","Weekly Pay"]);
+          const pay = Number(String(payRaw || "").replace(/[^0-9.\-]/g,"")) || 0;
+          sum += pay;
+        }
+        return sum;
+      },
 
-        const kQ = document.getElementById("payroll-kpi-qualified");
-        const kU = document.getElementById("payroll-kpi-unqualified");
-        const kR = document.getElementById("payroll-kpi-revenue");
-        const kE = document.getElementById("payroll-kpi-expense");
-        const kN = document.getElementById("payroll-kpi-net");
+      _renderPayrollCharts({ weeks, byWeek, chosenWeek, view }) {
+        // Revenue trend by week (qualified * 125)
+        const revLabels = weeks.slice().reverse(); // oldest -> newest for nicer line
+        const revData = revLabels.map(wk => {
+          const rows = byWeek.get(wk) || [];
+          const q = rows.reduce((a,r)=>a + (r.qualified||0), 0);
+          return q * 125;
+        });
 
-        if (kQ) kQ.textContent = qTot;
-        if (kU) kU.textContent = uTot;
-        if (kR) kR.textContent = estRevenue.toLocaleString("en-US", { style: "currency", currency: "USD" });
-        if (kE) kE.textContent = expense.toLocaleString("en-US", { style: "currency", currency: "USD" });
-        if (kN) kN.textContent = net.toLocaleString("en-US", { style: "currency", currency: "USD" });
-
-        const countEl = document.getElementById("payroll-count");
-        if (countEl) countEl.textContent = view.length;
-
-        // table
-        const tbody = document.getElementById("payroll-body");
-        if (!tbody) return;
-
-        if (!view.length) {
-          tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No payroll results found.</td></tr>`;
-        } else {
-          tbody.innerHTML = view.map(r => {
-            const total = r.qualified + r.unqualified;
-            const rev = (r.qualified * 125);
-            return `
-              <tr class="hover:bg-gray-50">
-                <td class="p-4 font-bold text-gray-900">${r.agent}</td>
-                <td class="p-4 text-center text-blue-500 font-extrabold">${r.qualified}</td>
-                <td class="p-4 text-center text-purple-500 font-extrabold">${r.unqualified}</td>
-                <td class="p-4 text-center text-gray-700 font-semibold">${total}</td>
-                <td class="p-4 text-right text-emerald-700 font-extrabold">${rev.toLocaleString("en-US", { style: "currency", currency: "USD" })}</td>
-              </tr>
-            `;
-          }).join("");
+        const revCtx = document.getElementById("payroll-revenue-chart");
+        if (revCtx) {
+          if (this._payrollCharts.revenue) this._payrollCharts.revenue.destroy();
+          this._payrollCharts.revenue = new Chart(revCtx, {
+            type: "line",
+            data: { labels: revLabels, datasets: [{ label: "Est. Revenue", data: revData }] },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+          });
         }
 
-        // charts
-        this._renderPayrollCharts({ weeks, byWeek, chosenWeek, view });
+        // Coordinator bar (current selected view)
+        const names = view.map(r => r.agent);
+        const qVals = view.map(r => r.qualified || 0);
+        const uVals = view.map(r => r.unqualified || 0);
+
+        const coordCtx = document.getElementById("payroll-coordinator-chart");
+        if (coordCtx) {
+          if (this._payrollCharts.coordinator) this._payrollCharts.coordinator.destroy();
+          this._payrollCharts.coordinator = new Chart(coordCtx, {
+            type: "bar",
+            data: {
+              labels: names,
+              datasets: [
+                { label: "Qualified", data: qVals, stack: "stack" },
+                { label: "Unqualified", data: uVals, stack: "stack" },
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
+            }
+          });
+        }
       },
 
       bindPayrollUI() {
@@ -2862,7 +3034,6 @@
         const sort = document.getElementById("payroll-sort");
 
         if (sel) sel.addEventListener("change", () => {
-          // if user touches week dropdown, turn off custom range
           this._payrollCustomRange.active = false;
           this.renderPayrollFinance();
         });
@@ -2956,89 +3127,6 @@
             a.click();
             a.remove();
             URL.revokeObjectURL(url);
-          });
-        }
-      },
-
-      _computePayrollExpenseFromState(state, chosenWeek) {
-        // Tries to find weekly payroll totals from whatever you already store in adminState.
-        // If you later feed your Weekly_Payroll sheet data into adminState (recommended),
-        // this will automatically show real expenses.
-
-        const candidates = [
-          state?.payroll,
-          state?.payroll_history,
-          state?.payrollHistory,
-          state?.weekly_payroll,
-          state?.weeklyPayroll
-        ].find(x => Array.isArray(x));
-
-        if (!candidates) return 0;
-
-        // Match rows by week if possible
-        const weekKey = String(chosenWeek || "").trim();
-
-        const get = (obj, keys) => {
-          for (const k of keys) {
-            const v = obj?.[k];
-            if (v !== undefined && v !== null && String(v).trim() !== "") return v;
-          }
-          return "";
-        };
-
-        let sum = 0;
-        for (const r of candidates) {
-          const wk = String(get(r, ["Payroll Week Start","PAYROLL WEEK START","payroll_week_start"]) || "").trim();
-          if (weekKey && wk && wk !== weekKey) continue;
-
-          const payRaw = get(r, ["Total Weekly Pay","TOTAL WEEKLY PAY","total_weekly_pay","Weekly Pay"]);
-          const pay = Number(String(payRaw || "").replace(/[^0-9.\-]/g,"")) || 0;
-          sum += pay;
-        }
-        return sum;
-      },
-
-      _renderPayrollCharts({ weeks, byWeek, chosenWeek, view }) {
-        // Revenue trend by week (qualified * 125)
-        const revLabels = weeks.slice().reverse(); // oldest -> newest for nicer line
-        const revData = revLabels.map(wk => {
-          const rows = byWeek.get(wk) || [];
-          const q = rows.reduce((a,r)=>a + (r.qualified||0), 0);
-          return q * 125;
-        });
-
-        const revCtx = document.getElementById("payroll-revenue-chart");
-        if (revCtx) {
-          if (this._payrollCharts.revenue) this._payrollCharts.revenue.destroy();
-          this._payrollCharts.revenue = new Chart(revCtx, {
-            type: "line",
-            data: { labels: revLabels, datasets: [{ label: "Est. Revenue", data: revData }] },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
-          });
-        }
-
-        // Coordinator bar (current selected view)
-        const names = view.map(r => r.agent);
-        const qVals = view.map(r => r.qualified || 0);
-        const uVals = view.map(r => r.unqualified || 0);
-
-        const coordCtx = document.getElementById("payroll-coordinator-chart");
-        if (coordCtx) {
-          if (this._payrollCharts.coordinator) this._payrollCharts.coordinator.destroy();
-          this._payrollCharts.coordinator = new Chart(coordCtx, {
-            type: "bar",
-            data: {
-              labels: names,
-              datasets: [
-                { label: "Qualified", data: qVals, stack: "stack" },
-                { label: "Unqualified", data: uVals, stack: "stack" },
-              ]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
-            }
           });
         }
       },
