@@ -31,7 +31,7 @@ class CallHammerPortal {
       login: 'https://automate.callhammerleads.com/webhook/agent-login',
       fetchData: 'https://automate.callhammerleads.com/webhook/fetch-agent-data',
       fetchTLData: 'https://automate.callhammerleads.com/webhook/fetch-tl-data',
-      fetchAdminData: 'https://automate.callhammerleads.com/webhook-test/dashboard-data',
+      fetchAdminData: 'https://automate.callhammerleads.com/webhook/dashboard-data',
       
       // ✅ PAYROLL
       payrollData: 'https://automate.callhammerleads.com/webhook/payroll-data',
