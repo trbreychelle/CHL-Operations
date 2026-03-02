@@ -1213,19 +1213,5 @@ class CallHammerPortal {
     return { codeName, updates };
   }
 
-  // ✅ 1) ADDED: Admin Auto-Refresh Method
-  startAdminAutoRefresh() {
-    // Refresh every 20 seconds (polling)
-    setInterval(() => {
-        this.fetchAdminData(true);
-    }, 20000);
-
-    // Refresh immediately when you return to the tab
-    document.addEventListener("visibilitychange", () => {
-        if (!document.hidden) this.fetchAdminData(true);
-    });
-  }
-}
-
 // Make sure the Admin Dashboard finds `window.portal`
 window.portal = window.portal || new CallHammerPortal();
