@@ -1234,10 +1234,9 @@ window.portal = window.portal || new CallHammerPortal();
 // ADMIN PASSBOOK CONTROLS (SUPABASE)
 // ==========================================
 
-// 1. Initialize Supabase Client (Replace with your actual keys)
-// You need to put your actual Supabase URL and ANON KEY here!
-const supabaseUrl = 'YOUR_SUPABASE_URL_HERE';
-const supabaseKey = 'YOUR_SUPABASE_ANON_KEY_HERE';
+// 1. Initialize Supabase Client 
+const supabaseUrl = 'https://api.supabase.callhammerleads.com';
+const supabaseKey = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc3MTcwMjI2MCwiZXhwIjo0OTI3Mzc1ODYwLCJyb2xlIjoiYW5vbiJ9.XuWCdGs0XSSSlWhsF6gR4gHMp50C-v6xra9ABgSVRoU';
 const supabase = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
 
 // 2. Fetch Clients based on the Filter (Defaults to 'Active')
