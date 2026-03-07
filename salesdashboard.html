@@ -1,342 +1,773 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Team Leader Dashboard - Call Hammer Leads</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sales Access - CHL Command Center</title>
+
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
     * { font-family: 'Inter', sans-serif; }
-    .progress-bar { background: linear-gradient(90deg, #FBBF24 0%, #F59E0B 100%); transition: width 1s ease-in-out; }
-    .metric-card { background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(31, 41, 55, 0.02) 100%); transition: all 0.3s ease; }
-    .metric-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(251, 191, 36, 0.15); }
-    .sidebar { background: linear-gradient(180deg, #374151 0%, #111827 100%); }
-    .nav-item { transition: all 0.3s ease; cursor: pointer; color: #D1D5DB; }
-    .nav-item:hover, .nav-item.active { background: rgba(251, 191, 36, 0.15); border-left: 4px solid #FBBF24; color: #FBBF24; }
-    .chart-container { min-height: 350px; width: 100%; }
-    .dashboard-view { display: none; }
-    .dashboard-view.active { display: block; animation: fadeIn 0.3s ease-in-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    body { background-color: #F9FAFB; color: #111827; }
 
-    #timeoff-history-list::-webkit-scrollbar { width: 4px; }
-    #timeoff-history-list::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 10px; }
+    .sidebar { background: linear-gradient(180deg, #374151 0%, #111827 100%); transition: all 0.3s; }
+    .nav-item { transition: all 0.2s; border-left: 4px solid transparent; cursor: pointer; color: #D1D5DB; }
+    .nav-item:hover { background: rgba(251, 191, 36, 0.1); color: #FBBF24; }
+    .nav-item.active { background: rgba(251, 191, 36, 0.15); color: #FBBF24; border-left-color: #FBBF24; font-weight: 600; }
+
+    .status-container { position: relative; display: inline-flex; align-items: center; }
+    .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; cursor: help; }
+    .st-critical { background-color: #EF4444; box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2); }
+    .st-risk { background-color: #F59E0B; box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.18); }
+    .st-healthy { background-color: #10B981; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.18); }
+    .st-new { background-color: #3B82F6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18); }
+
+    .tooltip-text {
+      visibility: hidden; width: 260px; background-color: #111827; color: #fff; text-align: left;
+      border-radius: 8px; padding: 10px; position: absolute; z-index: 50; bottom: 135%; left: 50%;
+      margin-left: -130px; opacity: 0; transition: opacity 0.2s; font-size: 11px; font-weight: 500;
+      pointer-events: none; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); border: 1px solid #374151;
+      line-height: 1.35;
+    }
+    .tooltip-text::after {
+      content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px;
+      border-width: 5px; border-style: solid; border-color: #111827 transparent transparent transparent;
+    }
+    .status-container:hover .tooltip-text { visibility: visible; opacity: 1; }
+
+    .view-section { display: none; animation: fadeIn 0.3s ease-in-out; }
+    .view-section.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { background: rgba(17,24,39,0.02); }
+    .sort-icon { font-size: 10px; margin-left: 6px; color: #9CA3AF; }
+
+    /* KPI tiles */
+    .kpi-tile { background: #fff; border: 1px solid #F3F4F6; border-radius: 16px; padding: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+    .kpi-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .12em; color: #9CA3AF; }
+    .kpi-value { font-size: 20px; font-weight: 800; margin-top: 6px; color: #111827; }
+    .kpi-sub { font-size: 12px; font-weight: 600; margin-top: 2px; color: #6B7280; }
+
+    /* Client Health fixed scroll height */
+    .client-health-scroll { max-height: 315px; overflow-y: auto; }
+    .controls-wrap { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+    .controls-wrap > * { min-width: 180px; }
+    @media (max-width: 1024px) { .controls-wrap > * { min-width: 160px; } }
+    .table-scroll { overflow-x: auto; }
+    .table-min { min-width: 1100px; }
+
+    /* CRITICAL SALES UI OVERRIDES */
+    /* This physically hides the "Share with Sales" toggle from the sales team */
+    .sales-share-toggle { display: none !important; }
   </style>
 </head>
-<body class="bg-gray-50 min-h-screen text-gray-800">
-  <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex justify-between items-center h-16">
-        <div class="flex items-center space-x-4">
-          <div class="flex items-center space-x-2">
-            <div class="w-8 h-8 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-lg flex items-center justify-center">
-              <span class="text-gray-900 font-bold text-sm">CH</span>
-            </div>
-            <span class="text-xl font-bold text-gray-900 tracking-tight">Team Leader Dashboard</span>
-          </div>
-        </div>
-        <div class="flex items-center space-x-4">
-          <div class="text-right">
-            <p class="text-sm font-medium text-gray-900" id="nav-user-name">Loading...</p>
-            <p class="text-xs text-gray-500" id="nav-user-role">TEAM LEADER</p>
-          </div>
-          <button onclick="portal.logout()" class="text-gray-400 hover:text-yellow-600 transition-colors">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-            </svg>
-          </button>
+
+<body class="h-screen flex overflow-hidden">
+
+  <aside class="sidebar w-64 flex-shrink-0 hidden lg:flex flex-col">
+    <div class="h-16 flex items-center px-6 border-b border-gray-700">
+      <div class="w-8 h-8 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-lg flex items-center justify-center text-gray-900 font-bold mr-3 shadow-lg shadow-yellow-500/20">CH</div>
+      <span class="font-bold text-white tracking-tight">COMMAND CENTER</span>
+    </div>
+
+    <div class="flex-1 overflow-y-auto py-6 space-y-8">
+      <div>
+        <div class="px-6 mb-2 text-[10px] font-bold uppercase text-gray-400 tracking-wider">Sales Operations</div>
+        <nav class="space-y-1">
+          <a href="#overview" class="nav-item active flex items-center px-6 py-3 text-sm" onclick="Admin.nav('overview', this)">
+            <i class="fa-solid fa-satellite-dish w-5 text-center"></i> Overview
+          </a>
+          <a href="#sales" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('sales', this)">
+            <i class="fa-solid fa-handshake w-5 text-center"></i> Sales Pipeline
+          </a>
+          <a href="#clients" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('clients', this)">
+            <i class="fa-solid fa-building w-5 text-center"></i> Passbook Clients
+          </a>
+          <a href="#leads" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('leads', this)">
+            <i class="fa-solid fa-list-check w-5 text-center"></i> Leads Tracker
+          </a>
+        </nav>
+      </div>
+    </div>
+
+    <div class="p-4 border-t border-gray-700 bg-gray-800/50">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-blue-700 to-blue-600 flex items-center justify-center text-xs font-bold text-white border border-blue-500">SA</div>
+        <div>
+          <p class="text-xs font-bold text-white">Sales Access</p>
+          <button onclick="portal.logout()" class="text-[10px] text-gray-400 hover:text-yellow-400 uppercase font-bold tracking-wide transition-colors">Log Out</button>
         </div>
       </div>
     </div>
-  </nav>
+  </aside>
 
-  <div class="flex">
-    <div class="sidebar w-64 min-h-screen text-white p-6 hidden lg:block">
-      <nav class="space-y-2">
-        <a href="#overview" class="nav-item active flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Team Overview</span></a>
-        <a href="#team" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Team Performance</span></a>
-        <a href="#leads" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Team Leads</span></a>
-        <a href="#timeoff" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Team Time Off</span></a>
-        <a href="#profile" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>My Profile</span></a>
-      </nav>
-    </div>
+  <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+    <div class="flex-1 overflow-y-auto p-6 lg:p-8" id="main-scroll">
 
-    <div class="flex-1 p-6 lg:p-10">
+      <div id="view-overview" class="view-section active">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+          <div>
+            <h1 class="text-3xl font-bold text-gray-900">Sales Overview</h1>
+            <p class="text-sm text-gray-500 mt-1">Monitor company performance and client health.</p>
+          </div>
+          
+          <div class="flex gap-4 flex-wrap">
+            <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm min-w-[220px]">
+              <div class="flex items-center justify-between gap-3">
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Owed Leads</p>
+                <select id="owed-package-filter" class="text-[10px] font-extrabold border border-gray-200 rounded-lg px-2 py-1 bg-white">
+                  <option value="all" selected>ALL</option>
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="PAUSE">PAUSE</option>
+                  <option value="REFUNDED">REFUNDED</option>
+                </select>
+              </div>
+              <p class="text-lg font-bold text-gray-900 mt-1" id="pulse-owed">0</p>
+              <p class="text-[11px] font-semibold text-gray-500" id="pulse-owed-sub">All package statuses</p>
+            </div>
+            <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
+              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pending Leads</p>
+              <p class="text-lg font-bold text-yellow-500 mt-1" id="pulse-pending">0</p>
+            </div>
+          </div>
+        </div>
 
-      <!-- OVERVIEW -->
-      <div id="view-overview" class="dashboard-view active">
-        <div class="flex justify-between items-center mb-8">
-          <h1 class="text-3xl font-bold text-gray-900">Team Overview</h1>
-          <div class="flex items-center space-x-3">
-            <select id="timeframe-filter" class="p-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-sm focus:ring-2 focus:ring-yellow-400 outline-none">
-              <option value="this-week">Current Week</option>
-              <option value="30-days">Last 30 Days</option>
-              <option value="4-weeks">Last 4 Weeks</option>
-              <option value="6-weeks">Last 6 Weeks</option>
-              <option value="all-time">All Time Records</option>
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8">
+          <div class="p-5 border-b border-gray-100 flex flex-col gap-3 bg-gray-50/50 rounded-t-2xl">
+            <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
+              <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                <i class="fa-solid fa-heart-pulse text-red-500"></i> Client Health Monitor
+              </h3>
+            </div>
+            <div class="flex flex-col md:flex-row gap-3">
+              <div class="flex-1 relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+                <input id="health-search" type="text" placeholder="Search client name..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+              </div>
+              <select id="health-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
+                <option value="all">All Status</option>
+              </select>
+              <select id="health-filter-package" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[190px]">
+                <option value="all">All Package Status</option>
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="PAUSE">PAUSE</option>
+                <option value="REFUNDED">REFUNDED</option>
+              </select>
+              <button id="health-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">Clear</button>
+            </div>
+          </div>
+          <div class="client-health-scroll">
+            <table class="w-full text-left border-collapse">
+              <thead class="bg-white sticky top-0 z-10 shadow-sm">
+                <tr>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase w-10">Status</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase">Code</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase">Roofing Company</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase">City/State</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Package (Owed/Purchased)</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Qualified</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Credited</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Leads Today</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Leads Yesterday</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase">Package Status</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase">Client Name</th>
+                </tr>
+              </thead>
+              <tbody id="client-health-body" class="text-sm divide-y divide-gray-50">
+                <tr><td colspan="11" class="p-6 text-center text-gray-400 italic">Loading clients...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8 overflow-hidden">
+          <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-gray-50/50">
+            <h3 class="font-bold text-gray-900 flex items-center gap-2">
+              <i class="fa-solid fa-chart-column text-yellow-500"></i> Team Performance Analytics
+            </h3>
+            <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
+              <button onclick="Admin.setAnalyticsPeriod('today', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
+              <button onclick="Admin.setAnalyticsPeriod('this-week', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
+              <button onclick="Admin.setAnalyticsPeriod('all-time', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
+            </div>
+          </div>
+
+          <div class="p-5">
+            <div class="grid grid-cols-1 md:grid-cols-6 gap-3 mb-5">
+              <div class="kpi-tile">
+                <div class="kpi-label">Total Leads</div>
+                <div class="kpi-value" id="kpi-total">0</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">QC Rejected</div>
+                <div class="kpi-value text-red-500" id="kpi-qc-rejected">0</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">Qualified</div>
+                <div class="kpi-value text-blue-500" id="kpi-qualified">0</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">Credited</div>
+                <div class="kpi-value text-purple-500" id="kpi-credited">0</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">Pending</div>
+                <div class="kpi-value text-yellow-500" id="kpi-pending">0</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">Cancellation Rate</div>
+                <div class="kpi-value" id="kpi-cancel">0%</div>
+              </div>
+            </div>
+            <div class="bg-white border border-gray-100 rounded-2xl p-4">
+              <div class="w-full overflow-x-auto">
+                <div class="min-w-[720px]"><canvas id="team-analytics-chart" height="110"></canvas></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="view-sales" class="view-section">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">Sales Pipeline</h2>
+            <p class="text-sm text-gray-500 mt-1">Track your active deals and closed won revenue.</p>
+          </div>
+          <button class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-extrabold hover:bg-emerald-700 shadow-lg shadow-emerald-600/20" onclick="alert('Add Sale Modal Coming Soon!')">
+            <i class="fas fa-plus mr-2"></i> Add Deal
+          </button>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+          <div class="flex flex-col md:flex-row gap-3">
+            <div class="flex-1 relative">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+              <input type="text" id="sales-search" placeholder="Search deal, client name, package..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+            </div>
+            <select id="sales-status-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
+              <option value="all">All Statuses</option>
+              <option value="Prospecting">Prospecting</option>
+              <option value="Negotiating">Negotiating</option>
+              <option value="Closed Won">Closed Won</option>
+              <option value="Closed Lost">Closed Lost</option>
             </select>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div class="metric-card bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Team Leads (Submitted)</h3>
-            <p class="text-3xl font-bold text-gray-900" id="tl-stat-submitted">0</p>
-          </div>
-          <div class="metric-card bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Team Confirmed</h3>
-            <p class="text-3xl font-bold text-gray-900" id="tl-stat-confirmed">0</p>
-          </div>
-          <div class="metric-card bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Team Cancelled-like</h3>
-            <p class="text-3xl font-bold text-gray-900" id="tl-stat-cancelled">0</p>
-          </div>
-          <div class="metric-card bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Cancellation Rate</h3>
-            <p class="text-3xl font-bold text-yellow-600" id="tl-stat-cancelrate">0%</p>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h3 class="text-lg font-bold mb-6 text-gray-900">Team Weekly Appointment Trends</h3>
-            <div id="appointmentsChart" class="chart-container"></div>
-          </div>
-          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h3 class="text-lg font-bold mb-6 text-gray-900">Team Incentive Trends (Confirmed-based)</h3>
-            <div id="incentivesChart" class="chart-container"></div>
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div class="table-scroll">
+            <table class="w-full text-left text-sm whitespace-nowrap">
+              <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+                <tr>
+                  <th class="p-4">Date</th>
+                  <th class="p-4">Client Name</th>
+                  <th class="p-4">Package</th>
+                  <th class="p-4">Deal Value</th>
+                  <th class="p-4">Status</th>
+                  <th class="p-4">Sold By</th>
+                </tr>
+              </thead>
+              <tbody id="sales-table-body" class="divide-y divide-gray-50">
+                <tr><td colspan="6" class="p-6 text-center text-gray-400 italic">Loading pipeline...</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
 
-      <!-- TEAM PERFORMANCE -->
-      <div id="view-team" class="dashboard-view">
-        <div class="flex justify-between items-center mb-8">
-          <h2 class="text-3xl font-bold text-gray-900">Team Performance</h2>
-          <p class="text-sm text-gray-500">Shows only your agents (from AGENT_MASTER → Manager_Email).</p>
+      <div id="view-clients" class="view-section">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">Passbook Clients</h2>
+        
+        <div class="client-filter-container" style="margin-bottom: 20px;">
+            <label for="salesClientStatusFilter"><strong>Filter Clients: </strong></label>
+            <select id="salesClientStatusFilter" onchange="fetchSalesClients(this.value)" style="padding: 5px; border-radius: 4px;">
+                <option value="Active" selected>Active</option> 
+                <option value="Pause">Pause</option>
+                <option value="Blacklisted">Blacklisted</option>
+                <option value="All">All</option>
+            </select>
+        </div>
+        
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+          <div class="flex flex-col lg:flex-row gap-3 lg:items-end">
+            <div class="flex-1 relative">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+              <input id="passbook-search" type="text" placeholder="Search roofing company, code, city/state..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+            </div>
+            <select id="passbook-filter-location" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
+              <option value="all">All Locations</option>
+            </select>
+            <div class="flex bg-gray-200 p-1 rounded-lg">
+              <button id="passbook-view-cards" class="px-3 py-2 text-xs font-extrabold rounded-md bg-white shadow text-gray-900">Cards</button>
+              <button id="passbook-view-list" class="px-3 py-2 text-xs font-extrabold rounded-md text-gray-500 hover:text-gray-900">List</button>
+            </div>
+            <button id="passbook-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">Clear</button>
+          </div>
+          <div class="mt-3 text-xs text-gray-500">Showing <span class="font-bold" id="passbook-count">0</span> clients</div>
         </div>
 
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Agent</th>
-                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Submitted</th>
-                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Confirmed</th>
-                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Cancelled-like</th>
-                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Cancel Rate</th>
-                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Last Submitted</th>
-              </tr>
-            </thead>
-            <tbody id="tl-agent-table-body" class="bg-white divide-y divide-gray-100"></tbody>
-          </table>
+        <div id="passbook-list-wrap" class="hidden bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-6">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm whitespace-nowrap">
+              <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+                <tr>
+                  <th class="p-4">Code</th>
+                  <th class="p-4">Roofing Company</th>
+                  <th class="p-4">City/State</th>
+                  <th class="p-4">Client Name</th>
+                  <th class="p-4 text-right">Open</th>
+                </tr>
+              </thead>
+              <tbody id="passbook-list-body" class="divide-y divide-gray-50"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="client-cards-container">
+          <div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">Loading assigned clients...</div>
+        </div>
+
+        <div id="passbook-modal" class="hidden fixed inset-0 z-50">
+          <div class="absolute inset-0 bg-black/40" onclick="Admin.closePassbookModal()"></div>
+          <div class="relative mx-auto mt-10 w-[94%] max-w-5xl bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+            <div class="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <div>
+                <h3 class="font-extrabold text-gray-900" id="passbook-modal-title">Client Details</h3>
+                <p class="text-xs text-gray-500 mt-1" id="passbook-modal-sub">—</p>
+              </div>
+              <button class="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50" onclick="Admin.closePassbookModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="passbookClientForm" class="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+              <input type="hidden" id="codeName" name="codeName" value="">
+              <div id="passbook-form-body"><div class="p-4 rounded-xl border border-gray-100 bg-gray-50/40 text-sm text-gray-500 italic">Loading client details...</div></div>
+              <div class="flex items-center justify-end gap-2 pt-4 border-t border-gray-100">
+                <button type="button" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50" onclick="Admin.closePassbookModal()">Close</button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
 
-      <!-- TEAM LEADS -->
-      <div id="view-leads" class="dashboard-view">
-        <div class="flex justify-between items-center mb-8">
-          <h2 class="text-3xl font-bold text-gray-900">Team Leads</h2>
-          <select id="status-filter" class="p-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-sm focus:ring-2 focus:ring-yellow-400 outline-none">
-            <option value="all">All Statuses</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="approved">Approved</option>
-            <option value="pending review">Pending Review</option>
-            <option value="rejected">Rejected</option>
-            <option value="credited">Credited</option>
-            <option value="declined">Declined</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-        </div>
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Date Submitted</th>
-                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Homeowner Name</th>
-                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
-              </tr>
-            </thead>
-            <tbody id="leads-table-body" class="bg-white divide-y divide-gray-100"></tbody>
-          </table>
-        </div>
-      </div>
+      <div id="view-leads" class="view-section">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">Leads Master Record</h2>
 
-      <!-- TEAM TIME OFF -->
-      <div id="view-timeoff" class="dashboard-view">
-        <div class="max-w-6xl mx-auto">
-          <h2 class="text-3xl font-bold text-gray-900 mb-2">Team Time Off</h2>
-          <p class="text-gray-500 mb-8 text-lg">View time-off requests for your team.</p>
-
-          <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            <div class="lg:col-span-1 bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
-              <h3 class="text-xs font-bold text-gray-400 uppercase mb-6 tracking-widest">Team Request History</h3>
-              <div id="timeoff-history-list" class="space-y-4 max-h-[650px] overflow-y-auto pr-2">
-                <p class="text-xs text-gray-400 italic">No history found.</p>
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+          <div class="controls-wrap">
+            <div class="flex-1 relative" style="min-width: 260px;">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+              <input id="leads-search" type="text" placeholder="Search homeowner, roofing company, status, lead ID..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+            </div>
+            <select id="leads-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]"><option value="all">All Status</option></select>
+            <select id="leads-filter-company" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[240px]"><option value="all">All Roofing Company</option></select>
+            <div class="flex items-center gap-2">
+              <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label><input id="leads-date-start" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/></div>
+              <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label><input id="leads-date-end" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/></div>
+            </div>
+            <button id="leads-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">Clear</button>
+            <div class="relative">
+              <button id="leads-columns-toggle" class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800 flex items-center gap-2"><i class="fa-solid fa-table-columns"></i> Columns</button>
+              <div id="leads-columns-popover" class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">Visible Columns</div>
+                <div id="leads-columns-box" class="max-h-[280px] overflow-y-auto space-y-2 pr-1"></div>
+                <div class="flex justify-end gap-2 mt-3">
+                  <button id="leads-columns-all" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">All</button>
+                  <button id="leads-columns-min" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">Minimal</button>
+                </div>
               </div>
             </div>
-
-            <div class="lg:col-span-3 bg-white rounded-2xl shadow-2xl border border-gray-100 p-8">
-              <h3 class="text-lg font-bold text-gray-900 mb-2">What you can do here</h3>
-              <p class="text-sm text-gray-600 mb-6">
-                This view is read-only for Team Leaders. Approval/decline can be added later if you want it (admin-only workflow).
-              </p>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-gray-50 border border-gray-100 rounded-2xl p-6">
-                  <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Team Size</h3>
-                  <p class="text-3xl font-bold text-gray-900" id="tl-team-size">0</p>
-                  <p class="text-xs text-gray-500 mt-2">Based on AGENT_MASTER manager mapping</p>
-                </div>
-                <div class="bg-gray-50 border border-gray-100 rounded-2xl p-6">
-                  <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Pending Requests</h3>
-                  <p class="text-3xl font-bold text-yellow-600" id="tl-timeoff-pending">0</p>
-                  <p class="text-xs text-gray-500 mt-2">Pending = Status contains “pending”</p>
-                </div>
-              </div>
-
-            </div>
           </div>
+          <div class="mt-3 text-xs text-gray-500">Showing <span class="font-bold" id="leads-count">0</span> leads</div>
         </div>
-      </div>
 
-      <!-- MY PROFILE -->
-      <div id="view-profile" class="dashboard-view">
-        <h2 class="text-3xl font-bold text-gray-900 mb-8">My Profile</h2>
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-            <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Full Name</h3><p class="text-xl font-bold text-gray-900" id="profileName">Loading...</p></div>
-            <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Position</h3><p class="text-xl font-bold text-gray-900" id="profilePosition">Loading...</p></div>
-            <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Email Address</h3><p class="text-xl font-bold text-gray-900" id="profileEmail">Loading...</p></div>
-            <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Base Rate</h3><p class="text-xl font-bold text-yellow-600" id="profileRate">Loading...</p></div>
-            <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Weekly Hours</h3><p class="text-xl font-bold text-gray-900" id="profileHours">Loading...</p></div>
-            <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Start Date</h3><p class="text-xl font-bold text-gray-900" id="profileStartDate">Loading...</p></div>
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div class="table-scroll">
+            <table class="table-min w-full text-left text-sm whitespace-nowrap">
+              <thead id="leads-table-head" class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100"></thead>
+              <tbody id="leads-table-body" class="divide-y divide-gray-50"><tr><td class="p-6 text-center text-gray-400">Loading leads...</td></tr></tbody>
+            </table>
           </div>
         </div>
       </div>
 
     </div>
-  </div>
-
-  <script src="main.js"></script>
+  </main>
 
   <script>
-    // SPA Routing logic (same style as Agent dashboard)
-    document.querySelectorAll('.nav-item').forEach(item => {
-      item.addEventListener('click', (e) => {
-        e.preventDefault();
-        const targetId = 'view-' + item.getAttribute('href').substring(1);
-        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-        item.classList.add('active');
-        document.querySelectorAll('.dashboard-view').forEach(view => view.classList.remove('active'));
-        const targetView = document.getElementById(targetId);
-        if (targetView) targetView.classList.add('active');
+    // Include the exact identical AdminDashboard logic here so it can process tables
+    // It doesn't matter if we don't have the Team/Payroll HTML elements anymore; the script gracefully skips them
+    const AdminDashboard = {
+      perfPeriod: 'today',
+      analyticsPeriod: 'today',
+      _customRange: { active: false, start: null, end: null },
+      clientHealthRaw: [],
+      clientHealthView: [],
+      sortState: { key: null, dir: 'asc' },
+      _leadsCols: null,
+      _leadsVisibleCols: null,
+      _leadsFiltersBound: false,
+      _leadsSort: { key: "date_submitted", dir: "desc" }, 
+      _passbookView: "cards",
+      _passbookFiltersBound: false,
+      _owedKpiBound: false,
 
-        if (targetId === 'view-overview') {
-          setTimeout(() => { portal.charts?.appointments?.resize(); portal.charts?.incentives?.resize(); }, 100);
+      getState() { return (window.portal && window.portal.adminState) ? window.portal.adminState : null; },
+
+      refreshDashboard() {
+        const state = this.getState();
+        if (!state) return;
+
+        const clients = Array.isArray(state.clients) ? state.clients : [];
+        const leads   = Array.isArray(state.leads) ? state.leads : [];
+
+        try {
+          this.clientHealthRaw = this.normalizeClientHealthRows(clients);
+          this.setupFilters(this.clientHealthRaw);
+          this.applyClientHealthFilters();
+        } catch(e) {}
+
+        try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
+        
+        try {
+          this.setupPassbookFilters(clients);
+          this.bindPassbookUI(clients);
+          this.applyPassbookFilters(clients);
+        } catch(e) {}
+        
+        try {
+          this.initLeadsColumnsUI();
+          this.setupLeadFilters(leads);
+          this.bindLeadsMasterEvents();
+          this.applyLeadsFilters();
+        } catch(e) {}
+
+        try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
+      },
+
+      _setActiveButton(btnSelector, btnElement) {
+        document.querySelectorAll(btnSelector).forEach(b => {
+          b.classList.remove("bg-white", "shadow", "text-gray-900");
+          b.classList.add("text-gray-500");
+        });
+        if (btnElement) {
+          btnElement.classList.add("bg-white", "shadow", "text-gray-900");
+          btnElement.classList.remove("text-gray-500");
         }
-      });
-    });
+      },
 
-    // TL dashboard controller (uses existing portal logic + helpers)
-    window.teamLeadDashboard = {
-      refresh: function() {
-        const leads = portal.filteredLeads?.length ? portal.filteredLeads : portal.leadsData;
-
-        // Top cards
-        const total = leads.length;
-        const confirmed = leads.filter(l => portal.isConfirmedStatus(portal.normalizeKey(l, 'Status') || l['Status'])).length;
-        const cancelled = leads.filter(l => portal.isCancelledLikeStatus(portal.normalizeKey(l, 'Status') || l['Status'])).length;
-        const cancelRate = total > 0 ? ((cancelled / total) * 100).toFixed(1) : "0.0";
-
-        const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-        set('tl-stat-submitted', total);
-        set('tl-stat-confirmed', confirmed);
-        set('tl-stat-cancelled', cancelled);
-        set('tl-stat-cancelrate', `${cancelRate}%`);
-
-        // Team size + pending time off
-        set('tl-team-size', Array.isArray(portal.employeeList) ? portal.employeeList.length : 0);
-
-        // Pending requests count from timeoff list UI dataset (if already rendered)
-        // If n8n returns timeOffHistory, portal.renderTimeOffHistory already displays it.
-        // Here we compute pending count from stored data if possible.
-        let pendingCount = 0;
-        if (window._tlTimeOffHistory && Array.isArray(window._tlTimeOffHistory)) {
-          pendingCount = window._tlTimeOffHistory.filter(r => ((r['Status'] || r.status || '') + '').toLowerCase().includes('pending')).length;
+      pick(obj, keys, fallback = "") {
+        for (const k of keys) {
+          const v = obj?.[k];
+          if (v !== undefined && v !== null && String(v).trim() !== "") return v;
         }
-        set('tl-timeoff-pending', pendingCount);
+        return fallback;
+      },
 
-        // Agent performance table
-        const byAgent = {};
-        for (const l of leads) {
-          const agent = (l['Appointment Coordinator Name'] || portal.normalizeKey(l, 'Appointment Coordinator Name') || 'Unassigned').toString().trim();
-          if (!byAgent[agent]) byAgent[agent] = { agent, submitted: 0, confirmed: 0, cancelled: 0, lastDate: null };
+      getLeadField(l, keys, fallback="—") { return this.pick(l, keys, fallback); },
 
-          byAgent[agent].submitted += 1;
+      getLeadsColumns() {
+        return [
+          { key: "date_submitted", label: "Date Submitted", keys: ["Date Submitted"] },
+          { key: "lead_id", label: "LEAD ID", keys: ["LEAD ID"] },
+          { key: "roofing_company", label: "Roofing Company", keys: ["Company Name"] },
+          { key: "appointment_coordinator", label: "Appointment Coordinator Name", keys: ["Appointment Coordinator Name"] },
+          { key: "homeowner_name", label: "Homeowner Name(s)", keys: ["Homeowner Name(s)"] },
+          { key: "homeowner_email", label: "Email of Homeowner", keys: ["Email of Homeowner"] },
+          { key: "homeowner_phone", label: "Homeowner Phone Number(s)", keys: ["Homeowner Phone Number(s)"] },
+          { key: "appointment_datetime", label: "Appointment Date /Time", keys: ["Appointment Date /Time"] },
+          { key: "address", label: "Address", keys: ["Address"] },
+          { key: "age_of_roof", label: "Age of Roof", keys: ["Age of Roof"] },
+          { key: "insurance_company", label: "Insurance Company", keys: ["Insurance Company"] },
+          { key: "additional_notes", label: "Additional Notes", keys: ["Additional Notes"] },
+          { key: "status", label: "Status", keys: ["Status"] },
+          { key: "reviewed_by", label: "Reviewed By", keys: ["Reviewed By"] },
+        ];
+      },
 
-          const status = (l['Status'] || portal.normalizeKey(l, 'Status') || '');
-          if (portal.isConfirmedStatus(status)) byAgent[agent].confirmed += 1;
-          if (portal.isCancelledLikeStatus(status)) byAgent[agent].cancelled += 1;
+      getLeadsDefaultVisibleCols() { return new Set(["date_submitted","homeowner_name","appointment_coordinator","roofing_company","status"]); },
 
-          const d = portal.parseDateSafe(l['Date Submitted'] || portal.normalizeKey(l, 'Date Submitted'));
-          if (d && (!byAgent[agent].lastDate || d > byAgent[agent].lastDate)) byAgent[agent].lastDate = d;
+      getLeadDateObj(l) {
+        const dStr = this.getLeadField(l, ["Date Submitted"], "");
+        const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+        return (dt && !isNaN(dt.getTime())) ? dt : null;
+      },
+
+      setupLeadFilters(leads) {
+        const statusSel = document.getElementById("leads-filter-status");
+        if(statusSel){
+          const uniq = (arr) => [...new Set(arr.filter(x => String(x||"").trim() !== ""))].sort((a,b)=>String(a).localeCompare(String(b)));
+          const statuses = uniq(leads.map(l => this.getLeadField(l, ["Status","STATUS"], "")));
+          statusSel.innerHTML = `<option value="all">All Status</option>` + statuses.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
+        }
+      },
+
+      initLeadsColumnsUI() {
+        if (this._leadsCols) return;
+        this._leadsCols = this.getLeadsColumns();
+        this._leadsVisibleCols = this.getLeadsDefaultVisibleCols();
+        const box = document.getElementById("leads-columns-box");
+        if(box){
+          box.innerHTML = this._leadsCols.map(col => {
+            const checked = this._leadsVisibleCols.has(col.key);
+            return `<label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" data-colkey="${col.key}" ${checked ? "checked" : ""} /><span>${col.label}</span></label>`;
+          }).join("");
+          box.querySelectorAll('input[type="checkbox"][data-colkey]').forEach(chk => {
+            chk.addEventListener("change", () => {
+              const k = chk.getAttribute("data-colkey");
+              if (chk.checked) this._leadsVisibleCols.add(k); else this._leadsVisibleCols.delete(k);
+              this.applyLeadsFilters(); 
+            });
+          });
+        }
+      },
+
+      applyLeadsFilters() {
+        const state = this.getState();
+        const leads = (state && Array.isArray(state.leads)) ? state.leads : [];
+        const q = String(document.getElementById("leads-search")?.value || "").toLowerCase().trim();
+        const stVal = document.getElementById("leads-filter-status")?.value || "all";
+        let filtered = [...leads];
+
+        if (stVal !== "all") { filtered = filtered.filter(l => String(this.getLeadField(l, ["Status","STATUS"], "")).trim() === stVal); }
+        if (q) {
+          filtered = filtered.filter(l => {
+            const hay = [this.getLeadField(l, ["Homeowner Name(s)"], ""), this.getLeadField(l, ["Company Name"], ""), this.getLeadField(l, ["Status"], "")].join(" ").toLowerCase();
+            return hay.includes(q);
+          });
         }
 
-        const rows = Object.values(byAgent).sort((a, b) => b.confirmed - a.confirmed);
-        const tbody = document.getElementById('tl-agent-table-body');
-        if (tbody) {
-          tbody.innerHTML = rows.map(r => {
-            const rate = r.submitted > 0 ? ((r.cancelled / r.submitted) * 100).toFixed(1) : "0.0";
-            const last = r.lastDate ? portal.formatDateShort(r.lastDate) : '—';
-            return `
-              <tr class="hover:bg-gray-50">
-                <td class="px-6 py-4 font-bold text-gray-900">${r.agent}</td>
-                <td class="px-6 py-4 text-sm text-gray-600">${r.submitted}</td>
-                <td class="px-6 py-4 text-sm text-gray-600">${r.confirmed}</td>
-                <td class="px-6 py-4 text-sm text-gray-600">${r.cancelled}</td>
-                <td class="px-6 py-4 text-sm font-bold text-yellow-600">${rate}%</td>
-                <td class="px-6 py-4 text-sm text-gray-600">${last}</td>
-              </tr>
-            `;
-          }).join('') || `<tr><td class="px-6 py-6 text-sm text-gray-500" colspan="6">No team data found.</td></tr>`;
+        if (this._leadsSort?.key === "date_submitted") {
+          const dir = this._leadsSort.dir === "asc" ? 1 : -1;
+          filtered.sort((a, b) => {
+            const da = this.getLeadDateObj(a);
+            const db = this.getLeadDateObj(b);
+            if (!da && !db) return 0; if (!da) return 1; if (!db) return -1;
+            return (da.getTime() - db.getTime()) * dir;
+          });
         }
+
+        const countEl = document.getElementById("leads-count");
+        if (countEl) countEl.textContent = filtered.length;
+        this.renderLeads(filtered);
+      },
+
+      bindLeadsMasterEvents() {
+        if (this._leadsFiltersBound) return;
+        this._leadsFiltersBound = true;
+        const search = document.getElementById("leads-search");
+        const status = document.getElementById("leads-filter-status");
+        if(search) search.addEventListener("input", () => this.applyLeadsFilters());
+        if(status) status.addEventListener("change", () => this.applyLeadsFilters());
+      },
+
+      normalizeClientStatus(v) {
+        const s = String(v || "").trim().toUpperCase();
+        if (s.includes("CRITICAL")) return "CRITICAL";
+        if (s.includes("YELLOW") || s.includes("RISK") || s.includes("AT RISK")) return "AT RISK";
+        if (s.includes("GREEN") || s.includes("HEALTHY")) return "HEALTHY";
+        if (s.includes("NOT STARTED") || s.includes("BLUE")) return "NOT STARTED";
+        return s || "UNKNOWN";
+      },
+
+      normalizePackageStatus(v) {
+        const s = String(v || "").trim().toUpperCase();
+        if (s.startsWith("PAUS")) return "PAUSE";
+        if (s.includes("REFUND")) return "REFUNDED";
+        if (s.includes("ACTIVE")) return "ACTIVE";
+        return s || "—";
+      },
+
+      statusDotClass(clientStatus) {
+        if (clientStatus === "CRITICAL") return "st-critical";
+        if (clientStatus === "AT RISK") return "st-risk";
+        if (clientStatus === "HEALTHY") return "st-healthy";
+        return "st-new";
+      },
+
+      extractRoofingCompany(c) { return this.pick(c, ["roofing_company","Roofing Company","Company Name"], "—"); },
+      extractCityState(c) { return this.pick(c, ["city_state","City, State","Location"], "—"); },
+      extractClientName(c) { return this.pick(c, ["client_name","Client Name"], "—"); },
+      extractCode(c) { return this.pick(c, ["code_name","Code Name","CODE","Client Code"], "N/A"); },
+
+      normalizeClientHealthRows(clients) {
+        return (clients || []).map(c => {
+          const clientStatus = this.normalizeClientStatus(this.pick(c, ["status","Client Status"], "UNKNOWN"));
+          const roofingCompany = this.extractRoofingCompany(c);
+          const code = this.extractCode(c);
+          const cityState = this.extractCityState(c);
+          const clientName = this.extractClientName(c);
+          const leadsToday = Number(this.pick(c, ["leads_today"], 0)) || 0;
+          const leadsYesterday = Number(this.pick(c, ["leads_yesterday"], 0)) || 0;
+          const purchased = Number(this.pick(c, ["purchased_leads"], 0)) || 0;
+          const packageStatus = this.normalizePackageStatus(this.pick(c, ["package_status"], "—"));
+          
+          return {
+            _raw: c, status: clientStatus, code, roofingCompany, cityState, clientName,
+            packageStatus, qualifiedCount: 0, creditedCount: 0, leadsToday, leadsYesterday,
+            owedRemaining: 0, purchasedLeads: purchased, packageLabel: `0 / ${purchased}`
+          };
+        });
+      },
+
+      setupFilters(rows) {
+        const statusSel = document.getElementById("health-filter-status");
+        if(statusSel) {
+          const alwaysStatuses = ["CRITICAL", "AT RISK", "HEALTHY", "NOT STARTED"];
+          statusSel.innerHTML = `<option value="all">All Status</option>` + alwaysStatuses.map(s => `<option value="${s}">${s}</option>`).join("");
+        }
+      },
+
+      applyClientHealthFilters() {
+        const q = String(document.getElementById("health-search")?.value || "").toLowerCase().trim();
+        const status = document.getElementById("health-filter-status")?.value || "all";
+        let filtered = [...this.clientHealthRaw];
+        if (status !== "all") filtered = filtered.filter(r => r.status === status);
+        if (q) filtered = filtered.filter(r => `${r.code} ${r.roofingCompany} ${r.clientName}`.toLowerCase().includes(q));
+        this.renderClientHealthTable(filtered);
+      },
+
+      renderClientHealthTable(rows) {
+        const tbody = document.getElementById("client-health-body");
+        if(!tbody) return;
+        if (!rows.length) {
+          tbody.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-gray-400 italic">No results found.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = rows.map(r => `
+          <tr class="hover:bg-gray-50">
+            <td class="p-4"><div class="status-container"><span class="status-dot ${this.statusDotClass(r.status)}"></span></div></td>
+            <td class="p-4 text-gray-700 font-semibold">${r.code}</td>
+            <td class="p-4 font-bold text-gray-900">${r.roofingCompany}</td>
+            <td class="p-4 text-gray-600">${r.cityState}</td>
+            <td class="p-4 text-center text-gray-900 font-bold">${r.packageLabel}</td>
+            <td class="p-4 text-center text-blue-500 font-bold">${r.qualifiedCount}</td>
+            <td class="p-4 text-center text-purple-500 font-bold">${r.creditedCount}</td>
+            <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsToday}</td>
+            <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsYesterday}</td>
+            <td class="p-4 text-gray-500">${r.packageStatus}</td>
+            <td class="p-4 text-gray-700">${r.clientName}</td>
+          </tr>
+        `).join("");
+      },
+
+      computeTotalOwedLeads(packageStatus = "all") {
+        const rows = Array.isArray(this.clientHealthRaw) ? this.clientHealthRaw : [];
+        let total = 0;
+        for (const r of rows) {
+          if (packageStatus !== "all" && String(r.packageStatus || "").toUpperCase() !== packageStatus) continue;
+          total += Number(r.owedRemaining) || 0; 
+        }
+        return total;
+      },
+
+      bindOwedLeadsKPI() {
+        const sel = document.getElementById("owed-package-filter");
+        if (!sel || this._owedKpiBound) return;
+        this._owedKpiBound = true;
+        sel.addEventListener("change", () => this.updateOwedLeadsKPI());
+      },
+
+      updateOwedLeadsKPI() {
+        const sel = document.getElementById("owed-package-filter");
+        const val = sel ? sel.value : "all";
+        const total = this.computeTotalOwedLeads(val);
+        const el = document.getElementById("pulse-owed");
+        if (el) el.textContent = total;
+      },
+
+      statusBadge(status) {
+        const s = String(status || "").toLowerCase();
+        let cls = "bg-gray-100 text-gray-700 border-gray-200";
+        if (s.includes("approved") || s.includes("confirmed")) cls = "bg-emerald-100 text-emerald-800 border-emerald-200";
+        if (s.includes("rejected") || s.includes("credit"))    cls = "bg-red-100 text-red-800 border-red-200";
+        return `<span class="px-2 py-1 rounded-full text-xs font-extrabold border ${cls}">${status || "—"}</span>`;
+      },
+
+      renderClientCards(clients) {
+        const container = document.getElementById('client-cards-container');
+        if (!container) return;
+        container.innerHTML = (clients || []).map(c => {
+          const code = this.extractCode(c);
+          return `<button type="button" class="text-left bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition" onclick="Admin.openPassbookClient('${String(code).replace(/'/g, "\\'")}')"><div class="flex items-center justify-between"><h3 class="font-bold text-gray-900 text-lg">${this.extractRoofingCompany(c)}</h3><span class="text-xs font-bold text-gray-500">${code}</span></div><p class="text-xs text-gray-500 mt-1">${this.extractCityState(c)}</p><p class="text-[10px] font-extrabold text-yellow-600 uppercase tracking-wider mt-3">Click to open</p><div class="sales-share-toggle"><label><input type="checkbox" class="share-checkbox" onchange="toggleShareWithSales('${code}', this)" ${c.shared_with_sales ? 'checked' : ''}> Share with Sales</label></div></button>`;
+        }).join('') || '<div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">No assigned clients found</div>';
+      },
+
+      openPassbookClient(codeName) { 
+          const modal = document.getElementById("passbook-modal"); 
+          document.getElementById("codeName").value = codeName;
+          document.getElementById("passbook-modal-sub").textContent = `Code: ${codeName}`;
+          document.getElementById("passbook-form-body").innerHTML = '<div class="p-4 text-sm text-gray-500 italic">Client details view coming soon...</div>';
+          modal.classList.remove("hidden");
+      },
+      
+      closePassbookModal() { document.getElementById("passbook-modal").classList.add("hidden"); },
+
+      renderLeads(leads) {
+        const tbody = document.getElementById('leads-table-body');
+        const thead = document.getElementById('leads-table-head');
+        if(!tbody || !thead) return;
+        this.initLeadsColumnsUI();
+        const visibleCols = this._leadsCols.filter(c => this._leadsVisibleCols.has(c.key));
+        thead.innerHTML = `<tr>${visibleCols.map(c => `<th class="p-4">${c.label}</th>`).join("")}</tr>`;
+        tbody.innerHTML = leads.map(l => `<tr>${visibleCols.map(c => `<td class="p-4">${c.key === "status" ? this.statusBadge(this.getLeadField(l, c.keys)) : this.getLeadField(l, c.keys)}</td>`).join("")}</tr>`).join("");
+      },
+
+      setupPassbookFilters(clients) {
+        const locs = [...new Set((clients || []).map(c => this.extractCityState(c)).filter(Boolean))].sort();
+        const sel = document.getElementById("passbook-filter-location");
+        if(sel) sel.innerHTML = `<option value="all">All Locations</option>` + locs.map(l => `<option value="${l}">${l}</option>`).join("");
+      },
+
+      applyPassbookFilters(clients) {
+        const q = String(document.getElementById("passbook-search")?.value || "").toLowerCase().trim();
+        const loc = document.getElementById("passbook-filter-location")?.value || "all";
+        let rows = (clients || []).filter(c => (loc === "all" || this.extractCityState(c) === loc));
+        if (q) rows = rows.filter(c => `${this.extractRoofingCompany(c)} ${this.extractCode(c)}`.toLowerCase().includes(q));
+
+        const countEl = document.getElementById("passbook-count");
+        if(countEl) countEl.textContent = rows.length;
+
+        if (this._passbookView === "list") this.renderPassbookList(rows);
+        else this.renderClientCards(rows);
+      },
+
+      renderPassbookList(clients) {
+        const tbody = document.getElementById("passbook-list-body");
+        if(tbody) tbody.innerHTML = (clients || []).map(c => `<tr class="hover:bg-gray-50"><td class="p-4">${this.extractCode(c)}</td><td class="p-4 font-bold">${this.extractRoofingCompany(c)}</td><td class="p-4">${this.extractCityState(c)}</td><td class="p-4">${this.extractClientName(c)}</td><td class="p-4 text-right"><div class="sales-share-toggle" style="display:inline-block; margin-right:10px;"><label><input type="checkbox" class="share-checkbox" onchange="toggleShareWithSales('${this.extractCode(c)}', this)" ${c.shared_with_sales ? 'checked' : ''}> Share with Sales</label></div><button class="px-3 py-1 rounded bg-gray-900 text-white text-xs" onclick="Admin.openPassbookClient('${this.extractCode(c)}')">Open</button></td></tr>`).join("");
+      },
+
+      bindPassbookUI(clients) {
+        if (this._passbookFiltersBound) return; this._passbookFiltersBound = true;
+        const cBtn = document.getElementById("passbook-view-cards");
+        const lBtn = document.getElementById("passbook-view-list");
+        if(cBtn) cBtn.addEventListener("click", () => { this._passbookView="cards"; this.applyPassbookFilters(clients); });
+        if(lBtn) lBtn.addEventListener("click", () => { this._passbookView="list"; this.applyPassbookFilters(clients); });
+        document.getElementById("passbook-search")?.addEventListener("input", () => this.applyPassbookFilters(clients));
+        document.getElementById("passbook-filter-location")?.addEventListener("change", () => this.applyPassbookFilters(clients));
+      },
+
+      nav(viewId, linkEl) {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        const view = document.getElementById('view-' + viewId);
+        if(view) view.classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        if(linkEl) linkEl.classList.add('active');
       }
     };
 
-    // Hook timeframe + status filter to existing portal behavior
-    const tf = document.getElementById('timeframe-filter');
-    if (tf) {
-      tf.onchange = (e) => {
-        portal.handleFilterChange(e.target.value);
-        window.teamLeadDashboard.refresh();
-      };
-    }
-
-    const statusSelect = document.getElementById('status-filter');
-    if (statusSelect) {
-      statusSelect.onchange = (e) => {
-        const v = (e.target.value || 'all').toLowerCase();
-        let filtered = portal.filteredLeads?.length ? portal.filteredLeads : portal.leadsData;
-
-        if (v !== 'all') {
-          filtered = filtered.filter(l => (l['Status'] || portal.normalizeKey(l, 'Status') || '').toString().toLowerCase() === v);
-        }
-        portal.renderLeadsTable(filtered);
-      };
-    }
-
-    // Capture timeOffHistory if the backend returns it and main.js renders it
-    const _origRenderTimeOff = portal.renderTimeOffHistory.bind(portal);
-    portal.renderTimeOffHistory = function(history) {
-      window._tlTimeOffHistory = Array.isArray(history) ? history : [];
-      _origRenderTimeOff(history);
-      window.teamLeadDashboard.refresh();
-    };
-
-    // Initial refresh attempt (will show zeros until fetchAllData finishes)
-    setTimeout(() => window.teamLeadDashboard.refresh(), 200);
+    window.adminDashboard = AdminDashboard;
+    window.Admin = AdminDashboard;
   </script>
+  <script src="main.js"></script>
 </body>
 </html>
