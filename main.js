@@ -31,7 +31,7 @@ class CallHammerPortal {
       login: 'https://automate.callhammerleads.com/webhook/agent-login',
       fetchData: 'https://automate.callhammerleads.com/webhook/fetch-agent-data',
       fetchTLData: 'https://automate.callhammerleads.com/webhook/fetch-tl-data',
-      fetchAdminData: 'https://automate.callhammerleads.com/webhook/dashboard-data-v2',
+      fetchAdminData: 'https://automate.callhammerleads.com/webhook/dashboard-data',
       
       // ✅ PAYROLL
       payrollData: 'https://automate.callhammerleads.com/webhook/payroll-data',
@@ -1231,11 +1231,22 @@ class CallHammerPortal {
 window.portal = window.portal || new CallHammerPortal();
 
 // ==========================================
-// ADMIN PASSBOOK CONTROLS
+// ADMIN PASSBOOK CONTROLS (SUPABASE)
 // ==========================================
 
-// 1. Fetch Clients based on the Filter (Defaults to 'Active')
+// 1. Initialize Supabase Client (Replace with your actual keys)
+// You need to put your actual Supabase URL and ANON KEY here!
+const supabaseUrl = 'https://api.supabase.callhammerleads.com';
+const supabaseKey = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc3MTcwMjI2MCwiZXhwIjo0OTI3Mzc1ODYwLCJyb2xlIjoiYW5vbiJ9.XuWCdGs0XSSSlWhsF6gR4gHMp50C-v6xra9ABgSVRoU';
+const supabase = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
+
+// 2. Fetch Clients based on the Filter (Defaults to 'Active')
 async function fetchAdminClients(status = 'Active') {
+    if (!supabase) {
+        console.error("Supabase client not initialized. Make sure you included the Supabase CDN script in your HTML.");
+        return;
+    }
+
     console.log(`Fetching clients with status: ${status}`);
     
     // Start the query
@@ -1255,20 +1266,28 @@ async function fetchAdminClients(status = 'Active') {
 
     console.log('Admin Clients loaded:', clients);
     
-    // TODO: Call your existing function here that draws the clients on the screen!
-    // Example: renderAdminClientsToScreen(clients);
+    // Send the clients to the Admin Dashboard renderer
+    if (window.Admin && typeof window.Admin.applyPassbookFilters === 'function') {
+        window.Admin.applyPassbookFilters(clients);
+    }
 }
 
-// 2. Toggle the "Share with Sales" permission in Supabase
-async function toggleShareWithSales(clientId, checkboxElement) {
-    const isShared = checkboxElement.checked;
-    
-    console.log(`Setting Sales Visibility for ${clientId} to ${isShared}`);
+// 3. Toggle the "Share with Sales" permission in Supabase
+async function toggleShareWithSales(codeName, checkboxElement) {
+    if (!supabase) {
+        alert("Database connection missing.");
+        checkboxElement.checked = !checkboxElement.checked;
+        return;
+    }
 
+    const isShared = checkboxElement.checked;
+    console.log(`Setting Sales Visibility for ${codeName} to ${isShared}`);
+
+    // Update the database where the company code matches
     const { error } = await supabase
         .from('clients')
         .update({ shared_with_sales: isShared })
-        .eq('client_id', clientId);
+        .eq('code_name', codeName); // Note: We use code_name to match your HTML
 
     if (error) {
         console.error('Failed to update sales visibility:', error);
@@ -1276,11 +1295,11 @@ async function toggleShareWithSales(clientId, checkboxElement) {
         // Revert the checkbox visually if the database fails
         checkboxElement.checked = !isShared; 
     } else {
-        console.log(`Success! Client ${clientId} sales visibility is now ${isShared}`);
+        console.log(`Success! Client ${codeName} sales visibility is now ${isShared}`);
     }
 }
 
-// 3. Auto-load the 'Active' clients as soon as the page opens
+// 4. Auto-load the 'Active' clients as soon as the page opens
 document.addEventListener('DOMContentLoaded', () => {
     // Only run this if we are on the Admin Dashboard
     if (document.getElementById('clientStatusFilter')) {
