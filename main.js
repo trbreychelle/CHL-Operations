@@ -233,7 +233,7 @@ class CallHammerPortal {
 
     const onAnyDashboard = path.includes('dashboard');
     // FIXED: Catch both "admin-dashboard" and "admindashboard"
-    const onAdminDashboard = path.includes('admin-dashboard') || path.includes('admindashboard');
+    const onAdminDashboard = path.includes('admin-dashboard') || path.includes('admindashboard') || path.includes('currentadmin');
     // ADDED: Recognize the sales dashboard
     const onSalesDashboard = path.includes('salesdashboard');
 
