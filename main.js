@@ -31,7 +31,7 @@ class CallHammerPortal {
       login: 'https://automate.callhammerleads.com/webhook/agent-login',
       fetchData: 'https://automate.callhammerleads.com/webhook/fetch-agent-data',
       fetchTLData: 'https://automate.callhammerleads.com/webhook/fetch-tl-data',
-      fetchAdminData: 'https://automate.callhammerleads.com/webhook/dashboard-data-v2',
+      fetchAdminData: 'https://automate.callhammerleads.com/webhook/dashboard-data',
       
       // ✅ PAYROLL
       payrollData: 'https://automate.callhammerleads.com/webhook/payroll-data',
@@ -1229,3 +1229,61 @@ class CallHammerPortal {
 
 // Make sure the Admin Dashboard finds `window.portal`
 window.portal = window.portal || new CallHammerPortal();
+
+// ==========================================
+// ADMIN PASSBOOK CONTROLS
+// ==========================================
+
+// 1. Fetch Clients based on the Filter (Defaults to 'Active')
+async function fetchAdminClients(status = 'Active') {
+    console.log(`Fetching clients with status: ${status}`);
+    
+    // Start the query
+    let query = supabase.from('clients').select('*');
+
+    // Only apply the status filter if they didn't select 'All'
+    if (status !== 'All') {
+        query = query.eq('client_status', status);
+    }
+
+    const { data: clients, error } = await query;
+
+    if (error) {
+        console.error('Error fetching admin clients:', error);
+        return;
+    }
+
+    console.log('Admin Clients loaded:', clients);
+    
+    // TODO: Call your existing function here that draws the clients on the screen!
+    // Example: renderAdminClientsToScreen(clients);
+}
+
+// 2. Toggle the "Share with Sales" permission in Supabase
+async function toggleShareWithSales(clientId, checkboxElement) {
+    const isShared = checkboxElement.checked;
+    
+    console.log(`Setting Sales Visibility for ${clientId} to ${isShared}`);
+
+    const { error } = await supabase
+        .from('clients')
+        .update({ shared_with_sales: isShared })
+        .eq('client_id', clientId);
+
+    if (error) {
+        console.error('Failed to update sales visibility:', error);
+        alert('Database error. Check the console.');
+        // Revert the checkbox visually if the database fails
+        checkboxElement.checked = !isShared; 
+    } else {
+        console.log(`Success! Client ${clientId} sales visibility is now ${isShared}`);
+    }
+}
+
+// 3. Auto-load the 'Active' clients as soon as the page opens
+document.addEventListener('DOMContentLoaded', () => {
+    // Only run this if we are on the Admin Dashboard
+    if (document.getElementById('clientStatusFilter')) {
+        fetchAdminClients('Active');
+    }
+});
