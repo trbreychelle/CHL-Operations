@@ -31,7 +31,7 @@ class CallHammerPortal {
       login: 'https://automate.callhammerleads.com/webhook/agent-login',
       fetchData: 'https://automate.callhammerleads.com/webhook/fetch-agent-data',
       fetchTLData: 'https://automate.callhammerleads.com/webhook/fetch-tl-data',
-      fetchAdminData: 'https://automate.callhammerleads.com/webhook/dashboard-data-v2',
+      fetchAdminData: 'https://automate.callhammerleads.com/webhook/dashboard-data',
       
       // ✅ PAYROLL
       payrollData: 'https://automate.callhammerleads.com/webhook/payroll-data',
@@ -1236,8 +1236,8 @@ window.portal = window.portal || new CallHammerPortal();
 
 // 1. Initialize Supabase Client (Replace with your actual keys)
 // You need to put your actual Supabase URL and ANON KEY here!
-const supabaseUrl = 'https://api.supabase.callhammerleads.com';
-const supabaseKey = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc3MTcwMjI2MCwiZXhwIjo0OTI3Mzc1ODYwLCJyb2xlIjoiYW5vbiJ9.XuWCdGs0XSSSlWhsF6gR4gHMp50C-v6xra9ABgSVRoU';
+const supabaseUrl = 'YOUR_SUPABASE_URL_HERE';
+const supabaseKey = 'YOUR_SUPABASE_ANON_KEY_HERE';
 const supabase = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
 
 // 2. Fetch Clients based on the Filter (Defaults to 'Active')
@@ -1304,5 +1304,47 @@ document.addEventListener('DOMContentLoaded', () => {
     // Only run this if we are on the Admin Dashboard
     if (document.getElementById('clientStatusFilter')) {
         fetchAdminClients('Active');
+    }
+});
+
+// ==========================================
+// SALES PASSBOOK CONTROLS
+// ==========================================
+
+// Fetch Clients for Sales (STRICTLY filtered by shared_with_sales)
+async function fetchSalesClients(status = 'Active') {
+    if (!supabase) {
+        console.error("Supabase client missing.");
+        return;
+    }
+
+    console.log(`Fetching SALES clients with status: ${status}`);
+    
+    // THE SECURITY LOCK: Only get clients where shared_with_sales is TRUE
+    let query = supabase.from('clients').select('*').eq('shared_with_sales', true);
+
+    // Apply the Active/Pause/Blacklisted filter
+    if (status !== 'All') {
+        query = query.eq('client_status', status);
+    }
+
+    const { data: clients, error } = await query;
+
+    if (error) {
+        console.error('Error fetching sales clients:', error);
+        return;
+    }
+
+    console.log('Sales Clients loaded:', clients);
+    
+    // TODO: Send these restricted clients to your Sales HTML renderer
+    // Example: renderSalesClientsToScreen(clients);
+}
+
+// Auto-load Sales clients when the Sales Dashboard opens
+document.addEventListener('DOMContentLoaded', () => {
+    // Only run this if we are on the Sales Dashboard (checking for a unique sales element)
+    if (document.getElementById('salesClientStatusFilter') || window.location.pathname.includes('salesdashboard')) {
+        fetchSalesClients('Active');
     }
 });
