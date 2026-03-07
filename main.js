@@ -232,33 +232,27 @@ class CallHammerPortal {
     }
 
     const onAnyDashboard = path.includes('dashboard');
-    const onAdminDashboard = path.includes('admin-dashboard');
+    // FIXED: Catch both "admin-dashboard" and "admindashboard"
+    const onAdminDashboard = path.includes('admin-dashboard') || path.includes('admindashboard');
+    // ADDED: Recognize the sales dashboard
+    const onSalesDashboard = path.includes('salesdashboard');
 
-    // Agent/TL dashboards
-    if (this.currentUser && onAnyDashboard && !onAdminDashboard) {
+    // Agent dashboards
+    if (this.currentUser && onAnyDashboard && !onAdminDashboard && !onSalesDashboard) {
       this.fetchAllData?.();
       this.updateProfileUI?.();
       this.startMSTClock();
-
-      const role = (this.currentUser.role || '').toLowerCase();
-      if (role === 'admin') {
-        document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
-      } else if (role === 'team_leader') {
-        document.querySelectorAll('.tl-only').forEach(el => el.classList.remove('hidden'));
-      }
     }
 
-    // Admin dashboard (Mission Control / Overview)
-    if (onAdminDashboard) {
+    // Admin OR Sales dashboard (Mission Control / Overview)
+    if (onAdminDashboard || onSalesDashboard) {
       document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
       
-      // ✅ UPDATED: Call both Admin Data and Payroll Data
       setTimeout(() => {
         this.fetchAdminData(false);
-        this.loadPayrollData(false); // ✅ ADDED THIS
+        this.loadPayrollData(false); 
       }, 300);
 
-      // ✅ 1) Start polling (Auto-refresh)
       this.startAdminAutoRefresh();
     }
   }
@@ -1346,4 +1340,125 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('salesClientStatusFilter') || window.location.pathname.includes('salesdashboard')) {
         fetchSalesClients('Active');
     }
+});
+
+// ==========================================
+// SALES PIPELINE CONTROLS (SUPABASE)
+// ==========================================
+
+async function fetchSalesPipeline() {
+    if (!supabase) return;
+    
+    // Check if we are on the Sales Dashboard vs Admin Dashboard
+    const isSalesDash = window.location.pathname.includes('salesdashboard');
+    
+    // Get all sales from Supabase
+    let { data: sales, error } = await supabase.from('sales_pipeline').select('*').order('created_at', { ascending: false });
+    
+    if (error) {
+        console.error("Error fetching sales:", error);
+        return;
+    }
+
+    let filteredSales = sales || [];
+
+    // Filter Logic based on who is looking
+    if (isSalesDash) {
+        // Sales Team can ONLY see their own sales
+        const currentUser = window.portal?.currentUser?.name || "Unknown";
+        filteredSales = filteredSales.filter(s => s.sold_by_name === currentUser);
+        
+        const statFilter = document.getElementById('sales-status-filter')?.value || 'all';
+        if (statFilter !== 'all') filteredSales = filteredSales.filter(s => s.status === statFilter);
+        
+        // Hide the category dropdown in the modal so they can't log as CHL
+        const catBox = document.getElementById('sale-category-container');
+        if (catBox) catBox.style.display = 'none';
+    } else {
+        // Admin sees the master filters
+        const catFilter = document.getElementById('admin-sales-category-filter')?.value || 'All';
+        const statFilter = document.getElementById('admin-sales-status-filter')?.value || 'all';
+        
+        if (catFilter !== 'All') filteredSales = filteredSales.filter(s => s.sales_category === catFilter);
+        if (statFilter !== 'all') filteredSales = filteredSales.filter(s => s.status === statFilter);
+    }
+
+    // Render Table
+    const tbodyId = isSalesDash ? 'sales-table-body' : 'admin-sales-table-body';
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+
+    if (filteredSales.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No deals found.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filteredSales.map(s => {
+        const d = new Date(s.created_at).toLocaleDateString();
+        const val = parseFloat(s.deal_value).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        
+        let stColor = "bg-gray-100 text-gray-700";
+        if (s.status === 'Closed Won') stColor = "bg-emerald-100 text-emerald-800";
+        if (s.status === 'Closed Lost') stColor = "bg-red-100 text-red-800";
+        if (s.status === 'Negotiating') stColor = "bg-yellow-100 text-yellow-800";
+        if (s.status === 'Prospecting') stColor = "bg-blue-100 text-blue-800";
+
+        return `
+        <tr class="hover:bg-gray-50 border-b border-gray-50">
+            <td class="p-4 text-sm text-gray-500">${d}</td>
+            <td class="p-4 font-bold text-gray-900">${s.client_name}</td>
+            <td class="p-4 text-sm text-gray-600">${s.package_sold || '—'}</td>
+            <td class="p-4 font-bold text-emerald-600">${val}</td>
+            <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold uppercase ${stColor}">${s.status}</span></td>
+            <td class="p-4 text-sm text-gray-600">${s.sold_by_name}</td>
+            ${!isSalesDash ? `<td class="p-4 text-sm text-gray-500">${s.sales_category}</td>` : ''}
+        </tr>
+        `;
+    }).join('');
+}
+
+// Function to push a new deal to Supabase
+async function submitNewSale(e) {
+    e.preventDefault();
+    if (!supabase) return alert("Database connection missing.");
+    
+    const isSalesDash = window.location.pathname.includes('salesdashboard');
+    const currentUser = window.portal?.currentUser?.name || "Unknown User";
+    
+    // If it's a sales agent, force category to 'Sales Team'. If admin, use dropdown.
+    const category = isSalesDash ? 'Sales Team' : document.getElementById('sale-category').value;
+
+    const payload = {
+        client_name: document.getElementById('sale-client-name').value,
+        package_sold: document.getElementById('sale-package').value,
+        deal_value: parseFloat(document.getElementById('sale-value').value) || 0,
+        status: document.getElementById('sale-status').value,
+        sold_by_name: currentUser,
+        sales_category: category
+    };
+
+    const btn = document.getElementById('save-sale-btn');
+    btn.innerText = "Saving...";
+
+    const { error } = await supabase.from('sales_pipeline').insert([payload]);
+    
+    if (error) {
+        console.error("Sale Save Error:", error);
+        alert("Failed to save deal.");
+    } else {
+        document.getElementById('add-sale-modal').classList.add('hidden');
+        document.getElementById('add-sale-form').reset();
+        fetchSalesPipeline();
+    }
+    btn.innerText = "Save Deal";
+}
+
+// Attach listeners so filters trigger re-renders
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('admin-sales-category-filter')?.addEventListener('change', fetchSalesPipeline);
+    document.getElementById('admin-sales-status-filter')?.addEventListener('change', fetchSalesPipeline);
+    document.getElementById('sales-status-filter')?.addEventListener('change', fetchSalesPipeline);
+    
+    // Auto-load if sales tab exists
+    if (document.getElementById('view-sales')) fetchSalesPipeline();
 });
