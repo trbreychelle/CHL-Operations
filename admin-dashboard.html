@@ -104,6 +104,9 @@
           <a href="#overview" class="nav-item active flex items-center px-6 py-3 text-sm" onclick="Admin.nav('overview', this)">
             <i class="fa-solid fa-satellite-dish w-5 text-center"></i> Overview
           </a>
+          <a href="#sales" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('sales', this)">
+            <i class="fa-solid fa-handshake w-5 text-center"></i> Sales Pipeline
+          </a>
           <a href="#clients" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('clients', this)">
             <i class="fa-solid fa-building w-5 text-center"></i> Passbook Clients
           </a>
@@ -440,6 +443,62 @@
                 </table>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+      
+      <div id="view-sales" class="view-section">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">Master Sales Pipeline</h2>
+            <p class="text-sm text-gray-500 mt-1">Track all active deals and closed won revenue across the company.</p>
+          </div>
+          <button class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-extrabold hover:bg-emerald-700 shadow-lg shadow-emerald-600/20" onclick="document.getElementById('add-sale-modal').classList.remove('hidden')">
+            <i class="fas fa-plus mr-2"></i> Add Deal
+          </button>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+          <div class="flex flex-col md:flex-row gap-3">
+            <div class="flex-1 relative">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+              <input type="text" id="admin-sales-search" placeholder="Search deal, client name, package..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+            </div>
+            
+            <select id="admin-sales-category-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[170px] text-blue-700">
+              <option value="All">View: ALL Sales</option>
+              <option value="CHL">View: CHL Only</option>
+              <option value="Sales Team">View: Sales Team</option>
+            </select>
+
+            <select id="admin-sales-status-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
+              <option value="all">All Statuses</option>
+              <option value="Prospecting">Prospecting</option>
+              <option value="Negotiating">Negotiating</option>
+              <option value="Closed Won">Closed Won</option>
+              <option value="Closed Lost">Closed Lost</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-8">
+          <div class="table-scroll">
+            <table class="w-full text-left text-sm whitespace-nowrap">
+              <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+                <tr>
+                  <th class="p-4">Date</th>
+                  <th class="p-4">Client Name</th>
+                  <th class="p-4">Package</th>
+                  <th class="p-4">Deal Value</th>
+                  <th class="p-4">Status</th>
+                  <th class="p-4">Sold By</th>
+                  <th class="p-4">Category</th>
+                </tr>
+              </thead>
+              <tbody id="admin-sales-table-body" class="divide-y divide-gray-50">
+                <tr><td colspan="7" class="p-6 text-center text-gray-400 italic">Loading master pipeline...</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
