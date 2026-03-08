@@ -780,13 +780,6 @@ class CallHammerPortal {
   // ------------------------
   async fetchAdminData(forceRefresh = false) {
     try {
-      const now = Date.now();
-      if (!forceRefresh && this.adminState.clients.length > 0 && (now - this.lastAdminFetch) < this.adminCacheMs) {
-        console.log('🧠 Using cached admin data (quota guard).');
-        this.triggerAdminRefresh();
-        return;
-      }
-
       console.log('📡 Fetching Admin Dashboard Data...');
       const response = await fetch(this.webhooks.fetchAdminData, {
         method: 'GET',
@@ -799,35 +792,29 @@ class CallHammerPortal {
       this.lastAdminFetch = Date.now();
 
       const dataRoot = result?.data || result || {};
+      const rawHealthMonitor = dataRoot.healthMonitor || result.healthMonitor || [];
+      const rawClients = dataRoot.clients || dataRoot.Clients || dataRoot.CLIENTS || result.clients || [];
+      const rawAgents = dataRoot.agents || dataRoot.Agents || dataRoot.AGENTS || result.agents || [];
+      const rawStatuses = dataRoot.clientStatuses || dataRoot.statuses || result.clientStatuses || [];
+      const rawPackages = dataRoot.packages || dataRoot.leadPackages || result.packages || [];
 
-      const rawHealthMonitor =
-        dataRoot.healthMonitor ||
-        result.healthMonitor ||
-        [];
-
-      const rawClients =
-        dataRoot.clients || dataRoot.Clients || dataRoot.CLIENTS ||
-        result.clients || result.Clients || result.CLIENTS || [];
-
-      const rawLeads =
-        dataRoot.leads || dataRoot.Leads || dataRoot.LEADS ||
-        result.leads || result.Leads || result.LEADS || [];
-
-      const rawAgents =
-        dataRoot.agents || dataRoot.Agents || dataRoot.AGENTS ||
-        result.agents || result.Agents || result.AGENTS || [];
-
-      const rawStatuses =
-        dataRoot.clientStatuses || dataRoot.statuses || dataRoot.ClientStatuses ||
-        result.clientStatuses || result.statuses || result.ClientStatuses || [];
-
-      const rawPackages =
-        dataRoot.packages || dataRoot.leadPackages || dataRoot.Packages ||
-        result.packages || result.leadPackages || result.Packages || [];
+      // 🔥 THE MAGIC FIX: Pull Leads DIRECTLY from Supabase to bypass Google Sheets API limits!
+      let supaLeads = [];
+      if (window.supaClient) {
+          console.log("⚡ Fetching Leads directly from Supabase for unlimited speed...");
+          const { data, error } = await window.supaClient.from('leads_raw').select('*');
+          if (!error && data) {
+              supaLeads = data;
+          } else {
+              console.error("Supabase leads fetch error:", error);
+          }
+      }
+      
+      // Use Supabase if available, otherwise fallback to n8n payload
+      const rawLeads = supaLeads.length > 0 ? supaLeads : (dataRoot.leads || dataRoot.Leads || result.leads || []);
 
       if (Array.isArray(rawHealthMonitor) && rawHealthMonitor.length > 0) {
         this.normalizeAdminFromHealthMonitor(rawHealthMonitor);
-
         this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
         this.adminState.agents = Array.isArray(rawAgents) ? rawAgents : [];
         this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
@@ -836,34 +823,13 @@ class CallHammerPortal {
         this.normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages);
       }
 
-      console.log('✅ Admin State Ready:', {
-        clients: this.adminState.clients.length,
-        leads: this.adminState.leads.length,
-        agents: this.adminState.agents.length
-      });
-
+      console.log('✅ Admin State Ready. Triggering render...');
       this.triggerAdminRefresh();
-
-      setTimeout(() => {
-        try {
-          // ✅ IMPORTANT:
-          // If the admin dashboard already computes KPIs + tables + chart (AdminDashboard.updateAnalytics),
-          // do NOT overwrite KPI tiles using DOM label search.
-          if (window.Admin && typeof window.Admin.updateAnalytics === 'function') {
-            // ensure analytics stays consistent after data refresh
-            window.Admin.updateAnalytics(window.Admin.analyticsPeriod || 'today');
-            return;
-          }
-
-          // fallback only (if admin dashboard script isn't present)
-          this.refreshAdminAnalyticsFromRawLeads();
-        } catch (e) {
-          console.error(e);
-        }
-      }, 150);
 
     } catch (err) {
       console.error('❌ fetchAdminData failed:', err);
+      const tbody = document.getElementById("client-health-body");
+      if (tbody) tbody.innerHTML = `<tr><td colspan="14" class="p-6 text-center text-red-500 font-bold">❌ Connection Error: Could not load data from n8n. Please check your webhook.</td></tr>`;
       this.triggerAdminRefresh();
     }
   }
@@ -1385,58 +1351,48 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// INTERACTIVE LEADS TRACKER (n8n WEBHOOKS)
+// INTERACTIVE LEADS TRACKER (SUPABASE DIRECT)
 // ==========================================
 
 async function updateLeadStatus(leadId, newStatus) {
-    if (!leadId || leadId === "unknown") return alert("Cannot update: Lead ID is missing. Make sure your Google Sheet has a 'LEAD ID' column.");
-    
-    console.log(`Sending update to n8n: Lead ${leadId} -> ${newStatus}`);
+    if (!supaClient) return alert("Database connection missing.");
+    if (!leadId || leadId === "unknown") return alert("Cannot update: Lead ID is missing.");
 
-    try {
-        const res = await fetch(window.portal.webhooks.updateLead, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ lead_id: leadId, status: newStatus })
-        });
+    console.log(`Updating Supabase: Lead ${leadId} -> ${newStatus}`);
 
-        if (!res.ok) throw new Error("Webhook failed");
-        
-        console.log(`Success! Lead ${leadId} updated in Google Sheets.`);
-        // We let it silently succeed so you don't lose your place while scrolling/editing!
-        
-    } catch (error) {
-        console.error("Update failed:", error);
-        alert("Failed to update status in Google Sheets. Check your n8n workflow.");
+    const { error } = await supaClient
+        .from('leads_raw') 
+        .update({ status: newStatus })
+        .eq('lead_id', leadId);
+
+    if (error) {
+        console.error("Failed to update lead status:", error);
+        alert("Failed to update status in Supabase.");
+    } else {
+        console.log(`Success! Lead ${leadId} is now ${newStatus}`);
+        window.portal.fetchAdminData(true); 
     }
 }
 
 async function deleteLead(leadId) {
+    if (!supaClient) return alert("Database connection missing.");
     if (!leadId || leadId === "unknown") return alert("Cannot delete: Lead ID is missing.");
 
-    // Safety check so you don't accidentally click it
-    const confirmDelete = confirm(`Are you sure you want to permanently delete Lead ID: ${leadId}? This will remove it from Google Sheets forever.`);
+    const confirmDelete = confirm(`Are you sure you want to permanently delete Lead ID: ${leadId}?`);
     if (!confirmDelete) return;
 
-    console.log(`Deleting Lead ${leadId} via n8n...`);
+    console.log(`Deleting Lead ${leadId} from Supabase...`);
 
-    try {
-        const res = await fetch(window.portal.webhooks.deleteLead, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ lead_id: leadId })
-        });
+    const { error } = await supaClient
+        .from('leads_raw')
+        .delete()
+        .eq('lead_id', leadId);
 
-        if (!res.ok) throw new Error("Webhook failed");
-        
+    if (error) {
+        console.error("Failed to delete lead:", error);
+        alert("Failed to delete lead from Supabase.");
+    } else {
         console.log(`Success! Lead ${leadId} deleted.`);
-        alert("Lead successfully deleted from Google Sheets.");
-        
-        // Force the dashboard to re-download the data so the row disappears
         window.portal.fetchAdminData(true);
-        
-    } catch (error) {
-        console.error("Delete failed:", error);
-        alert("Failed to delete lead in Google Sheets. Check your n8n workflow.");
     }
 }
