@@ -2073,7 +2073,7 @@
       },
 
       _buildBuckets(start, end, grain) {
-        const buckets = []; const cursor = new Date(start); cursor.setHours(0,0,0,0);
+        const buckets = []; cursor = new Date(start); cursor.setHours(0,0,0,0);
         if (grain === "day") { while (cursor <= end) { buckets.push(this._fmtDateKey(cursor)); cursor.setDate(cursor.getDate() + 1); } return buckets; }
         if (grain === "week") { let wkCursor = new Date(this._fmtWeekKey(cursor) + "T00:00:00"); while (wkCursor <= end) { buckets.push(this._fmtDateKey(wkCursor)); wkCursor.setDate(wkCursor.getDate() + 7); } return buckets; }
         return buckets;
@@ -2231,7 +2231,7 @@
             <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center relative z-10">
                 
                 <label class="flex items-center text-sm text-gray-600 cursor-pointer">
-                    <input type="checkbox" class="share-checkbox mr-2" 
+                    <input type="checkbox" class="mr-2" 
                            onchange="toggleShareWithSales('${code}', this)" 
                            ${client.shared_with_sales ? 'checked' : ''}>
                     Share with Sales
@@ -2240,7 +2240,7 @@
                 <div class="flex items-center gap-2">
                     <select id="status-select-${client.id}" 
                             onchange="updateClientStatus('${client.id}', this.value)" 
-                            class="px-2 py-1 rounded-full text-[10px] font-extrabold border outline-none cursor-pointer transition-all shadow-sm ${getClientStatusColor(client.client_status)}">
+                            class="px-2 py-1 rounded-full text-[10px] font-extrabold border outline-none cursor-pointer transition-all shadow-sm ${window.getClientStatusColor ? getClientStatusColor(client.client_status) : ''}">
                         <option value="Active" ${client.client_status === 'Active' ? 'selected' : ''}>ACTIVE</option>
                         <option value="Pause" ${client.client_status === 'Pause' ? 'selected' : ''}>PAUSE</option>
                         <option value="Blacklisted" ${client.client_status === 'Blacklisted' ? 'selected' : ''}>BLACKLISTED</option>
@@ -2248,13 +2248,12 @@
                     </select>
 
                     <button onclick="deletePassbookClient('${client.id}', '${client.company_name}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Client">
-                        <i class="fa-solid fa-trash-can text-base"></i>
+                        <i class="fa-solid fa-trash-can"></i>
                     </button>
                 </div>
                 
             </div>
         </div>`;
-          </div>`;
         }).join('') || '<div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">No results</div>';
       },
 
