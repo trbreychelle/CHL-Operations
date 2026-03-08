@@ -1286,23 +1286,22 @@
         return this.pick(l, keys, fallback);
       },
 
-      // ✅ Define ALL columns you want (RAW leads style)
       getLeadsColumns() {
         return [
-          { key: "date_submitted", label: "Date Submitted", keys: ["Date Submitted"] },
-          { key: "lead_id", label: "LEAD ID", keys: ["LEAD ID"] },
-          { key: "roofing_company", label: "Roofing Company", keys: ["Company Name"] },
-          { key: "appointment_coordinator", label: "Appointment Coordinator Name", keys: ["Appointment Coordinator Name"] },
-          { key: "homeowner_name", label: "Homeowner Name(s)", keys: ["Homeowner Name(s)"] },
-          { key: "homeowner_email", label: "Email of Homeowner", keys: ["Email of Homeowner"] },
-          { key: "homeowner_phone", label: "Homeowner Phone Number(s)", keys: ["Homeowner Phone Number(s)"] },
-          { key: "appointment_datetime", label: "Appointment Date /Time", keys: ["Appointment Date /Time"] },
-          { key: "address", label: "Address", keys: ["Address"] },
-          { key: "age_of_roof", label: "Age of Roof", keys: ["Age of Roof"] },
-          { key: "insurance_company", label: "Insurance Company", keys: ["Insurance Company"] },
-          { key: "additional_notes", label: "Additional Notes", keys: ["Additional Notes"] },
-          { key: "status", label: "Status", keys: ["Status"] },
-          { key: "reviewed_by", label: "Reviewed By", keys: ["Reviewed By"] },
+          { key: "date_submitted", label: "Date Submitted", keys: ["Date Submitted", "date_submitted"] },
+          { key: "lead_id", label: "LEAD ID", keys: ["LEAD ID", "lead_id"] },
+          { key: "roofing_company", label: "Roofing Company", keys: ["Company Name", "company_name", "roofing_company"] },
+          { key: "appointment_coordinator", label: "Appointment Coordinator Name", keys: ["Appointment Coordinator Name", "appointment_coordinator_name"] },
+          { key: "homeowner_name", label: "Homeowner Name(s)", keys: ["Homeowner Name(s)", "homeowner_names"] },
+          { key: "homeowner_email", label: "Email of Homeowner", keys: ["Email of Homeowner", "email_of_homeowner", "email"] },
+          { key: "homeowner_phone", label: "Homeowner Phone Number(s)", keys: ["Homeowner Phone Number(s)", "homeowner_phone_numbers", "phone"] },
+          { key: "appointment_datetime", label: "Appointment Date /Time", keys: ["Appointment Date /Time", "appointment_date_time"] },
+          { key: "address", label: "Address", keys: ["Address", "address"] },
+          { key: "age_of_roof", label: "Age of Roof", keys: ["Age of Roof", "age_of_roof"] },
+          { key: "insurance_company", label: "Insurance Company", keys: ["Insurance Company", "insurance_company"] },
+          { key: "additional_notes", label: "Additional Notes", keys: ["Additional Notes", "additional_notes"] },
+          { key: "status", label: "Status", keys: ["Status", "status"] },
+          { key: "reviewed_by", label: "Reviewed By", keys: ["Reviewed By", "reviewed_by"] },
         ];
       },
 
@@ -2311,23 +2310,20 @@
         this.initLeadsColumnsUI();
         const visibleCols = this._leadsCols.filter(c => this._leadsVisibleCols.has(c.key));
         
-        // 1. Add the Actions Header
+        // 1. Render Headers + Add an 'Actions' column at the end
         thead.innerHTML = `<tr>${visibleCols.map(c => `<th class="p-4">${c.label}</th>`).join("")}<th class="p-4 text-center">Actions</th></tr>`;
         
-        // 2. Render Rows with Dropdowns and Delete Buttons
+        // 2. Render Rows with Interactive Dropdowns
         tbody.innerHTML = leads.map(l => {
-          // Grab the Lead ID so we know exactly which row to update in Google Sheets
-          const leadId = this.getLeadField(l, ["LEAD ID", "Lead ID", "lead_id", "ID"], "unknown");
-
+          const leadId = this.getLeadField(l, ["LEAD ID", "lead_id", "ID"], "unknown");
+          
           return `<tr class="hover:bg-gray-50 transition-colors">
             ${visibleCols.map(c => {
               const rawVal = this.getLeadField(l, c.keys);
               
-              // Turn the Status column into a Live Dropdown
               if (c.key === "status") {
                 const safeVal = String(rawVal).toUpperCase();
                 let bg = "bg-gray-100 text-gray-700";
-                
                 if (safeVal.includes("APPROV") || safeVal.includes("CONFIRM")) bg = "bg-emerald-100 text-emerald-800 border-emerald-200";
                 if (safeVal.includes("REJECT") || safeVal.includes("CREDIT")) bg = "bg-red-100 text-red-800 border-red-200";
                 
