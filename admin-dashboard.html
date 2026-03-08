@@ -2329,10 +2329,10 @@
                 
                 return `<td class="p-4">
                   <select onchange="updateLeadStatus('${leadId}', this.value)" class="px-2 py-1 rounded-full text-xs font-extrabold border outline-none cursor-pointer hover:shadow-md transition-all ${bg}">
-                    <option value="Pending" ${safeVal.includes("PENDING") ? "selected" : ""}>Pending</option>
-                    <option value="Approved" ${safeVal.includes("APPROV") || safeVal.includes("CONFIRM") ? "selected" : ""}>Approved</option>
-                    <option value="Rejected" ${safeVal.includes("REJECT") ? "selected" : ""}>Rejected</option>
-                    <option value="Credited" ${safeVal.includes("CREDIT") ? "selected" : ""}>Credited</option>
+                    <option value="Pending" ${safeVal.includes("PENDING") ? "selected" : ""}>PENDING REVIEW</option>
+                    <option value="Approved" ${safeVal.includes("APPROV") || safeVal.includes("CONFIRM") ? "selected" : ""}>APPROVED</option>
+                    <option value="Rejected" ${safeVal.includes("REJECT") ? "selected" : ""}>REJECTED</option>
+                    <option value="Credited" ${safeVal.includes("CREDIT") ? "selected" : ""}>CREDITED</option>
                   </select>
                 </td>`;
               }
