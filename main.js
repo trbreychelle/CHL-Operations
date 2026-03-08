@@ -43,6 +43,10 @@ class CallHammerPortal {
       passbookClientsList: 'https://automate.callhammerleads.com/webhook/passbook-clients-list',
       passbookClientDetails: 'https://automate.callhammerleads.com/webhook/passbook-client',
       passbookClientUpdate: 'https://automate.callhammerleads.com/webhook/passbook-client-update',
+      
+      // ✅ ADD THESE TWO NEW WEBHOOKS FOR LEADS
+      updateLead: 'https://automate.callhammerleads.com/webhook/update-lead',
+      deleteLead: 'https://automate.callhammerleads.com/webhook/delete-lead',
     };
 
     this.init();
@@ -1379,3 +1383,60 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (document.getElementById('view-sales')) fetchSalesPipeline();
 });
+
+// ==========================================
+// INTERACTIVE LEADS TRACKER (n8n WEBHOOKS)
+// ==========================================
+
+async function updateLeadStatus(leadId, newStatus) {
+    if (!leadId || leadId === "unknown") return alert("Cannot update: Lead ID is missing. Make sure your Google Sheet has a 'LEAD ID' column.");
+    
+    console.log(`Sending update to n8n: Lead ${leadId} -> ${newStatus}`);
+
+    try {
+        const res = await fetch(window.portal.webhooks.updateLead, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lead_id: leadId, status: newStatus })
+        });
+
+        if (!res.ok) throw new Error("Webhook failed");
+        
+        console.log(`Success! Lead ${leadId} updated in Google Sheets.`);
+        // We let it silently succeed so you don't lose your place while scrolling/editing!
+        
+    } catch (error) {
+        console.error("Update failed:", error);
+        alert("Failed to update status in Google Sheets. Check your n8n workflow.");
+    }
+}
+
+async function deleteLead(leadId) {
+    if (!leadId || leadId === "unknown") return alert("Cannot delete: Lead ID is missing.");
+
+    // Safety check so you don't accidentally click it
+    const confirmDelete = confirm(`Are you sure you want to permanently delete Lead ID: ${leadId}? This will remove it from Google Sheets forever.`);
+    if (!confirmDelete) return;
+
+    console.log(`Deleting Lead ${leadId} via n8n...`);
+
+    try {
+        const res = await fetch(window.portal.webhooks.deleteLead, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lead_id: leadId })
+        });
+
+        if (!res.ok) throw new Error("Webhook failed");
+        
+        console.log(`Success! Lead ${leadId} deleted.`);
+        alert("Lead successfully deleted from Google Sheets.");
+        
+        // Force the dashboard to re-download the data so the row disappears
+        window.portal.fetchAdminData(true);
+        
+    } catch (error) {
+        console.error("Delete failed:", error);
+        alert("Failed to delete lead in Google Sheets. Check your n8n workflow.");
+    }
+}
