@@ -420,6 +420,25 @@
               <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Deal Value ($)</label>
               <input type="number" id="sale-value" step="0.01" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
             </div>
+            <div id="sale-category-container">
+              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Sale Category</label>
+              <select id="sale-category" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+                <option value="Sales Team">Sales Team</option>
+                <option value="CHL">CHL (Admin)</option>
+              </select>
+            </div>
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-gray-500 mb-1">TRANSACTION NUMBER</label>
+                <input type="text" id="sale-transaction-id" placeholder="e.g. TXN-2026-001" class="w-full border rounded p-2 text-sm outline-none focus:border-blue-500">
+            </div>
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-gray-500 mb-1">PACKAGE STATUS</label>
+                <select id="sale-package-status" class="w-full border rounded p-2 text-sm outline-none focus:border-blue-500">
+                    <option value="Active">Active</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Refunded">Refunded</option>
+                </select>
+            </div>
             <div>
               <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Status</label>
               <select id="sale-status" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
@@ -427,13 +446,6 @@
                 <option value="Negotiating">Negotiating</option>
                 <option value="Closed Won" selected>Closed Won</option>
                 <option value="Closed Lost">Closed Lost</option>
-              </select>
-            </div>
-            <div id="sale-category-container">
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Sale Category</label>
-              <select id="sale-category" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
-                <option value="Sales Team">Sales Team</option>
-                <option value="CHL">CHL (Admin)</option>
               </select>
             </div>
             <button type="submit" id="save-sale-btn" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg mt-2">Save Deal</button>
