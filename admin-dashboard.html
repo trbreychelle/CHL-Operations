@@ -1061,7 +1061,7 @@
             </div>
             <div class="flex gap-2">
                 <button onclick="Admin.saveAllPayrollChanges()" id="btn-save-payroll" class="hidden px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20">
-                    <i class="fa-solid fa-floppy-disk mr-2"></i> Save Changes
+                  <i class="fa-solid fa-floppy-disk mr-2"></i> Save Changes
                 </button>
             </div>
           </div>
@@ -2306,18 +2306,51 @@
       renderLeads(leads) {
         const tbody = document.getElementById('leads-table-body');
         const thead = document.getElementById('leads-table-head');
+        if(!tbody || !thead) return;
+        
         this.initLeadsColumnsUI();
         const visibleCols = this._leadsCols.filter(c => this._leadsVisibleCols.has(c.key));
-        thead.innerHTML = `<tr>${visibleCols.map(c => `<th class="p-4 ${c.key==='date_submitted'?'cursor-pointer':''}" ${c.key==='date_submitted'?'data-leads-sort="date_submitted"':''}>${c.label} ${c.key==='date_submitted'?'↕':''}</th>`).join("")}</tr>`;
         
-        // ✅ Patch: Use Status Badge
-        tbody.innerHTML = leads.map(l => `<tr>
-          ${visibleCols.map(c => {
-            const raw = this.getLeadField(l, c.keys);
-            if (c.key === "status") return `<td class="p-4">${this.statusBadge(raw)}</td>`;
-            return `<td class="p-4">${raw}</td>`;
-          }).join("")}
-        </tr>`).join("");
+        // 1. Add the Actions Header
+        thead.innerHTML = `<tr>${visibleCols.map(c => `<th class="p-4">${c.label}</th>`).join("")}<th class="p-4 text-center">Actions</th></tr>`;
+        
+        // 2. Render Rows with Dropdowns and Delete Buttons
+        tbody.innerHTML = leads.map(l => {
+          // Grab the Lead ID so we know exactly which row to update in Google Sheets
+          const leadId = this.getLeadField(l, ["LEAD ID", "Lead ID", "lead_id", "ID"], "unknown");
+
+          return `<tr class="hover:bg-gray-50 transition-colors">
+            ${visibleCols.map(c => {
+              const rawVal = this.getLeadField(l, c.keys);
+              
+              // Turn the Status column into a Live Dropdown
+              if (c.key === "status") {
+                const safeVal = String(rawVal).toUpperCase();
+                let bg = "bg-gray-100 text-gray-700";
+                
+                if (safeVal.includes("APPROV") || safeVal.includes("CONFIRM")) bg = "bg-emerald-100 text-emerald-800 border-emerald-200";
+                if (safeVal.includes("REJECT") || safeVal.includes("CREDIT")) bg = "bg-red-100 text-red-800 border-red-200";
+                
+                return `<td class="p-4">
+                  <select onchange="updateLeadStatus('${leadId}', this.value)" class="px-2 py-1 rounded-full text-xs font-extrabold border outline-none cursor-pointer hover:shadow-md transition-all ${bg}">
+                    <option value="Pending" ${safeVal.includes("PENDING") ? "selected" : ""}>Pending</option>
+                    <option value="Approved" ${safeVal.includes("APPROV") || safeVal.includes("CONFIRM") ? "selected" : ""}>Approved</option>
+                    <option value="Rejected" ${safeVal.includes("REJECT") ? "selected" : ""}>Rejected</option>
+                    <option value="Credited" ${safeVal.includes("CREDIT") ? "selected" : ""}>Credited</option>
+                  </select>
+                </td>`;
+              }
+              
+              return `<td class="p-4">${rawVal}</td>`;
+            }).join("")}
+            
+            <td class="p-4 text-center">
+              <button onclick="deleteLead('${leadId}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Lead">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </td>
+          </tr>`;
+        }).join("");
       },
 
       setupPassbookFilters(clients) {
