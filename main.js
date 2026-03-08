@@ -39,6 +39,7 @@ class CallHammerPortal {
       timeOffRequest: 'https://automate.callhammerleads.com/webhook/timeoff-request',
       changePassword: 'https://automate.callhammerleads.com/webhook/change-password',
       manageEmployee: 'https://automate.callhammerleads.com/webhook/manage-employee',
+      
       // ✅ PASSBOOK
       passbookClientsList: 'https://automate.callhammerleads.com/webhook/passbook-clients-list',
       passbookClientDetails: 'https://automate.callhammerleads.com/webhook/passbook-client',
@@ -135,7 +136,7 @@ class CallHammerPortal {
     }
   }
 
-  // ✅ Binds to YOUR index.html IDs: loginForm/email/password/loginButton/loginError/loginSpinner/loginText
+  // ✅ Binds to YOUR index.html IDs
   bindIndexLoginForm() {
     const form = document.getElementById('loginForm');
     if (!form) return;
@@ -192,7 +193,6 @@ class CallHammerPortal {
     if (btn) btn.addEventListener('click', run);
   }
 
-  // Override logout: clear session then go to index
   logout() {
     this.clearSession();
     window.location.href = 'index.html';
@@ -230,7 +230,6 @@ class CallHammerPortal {
       setTimeout(() => this.loadPassbookClientsList(true), 300);
     }
 
-    // 🔥 THE FIX: Make Javascript look at the HTML structure, NOT the file name!
     const isCommandCenter = document.getElementById('view-overview') !== null;
     const isOldAgentDash = document.getElementById('stat-appointments') !== null;
 
@@ -261,7 +260,6 @@ class CallHammerPortal {
     const path = (window.location.pathname || '').toLowerCase();
     const role = (this.currentUser.role || 'agent').toLowerCase();
 
-    // If we aren't on a dashboard page, don't do anything
     if (!path.includes('dashboard') && !path.includes('admin')) return;
 
     const onAdmin = path.includes('admin');
@@ -287,9 +285,7 @@ class CallHammerPortal {
     }
   }
 
-  bindEvents() {
-    // keep safe – admin dashboard HTML uses portal.logout()
-  }
+  bindEvents() {}
 
   // ------------------------
   // Helpers
@@ -300,7 +296,6 @@ class CallHammerPortal {
     return foundKey ? obj[foundKey] : '';
   }
 
-  // robust getter: try many header spellings
   getAny(obj, keys, fallback = '') {
     if (!obj) return fallback;
     for (const k of keys) {
@@ -310,7 +305,6 @@ class CallHammerPortal {
     return fallback;
   }
 
-  // numbers that might come as strings
   toNumberSafe(v, fallback = 0) {
     if (v === null || v === undefined) return fallback;
     if (typeof v === 'number') return isNaN(v) ? fallback : v;
@@ -318,26 +312,21 @@ class CallHammerPortal {
     return isNaN(n) ? fallback : n;
   }
 
-  // join key for company names (removes punctuation/spaces, case-insensitive)
   normalizeCompanyKey(str) {
     if (!str) return 'unknown';
     return String(str).toLowerCase().replace(/[^a-z0-9]/g, '').trim();
   }
 
-  // ✅ date-only parsing without timezone shifting + supports Sheets serial numbers
   parseDateSafe(value) {
     if (value === null || value === undefined || value === '') return null;
 
-    // ✅ Google Sheets serial date support
     if (typeof value === 'number' && isFinite(value)) {
-      // serial dates are usually > 20000
       if (value > 20000) {
         const base = new Date(Date.UTC(1899, 11, 30));
         const ms = base.getTime() + value * 24 * 60 * 60 * 1000;
         const dt = new Date(ms);
         return isNaN(dt.getTime()) ? null : dt;
       }
-      // epoch ms/seconds
       if (value > 1e12) {
         const dt = new Date(value);
         return isNaN(dt.getTime()) ? null : dt;
@@ -351,17 +340,15 @@ class CallHammerPortal {
     const raw = value.toString().trim();
     if (!raw) return null;
 
-    // YYYY-MM-DD
     const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (isoMatch) {
       const y = parseInt(isoMatch[1], 10);
       const m = parseInt(isoMatch[2], 10) - 1;
       const d = parseInt(isoMatch[3], 10);
-      const dt = new Date(y, m, d, 12, 0, 0); // noon local avoids shifting
+      const dt = new Date(y, m, d, 12, 0, 0);
       return isNaN(dt.getTime()) ? null : dt;
     }
 
-    // M/D/YYYY or MM/DD/YYYY
     const slashMatch = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (slashMatch) {
       const m = parseInt(slashMatch[1], 10) - 1;
@@ -371,33 +358,25 @@ class CallHammerPortal {
       return isNaN(dt.getTime()) ? null : dt;
     }
 
-    // Fallback
     const d = new Date(raw);
     return isNaN(d.getTime()) ? null : d;
   }
 
   // ------------------------
-  // ✅ Status Helpers (UPDATED FOR NEW DASHBOARD LOGIC)
+  // ✅ Status Helpers
   // ------------------------
-  // Qualified = Confirmed / Approved
   isQualifiedStatus(status) {
     const s = String(status || '').trim().toUpperCase();
     return s.includes('CONFIRM') || s.includes('APPROV');
   }
-
-  // ✅ NEW: QC Rejected = Rejected only
   isRejectedStatus(status) {
     const s = String(status || '').trim().toUpperCase();
     return s.includes('REJECT');
   }
-
-  // ✅ NEW: Credited only (this is your "Unqualified" in the UI now)
   isCreditedStatus(status) {
     const s = String(status || '').trim().toUpperCase();
     return s.includes('CREDIT');
   }
-
-  // Pending review
   isPendingStatus(status) {
     const s = String(status || '').trim().toUpperCase();
     return s.includes('PENDING');
@@ -409,11 +388,11 @@ class CallHammerPortal {
   }
 
   // ------------------------
-  // ✅ MST + Payroll week helpers (SAT → FRI)
+  // ✅ MST + Payroll week helpers
   // ------------------------
   toMST(date) {
     const d = new Date(date);
-    const mstOffset = -7 * 60; // MST offset minutes
+    const mstOffset = -7 * 60; 
     const localOffset = d.getTimezoneOffset();
     return new Date(d.getTime() + (mstOffset + localOffset) * 60000);
   }
@@ -426,27 +405,22 @@ class CallHammerPortal {
   startMSTClock() {
     const el = document.getElementById('mst-clock');
     if (!el) return;
-
     const tick = () => { el.textContent = `${this.formatMSTTime()} MST`; };
     tick();
-
     clearInterval(this._mstClockInterval);
     this._mstClockInterval = setInterval(tick, 1000);
   }
 
-  // Payroll week start = Saturday (MST)
   getPayrollWeekStart(date = new Date()) {
     const mst = this.toMST(date);
     const d = new Date(mst);
     d.setHours(0, 0, 0, 0);
-
-    const day = d.getDay(); // Sun=0 ... Sat=6
-    const diffToSat = (day - 6 + 7) % 7; // days since last Saturday
+    const day = d.getDay(); 
+    const diffToSat = (day - 6 + 7) % 7; 
     d.setDate(d.getDate() - diffToSat);
     return d;
   }
 
-  // payroll week range: Sat 00:00:00 → Fri 23:59:59.999
   getPayrollWeekRange(date = new Date()) {
     const start = this.getPayrollWeekStart(date);
     const end = new Date(start);
@@ -465,28 +439,16 @@ class CallHammerPortal {
   }
 
   // ------------------------
-  // ✅ ADMIN ANALYTICS FROM RAW LEADS (UPDATED)
+  // ✅ ADMIN ANALYTICS
   // ------------------------
   getLeadDateValue(lead) {
-    return this.getAny(lead, [
-      'lead_date', 'Lead Date', 'DATE', 'Date',
-      'created_at', 'Created At', 'timestamp', 'Timestamp',
-      'TimeStamp', 'Submitted At', 'submitted_at',
-      'Appointment Date', 'appointment_date',
-      'Date Submitted', 'date_submitted',
-      'Submission Date', 'submission_date'
-    ], '');
+    return this.getAny(lead, ['lead_date', 'Lead Date', 'DATE', 'Date', 'created_at', 'Created At', 'timestamp', 'Timestamp', 'TimeStamp', 'Submitted At', 'submitted_at', 'Appointment Date', 'appointment_date', 'Date Submitted', 'date_submitted', 'Submission Date', 'submission_date'], '');
   }
 
   getLeadStatusValue(lead) {
-    return this.getAny(lead, [
-      'status', 'Status',
-      'Lead Status', 'LEAD STATUS', 'lead_status',
-      'Disposition', 'disposition'
-    ], '');
+    return this.getAny(lead, ['status', 'Status', 'Lead Status', 'LEAD STATUS', 'lead_status', 'Disposition', 'disposition'], '');
   }
 
-  // which range button is selected on admin dashboard
   getSelectedAdminRangeKey() {
     const candidates = Array.from(document.querySelectorAll('button, a'))
       .filter(el => /today|this week|previous week|4 weeks|6 weeks|all-time/i.test(el.textContent || ''))
@@ -503,13 +465,12 @@ class CallHammerPortal {
 
   computeAdminDateRange(rangeKey) {
     const now = new Date();
-
     const startOfDay = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
     const endOfDay = (d) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
     const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
 
-    const day = now.getDay(); // Sun=0..Sat=6
-    const monday = addDays(startOfDay(now), (day === 0 ? -6 : 1 - day)); // Monday start
+    const day = now.getDay(); 
+    const monday = addDays(startOfDay(now), (day === 0 ? -6 : 1 - day)); 
 
     if (rangeKey === 'all-time') return { start: new Date(2000,0,1), end: endOfDay(now) };
     if (rangeKey === 'today') return { start: startOfDay(now), end: endOfDay(now) };
@@ -539,20 +500,15 @@ class CallHammerPortal {
 
         const big = candidates.find(x => /^[\d,]+(\.\d+)?%?$/.test((x.textContent || '').trim()));
         if (big) { big.textContent = valueText; return true; }
-
         card = card.parentElement;
       }
     }
     return false;
   }
 
-  // ✅ UPDATED to support QC Rejected + Credited split + new KPI labels
   refreshAdminAnalyticsFromRawLeads() {
     const leads = Array.isArray(this.adminState.leads) ? this.adminState.leads : [];
-    if (!leads.length) {
-      console.warn('⚠️ No raw leads found in adminState.leads. Check n8n response includes "leads".');
-      return;
-    }
+    if (!leads.length) return;
 
     const rangeKey = this.getSelectedAdminRangeKey();
     const { start, end } = this.computeAdminDateRange(rangeKey);
@@ -564,46 +520,33 @@ class CallHammerPortal {
     });
 
     const total = inRange.length;
-    let qualified = 0;
-    let qcRejected = 0;
-    let credited = 0;
-    let pending = 0;
+    let qualified = 0, qcRejected = 0, credited = 0, pending = 0;
 
     for (const l of inRange) {
       const status = this.getLeadStatusValue(l);
       if (this.isQualifiedStatus(status)) qualified++;
       else if (this.isRejectedStatus(status)) qcRejected++;
       else if (this.isCreditedStatus(status)) credited++;
-      else if (this.isPendingStatus(status)) pending++;
-      else pending++; // unknown -> treat as pending
+      else pending++; 
     }
 
-    // ✅ Cancellation Rate = Credited / (Qualified + Credited)
     const denom = qualified + credited;
     const cancelRate = denom > 0 ? Math.round((credited / denom) * 100) : 0;
 
-    // ✅ Update metric cards (best-effort by labels)
-    // Note: your new HTML uses "QC REJECTED" and "CREDITED" KPI tiles
     this.setMetricByLabel('TOTAL LEADS', String(total));
     this.setMetricByLabel('QUALIFIED', String(qualified));
     this.setMetricByLabel('QC REJECTED', String(qcRejected));
     this.setMetricByLabel('CREDITED', String(credited));
     this.setMetricByLabel('PENDING', String(pending));
     this.setMetricByLabel('CANCELLATION RATE', `${cancelRate}%`);
-
-    console.log('✅ Admin analytics computed from RAW leads:', {
-      rangeKey, start, end, total, qualified, qcRejected, credited, pending, cancelRate
-    });
   }
 
   // ------------------------
-  // ✅ AGENT DATA FETCHING & RENDERING (ADDED)
+  // ✅ AGENT DATA FETCHING
   // ------------------------
-
   async fetchAllData() {
     if (!this.currentUser || !this.currentUser.email) return;
 
-    // 1. Setup UI for loading state
     const stats = ['stat-appointments', 'stat-cancel-rate', 'stat-incentives', 'stat-hours'];
     stats.forEach(id => {
       const el = document.getElementById(id);
@@ -611,9 +554,6 @@ class CallHammerPortal {
     });
 
     try {
-      console.log('📡 Fetching Agent Data for:', this.currentUser.email);
-      
-      // 2. Call the webhook
       const response = await fetch(this.webhooks.fetchData, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -626,48 +566,39 @@ class CallHammerPortal {
       if (!response.ok) throw new Error('Failed to fetch agent data');
 
       const result = await response.json();
-      
-      // Handle different n8n response structures
       const data = result.data || result; 
 
-      // 3. Update the Dashboard
       this.updateAgentDashboard(data);
       this.renderLeadsTable(data.leads || []);
       this.renderCharts(data.charts || {});
       this.updateProfileUI(data.profile || this.currentUser);
-
     } catch (error) {
       console.error('❌ Error fetching agent data:', error);
     }
   }
 
   updateAgentDashboard(data) {
-    // Helper to safely set text
     const setText = (id, val) => {
       const el = document.getElementById(id);
       if (el) el.innerText = val;
     };
 
-    // 1. Top Cards
     setText('stat-appointments', data.totalAppointments || 0);
     setText('stat-cancel-rate', (data.cancellationRate || 0) + '%');
     setText('stat-incentives', this.formatCurrency(data.totalIncentives || 0));
     setText('stat-hours', data.weeklyHours || 0);
 
-    // 2. Monthly Incentive Status
     setText('monthly-incentive-status-ov', data.monthlyIncentiveStatus || 'Not qualified yet');
     setText('monthly-raffle-status-ov', data.raffleStatus || '0 / 4 weeks qualified');
 
-    // 3. Tier Progress Bar
     const tierCount = data.approvedAppointments || 0;
-    const tierMax = 6; // Tier 1 goal
+    const tierMax = 6; 
     const percentage = Math.min(100, (tierCount / tierMax) * 100);
       
     setText('tier-count-display', `${tierCount} / ${tierMax} approved appointments`);
     const progressBar = document.getElementById('tier-progress-bar');
     if (progressBar) progressBar.style.width = `${percentage}%`;
       
-    // Handle loading text update
     const tierStatusText = document.getElementById('tier-status-text');
     if(tierStatusText) tierStatusText.innerText = 'Tier 1 Progress';
   }
@@ -682,7 +613,6 @@ class CallHammerPortal {
     }
 
     tbody.innerHTML = leads.map(lead => {
-      // Determine badge color based on status
       let badgeClass = 'bg-gray-100 text-gray-800';
       const status = (lead.status || 'Pending').toLowerCase();
       
@@ -705,28 +635,20 @@ class CallHammerPortal {
   }
 
   renderCharts(chartData) {
-    // 1. Appointments Chart
     const aptChartDom = document.getElementById('appointmentsChart');
     if (aptChartDom && window.echarts) {
       if (!this.charts) this.charts = {};
       this.charts.appointments = echarts.init(aptChartDom);
-      
       const option = {
         tooltip: { trigger: 'axis' },
         grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
         xAxis: { type: 'category', data: chartData.labels || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
         yAxis: { type: 'value' },
-        series: [{
-          data: chartData.appointments || [0, 0, 0, 0, 0],
-          type: 'bar',
-          itemStyle: { color: '#FBBF24' },
-          barWidth: '40%'
-        }]
+        series: [{ data: chartData.appointments || [0, 0, 0, 0, 0], type: 'bar', itemStyle: { color: '#FBBF24' }, barWidth: '40%' }]
       };
       this.charts.appointments.setOption(option);
     }
 
-    // 2. Incentives Chart (Line Chart)
     const incChartDom = document.getElementById('incentivesChart');
     if (incChartDom && window.echarts) {
       this.charts.incentives = echarts.init(incChartDom);
@@ -735,13 +657,7 @@ class CallHammerPortal {
         grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
         xAxis: { type: 'category', data: chartData.labels || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
         yAxis: { type: 'value' },
-        series: [{
-          data: chartData.earnings || [0, 0, 0, 0, 0],
-          type: 'line',
-          smooth: true,
-          lineStyle: { color: '#D97706', width: 3 },
-          areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{offset: 0, color: 'rgba(251, 191, 36, 0.5)'}, {offset: 1, color: 'rgba(251, 191, 36, 0.01)'}]) }
-        }]
+        series: [{ data: chartData.earnings || [0, 0, 0, 0, 0], type: 'line', smooth: true, lineStyle: { color: '#D97706', width: 3 }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{offset: 0, color: 'rgba(251, 191, 36, 0.5)'}, {offset: 1, color: 'rgba(251, 191, 36, 0.01)'}]) } }]
       };
       this.charts.incentives.setOption(option);
     }
@@ -758,7 +674,6 @@ class CallHammerPortal {
     setText('profileRate', this.formatCurrency(profile.baseRate || 0));
     setText('profileHours', profile.weeklyHours || 0);
 
-    // Also update monthly incentive snapshots in profile tab if they exist
     setText('monthly-incentive-status-prof', profile.monthlyIncentiveStatus || 'Not qualified yet');
     setText('monthly-raffle-status-prof', profile.raffleStatus || '0 / 4 weeks qualified');
       
@@ -798,10 +713,8 @@ class CallHammerPortal {
       const rawStatuses = dataRoot.clientStatuses || dataRoot.statuses || result.clientStatuses || [];
       const rawPackages = dataRoot.packages || dataRoot.leadPackages || result.packages || [];
 
-      // 🔥 THE MAGIC FIX: Pull Leads DIRECTLY from Supabase to bypass Google Sheets API limits!
       let supaLeads = [];
       if (window.supaClient) {
-          console.log("⚡ Fetching Leads directly from Supabase for unlimited speed...");
           const { data, error } = await window.supaClient.from('leads_raw').select('*');
           if (!error && data) {
               supaLeads = data;
@@ -810,7 +723,6 @@ class CallHammerPortal {
           }
       }
       
-      // Use Supabase if available, otherwise fallback to n8n payload
       const rawLeads = supaLeads.length > 0 ? supaLeads : (dataRoot.leads || dataRoot.Leads || result.leads || []);
 
       if (Array.isArray(rawHealthMonitor) && rawHealthMonitor.length > 0) {
@@ -837,66 +749,38 @@ class CallHammerPortal {
   triggerAdminRefresh() {
     if (window.adminDashboard && typeof window.adminDashboard.refreshDashboard === 'function') {
       window.adminDashboard.refreshDashboard();
-    } else {
-      console.warn('⚠️ adminDashboard.refreshDashboard not found (OK if your admin UI uses a different function).');
     }
   }
 
-  // ✅ ADMIN: normalize from healthMonitor
   normalizeAdminFromHealthMonitor(rows) {
     const list = Array.isArray(rows) ? rows : [];
 
     this.adminState.clients = list.map(r => {
       const status = this.getAny(r, ['status', 'Client Status', 'CLIENT STATUS'], 'NOT STARTED');
       const codeName = this.getAny(r, ['code_name', 'codeName', 'CODE NAME', 'CODE', 'code'], 'N/A');
-
-      const roofingCompany = this.getAny(
-        r,
-        ['roofing_company', 'Roofing Company', 'Roofing Company Name', 'Company Name', 'COMPANY NAME'],
-        '—'
-      );
-
+      const roofingCompany = this.getAny(r, ['roofing_company', 'Roofing Company', 'Roofing Company Name', 'Company Name', 'COMPANY NAME'], '—');
       const cityState = this.getAny(r, ['city_state', 'CITY STATE', 'City State', 'location', 'Location'], 'Remote');
-
       const clientName = this.getAny(r, ['client_name', 'CLIENT NAME', 'Client Name'], '—');
-
       const lastLeadReceived = this.getAny(r, ['last_lead_received', 'Last Lead Received'], '');
       const hoursSinceLastLead = this.toNumberSafe(this.getAny(r, ['hours_since_last_lead', 'Hours Since Last Lead'], 0), 0);
       const leadsToday = this.toNumberSafe(this.getAny(r, ['leads_today', 'Leads Today'], 0), 0);
       const leadsYesterday = this.toNumberSafe(this.getAny(r, ['leads_yesterday', 'Leads Yesterday'], 0), 0);
-
       const purchasedLeads = this.toNumberSafe(this.getAny(r, ['purchased_leads', 'Purchased Leads'], 0), 0);
       const owedLeads = this.toNumberSafe(this.getAny(r, ['owed_leads', 'Owed Leads'], 0), 0);
-
-      // ✅ keep these, admin-dashboard now shows them
       const packageStatus = this.getAny(r, ['package_status', 'Package Status'], '');
       const purchaseDate = this.getAny(r, ['purchase_date', 'Purchase Date'], '');
 
       return {
-        status,
-        code_name: codeName,
-        roofing_company: roofingCompany,
-        city_state: cityState,
-        client_name: clientName,
-
-        last_lead_received: lastLeadReceived,
-        hours_since_last_lead: hoursSinceLastLead,
-        leads_today: leadsToday,
-        leads_yesterday: leadsYesterday,
-
-        purchased_leads: purchasedLeads,
-        owed_leads: owedLeads,
-        package_status: packageStatus,
-        purchase_date: purchaseDate,
+        status, code_name: codeName, roofing_company: roofingCompany, city_state: cityState, client_name: clientName,
+        last_lead_received: lastLeadReceived, hours_since_last_lead: hoursSinceLastLead, leads_today: leadsToday, leads_yesterday: leadsYesterday,
+        purchased_leads: purchasedLeads, owed_leads: owedLeads, package_status: packageStatus, purchase_date: purchaseDate,
       };
     });
   }
 
-  // Fallback join-based normalization
   normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages) {
     this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
     this.adminState.rawPackages = Array.isArray(rawPackages) ? rawPackages : [];
-
     this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
     this.adminState.agents = Array.isArray(rawAgents) ? rawAgents : [];
 
@@ -907,27 +791,17 @@ class CallHammerPortal {
       roofing_company: this.getAny(c, ['COMPANY NAME', 'Company Name', 'Roofing Company'], '—'),
       city_state: this.getAny(c, ['CITY STATE', 'City State', 'Location'], 'Remote'),
       client_name: this.getAny(c, ['CLIENT NAME', 'Client Name'], '—'),
-      last_lead_received: '',
-      hours_since_last_lead: 0,
-      leads_today: 0,
-      leads_yesterday: 0,
-      purchased_leads: 0,
-      owed_leads: 0,
-      package_status: '',
-      purchase_date: ''
+      last_lead_received: '', hours_since_last_lead: 0, leads_today: 0, leads_yesterday: 0,
+      purchased_leads: 0, owed_leads: 0, package_status: '', purchase_date: ''
     }));
   }
 
-  // ============================================================
-  // ✅ ADDED ONLY: PASSBOOK UPDATE → calls n8n webhook + refreshes UI
-  // ============================================================
-
-  // Step 3 — Add a function sa main.js to actually load the Passbook Clients List
+  // ==========================================
+  // ✅ PASSBOOK & PAYROLL LOADING
+  // ==========================================
   async loadPassbookClientsList(force = false) {
     try {
       const url = new URL(this.webhooks.passbookClientsList);
-
-      // ✅ cache-bust para sure tatama sa n8n at hindi cached
       url.searchParams.set('ts', Date.now());
 
       const res = await fetch(url.toString(), {
@@ -939,24 +813,12 @@ class CallHammerPortal {
       if (!res.ok) throw new Error(`Passbook list failed (HTTP ${res.status}).`);
 
       const data = await res.json();
+      const clients = data?.clients || data?.data?.clients || data?.data || [];
 
-      // support multiple response shapes
-      const clients =
-        data?.clients ||
-        data?.data?.clients ||
-        data?.data ||
-        [];
-
-      console.log('✅ Passbook clients list loaded:', clients.length);
-
-      // TODO: dito mo i-render/update UI count + cards
-      // Example: update count element if meron ka
       const countEl = document.querySelector('#passbookClientsCount');
       if (countEl) countEl.textContent = `Showing ${clients.length} clients`;
 
-      // optional: store
       this.adminState.passbookClients = clients;
-
       return clients;
     } catch (e) {
       console.error('❌ loadPassbookClientsList error:', e);
@@ -964,12 +826,9 @@ class CallHammerPortal {
     }
   }
   
-  // ✅ NEW METHOD: Load Payroll Data
   async loadPayrollData(force = false) {
     try {
       const url = new URL(this.webhooks.payrollData);
-
-      // cache-bust
       url.searchParams.set('ts', Date.now());
 
       const res = await fetch(url.toString(), {
@@ -981,37 +840,18 @@ class CallHammerPortal {
       if (!res.ok) throw new Error(`Payroll data failed (HTTP ${res.status}).`);
 
       const json = await res.json();
-
-      // support multiple response shapes
       const root = json?.data || json || {};
 
-      const weeklyPayroll =
-        root.weeklyPayroll ||
-        root.weekly_payroll ||
-        root.weekly ||
-        [];
+      const weeklyPayroll = root.weeklyPayroll || root.weekly_payroll || root.weekly || [];
+      const payrollHistory = root.payrollHistory || root.payroll_history || root.history || [];
 
-      const payrollHistory =
-        root.payrollHistory ||
-        root.payroll_history ||
-        root.history ||
-        [];
-
-      // Store on portal (so UI can read it)
       this.weeklyPayroll = Array.isArray(weeklyPayroll) ? weeklyPayroll : [];
       this.timeTracker = Array.isArray(root.timeTracker || root.time_tracker) ? (root.timeTracker || root.time_tracker) : [];
 
-      // Also store in adminState (so admin dashboard can read it if needed)
       this.adminState.weeklyPayroll = this.weeklyPayroll;
       this.adminState.payrollHistory = Array.isArray(payrollHistory) ? payrollHistory : [];
 
-      console.log('✅ Payroll data loaded:', {
-        weeklyPayroll: this.adminState.weeklyPayroll.length,
-        payrollHistory: this.adminState.payrollHistory.length,
-      });
-
       return this.adminState;
-
     } catch (e) {
       console.error('❌ loadPayrollData error:', e);
       this.adminState.weeklyPayroll = [];
@@ -1021,8 +861,6 @@ class CallHammerPortal {
   }
 
   bindPassbookUpdateButton() {
-    // This safely does nothing on pages that don't have Passbook UI
-    // We try multiple selectors so you don't have to rename HTML.
     const btn =
       document.querySelector('#passbookSaveButton') ||
       document.querySelector('#saveClientButton') ||
@@ -1047,19 +885,13 @@ class CallHammerPortal {
           return;
         }
 
-        // Basic guard: don't spam webhook if no updates found
         if (!payload.updates || Object.keys(payload.updates).length === 0) {
           alert('No fields detected to update.');
           return;
         }
 
         await this.submitPassbookClientUpdate(payload);
-
-        // refresh screen so user sees latest values
         await this.refreshPassbookClientDetails(payload.codeName);
-
-        // optional success UX
-        console.log('✅ Passbook client updated:', payload.codeName, payload.updates);
         alert('Client updated successfully.');
       } catch (err) {
         console.error('❌ Passbook update failed:', err);
@@ -1083,7 +915,6 @@ class CallHammerPortal {
       throw new Error(`Passbook update failed (HTTP ${res.status}). ${txt}`);
     }
 
-    // Some webhooks return JSON, some return text
     const out = await res.json().catch(async () => ({ raw: await res.text().catch(() => '') }));
     return out;
   }
@@ -1092,41 +923,28 @@ class CallHammerPortal {
     const baseUrl = this.webhooks.passbookClientDetails;
     if (!baseUrl) return;
 
-    // Build URL with query param (GET)
     const u = new URL(baseUrl);
     u.searchParams.set('codeName', codeName);
 
-    // IMPORTANT: No Content-Type header, no body → avoids preflight in most cases
     const res = await fetch(u.toString(), {
       method: 'GET',
       headers: { 'Accept': 'application/json' }
     });
 
     if (!res.ok) {
-      const txt = await res.text().catch(() => '');
-      console.warn(`Passbook details refresh failed (HTTP ${res.status}).`, txt);
+      console.warn(`Passbook details refresh failed (HTTP ${res.status}).`);
       return;
     }
 
     const data = await res.json().catch(() => null);
-
-    try {
-      window.dispatchEvent(new CustomEvent('passbook:client-updated', { detail: { codeName, data } }));
-    } catch (e) {}
-
+    try { window.dispatchEvent(new CustomEvent('passbook:client-updated', { detail: { codeName, data } })); } catch (e) {}
     return data;
   }
 
   collectPassbookUpdatePayloadFromForm(rootEl) {
-    // We try to find the client code from common places:
-    // - hidden input name="codeName"/"CODE NAME"
-    // - any element with data-code-name
-    // - any input whose id includes "code"
     const root = rootEl || document;
 
-    const codeFromData =
-      (root.querySelector('[data-code-name]')?.getAttribute('data-code-name') || '').trim();
-
+    const codeFromData = (root.querySelector('[data-code-name]')?.getAttribute('data-code-name') || '').trim();
     const codeFromInput =
       (root.querySelector('input[name="codeName"]')?.value || '').trim() ||
       (root.querySelector('input[name="CODE NAME"]')?.value || '').trim() ||
@@ -1134,11 +952,6 @@ class CallHammerPortal {
       (root.querySelector('#CODE_NAME')?.value || '').trim();
 
     const codeName = codeFromInput || codeFromData;
-
-    // Collect fields:
-    // Priority:
-    // 1) elements that explicitly opt-in via data-passbook-field="SHEET HEADER"
-    // 2) inputs/selects/textarea that have "name" (we use it as the sheet column)
     const updates = {};
 
     const explicit = Array.from(root.querySelectorAll('[data-passbook-field]'));
@@ -1154,38 +967,25 @@ class CallHammerPortal {
       for (const el of fields) {
         const name = (el.getAttribute('name') || '').trim();
         if (!name) continue;
-
-        // avoid sending login/password/session fields if any exist on page
         if (/password|email|login/i.test(name)) continue;
-
         const val = (el.value ?? '').toString();
         updates[name] = val;
       }
     }
 
-    // Always stamp metadata if you want (optional; safe if sheet has these columns)
-    // If you don't want these, remove them here—nothing else depends on them.
     updates['LAST UPDATED'] = new Date().toISOString();
     updates['UPDATED BY'] = 'Passbook';
-
     return { codeName, updates };
   }
 
-  // ✅ 1) ADDED: Admin Auto-Refresh Method
   startAdminAutoRefresh() {
-    // Refresh every 20 seconds (polling)
-    setInterval(() => {
-        this.fetchAdminData(true);
-    }, 20000);
-
-    // Refresh immediately when you return to the tab
+    setInterval(() => { this.fetchAdminData(true); }, 20000);
     document.addEventListener("visibilitychange", () => {
         if (!document.hidden) this.fetchAdminData(true);
     });
   }
 }
 
-// Make sure the Admin Dashboard finds `window.portal`
 window.portal = window.portal || new CallHammerPortal();
 
 // ==========================================
@@ -1193,8 +993,6 @@ window.portal = window.portal || new CallHammerPortal();
 // ==========================================
 const supabaseUrl = 'https://api.supabase.callhammerleads.com';
 const supabaseKey = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc3MTcwMjI2MCwiZXhwIjo0OTI3Mzc1ODYwLCJyb2xlIjoiYW5vbiJ9.XuWCdGs0XSSSlWhsF6gR4gHMp50C-v6xra9ABgSVRoU';
-
-// THE FIX: Renamed from 'supabase' to 'supaClient' to avoid crashing Javascript
 const supaClient = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
 
 // ==========================================
@@ -1267,7 +1065,6 @@ async function fetchSalesPipeline() {
     const thead = tbody?.previousElementSibling;
     if (!tbody) return;
 
-    // Render Headers (Added TXN # and Pkg Status)
     if (thead) {
         thead.innerHTML = `
             <tr class="text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-b">
@@ -1289,7 +1086,6 @@ async function fetchSalesPipeline() {
         return;
     }
 
-    // Render Rows
     tbody.innerHTML = filteredSales.map(s => {
         const d = new Date(s.created_at).toLocaleDateString();
         const val = parseFloat(s.deal_value).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
@@ -1374,15 +1170,14 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// INTERACTIVE LEADS TRACKER (SUPABASE DIRECT)
+// INTERACTIVE LEADS TRACKER (SUPABASE DIRECT + GSHEET SYNC)
 // ==========================================
 
 async function updateLeadStatus(leadId, newStatus) {
     if (!supaClient) return alert("Database connection missing.");
     if (!leadId || leadId === "unknown") return alert("Cannot update: Lead ID is missing.");
 
-    console.log(`Updating Supabase: Lead ${leadId} -> ${newStatus}`);
-
+    // 1. UPDATE SUPABASE INSTANTLY (For Dashboard Speed)
     const { error } = await supaClient
         .from('leads_raw') 
         .update({ status: newStatus })
@@ -1395,6 +1190,15 @@ async function updateLeadStatus(leadId, newStatus) {
         console.log(`Success! Lead ${leadId} is now ${newStatus}`);
         window.portal.fetchAdminData(true); 
     }
+
+    // 2. BACKGROUND SYNC TO GOOGLE SHEETS (For Clients)
+    try {
+        fetch('https://automate.callhammerleads.com/webhook/update-lead-sheet', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lead_id: leadId, status: newStatus })
+        });
+    } catch (e) { console.error("Sheet sync failed", e); }
 }
 
 async function deleteLead(leadId) {
@@ -1404,8 +1208,7 @@ async function deleteLead(leadId) {
     const confirmDelete = confirm(`Are you sure you want to permanently delete Lead ID: ${leadId}?`);
     if (!confirmDelete) return;
 
-    console.log(`Deleting Lead ${leadId} from Supabase...`);
-
+    // 1. DELETE FROM SUPABASE INSTANTLY
     const { error } = await supaClient
         .from('leads_raw')
         .delete()
@@ -1418,13 +1221,21 @@ async function deleteLead(leadId) {
         console.log(`Success! Lead ${leadId} deleted.`);
         window.portal.fetchAdminData(true);
     }
+
+    // 2. BACKGROUND SYNC TO GOOGLE SHEETS
+    try {
+        fetch('https://automate.callhammerleads.com/webhook/delete-lead-sheet', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lead_id: leadId })
+        });
+    } catch (e) { console.error("Sheet sync failed", e); }
 }
 
 // ==========================================
 // PASSBOOK CLIENT MANAGEMENT
 // ==========================================
 
-// 1. Helper Function: Get colors based on status
 function getClientStatusColor(status) {
     const s = String(status || 'ACTIVE').toUpperCase();
     if (s === 'ACTIVE') return 'bg-green-100 text-green-800 border-green-200';
@@ -1434,11 +1245,9 @@ function getClientStatusColor(status) {
     return 'bg-gray-100 text-gray-800 border-gray-200';
 }
 
-// 2. Update Status Directly from Dropdown
 async function updateClientStatus(clientId, newStatus) {
     if (!supaClient) return alert("Database connection missing.");
     
-    // Update the dropdown color immediately on the screen for a snappy UI
     const selectEl = document.getElementById(`status-select-${clientId}`);
     if (selectEl) {
         selectEl.className = `px-2 py-1 rounded-full text-xs font-extrabold border outline-none cursor-pointer transition-all shadow-sm ${getClientStatusColor(newStatus)}`;
@@ -1452,7 +1261,6 @@ async function updateClientStatus(clientId, newStatus) {
     }
 }
 
-// 3. Delete a Client safely
 async function deletePassbookClient(clientId, companyName) {
     if (!supaClient) return;
     
@@ -1466,12 +1274,10 @@ async function deletePassbookClient(clientId, companyName) {
         alert("Failed to delete client.");
     } else {
         alert(`${companyName} has been deleted successfully.`);
-        // Refresh the Passbook screen
         fetchAdminClients('All'); 
     }
 }
 
-// 4. Add a New Client via Modal
 async function submitNewClient(e) {
     e.preventDefault();
     if (!supaClient) return;
@@ -1494,9 +1300,31 @@ async function submitNewClient(e) {
     } else {
         document.getElementById('add-client-modal').classList.add('hidden');
         document.getElementById('add-client-form').reset();
-        fetchAdminClients('All'); // Refresh the Passbook screen
+        fetchAdminClients('All'); 
     }
 
     btn.innerText = "Add Client";
     btn.disabled = false;
 }
+
+// ==========================================
+// ✅ CLIENT HEALTH MONITOR (MISSION CONTROL)
+// ==========================================
+async function updateClientPackageStatus(clientCode, newPackageStatus) {
+    if (!supaClient) return alert("Database connection missing.");
+    if (!clientCode || clientCode === "N/A") return alert("Cannot update: Client Code is missing.");
+
+    const { error } = await supaClient
+        .from('clients')
+        .update({ package_status: newPackageStatus })
+        .eq('code_name', clientCode);
+
+    if (error) {
+        console.error("Failed to update package status:", error);
+        alert("Failed to update package status in database.");
+    } else {
+        console.log(`✅ ${clientCode} package is now ${newPackageStatus}`);
+        if (window.portal) window.portal.fetchAdminData(true);
+    }
+}
+window.updateClientPackageStatus = updateClientPackageStatus;
