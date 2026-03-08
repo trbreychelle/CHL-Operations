@@ -1419,3 +1419,84 @@ async function deleteLead(leadId) {
         window.portal.fetchAdminData(true);
     }
 }
+
+// ==========================================
+// PASSBOOK CLIENT MANAGEMENT
+// ==========================================
+
+// 1. Helper Function: Get colors based on status
+function getClientStatusColor(status) {
+    const s = String(status || 'ACTIVE').toUpperCase();
+    if (s === 'ACTIVE') return 'bg-green-100 text-green-800 border-green-200';
+    if (s === 'PAUSE') return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    if (s === 'BLACKLISTED') return 'bg-red-100 text-red-800 border-red-200';
+    if (s === 'INACTIVE') return 'bg-gray-100 text-gray-800 border-gray-200';
+    return 'bg-gray-100 text-gray-800 border-gray-200';
+}
+
+// 2. Update Status Directly from Dropdown
+async function updateClientStatus(clientId, newStatus) {
+    if (!supaClient) return alert("Database connection missing.");
+    
+    // Update the dropdown color immediately on the screen for a snappy UI
+    const selectEl = document.getElementById(`status-select-${clientId}`);
+    if (selectEl) {
+        selectEl.className = `px-2 py-1 rounded-full text-xs font-extrabold border outline-none cursor-pointer transition-all shadow-sm ${getClientStatusColor(newStatus)}`;
+    }
+
+    const { error } = await supaClient.from('clients').update({ client_status: newStatus }).eq('id', clientId);
+    
+    if (error) {
+        console.error("Failed to update status:", error);
+        alert("Failed to update client status in database.");
+    }
+}
+
+// 3. Delete a Client safely
+async function deletePassbookClient(clientId, companyName) {
+    if (!supaClient) return;
+    
+    const confirmDelete = confirm(`⚠️ WARNING: Are you absolutely sure you want to permanently delete ${companyName}?\nThis action cannot be undone.`);
+    if (!confirmDelete) return;
+
+    const { error } = await supaClient.from('clients').delete().eq('id', clientId);
+    
+    if (error) {
+        console.error("Delete Error:", error);
+        alert("Failed to delete client.");
+    } else {
+        alert(`${companyName} has been deleted successfully.`);
+        // Refresh the Passbook screen
+        fetchAdminClients('All'); 
+    }
+}
+
+// 4. Add a New Client via Modal
+async function submitNewClient(e) {
+    e.preventDefault();
+    if (!supaClient) return;
+
+    const btn = document.getElementById('save-client-btn');
+    btn.innerText = "Saving...";
+    btn.disabled = true;
+
+    const payload = {
+        code_name: document.getElementById('new-client-code').value,
+        company_name: document.getElementById('new-client-name').value,
+        client_status: document.getElementById('new-client-status').value
+    };
+
+    const { error } = await supaClient.from('clients').insert([payload]);
+
+    if (error) {
+        console.error("Add Client Error:", error);
+        alert("Failed to add new client.");
+    } else {
+        document.getElementById('add-client-modal').classList.add('hidden');
+        document.getElementById('add-client-form').reset();
+        fetchAdminClients('All'); // Refresh the Passbook screen
+    }
+
+    btn.innerText = "Add Client";
+    btn.disabled = false;
+}
