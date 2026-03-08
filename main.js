@@ -1231,7 +1231,7 @@ async function toggleShareWithSales(codeName, checkboxElement) {
 }
 
 // ==========================================
-// SALES PIPELINE CONTROLS
+// SALES PIPELINE CONTROLS (UPGRADED HYBRID LEDGER)
 // ==========================================
 async function fetchSalesPipeline() {
     if (!supaClient) return;
@@ -1245,8 +1245,6 @@ async function fetchSalesPipeline() {
     
     if (error) {
         console.error("Error fetching sales:", error);
-        const tbody = document.getElementById(isSalesDash ? 'sales-table-body' : 'admin-sales-table-body');
-        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-red-500 font-bold">❌ Database Error: Could not load sales.</td></tr>`;
         return;
     }
 
@@ -1257,9 +1255,6 @@ async function fetchSalesPipeline() {
         filteredSales = filteredSales.filter(s => s.sold_by_name === currentUser);
         const statFilter = document.getElementById('sales-status-filter')?.value || 'all';
         if (statFilter !== 'all') filteredSales = filteredSales.filter(s => s.status === statFilter);
-        
-        const catBox = document.getElementById('sale-category-container');
-        if (catBox) catBox.style.display = 'none';
     } else {
         const catFilter = document.getElementById('admin-sales-category-filter')?.value || 'All';
         const statFilter = document.getElementById('admin-sales-status-filter')?.value || 'all';
@@ -1269,13 +1264,32 @@ async function fetchSalesPipeline() {
 
     const tbodyId = isSalesDash ? 'sales-table-body' : 'admin-sales-table-body';
     const tbody = document.getElementById(tbodyId);
+    const thead = tbody?.previousElementSibling;
     if (!tbody) return;
 
+    // Render Headers (Added TXN # and Pkg Status)
+    if (thead) {
+        thead.innerHTML = `
+            <tr class="text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-b">
+                <th class="p-4">Date</th>
+                <th class="p-4">TXN #</th>
+                <th class="p-4">Client Name</th>
+                <th class="p-4">Package</th>
+                <th class="p-4">Deal Value</th>
+                <th class="p-4">Deal Status</th>
+                <th class="p-4">Pkg Status</th>
+                <th class="p-4">Sold By</th>
+                ${!isSalesDash ? `<th class="p-4">Category</th>` : ''}
+            </tr>
+        `;
+    }
+
     if (filteredSales.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No deals found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-400 italic">No deals found.</td></tr>`;
         return;
     }
 
+    // Render Rows
     tbody.innerHTML = filteredSales.map(s => {
         const d = new Date(s.created_at).toLocaleDateString();
         const val = parseFloat(s.deal_value).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
@@ -1286,13 +1300,20 @@ async function fetchSalesPipeline() {
         if (s.status === 'Negotiating') stColor = "bg-yellow-100 text-yellow-800";
         if (s.status === 'Prospecting') stColor = "bg-blue-100 text-blue-800";
 
+        let pkgColor = "bg-gray-100 text-gray-700";
+        if (s.package_status === 'Active') pkgColor = "bg-blue-100 text-blue-800";
+        if (s.package_status === 'Completed') pkgColor = "bg-purple-100 text-purple-800";
+        if (s.package_status === 'Refunded') pkgColor = "bg-orange-100 text-orange-800";
+
         return `
         <tr class="hover:bg-gray-50 border-b border-gray-50">
             <td class="p-4 text-sm text-gray-500">${d}</td>
+            <td class="p-4 text-xs font-mono text-gray-400 font-bold">${s.transaction_number || '—'}</td>
             <td class="p-4 font-bold text-gray-900">${s.client_name}</td>
             <td class="p-4 text-sm text-gray-600">${s.package_sold || '—'}</td>
             <td class="p-4 font-bold text-emerald-600">${val}</td>
             <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold uppercase ${stColor}">${s.status}</span></td>
+            <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold uppercase ${pkgColor}">${s.package_status || 'ACTIVE'}</span></td>
             <td class="p-4 text-sm text-gray-600">${s.sold_by_name}</td>
             ${!isSalesDash ? `<td class="p-4 text-sm text-gray-500">${s.sales_category}</td>` : ''}
         </tr>
@@ -1314,7 +1335,9 @@ async function submitNewSale(e) {
         deal_value: parseFloat(document.getElementById('sale-value').value) || 0,
         status: document.getElementById('sale-status').value,
         sold_by_name: currentUser,
-        sales_category: category
+        sales_category: category,
+        transaction_number: document.getElementById('sale-transaction-id')?.value || '',
+        package_status: document.getElementById('sale-package-status')?.value || 'Active'
     };
 
     const btn = document.getElementById('save-sale-btn');
