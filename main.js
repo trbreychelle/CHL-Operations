@@ -68,7 +68,8 @@ class CallHammerPortal {
   routeByRole(roleRaw) {
     const role = String(roleRaw || '').toLowerCase();
     if (role === 'admin') return 'admin-dashboard.html';
-    if (role === 'team_leader' || role === 'team leader' || role === 'tl') return 'team-leader-dashboard.html';
+    // FIXED: Now correctly points to your new Sales Dashboard
+    if (role === 'team_leader' || role === 'team leader' || role === 'tl') return 'salesdashboard.html';
     return 'agent-dashboard.html';
   }
 
@@ -200,20 +201,13 @@ class CallHammerPortal {
     this.checkExistingSession();
 
     const path = (window.location.pathname || '').toLowerCase();
-    const onIndex =
-      path.endsWith('index.html') ||
-      path === '/' ||
-      path === '' ||
-      path.endsWith('/index') ||
-      path.endsWith('/index.html');
+    const onIndex = path.endsWith('index.html') || path === '/' || path === '' || path.endsWith('/index') || path.endsWith('/index.html');
 
-    // ✅ If already logged in and on index, route immediately
     if (onIndex && this.currentUser) {
       window.location.href = this.routeByRole(this.currentUser.role);
       return;
     }
 
-    // ✅ If on index, bind form + allow URL param login
     if (onIndex) {
       this.bindIndexLoginForm();
       this.tryLoginFromQueryParams();
@@ -221,31 +215,25 @@ class CallHammerPortal {
 
     this.enforceRoleRouting();
     this.bindEvents();
-
-    // ✅ ADDED ONLY: wire Passbook update UI (no-op on pages without the button/form)
     this.bindPassbookUpdateButton();
 
-    // Step 4 — Call it on page load (ito yung pinaka-missing)
-    const onPassbookPage = path.includes('passbook') || document.querySelector('[data-page="passbook-clients"]');
-    if (onPassbookPage) {
+    if (document.querySelector('[data-page="passbook-clients"]') || path.includes('passbook')) {
       setTimeout(() => this.loadPassbookClientsList(true), 300);
     }
 
-    const onAnyDashboard = path.includes('dashboard');
-    // FIXED: Catch both "admin-dashboard" and "admindashboard"
-    const onAdminDashboard = path.includes('admin-dashboard') || path.includes('admindashboard') || path.includes('currentadmin');
-    // ADDED: Recognize the sales dashboard
-    const onSalesDashboard = path.includes('salesdashboard');
+    // 🔥 THE FIX: Stop relying on file names! Look for the actual HTML elements on the page.
+    const isAdminOrSales = document.getElementById('view-overview') !== null;
+    const isAgentDashboard = document.getElementById('stat-appointments') !== null && !isAdminOrSales;
 
-    // Agent dashboards
-    if (this.currentUser && onAnyDashboard && !onAdminDashboard && !onSalesDashboard) {
+    if (this.currentUser && isAgentDashboard) {
       this.fetchAllData?.();
       this.updateProfileUI?.();
       this.startMSTClock();
     }
 
-    // Admin OR Sales dashboard (Mission Control / Overview)
-    if (onAdminDashboard || onSalesDashboard) {
+    // If it's the Admin OR Sales Dashboard, force the download to start!
+    if (isAdminOrSales) {
+      console.log("Dashboard detected! Requesting data from n8n...");
       document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
       
       setTimeout(() => {
@@ -263,15 +251,15 @@ class CallHammerPortal {
     const path = (window.location.pathname || '').toLowerCase();
     const role = (this.currentUser.role || 'agent').toLowerCase();
 
-    // only guard dashboard routes
     if (!path.includes('dashboard')) return;
 
     const onAdmin = path.includes('admin-dashboard');
     const onAgent = path.includes('agent-dashboard');
-    const onTL = path.includes('team-leader-dashboard');
+    // FIXED: Properly recognizes your new Sales file
+    const onSales = path.includes('salesdashboard'); 
 
     if (role === 'admin' && !onAdmin) window.location.href = 'admin-dashboard.html';
-    else if (role === 'team_leader' && !onTL) window.location.href = 'team-leader-dashboard.html';
+    else if ((role === 'team_leader' || role === 'team leader' || role === 'tl') && !onSales) window.location.href = 'salesdashboard.html';
     else if (role === 'agent' && !onAgent) window.location.href = 'agent-dashboard.html';
   }
 
@@ -664,11 +652,11 @@ class CallHammerPortal {
     const tierCount = data.approvedAppointments || 0;
     const tierMax = 6; // Tier 1 goal
     const percentage = Math.min(100, (tierCount / tierMax) * 100);
-     
+      
     setText('tier-count-display', `${tierCount} / ${tierMax} approved appointments`);
     const progressBar = document.getElementById('tier-progress-bar');
     if (progressBar) progressBar.style.width = `${percentage}%`;
-     
+      
     // Handle loading text update
     const tierStatusText = document.getElementById('tier-status-text');
     if(tierStatusText) tierStatusText.innerText = 'Tier 1 Progress';
@@ -752,7 +740,7 @@ class CallHammerPortal {
   updateProfileUI(profile) {
     if (!profile) return;
     const setText = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
-     
+      
     setText('nav-user-name', profile.name || this.currentUser.name || 'Agent');
     setText('profileName', profile.name || this.currentUser.name);
     setText('profileEmail', profile.email || this.currentUser.email);
@@ -763,7 +751,7 @@ class CallHammerPortal {
     // Also update monthly incentive snapshots in profile tab if they exist
     setText('monthly-incentive-status-prof', profile.monthlyIncentiveStatus || 'Not qualified yet');
     setText('monthly-raffle-status-prof', profile.raffleStatus || '0 / 4 weeks qualified');
-     
+      
     if (profile.hourlyIncrease) {
         setText('milestone-hourly-increase', this.formatCurrency(profile.hourlyIncrease));
         setText('effective-hourly-rate', this.formatCurrency((profile.baseRate || 0) + profile.hourlyIncrease));
