@@ -1234,10 +1234,12 @@
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
         try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
         
+        // ✅ Pull Passbook directly from Supabase, not Google Sheets!
         try {
-          this.setupPassbookFilters(clients);
-          this.bindPassbookUI(clients);
-          this.applyPassbookFilters(clients);
+          if (window.fetchAdminClients) {
+            const currentFilter = document.getElementById('clientStatusFilter')?.value || 'Active';
+            window.fetchAdminClients(currentFilter);
+          }
         } catch(e) {}
         
         try {
