@@ -68,7 +68,7 @@ class CallHammerPortal {
   routeByRole(roleRaw) {
     const role = String(roleRaw || '').toLowerCase();
     if (role === 'admin') return 'admin-dashboard.html';
-    // FIXED: Now correctly points to your new Sales Dashboard
+    // FIXED: Properly sends Team Leaders to the Sales Dashboard
     if (role === 'team_leader' || role === 'team leader' || role === 'tl') return 'salesdashboard.html';
     return 'agent-dashboard.html';
   }
@@ -201,7 +201,12 @@ class CallHammerPortal {
     this.checkExistingSession();
 
     const path = (window.location.pathname || '').toLowerCase();
-    const onIndex = path.endsWith('index.html') || path === '/' || path === '' || path.endsWith('/index') || path.endsWith('/index.html');
+    const onIndex =
+      path.endsWith('index.html') ||
+      path === '/' ||
+      path === '' ||
+      path.endsWith('/index') ||
+      path.endsWith('/index.html');
 
     if (onIndex && this.currentUser) {
       window.location.href = this.routeByRole(this.currentUser.role);
@@ -217,23 +222,24 @@ class CallHammerPortal {
     this.bindEvents();
     this.bindPassbookUpdateButton();
 
-    if (document.querySelector('[data-page="passbook-clients"]') || path.includes('passbook')) {
+    if (path.includes('passbook') || document.querySelector('[data-page="passbook-clients"]')) {
       setTimeout(() => this.loadPassbookClientsList(true), 300);
     }
 
-    // 🔥 THE FIX: Stop relying on file names! Look for the actual HTML elements on the page.
-    const isAdminOrSales = document.getElementById('view-overview') !== null;
-    const isAgentDashboard = document.getElementById('stat-appointments') !== null && !isAdminOrSales;
+    // 🔥 THE FIX: Make Javascript look at the HTML structure, NOT the file name!
+    const isCommandCenter = document.getElementById('view-overview') !== null;
+    const isOldAgentDash = document.getElementById('stat-appointments') !== null;
 
-    if (this.currentUser && isAgentDashboard) {
+    // Load Agent Dashboard
+    if (this.currentUser && isOldAgentDash && !isCommandCenter) {
       this.fetchAllData?.();
       this.updateProfileUI?.();
       this.startMSTClock();
     }
 
-    // If it's the Admin OR Sales Dashboard, force the download to start!
-    if (isAdminOrSales) {
-      console.log("Dashboard detected! Requesting data from n8n...");
+    // Load Admin OR Sales Dashboard
+    if (isCommandCenter) {
+      console.log("🟢 Command Center Detected! Fetching Master Data...");
       document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
       
       setTimeout(() => {
@@ -251,12 +257,12 @@ class CallHammerPortal {
     const path = (window.location.pathname || '').toLowerCase();
     const role = (this.currentUser.role || 'agent').toLowerCase();
 
-    if (!path.includes('dashboard')) return;
+    // If we aren't on a dashboard page, don't do anything
+    if (!path.includes('dashboard') && !path.includes('admin')) return;
 
-    const onAdmin = path.includes('admin-dashboard');
-    const onAgent = path.includes('agent-dashboard');
-    // FIXED: Properly recognizes your new Sales file
-    const onSales = path.includes('salesdashboard'); 
+    const onAdmin = path.includes('admin');
+    const onAgent = path.includes('agent');
+    const onSales = path.includes('sales');
 
     if (role === 'admin' && !onAdmin) window.location.href = 'admin-dashboard.html';
     else if ((role === 'team_leader' || role === 'team leader' || role === 'tl') && !onSales) window.location.href = 'salesdashboard.html';
@@ -1213,165 +1219,84 @@ class CallHammerPortal {
 window.portal = window.portal || new CallHammerPortal();
 
 // ==========================================
-// ADMIN PASSBOOK CONTROLS (SUPABASE)
+// SUPABASE CLIENT INITIALIZATION
 // ==========================================
-
-// 1. Initialize Supabase Client 
 const supabaseUrl = 'https://api.supabase.callhammerleads.com';
 const supabaseKey = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc3MTcwMjI2MCwiZXhwIjo0OTI3Mzc1ODYwLCJyb2xlIjoiYW5vbiJ9.XuWCdGs0XSSSlWhsF6gR4gHMp50C-v6xra9ABgSVRoU';
-const supabase = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
 
-// 2. Fetch Clients based on the Filter (Defaults to 'Active')
+// THE FIX: Renamed from 'supabase' to 'supaClient' to avoid crashing Javascript
+const supaClient = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
+
+// ==========================================
+// PASSBOOK CONTROLS (ADMIN & SALES)
+// ==========================================
 async function fetchAdminClients(status = 'Active') {
-    if (!supabase) {
-        console.error("Supabase client not initialized. Make sure you included the Supabase CDN script in your HTML.");
-        return;
-    }
-
-    console.log(`Fetching clients with status: ${status}`);
-    
-    // Start the query
-    let query = supabase.from('clients').select('*');
-
-    // Only apply the status filter if they didn't select 'All'
-    if (status !== 'All') {
-        query = query.eq('client_status', status);
-    }
-
+    if (!supaClient) return;
+    let query = supaClient.from('clients').select('*');
+    if (status !== 'All') query = query.eq('client_status', status);
     const { data: clients, error } = await query;
-
-    if (error) {
-        console.error('Error fetching admin clients:', error);
-        return;
-    }
-
-    console.log('Admin Clients loaded:', clients);
-    
-    // Send the clients to the Admin Dashboard renderer
-    if (window.Admin && typeof window.Admin.applyPassbookFilters === 'function') {
+    if (!error && window.Admin && typeof window.Admin.applyPassbookFilters === 'function') {
         window.Admin.applyPassbookFilters(clients);
     }
 }
 
-// 3. Toggle the "Share with Sales" permission in Supabase
-async function toggleShareWithSales(codeName, checkboxElement) {
-    if (!supabase) {
-        alert("Database connection missing.");
-        checkboxElement.checked = !checkboxElement.checked;
-        return;
-    }
-
-    const isShared = checkboxElement.checked;
-    console.log(`Setting Sales Visibility for ${codeName} to ${isShared}`);
-
-    // Update the database where the company code matches
-    const { error } = await supabase
-        .from('clients')
-        .update({ shared_with_sales: isShared })
-        .eq('code_name', codeName); // Note: We use code_name to match your HTML
-
-    if (error) {
-        console.error('Failed to update sales visibility:', error);
-        alert('Database error. Check the console.');
-        // Revert the checkbox visually if the database fails
-        checkboxElement.checked = !isShared; 
-    } else {
-        console.log(`Success! Client ${codeName} sales visibility is now ${isShared}`);
-    }
-}
-
-// 4. Auto-load the 'Active' clients as soon as the page opens
-document.addEventListener('DOMContentLoaded', () => {
-    // Only run this if we are on the Admin Dashboard
-    if (document.getElementById('clientStatusFilter')) {
-        fetchAdminClients('Active');
-    }
-});
-
-// ==========================================
-// SALES PASSBOOK CONTROLS
-// ==========================================
-
-// Fetch Clients for Sales (STRICTLY filtered by shared_with_sales)
 async function fetchSalesClients(status = 'Active') {
-    if (!supabase) {
-        console.error("Supabase client missing.");
-        return;
-    }
-
-    console.log(`Fetching SALES clients with status: ${status}`);
-    
-    // THE SECURITY LOCK: Only get clients where shared_with_sales is TRUE
-    let query = supabase.from('clients').select('*').eq('shared_with_sales', true);
-
-    // Apply the Active/Pause/Blacklisted filter
-    if (status !== 'All') {
-        query = query.eq('client_status', status);
-    }
-
+    if (!supaClient) return;
+    let query = supaClient.from('clients').select('*').eq('shared_with_sales', true);
+    if (status !== 'All') query = query.eq('client_status', status);
     const { data: clients, error } = await query;
-
-    if (error) {
-        console.error('Error fetching sales clients:', error);
-        return;
+    if (!error && window.Admin && typeof window.Admin.applyPassbookFilters === 'function') {
+        window.Admin.applyPassbookFilters(clients);
     }
-
-    console.log('Sales Clients loaded:', clients);
-    
-    // TODO: Send these restricted clients to your Sales HTML renderer
-    // Example: renderSalesClientsToScreen(clients);
 }
 
-// Auto-load Sales clients when the Sales Dashboard opens
-document.addEventListener('DOMContentLoaded', () => {
-    // Only run this if we are on the Sales Dashboard (checking for a unique sales element)
-    if (document.getElementById('salesClientStatusFilter') || window.location.pathname.includes('salesdashboard')) {
-        fetchSalesClients('Active');
+async function toggleShareWithSales(codeName, checkboxElement) {
+    if (!supaClient) { checkboxElement.checked = !checkboxElement.checked; return; }
+    const isShared = checkboxElement.checked;
+    const { error } = await supaClient.from('clients').update({ shared_with_sales: isShared }).eq('code_name', codeName); 
+    if (error) {
+        alert('Database error. Check the console.');
+        checkboxElement.checked = !isShared; 
     }
-});
+}
 
 // ==========================================
-// SALES PIPELINE CONTROLS (SUPABASE)
+// SALES PIPELINE CONTROLS
 // ==========================================
-
 async function fetchSalesPipeline() {
-    if (!supabase) return;
+    if (!supaClient) return;
     
-    // Check if we are on the Sales Dashboard vs Admin Dashboard
-    const isSalesDash = window.location.pathname.includes('salesdashboard');
+    const isSalesDash = document.getElementById('salesClientStatusFilter') !== null;
+    const isAdminDash = document.getElementById('admin-sales-category-filter') !== null;
+
+    if (!isSalesDash && !isAdminDash) return;
     
-    // Get all sales from Supabase
-    let { data: sales, error } = await supabase.from('sales_pipeline').select('*').order('created_at', { ascending: false });
+    let { data: sales, error } = await supaClient.from('sales_pipeline').select('*').order('created_at', { ascending: false });
     
     if (error) {
         console.error("Error fetching sales:", error);
+        const tbody = document.getElementById(isSalesDash ? 'sales-table-body' : 'admin-sales-table-body');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-red-500 font-bold">❌ Database Error: Could not load sales.</td></tr>`;
         return;
     }
 
     let filteredSales = sales || [];
 
-    // Filter Logic based on who is looking
     if (isSalesDash) {
-        // Sales Team can ONLY see their own sales
         const currentUser = window.portal?.currentUser?.name || "Unknown";
         filteredSales = filteredSales.filter(s => s.sold_by_name === currentUser);
-        
         const statFilter = document.getElementById('sales-status-filter')?.value || 'all';
         if (statFilter !== 'all') filteredSales = filteredSales.filter(s => s.status === statFilter);
         
-        // Hide the category dropdown in the modal so they can't log as CHL
         const catBox = document.getElementById('sale-category-container');
         if (catBox) catBox.style.display = 'none';
     } else {
-        // Admin sees the master filters
         const catFilter = document.getElementById('admin-sales-category-filter')?.value || 'All';
         const statFilter = document.getElementById('admin-sales-status-filter')?.value || 'all';
-        
         if (catFilter !== 'All') filteredSales = filteredSales.filter(s => s.sales_category === catFilter);
         if (statFilter !== 'all') filteredSales = filteredSales.filter(s => s.status === statFilter);
     }
 
-    // Render Table
     const tbodyId = isSalesDash ? 'sales-table-body' : 'admin-sales-table-body';
     const tbody = document.getElementById(tbodyId);
     if (!tbody) return;
@@ -1405,15 +1330,12 @@ async function fetchSalesPipeline() {
     }).join('');
 }
 
-// Function to push a new deal to Supabase
 async function submitNewSale(e) {
     e.preventDefault();
-    if (!supabase) return alert("Database connection missing.");
+    if (!supaClient) return alert("Database connection missing.");
     
-    const isSalesDash = window.location.pathname.includes('salesdashboard');
+    const isSalesDash = document.getElementById('salesClientStatusFilter') !== null;
     const currentUser = window.portal?.currentUser?.name || "Unknown User";
-    
-    // If it's a sales agent, force category to 'Sales Team'. If admin, use dropdown.
     const category = isSalesDash ? 'Sales Team' : document.getElementById('sale-category').value;
 
     const payload = {
@@ -1428,7 +1350,7 @@ async function submitNewSale(e) {
     const btn = document.getElementById('save-sale-btn');
     btn.innerText = "Saving...";
 
-    const { error } = await supabase.from('sales_pipeline').insert([payload]);
+    const { error } = await supaClient.from('sales_pipeline').insert([payload]);
     
     if (error) {
         console.error("Sale Save Error:", error);
@@ -1441,12 +1363,19 @@ async function submitNewSale(e) {
     btn.innerText = "Save Deal";
 }
 
-// Attach listeners so filters trigger re-renders
+// ==========================================
+// GLOBAL EVENT LISTENERS
+// ==========================================
 document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('clientStatusFilter') && !document.getElementById('salesClientStatusFilter')) {
+        fetchAdminClients('Active');
+    }
+    if (document.getElementById('salesClientStatusFilter')) {
+        fetchSalesClients('Active');
+    }
     document.getElementById('admin-sales-category-filter')?.addEventListener('change', fetchSalesPipeline);
     document.getElementById('admin-sales-status-filter')?.addEventListener('change', fetchSalesPipeline);
     document.getElementById('sales-status-filter')?.addEventListener('change', fetchSalesPipeline);
     
-    // Auto-load if sales tab exists
     if (document.getElementById('view-sales')) fetchSalesPipeline();
 });
