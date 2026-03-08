@@ -2218,30 +2218,42 @@
         container.innerHTML = (clients || []).map(client => {
           const code = this.extractCode(client);
           return `<div class="text-left bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition relative">
-              <div class="flex items-center justify-between mb-3">
-                  <div class="flex items-center">
-                      <select id="status-select-${client.id}" 
-                              onchange="updateClientStatus('${client.id}', this.value)" 
-                              class="px-2 py-1 rounded-full text-[10px] font-extrabold border outline-none cursor-pointer transition-all shadow-sm ${window.getClientStatusColor ? getClientStatusColor(client.client_status) : ''}">
-                          <option value="Active" ${client.client_status === 'Active' ? 'selected' : ''}>ACTIVE</option>
-                          <option value="Pause" ${client.client_status === 'Pause' ? 'selected' : ''}>PAUSE</option>
-                          <option value="Blacklisted" ${client.client_status === 'Blacklisted' ? 'selected' : ''}>BLACKLISTED</option>
-                          <option value="Inactive" ${client.client_status === 'Inactive' ? 'selected' : ''}>INACTIVE</option>
-                      </select>
 
-                      <button onclick="deletePassbookClient('${client.id}', '${client.company_name}')" class="ml-3 text-gray-300 hover:text-red-600 transition-colors" title="Delete Client">
-                          <i class="fa-solid fa-trash-can"></i>
-                      </button>
-                  </div>
-              </div>
-              <div onclick="Admin.openPassbookClient('${String(code).replace(/'/g, "\\'")}')" class="cursor-pointer">
-                  <div class="flex items-center justify-between"><h3 class="font-bold text-gray-900 text-lg">${this.extractRoofingCompany(client)}</h3><span class="text-xs font-bold text-gray-500">${code}</span></div>
-                  <p class="text-xs text-gray-500 mt-1">${this.extractCityState(client)}</p>
-                  <p class="text-[10px] font-extrabold text-yellow-600 uppercase tracking-wider mt-3">Click to open</p>
-              </div>
-              <div class="sales-share-toggle mt-3 border-t border-gray-50 pt-2">
-                  <label><input type="checkbox" class="share-checkbox" onchange="toggleShareWithSales('${code}', this)" ${client.shared_with_sales ? 'checked' : ''}> Share with Sales</label>
-              </div>
+            <div onclick="Admin.openPassbookClient('${String(code).replace(/'/g, "\\'")}')" class="cursor-pointer">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-gray-900 text-lg">${this.extractRoofingCompany(client)}</h3>
+                    <span class="text-xs font-bold text-gray-500">${code}</span>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">${this.extractCityState(client)}</p>
+                <p class="text-[10px] font-extrabold text-yellow-600 uppercase tracking-wider mt-3">Click to open</p>
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center relative z-10">
+                
+                <label class="flex items-center text-sm text-gray-600 cursor-pointer">
+                    <input type="checkbox" class="share-checkbox mr-2" 
+                           onchange="toggleShareWithSales('${code}', this)" 
+                           ${client.shared_with_sales ? 'checked' : ''}>
+                    Share with Sales
+                </label>
+
+                <div class="flex items-center gap-2">
+                    <select id="status-select-${client.id}" 
+                            onchange="updateClientStatus('${client.id}', this.value)" 
+                            class="px-2 py-1 rounded-full text-[10px] font-extrabold border outline-none cursor-pointer transition-all shadow-sm ${getClientStatusColor(client.client_status)}">
+                        <option value="Active" ${client.client_status === 'Active' ? 'selected' : ''}>ACTIVE</option>
+                        <option value="Pause" ${client.client_status === 'Pause' ? 'selected' : ''}>PAUSE</option>
+                        <option value="Blacklisted" ${client.client_status === 'Blacklisted' ? 'selected' : ''}>BLACKLISTED</option>
+                        <option value="Inactive" ${client.client_status === 'Inactive' ? 'selected' : ''}>INACTIVE</option>
+                    </select>
+
+                    <button onclick="deletePassbookClient('${client.id}', '${client.company_name}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Client">
+                        <i class="fa-solid fa-trash-can text-base"></i>
+                    </button>
+                </div>
+                
+            </div>
+        </div>`;
           </div>`;
         }).join('') || '<div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">No results</div>';
       },
