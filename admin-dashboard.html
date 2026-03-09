@@ -198,7 +198,7 @@
 
               <div class="relative min-w-[170px]">
                 <button id="health-status-btn" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white flex justify-between items-center hover:bg-gray-50">
-                  <span id="health-status-label" class="font-bold text-gray-700">Status: Active</span>
+                  <span id="health-status-label" class="font-bold text-gray-700">Health: 4 selected</span>
                   <i class="fa-solid fa-chevron-down text-gray-400 text-xs"></i>
                 </button>
                 <div id="health-status-popover" class="hidden absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-xl z-50 p-3 space-y-2 max-h-64 overflow-y-auto">
@@ -1168,8 +1168,8 @@
 
   <script>
     const AdminDashboard = {
-      perfPeriod: 'today',
-      analyticsPeriod: 'today',
+      sortState: { key: null, dir: 'asc' },
+      _firstLoadDone: false,
 
       // TEAM STATE
       teamPeriod: 'today',
@@ -1194,7 +1194,6 @@
 
       clientHealthRaw: [],
       clientHealthView: [],
-      sortState: { key: null, dir: 'asc' },
 
       _companyToCodeMap: null,
       _companyToPackageMap: null,
@@ -1216,22 +1215,13 @@
       _passbookFiltersBound: false,
       _owedKpiBound: false,
 
-      // Track if filters have been initially built
-      _firstLoadDone: false,
-
       getState() { return window.portal?.adminState || {}; },
 
       refreshDashboard() {
         const state = this.getState();
-        if (!state) return;
-
-        const clients = Array.isArray(state.clients) ? state.clients : [];
-        const leads   = Array.isArray(state.leads) ? state.leads : [];
-        const agents  = Array.isArray(state.agents) ? state.agents : [];
-        const packages = Array.isArray(state.packages) ? state.packages : []; // NEW: Pulls from the ledger
-
-        this._companyToCodeMap = null;
-        this._companyToPackageMap = null;
+        const clients = state.clients || [];
+        const leads = state.leads || [];
+        const packages = state.packages || [];
 
         // Index leads for fast math
         this._leadsIndexByCode = new Map();
@@ -1243,12 +1233,7 @@
             this._leadsIndexByCode.set(code, arr);
         });
 
-        // Retaining for legacy compatibility just in case
-        const idx = this.buildLeadIndex(leads);
-        this._leadsIndexByCompany = idx.byCompany;
-
         try {
-          // Pass packages into the table builder
           this.clientHealthRaw = this.normalizeClientHealthRows(clients, packages);
           this.setupFilters(this.clientHealthRaw);
           this.applyClientHealthFilters();
@@ -1257,8 +1242,6 @@
         try { this.initLeadsColumnsUI(); this.applyLeadsFilters(); } catch(e) {}
         try { fetchSalesPipeline(); } catch(e) {} // Triggers the new Sales Pipeline
         try { this.bindPassbookUI(clients); this.applyPassbookFilters(clients); } catch(e) {}
-
-        // Restoring other module setups to ensure dashboard remains functional
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
         try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
         try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
@@ -1349,6 +1332,41 @@
 
         document.getElementById("health-filter-package")?.addEventListener("change", () => this.applyClientHealthFilters());
         document.getElementById("health-search")?.addEventListener("input", () => this.applyClientHealthFilters());
+
+        const locSel = document.getElementById("health-filter-location");
+        if (locSel) {
+           const uniq = (arr) => [...new Set(arr.filter(x => String(x||"").trim() !== ""))].sort();
+           const locs = uniq(rows.map(r => r.cityState));
+           locSel.innerHTML = `<option value="all">All Locations</option>` + locs.map(l => `<option value="${l}">${l}</option>`).join("");
+           locSel.addEventListener("change", () => this.applyClientHealthFilters());
+        }
+
+        document.getElementById("health-clear")?.addEventListener("click", () => {
+            const s = document.getElementById("health-search");
+            if (s) s.value = "";
+            const pkgSel = document.getElementById("health-filter-package");
+            if (pkgSel) pkgSel.value = "ONGOING";
+            if (locSel) locSel.value = "all";
+            
+            document.querySelectorAll('.health-st-chk').forEach(chk => {
+                chk.checked = true;
+            });
+            const updateLabel = () => {
+                const count = statusPop.querySelectorAll('.health-st-chk:checked').length;
+                document.getElementById("health-status-label").textContent = `Health: ${count} selected`;
+            };
+            if(updateLabel) updateLabel();
+
+            this.applyClientHealthFilters();
+        });
+        
+        document.querySelectorAll("th.sortable").forEach(th => {
+            th.addEventListener("click", () => {
+              const key = th.getAttribute("data-sort");
+              this.toggleSort(key);
+              this.applyClientHealthFilters();
+            });
+        });
       },
 
       applyClientHealthFilters() {
@@ -1358,7 +1376,7 @@
 
         let filtered = [...this.clientHealthRaw];
 
-        // RULE 1: MUST BE PASSBOOK ACTIVE
+        // RULE 1: STRICTLY PASSBOOK 'ACTIVE' ONLY
         filtered = filtered.filter(r => r.passbookStatus === 'ACTIVE');
 
         // RULE 2: PACKAGE FILTER (Defaults to ONGOING)
@@ -1366,7 +1384,7 @@
             filtered = filtered.filter(r => r.packageStatus === pkgFilter);
         }
 
-        // RULE 3: HEALTH STATUS FILTER
+        // RULE 3: HEALTH STATUS (At risk, critical, etc.)
         if (checkedHealth.length > 0) {
             filtered = filtered.filter(r => checkedHealth.includes(r.healthStatus));
         } else {
@@ -1377,6 +1395,22 @@
           filtered = filtered.filter(r => `${r.code} ${r.roofingCompany} ${r.clientName}`.toLowerCase().includes(q));
         }
 
+        const loc = document.getElementById("health-filter-location")?.value || "all";
+        if (loc !== "all") filtered = filtered.filter(r => String(r.cityState || "") === loc);
+
+        const countLbl = document.getElementById("health-status-label");
+        if (countLbl) countLbl.textContent = `Health: ${checkedHealth.length} selected`;
+
+        const { key, dir } = this.sortState;
+        if (key) {
+          filtered.sort((a,b) => {
+            const A = a[key]; const B = b[key];
+            if (typeof A === "number" && typeof B === "number") return dir === "asc" ? A - B : B - A;
+            return dir === "asc" ? String(A).localeCompare(String(B)) : String(B).localeCompare(String(A));
+          });
+        }
+
+        this.clientHealthView = filtered;
         this.renderClientHealthTable(filtered);
       },
 
@@ -1910,6 +1944,29 @@
         return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "Today" };
       },
 
+      isQualified(st) { const s = String(st || "").toLowerCase(); return s.includes("confirm") || s.includes("approve"); },
+      isRejected(st) { const s = String(st || "").toLowerCase(); return s.includes("reject"); },
+      isCredited(st) { const s = String(st || "").toLowerCase(); return s.includes("credit"); },
+      isPendingReview(st) { const s = String(st || "").toLowerCase(); return s.includes("pending"); },
+
+      statusBadge(status) {
+        const s = String(status || "").toLowerCase();
+        let cls = "bg-gray-100 text-gray-700 border-gray-200";
+        if (s.includes("approved") || s.includes("confirmed")) cls = "bg-emerald-100 text-emerald-800 border-emerald-200";
+        if (s.includes("rejected") || s.includes("credit"))    cls = "bg-red-100 text-red-800 border-red-200";
+        return `<span class="px-2 py-1 rounded-full text-xs font-extrabold border ${cls}">${status || "—"}</span>`;
+      },
+
+      _fmtDateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; },
+      _fmtWeekKey(d) {
+        const x = new Date(d);
+        const day = x.getDay(); 
+        const diffToSat = (day - 6);
+        x.setDate(x.getDate() - diffToSat);
+        x.setHours(0,0,0,0);
+        return this._fmtDateKey(x);
+      },
+
       _buildBuckets(start, end, grain) {
         const buckets = []; cursor = new Date(start); cursor.setHours(0,0,0,0);
         if (grain === "day") { while (cursor <= end) { buckets.push(this._fmtDateKey(cursor)); cursor.setDate(cursor.getDate() + 1); } return buckets; }
@@ -2194,6 +2251,51 @@
 
         html += `</div>`;
         document.getElementById("passbook-form-body").innerHTML = html;
+      },
+
+      renderLeads(leads) {
+        const tbody = document.getElementById('leads-table-body');
+        const thead = document.getElementById('leads-table-head');
+        if(!tbody || !thead) return;
+        
+        this.initLeadsColumnsUI();
+        const visibleCols = this._leadsCols.filter(c => this._leadsVisibleCols.has(c.key));
+        
+        thead.innerHTML = `<tr>${visibleCols.map(c => `<th class="p-4">${c.label}</th>`).join("")}<th class="p-4 text-center">Actions</th></tr>`;
+        
+        tbody.innerHTML = leads.map(l => {
+          const leadId = this.getLeadField(l, ["LEAD ID", "lead_id", "ID"], "unknown");
+          
+          return `<tr class="hover:bg-gray-50 transition-colors">
+            ${visibleCols.map(c => {
+              const rawVal = this.getLeadField(l, c.keys);
+              
+              if (c.key === "status") {
+                const safeVal = String(rawVal).toUpperCase();
+                let bg = "bg-gray-100 text-gray-700";
+                if (safeVal.includes("APPROV") || safeVal.includes("CONFIRM")) bg = "bg-emerald-100 text-emerald-800 border-emerald-200";
+                if (safeVal.includes("REJECT") || safeVal.includes("CREDIT")) bg = "bg-red-100 text-red-800 border-red-200";
+                
+                return `<td class="p-4">
+                  <select onchange="updateLeadStatus('${leadId}', this.value)" class="px-2 py-1 rounded-full text-xs font-extrabold border outline-none cursor-pointer hover:shadow-md transition-all ${bg}">
+                    <option value="PENDING REVIEW" ${safeVal.includes("PENDING") ? "selected" : ""}>PENDING REVIEW</option>
+                    <option value="APPROVED" ${safeVal.includes("APPROV") || safeVal.includes("CONFIRM") ? "selected" : ""}>APPROVED</option>
+                    <option value="REJECTED" ${safeVal.includes("REJECT") ? "selected" : ""}>REJECTED</option>
+                    <option value="CREDITED" ${safeVal.includes("CREDIT") ? "selected" : ""}>CREDITED</option>
+                  </select>
+                </td>`;
+              }
+              
+              return `<td class="p-4">${rawVal}</td>`;
+            }).join("")}
+            
+            <td class="p-4 text-center">
+              <button onclick="deleteLead('${leadId}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Lead">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </td>
+          </tr>`;
+        }).join("");
       },
 
       setupPassbookFilters(clients) {
