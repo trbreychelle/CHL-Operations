@@ -1104,7 +1104,7 @@ async function fetchSalesPipeline() {
             purchaseDate: window.portal.formatDate(pkg.purchase_date) || "—",
             txn: pkg.external_package_id || "—",
             company: client.company_name || client.roofing_company || client['COMPANY NAME'] || "—",
-            poc: client.client_name || client['CLIENT NAME'] || "—",
+            poc: client.contact_person || client.client_name || "—",
             packageLeads: pkg.purchased_leads || "0",
             dealValue: valFormatted,
             dealStatus: "Closed Won", 
