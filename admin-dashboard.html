@@ -1266,7 +1266,7 @@
           // Force trim everything to kill invisible Excel spaces
           const code = String(c.code_name || c.client_code || "").trim();
           
-          // 1. Find the active/ongoing package for this client
+          // 1. Find the ongoing package for this client
           const clientPkgs = packages.filter(p => String(p.client_code || "").trim().toLowerCase() === code.toLowerCase());
           const activePkg = clientPkgs.find(p => String(p.status || "").trim().toUpperCase() === 'ACTIVE') || clientPkgs[0] || {};
 
@@ -1277,10 +1277,9 @@
           // 2. Math
           const purchased = Number(activePkg.purchased_leads) || 0;
           const leadList = this._leadsIndexByCode.get(code.toLowerCase()) || [];
-          
           const startDt = this.parseDateSafe(activePkg.package_start_date) || new Date(0);
+          
           let qualified = 0, credited = 0;
-
           leadList.forEach(l => {
               const d = this.parseDateSafe(l.date_submitted || l['Date Submitted']);
               if (d && d >= startDt) {
@@ -1297,26 +1296,14 @@
 
           // 3. Health Status Logic
           let healthStatus = String(c.status || "NOT STARTED").toUpperCase().trim(); 
-          if (!["CRITICAL", "AT RISK", "HEALTHY"].includes(healthStatus)) {
-              healthStatus = "NOT STARTED";
-          }
+          if (!["CRITICAL", "AT RISK", "HEALTHY"].includes(healthStatus)) healthStatus = "NOT STARTED";
 
           return {
-            _raw: c,
-            code: code,
-            passbookStatus: pbStatus, 
-            healthStatus: healthStatus,
-            roofingCompany: c.company_name || "—",
-            cityState: c.city_state || "—",
-            clientName: c.client_name || "—",
-            packageStatus: pkgStatus,
-            packageLabel: `${owed} / ${purchased}`,
-            owedRemaining: owed,
-            qualifiedCount: qualified,
-            creditedCount: credited,
-            purchaseDate: activePkg.purchase_date || "—",
-            leadsToday: 0, 
-            leadsYesterday: 0 
+            _raw: c, code, passbookStatus: pbStatus, healthStatus,
+            roofingCompany: c.company_name || "—", cityState: c.city_state || "—", clientName: c.client_name || "—",
+            packageStatus: pkgStatus, packageLabel: `${owed} / ${purchased}`, owedRemaining: owed,
+            qualifiedCount: qualified, creditedCount: credited, purchaseDate: activePkg.purchase_date || "—",
+            leadsToday: 0, leadsYesterday: 0 
           };
         });
       },
