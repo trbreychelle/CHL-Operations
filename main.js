@@ -45,7 +45,7 @@ class CallHammerPortal {
       passbookClientDetails: 'https://automate.callhammerleads.com/webhook/passbook-client',
       passbookClientUpdate: 'https://automate.callhammerleads.com/webhook/passbook-client-update',
       
-      // ✅ ADD THESE TWO NEW WEBHOOKS FOR LEADS
+      // ✅ LEADS SYNC
       updateLead: 'https://automate.callhammerleads.com/webhook/update-lead',
       deleteLead: 'https://automate.callhammerleads.com/webhook/delete-lead',
     };
@@ -73,7 +73,6 @@ class CallHammerPortal {
   routeByRole(roleRaw) {
     const role = String(roleRaw || '').toLowerCase();
     if (role === 'admin') return 'admin-dashboard.html';
-    // FIXED: Properly sends Team Leaders to the Sales Dashboard
     if (role === 'team_leader' || role === 'team leader' || role === 'tl') return 'salesdashboard.html';
     return 'agent-dashboard.html';
   }
@@ -98,7 +97,6 @@ class CallHammerPortal {
 
     const result = await res.json();
 
-    // Support multiple response shapes
     const user =
       result?.user ||
       result?.data?.user ||
@@ -136,7 +134,6 @@ class CallHammerPortal {
     }
   }
 
-  // ✅ Binds to YOUR index.html IDs
   bindIndexLoginForm() {
     const form = document.getElementById('loginForm');
     if (!form) return;
@@ -233,14 +230,12 @@ class CallHammerPortal {
     const isCommandCenter = document.getElementById('view-overview') !== null;
     const isOldAgentDash = document.getElementById('stat-appointments') !== null;
 
-    // Load Agent Dashboard
     if (this.currentUser && isOldAgentDash && !isCommandCenter) {
       this.fetchAllData?.();
       this.updateProfileUI?.();
       this.startMSTClock();
     }
 
-    // Load Admin OR Sales Dashboard
     if (isCommandCenter) {
       console.log("🟢 Command Center Detected! Fetching Master Data...");
       document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
@@ -271,9 +266,6 @@ class CallHammerPortal {
     else if (role === 'agent' && !onAgent) window.location.href = 'agent-dashboard.html';
   }
 
-  // ------------------------
-  // Session / Events (safe)
-  // ------------------------
   checkExistingSession() {
     try {
       const raw = localStorage.getItem('ch_session');
@@ -362,9 +354,6 @@ class CallHammerPortal {
     return isNaN(d.getTime()) ? null : d;
   }
 
-  // ------------------------
-  // ✅ Status Helpers
-  // ------------------------
   isQualifiedStatus(status) {
     const s = String(status || '').trim().toUpperCase();
     return s.includes('CONFIRM') || s.includes('APPROV');
@@ -387,9 +376,6 @@ class CallHammerPortal {
     return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
   }
 
-  // ------------------------
-  // ✅ MST + Payroll week helpers
-  // ------------------------
   toMST(date) {
     const d = new Date(date);
     const mstOffset = -7 * 60; 
@@ -438,9 +424,6 @@ class CallHammerPortal {
     return { start: prevStart, end: prevEnd };
   }
 
-  // ------------------------
-  // ✅ ADMIN ANALYTICS
-  // ------------------------
   getLeadDateValue(lead) {
     return this.getAny(lead, ['lead_date', 'Lead Date', 'DATE', 'Date', 'created_at', 'Created At', 'timestamp', 'Timestamp', 'TimeStamp', 'Submitted At', 'submitted_at', 'Appointment Date', 'appointment_date', 'Date Submitted', 'date_submitted', 'Submission Date', 'submission_date'], '');
   }
@@ -541,9 +524,6 @@ class CallHammerPortal {
     this.setMetricByLabel('CANCELLATION RATE', `${cancelRate}%`);
   }
 
-  // ------------------------
-  // ✅ AGENT DATA FETCHING
-  // ------------------------
   async fetchAllData() {
     if (!this.currentUser || !this.currentUser.email) return;
 
