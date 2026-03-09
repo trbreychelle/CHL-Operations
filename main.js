@@ -722,6 +722,17 @@ class CallHammerPortal {
               console.error("Supabase leads fetch error:", error);
           }
       }
+
+      // FETCH PACKAGES TABLE
+      let supaPackages = [];
+      if (window.supaClient) {
+          const { data, error } = await window.supaClient.from('packages').select('*');
+          if (!error && data) {
+              supaPackages = data;
+          } else {
+              console.error("Supabase packages fetch error:", error);
+          }
+      }
       
       const rawLeads = supaLeads.length > 0 ? supaLeads : (dataRoot.leads || dataRoot.Leads || result.leads || []);
 
@@ -730,9 +741,9 @@ class CallHammerPortal {
         this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
         this.adminState.agents = Array.isArray(rawAgents) ? rawAgents : [];
         this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
-        this.adminState.rawPackages = Array.isArray(rawPackages) ? rawPackages : [];
+        this.adminState.rawPackages = supaPackages.length > 0 ? supaPackages : (Array.isArray(rawPackages) ? rawPackages : []);
       } else {
-        this.normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages);
+        this.normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, supaPackages.length > 0 ? supaPackages : rawPackages);
       }
 
       console.log('✅ Admin State Ready. Triggering render...');
