@@ -978,21 +978,26 @@ const supaClient = window.supabase ? window.supabase.createClient(supabaseUrl, s
 // PASSBOOK CONTROLS (ADMIN & SALES)
 // ==========================================
 async function fetchAdminClients(status = 'Active') {
-      const state = window.portal?.adminState || {};
-      const clients = state.clients || [];
-      
-      let filtered = clients;
-      if (status !== 'All') {
-          filtered = clients.filter(c => {
-              const st = String(c.client_status || c.status || c.STATUS || c['Client Status'] || '').trim().toLowerCase();
-              return st === String(status).toLowerCase();
-          });
-      }
-      
-      if (window.Admin && typeof window.Admin.applyPassbookFilters === 'function') {
-          window.Admin.applyPassbookFilters(filtered);
-      }
-  }
+    if (!supaClient) return;
+    
+    // Fetch ALL clients first to beat Supabase's strict case-sensitivity
+    const { data: clients, error } = await supaClient.from('clients').select('*');
+    if (error) return console.error("Error fetching clients:", error);
+    
+    let filtered = clients || [];
+    
+    // Javascript filter ignores Capitalization and invisible spaces
+    if (status !== 'All') {
+        filtered = filtered.filter(c => {
+            const dbStatus = String(c.client_status || c.status || '').trim().toLowerCase();
+            return dbStatus === String(status).toLowerCase();
+        });
+    }
+    
+    if (window.Admin && typeof window.Admin.applyPassbookFilters === 'function') {
+        window.Admin.applyPassbookFilters(filtered);
+    }
+}
 
 async function fetchSalesClients(status = 'Active') {
     if (!supaClient) return;
