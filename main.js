@@ -1030,13 +1030,14 @@ async function fetchSalesPipeline() {
     const clients = state.clients || [];
     const leads = state.leads || [];
 
-    const leadsByCode = new Map();
+    // Connect leads by COMPANY NAME
+    const leadsByCompany = new Map();
     leads.forEach(l => {
-        const code = String(l.client_code || l.code_name || l['Client Code'] || l['CODE NAME'] || "").toLowerCase().trim();
-        if (!code) return;
-        const arr = leadsByCode.get(code) || [];
+        const comp = String(l.company_name || l['Company Name'] || "").toLowerCase().trim();
+        if (!comp) return;
+        const arr = leadsByCompany.get(comp) || [];
         arr.push(l);
-        leadsByCode.set(code, arr);
+        leadsByCompany.set(comp, arr);
     });
 
     const tbody = document.getElementById('admin-sales-table-body');
@@ -1058,24 +1059,25 @@ async function fetchSalesPipeline() {
 
     let rows = packages.map(pkg => {
         const code = String(pkg.client_code || "").trim();
-        
-        // Bulletproof client matching
-        const client = clients.find(c => String(c.code_name || c.client_code || c.CODE || c['CODE NAME'] || "").trim().toLowerCase() === code.toLowerCase()) || {};
+        const client = clients.find(c => String(c.code_name || c.client_code || "").trim().toLowerCase() === code.toLowerCase()) || {};
         
         let pStatus = String(pkg.status || "COMPLETED").toUpperCase();
         if (pStatus === 'ACTIVE') pStatus = 'ONGOING';
 
+        const compKey = String(client.company_name || "").toLowerCase().trim();
         const pDt = new Date(pkg.purchase_date || 0);
-        let validLeads = (leadsByCode.get(code.toLowerCase()) || []).filter(l => {
+        
+        let validLeads = (leadsByCompany.get(compKey) || []).filter(l => {
             const d = window.portal.parseDateSafe(l.date_submitted || l['Date Submitted']);
             return d && d >= pDt;
-        }).sort((a, b) => window.portal.parseDateSafe(a.date_submitted || a['Date Submitted']) - window.portal.parseDateSafe(b.date_submitted || b['Date Submitted']));
+        }).sort((a, b) => window.portal.parseDateSafe(a.date_submitted) - window.portal.parseDateSafe(b.date_submitted));
 
         let dateStarted = "—", dateEnded = "—";
         let qualCount = 0;
         const purchasedAmount = Number(pkg.purchased_leads) || 0;
 
         if (validLeads.length > 0) {
+
             dateStarted = window.portal.formatDate(validLeads[0].date_submitted || validLeads[0]['Date Submitted']);
         }
 
