@@ -1262,38 +1262,82 @@
       },
 
       normalizeClientHealthRows(clients, packages) {
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const yesterday = new Date();
+        yesterday.setDate(now.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+
         return clients.map(c => {
-          // Pull exact columns: contact_person and area
           const code = String(c.code_name || c.client_code || "").trim();
           const company = String(c.company_name || c.roofing_company || "—").trim();
           const clientName = String(c.contact_person || c.client_name || "—").trim();
           const cityState = String(c.area || c.city_state || "—").trim();
           
-          // 1. Find the active/ongoing package for this client
           const clientPkgs = packages.filter(p => String(p.client_code || "").trim().toLowerCase() === code.toLowerCase());
           const activePkg = clientPkgs.find(p => String(p.status || "").trim().toUpperCase() === 'ACTIVE') || clientPkgs[0] || {};
 
           let pkgStatus = String(activePkg.status || "COMPLETED").toUpperCase().trim();
           if (pkgStatus === 'ACTIVE') pkgStatus = 'ONGOING';
 
-          // 2. Math - MATCH LEADS BY COMPANY NAME
-          const purchased = Number(activePkg.purchased_leads) || 0;
+          // --- LEAD MATH SECTION ---
           const compKey = company.toLowerCase();
           const leadList = this._leadsIndexByCompany?.get(compKey) || [];
           
           const startDt = this.parseDateSafe(activePkg.package_start_date) || new Date(0);
-          let qualified = 0, credited = 0;
+          
+          let qualified = 0, credited = 0, todayCount = 0, yesterdayCount = 0;
+          let lastLeadDate = null;
 
           leadList.forEach(l => {
               const dStr = l.date_submitted || l['Date Submitted'] || l.created_at;
               const d = this.parseDateSafe(dStr);
-              // Only count leads submitted AFTER the package start date
-              if (d && d >= startDt) {
-                  const st = String(l.status || l.STATUS || "").toLowerCase();
-                  if (st.includes('approv') || st.includes('confirm')) qualified++;
-                  else if (st.includes('credit') || st.includes('reject')) credited++;
+              
+              if (d) {
+                  // Track absolute last lead received for this company
+                  if (!lastLeadDate || d > lastLeadDate) lastLeadDate = d;
+
+                  // Daily Counters (formatted YYYY-MM-DD for comparison)
+                  const compareStr = d.toISOString().split('T')[0];
+                  if (compareStr === todayStr) todayCount++;
+                  if (compareStr === yesterdayStr) yesterdayCount++;
+
+                  // Only count towards package if submitted AFTER package start date
+                  if (d >= startDt) {
+                      const st = String(l.status || l.STATUS || "").toUpperCase();
+                      if (st.includes('APPROV') || st.includes('CONFIRM')) qualified++;
+                      else if (st.includes('CREDIT') || st.includes('REJECT')) credited++;
+                  }
               }
           });
+
+          const purchased = Number(activePkg.purchased_leads) || 0;
+          const owed = Math.max(purchased - qualified, 0);
+          const rawStat = c.client_status || c.status || "INACTIVE";
+          
+          let healthStatus = String(rawStat).toUpperCase().trim(); 
+          if (!["CRITICAL", "AT RISK", "HEALTHY"].includes(healthStatus)) healthStatus = "NOT STARTED";
+
+          return {
+            _raw: c,
+            code: code,
+            passbookStatus: String(rawStat).toUpperCase().trim(),
+            healthStatus: healthStatus,
+            roofingCompany: company,
+            cityState: cityState,
+            clientName: clientName,
+            packageStatus: pkgStatus,
+            packageLabel: `${owed} / ${purchased}`,
+            owedRemaining: owed,
+            qualifiedCount: qualified,
+            creditedCount: credited,
+            purchaseDate: activePkg.purchase_date || "—",
+            leadsToday: todayCount,
+            leadsYesterday: yesterdayCount,
+            lastLead: lastLeadDate ? window.portal.formatDate(lastLeadDate) : "—"
+          };
+        });
+      },
 
           const owed = Math.max(purchased - qualified, 0);
           
