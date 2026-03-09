@@ -1276,6 +1276,7 @@
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
         try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
         
+        // ✅ Pull Passbook directly from Supabase to prevent "undefined" ID errors
         try {
           if (window.fetchAdminClients) {
             const currentFilter = document.getElementById('clientStatusFilter')?.value || 'Active';
