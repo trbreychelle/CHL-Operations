@@ -1226,7 +1226,7 @@
         // Index leads by COMPANY NAME (since leads_raw doesn't have client_code)
         this._leadsIndexByCompany = new Map();
         leads.forEach(l => {
-            const comp = String(l.company_name || l['Company Name'] || "").toLowerCase().trim();
+            const comp = String(l.company_name || l['Company Name'] || l.roofing_company || "").toLowerCase().trim();
             if (!comp) return;
             const arr = this._leadsIndexByCompany.get(comp) || [];
             arr.push(l);
@@ -1263,11 +1263,11 @@
 
       normalizeClientHealthRows(clients, packages) {
         return clients.map(c => {
-          // Check all possible variations of column names
-          const code = String(c.code_name || c.client_code || c.CODE || c['CODE NAME'] || "").trim();
-          const company = String(c.company_name || c.roofing_company || c['COMPANY NAME'] || "—").trim();
-          const clientName = String(c.client_name || c['CLIENT NAME'] || "—").trim();
-          const cityState = String(c.city_state || c['CITY STATE'] || "—").trim();
+          // Pull exact columns: contact_person and area
+          const code = String(c.code_name || c.client_code || "").trim();
+          const company = String(c.company_name || c.roofing_company || "—").trim();
+          const clientName = String(c.contact_person || c.client_name || "—").trim();
+          const cityState = String(c.area || c.city_state || "—").trim();
           
           // 1. Find the active/ongoing package for this client
           const clientPkgs = packages.filter(p => String(p.client_code || "").trim().toLowerCase() === code.toLowerCase());
@@ -1276,15 +1276,18 @@
           let pkgStatus = String(activePkg.status || "COMPLETED").toUpperCase().trim();
           if (pkgStatus === 'ACTIVE') pkgStatus = 'ONGOING';
 
-          // 2. Math
+          // 2. Math - MATCH LEADS BY COMPANY NAME
           const purchased = Number(activePkg.purchased_leads) || 0;
-          const compKey = String(c.company_name || c.roofing_company || "").toLowerCase().trim();
-const leadList = this._leadsIndexByCompany.get(compKey) || [];
-          const startDt = this.parseDateSafe(activePkg.package_start_date) || new Date(0);
+          const compKey = company.toLowerCase();
+          const leadList = this._leadsIndexByCompany?.get(compKey) || [];
           
+          const startDt = this.parseDateSafe(activePkg.package_start_date) || new Date(0);
           let qualified = 0, credited = 0;
+
           leadList.forEach(l => {
-              const d = this.parseDateSafe(l.date_submitted || l['Date Submitted']);
+              const dStr = l.date_submitted || l['Date Submitted'] || l.created_at;
+              const d = this.parseDateSafe(dStr);
+              // Only count leads submitted AFTER the package start date
               if (d && d >= startDt) {
                   const st = String(l.status || l.STATUS || "").toLowerCase();
                   if (st.includes('approv') || st.includes('confirm')) qualified++;
@@ -1780,9 +1783,9 @@ const leadList = this._leadsIndexByCompany.get(compKey) || [];
       },
 
       extractRoofingCompany(c) { return this.pick(c, ["company_name", "roofing_company", "Company Name"], "—"); },
-      extractCityState(c) { return this.pick(c, ["city_state", "Location", "location"], "—"); },
+      extractCityState(c) { return this.pick(c, ["area", "city_state", "Location"], "—"); },
       extractClientName(c) { return this.pick(c, ["contact_person", "client_name", "Client Name"], "—"); },
-      extractCode(c) { return this.pick(c, ["client_code", "code_name", "Client Code"], "N/A"); },
+      extractCode(c) { return this.pick(c, ["code_name", "client_code", "Client Code"], "N/A"); },
 
       buildLeadIndex(leads) {
         const byCompany = new Map();
