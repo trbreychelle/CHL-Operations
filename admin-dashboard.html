@@ -120,7 +120,7 @@
     </div>
   </aside>
 
-  <main class="flex-1 flex-col h-screen overflow-hidden relative">
+  <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
     <div class="flex-1 overflow-y-auto p-6 lg:p-8" id="main-scroll">
 
       <div id="view-overview" class="view-section active">
@@ -198,12 +198,19 @@
 
               <div class="relative min-w-[170px]">
                 <button id="health-status-btn" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white flex justify-between items-center hover:bg-gray-50">
-                  <span id="health-status-label" class="font-bold text-gray-700">Packages: 1 selected</span>
+                  <span id="health-status-label" class="font-bold text-gray-700">Status: Active</span>
                   <i class="fa-solid fa-chevron-down text-gray-400 text-xs"></i>
                 </button>
                 <div id="health-status-popover" class="hidden absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-xl z-50 p-3 space-y-2 max-h-64 overflow-y-auto">
                   </div>
               </div>
+
+              <select id="health-filter-package" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[190px]">
+                <option value="all">All Package Status</option>
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="PAUSE">PAUSE</option>
+                <option value="REFUNDED">REFUNDED</option>
+              </select>
 
               <select id="health-filter-location" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[190px]">
                 <option value="all">All Locations</option>
@@ -1218,7 +1225,6 @@
         const clients = Array.isArray(state.clients) ? state.clients : [];
         const leads   = Array.isArray(state.leads) ? state.leads : [];
         const agents  = Array.isArray(state.agents) ? state.agents : [];
-        const packages = Array.isArray(state.packages) ? state.packages : []; // NEW: Pulls from the ledger
 
         this._companyToCodeMap = null;
         this._companyToPackageMap = null;
@@ -1228,8 +1234,7 @@
         this._leadsIndexByCode = idx.byCode;
 
         try {
-          // Pass packages into the table builder
-          this.clientHealthRaw = this.normalizeClientHealthRows(clients, packages);
+          this.clientHealthRaw = this.normalizeClientHealthRows(clients);
           this.setupFilters(this.clientHealthRaw);
           this.applyClientHealthFilters();
         } catch(e) {}
@@ -1620,52 +1625,9 @@
         ], 0)) || 0;
       },
 
-      refreshDashboard() {
-        const state = this.getState();
-        if (!state) return;
-
-        const clients = Array.isArray(state.clients) ? state.clients : [];
-        const leads   = Array.isArray(state.leads) ? state.leads : [];
-        const agents  = Array.isArray(state.agents) ? state.agents : [];
-        const packages = Array.isArray(state.packages) ? state.packages : []; // NEW: Pulls from the ledger
-
-        this._companyToCodeMap = null;
-        this._companyToPackageMap = null;
-
-        const idx = this.buildLeadIndex(leads);
-        this._leadsIndexByCompany = idx.byCompany;
-        this._leadsIndexByCode = idx.byCode;
-
-        try {
-          // Pass packages into the table builder
-          this.clientHealthRaw = this.normalizeClientHealthRows(clients, packages);
-          this.setupFilters(this.clientHealthRaw);
-          this.applyClientHealthFilters();
-        } catch(e) {}
-
-        try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
-        try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
-        
-        try {
-          this.setupPassbookFilters(clients);
-          this.bindPassbookUI(clients);
-          this.applyPassbookFilters(clients);
-        } catch(e) {}
-        
-        try {
-          this.initLeadsColumnsUI();
-          this.setupLeadFilters(leads);
-          this.bindLeadsMasterEvents();
-          this.applyLeadsFilters();
-        } catch(e) {}
-
-        try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
-        try { this.bindPayrollUI(); this.renderPayrollFinance(); } catch(e) {}
-      },
-
-      normalizeClientHealthRows(clients, packages) {
+      normalizeClientHealthRows(clients) {
         return (clients || []).map(c => {
-          const rawStatus = this.pick(c, ["status","Client Status","CLIENT STATUS","Status","STATUS", "client_status"], "UNKNOWN");
+          const rawStatus = this.pick(c, ["status","Client Status","CLIENT STATUS","Status","STATUS"], "UNKNOWN");
           const clientStatus = this.normalizeClientStatus(rawStatus);
 
           const roofingCompany = this.extractRoofingCompany(c);
@@ -1677,15 +1639,14 @@
           const leadsToday = Number(this.pick(c, ["leads_today","Leads Today"], 0)) || 0;
           const leadsYesterday = Number(this.pick(c, ["leads_yesterday","Leads Yesterday"], 0)) || 0;
 
-          // NEW: Find the latest active package for this specific client from the Ledger
-          const clientPackages = packages.filter(p => String(p.client_code).toLowerCase() === String(code).toLowerCase());
-          const activePackages = clientPackages.filter(p => String(p.status).toUpperCase() === 'ACTIVE');
-          const currentPackage = activePackages.length > 0 ? activePackages[0] : (clientPackages[0] || {});
+          const purchased = this.getPurchasedLeads(c);
+          let owed = 0; 
+          let pkgLabel = `0 / ${purchased}`;
+          let pkgRatio = 0;
 
-          const purchased = Number(currentPackage.purchased_leads) || this.getPurchasedLeads(c);
-          const packageStatusRaw = currentPackage.status || "—";
+          const purchaseDate = this.pick(c, ["purchase_date","Purchase Date","PURCHASE DATE"], "—");
+          const packageStatusRaw = this.pick(c, ["package_status","Package Status","PACKAGE STATUS"], "—");
           const packageStatus = this.normalizePackageStatus(packageStatusRaw);
-          const purchaseDate = currentPackage.purchase_date || this.pick(c, ["purchase_date","Purchase Date","PURCHASE DATE"], "—");
 
           const codeKey = this.normalizeCode(code);
           const companyKey = this.normalizeCompanyName(roofingCompany);
@@ -1694,16 +1655,15 @@
           const list = this._leadsIndexByCode?.get(codeKey) || this._leadsIndexByCompany?.get(companyKey) || [];
           const counts = this.countQualifiedCreditedFrom(list, pDt);
           
-          const owed = this.computeOwedRemaining(purchased, counts.qualified);
-          const pkgLabel = `${owed} / ${purchased}`;
-          const pkgRatio = purchased === 0 ? 0 : (owed / purchased);
+          owed = this.computeOwedRemaining(purchased, counts.qualified);
+          pkgLabel = `${owed} / ${purchased}`;
+          pkgRatio = purchased === 0 ? 0 : (owed / purchased);
 
           const soldBy = this.getSoldByForClient(code);
 
           return {
             _raw: c,
             status: clientStatus,
-            passbookStatus: String(c.client_status || "ACTIVE").toUpperCase(), // Used to enforce the Active rule
             code,
             roofingCompany,
             cityState,
@@ -1725,69 +1685,74 @@
       },
 
       setupFilters(rows) {
+        const pkgSel = document.getElementById("health-filter-package");
         const locSel = document.getElementById("health-filter-location");
+
+        // ✅ MULTI-SELECT STATUS POPULATION
         const statusBtn = document.getElementById("health-status-btn");
         const statusPop = document.getElementById("health-status-popover");
-
-        if (statusPop && statusBtn && !this._firstLoadDone) {
+        if (statusPop && statusBtn) {
+            const prevChecked = Array.from(statusPop.querySelectorAll('input:checked')).map(cb => cb.value);
+            const defaults = this._firstLoadDone ? prevChecked : ["ACTIVE", "CRITICAL", "AT RISK", "HEALTHY"];
             this._firstLoadDone = true;
-            
-            // Replaced Health Status with Package Status per your requirements
-            const statuses = ["ACTIVE", "PAUSE", "COMPLETED", "REFUNDED"];
-            
+
+            const alwaysStatuses = ["ACTIVE", "PAUSE", "BLACKLISTED", "INACTIVE", "CRITICAL", "AT RISK", "HEALTHY", "NOT STARTED"];
+            const foundStatuses = [...new Set(rows.map(r => r.status))].filter(Boolean);
+            const statuses = [...new Set([...alwaysStatuses, ...foundStatuses])].sort();
+
             statusPop.innerHTML = statuses.map(s => {
-                const isChecked = s === "ACTIVE" ? 'checked' : '';
+                const isChecked = defaults.includes(s) ? 'checked' : '';
                 return `<label class="flex items-center text-sm cursor-pointer p-2 hover:bg-gray-50 rounded"><input type="checkbox" value="${s}" class="health-st-chk mr-2" ${isChecked}> ${s}</label>`;
             }).join("");
 
             const updateLabel = () => {
                 const count = statusPop.querySelectorAll('.health-st-chk:checked').length;
-                document.getElementById("health-status-label").textContent = `Packages: ${count} selected`;
+                document.getElementById("health-status-label").textContent = `Status: ${count} selected`;
             };
             updateLabel();
 
             statusPop.querySelectorAll('.health-st-chk').forEach(chk => {
                 chk.addEventListener('change', () => { updateLabel(); this.applyClientHealthFilters(); });
             });
-            statusBtn.addEventListener("click", (e) => { 
-                e.preventDefault(); 
-                statusPop.classList.toggle("hidden"); 
-            });
-            document.addEventListener("click", (e) => {
-                if (!statusPop.contains(e.target) && e.target !== statusBtn && !statusBtn.contains(e.target)) {
-                    statusPop.classList.add("hidden");
-                }
-            });
         }
 
+        const prevLoc = locSel ? locSel.value : "all";
         if (locSel) {
-           const uniq = (arr) => [...new Set(arr.filter(x => String(x||"").trim() !== ""))].sort();
+           const uniq = (arr) => [...new Set(arr.filter(x => String(x||"").trim() !== ""))].sort((a,b)=>String(a).localeCompare(String(b)));
            const locs = uniq(rows.map(r => r.cityState));
-           locSel.innerHTML = `<option value="all">All Locations</option>` + locs.map(l => `<option value="${l}">${l}</option>`).join("");
+           locSel.innerHTML = `<option value="all">All Locations</option>` + locs.map(l => `<option value="${String(l).replace(/"/g,'&quot;')}">${l}</option>`).join("");
+           
+           const locExists = Array.from(locSel.options).some(o => o.value === prevLoc);
+           locSel.value = locExists ? prevLoc : "all";
         }
 
         if (!this._filtersBound) {
           this._filtersBound = true;
-          document.getElementById("health-search")?.addEventListener("input", () => this.applyClientHealthFilters());
-          locSel?.addEventListener("change", () => this.applyClientHealthFilters());
+          document.getElementById("health-search").addEventListener("input", () => this.applyClientHealthFilters());
+          if (pkgSel) pkgSel.addEventListener("change", () => this.applyClientHealthFilters());
+          if (locSel) locSel.addEventListener("change", () => this.applyClientHealthFilters());
 
-          document.getElementById("health-clear")?.addEventListener("click", () => {
-            const s = document.getElementById("health-search");
-            if (s) s.value = "";
+          if (statusBtn && statusPop) {
+              statusBtn.addEventListener("click", (e) => { e.preventDefault(); statusPop.classList.toggle("hidden"); });
+              document.addEventListener("click", (e) => {
+                  if (!statusPop.contains(e.target) && e.target !== statusBtn && !statusBtn.contains(e.target)) {
+                      statusPop.classList.add("hidden");
+                  }
+              });
+          }
+
+          document.getElementById("health-clear").addEventListener("click", () => {
+            document.getElementById("health-search").value = "";
+            if (pkgSel) pkgSel.value = "all";
             if (locSel) locSel.value = "all";
-            
+            // Reset to defaults
             document.querySelectorAll('.health-st-chk').forEach(chk => {
-                chk.checked = chk.value === "ACTIVE";
+                chk.checked = ["ACTIVE", "CRITICAL", "AT RISK", "HEALTHY"].includes(chk.value);
             });
-            const updateLabel = () => {
-                const count = statusPop.querySelectorAll('.health-st-chk:checked').length;
-                document.getElementById("health-status-label").textContent = `Packages: ${count} selected`;
-            };
-            if(updateLabel) updateLabel();
-
+            document.getElementById("health-status-label").textContent = `Status: 4 selected`;
             this.applyClientHealthFilters();
           });
-          
+
           document.querySelectorAll("th.sortable").forEach(th => {
             th.addEventListener("click", () => {
               const key = th.getAttribute("data-sort");
@@ -1798,34 +1763,38 @@
         }
       },
 
+      toggleSort(key) {
+        if (this.sortState.key === key) { this.sortState.dir = this.sortState.dir === "asc" ? "desc" : "asc"; } 
+        else { this.sortState.key = key; this.sortState.dir = "asc"; }
+        document.querySelectorAll(".sort-icon").forEach(i => i.textContent = "↕");
+        const icon = document.getElementById(`sort-${key}`);
+        if (icon) icon.textContent = this.sortState.dir === "asc" ? "↑" : "↓";
+      },
+
       applyClientHealthFilters() {
-        const searchEl = document.getElementById("health-search");
-        const q = searchEl ? searchEl.value.toLowerCase().trim() : "";
+        const q = String(document.getElementById("health-search").value || "").toLowerCase().trim();
+        const pkg = document.getElementById("health-filter-package")?.value || "all";
         const loc = document.getElementById("health-filter-location")?.value || "all";
-        
-        const checkedBoxes = Array.from(document.querySelectorAll('.health-st-chk:checked'));
-        const checkedPkgStatuses = checkedBoxes.map(cb => cb.value.toUpperCase());
+
+        const checkedStatuses = Array.from(document.querySelectorAll('.health-st-chk:checked')).map(cb => cb.value.toUpperCase());
 
         let filtered = [...this.clientHealthRaw];
 
-        // 1. STRICTLY FILTER OUT ANYONE NOT 'ACTIVE' IN PASSBOOK
-        filtered = filtered.filter(r => r.passbookStatus === 'ACTIVE');
-
-        // 2. FILTER BY CHECKED PACKAGE STATUSES (Defaults to Active)
-        if (checkedPkgStatuses.length > 0) {
-            filtered = filtered.filter(r => checkedPkgStatuses.includes(String(r.packageStatus).toUpperCase()));
+        if (checkedStatuses.length > 0) {
+            filtered = filtered.filter(r => checkedStatuses.includes(String(r.status).toUpperCase()));
         } else {
             filtered = [];
         }
 
+        if (pkg !== "all") filtered = filtered.filter(r => String(r.packageStatus || "").toUpperCase() === pkg);
         if (loc !== "all") filtered = filtered.filter(r => String(r.cityState || "") === loc);
-        
-        if (q) {
-          filtered = filtered.filter(r => `${r.code} ${r.roofingCompany} ${r.clientName}`.toLowerCase().includes(q));
-        }
 
-        const countLbl = document.getElementById("health-status-label");
-        if (countLbl) countLbl.textContent = `Packages: ${checkedPkgStatuses.length} selected`;
+        if (q) {
+          filtered = filtered.filter(r => {
+            const hay = `${r.code} ${r.roofingCompany} ${r.clientName}`.toLowerCase();
+            return hay.includes(q);
+          });
+        }
 
         const { key, dir } = this.sortState;
         if (key) {
@@ -1838,6 +1807,61 @@
 
         this.clientHealthView = filtered;
         this.renderClientHealthTable(filtered);
+      },
+
+      renderClientHealthTable(rows) {
+        const tbody = document.getElementById("client-health-body");
+        if (!rows.length) {
+          tbody.innerHTML = `<tr><td colspan="15" class="p-6 text-center text-gray-400 italic">No results found.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = rows.map(r => {
+          const dotClass = this.statusDotClass(r.status);
+          
+          // ✅ Cancellation Rate Math
+          const totalQC = r.qualifiedCount + r.creditedCount;
+          const cancelRate = totalQC > 0 ? Math.round((r.creditedCount / totalQC) * 100) : 0;
+
+          // ✅ Package Status Color
+          let pkgColor = "bg-gray-100 text-gray-700";
+          if (r.packageStatus === 'ACTIVE') pkgColor = "bg-blue-100 text-blue-800";
+          if (r.packageStatus === 'COMPLETED') pkgColor = "bg-purple-100 text-purple-800";
+          if (r.packageStatus === 'REFUNDED') pkgColor = "bg-orange-100 text-orange-800";
+
+          return `
+            <tr class="hover:bg-gray-50">
+              <td class="p-4">
+                <div class="status-container">
+                  <span class="status-dot ${dotClass}"></span>
+                  <span class="tooltip-text"><b>${r.status}</b></span>
+                </div>
+              </td>
+              <td class="p-4 text-gray-700 font-semibold">${r.code || "N/A"}</td>
+              <td class="p-4 font-bold text-gray-900 max-w-[260px] truncate" title="${r.roofingCompany}">${r.roofingCompany}</td>
+              <td class="p-4 text-gray-600 max-w-[180px] truncate" title="${r.cityState}">${r.cityState}</td>
+              <td class="p-4 text-center text-gray-900 font-bold">${r.packageLabel}</td>
+              <td class="p-4 text-center text-blue-500 font-bold">${r.qualifiedCount}</td>
+              <td class="p-4 text-center text-purple-500 font-bold">${r.creditedCount}</td>
+              <td class="p-4 text-center text-gray-700 font-bold">${cancelRate}%</td>
+              <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsToday}</td>
+              <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsYesterday}</td>
+              
+              <td class="p-4">
+                <select onchange="window.updateClientPackageStatus('${r.code}', this.value)" class="px-2 py-1 rounded text-[10px] font-extrabold border outline-none cursor-pointer shadow-sm ${pkgColor}">
+                    <option value="Active" ${r.packageStatus === 'ACTIVE' ? 'selected' : ''}>ACTIVE</option>
+                    <option value="Pause" ${r.packageStatus === 'PAUSE' ? 'selected' : ''}>PAUSE</option>
+                    <option value="Completed" ${r.packageStatus === 'COMPLETED' ? 'selected' : ''}>COMPLETED</option>
+                    <option value="Refunded" ${r.packageStatus === 'REFUNDED' ? 'selected' : ''}>REFUNDED</option>
+                </select>
+              </td>
+
+              <td class="p-4 text-gray-700 max-w-[260px] truncate" title="${r.clientName}">${r.clientName}</td>
+              <td class="p-4 text-gray-500">${r.purchaseDate}</td>
+              <td class="p-4 text-gray-500">${r.lastLead}</td>
+            </tr>
+          `;
+        }).join("");
       },
 
       computeTotalOwedLeads(packageStatus = "all") {
@@ -1892,8 +1916,9 @@
           const x = new Date(d);
           const day = x.getDay(); 
           const diffToSat = (day - 6);
-          x.setDate(x.getDate() - diffToSat);
-          x.setHours(0,0,0,0);
+          const start = new Date(x);
+          start.setDate(start.getDate() - diffToSat);
+          start.setHours(0,0,0,0);
           const end = new Date(start);
           end.setDate(end.getDate() + 6); 
           end.setHours(23,59,59,999);
