@@ -1219,44 +1219,39 @@
 
       refreshDashboard() {
         const state = this.getState();
+        if (!state) return;
+
         const clients = state.clients || [];
         const leads = state.leads || [];
         const packages = state.packages || [];
 
-        // Index leads by COMPANY NAME (leads_raw table source of truth)
-       this._leadsIndexByCompany = new Map();
+        // 1. Index leads by COMPANY NAME for Health Monitor math
+        this._leadsIndexByCompany = new Map();
         leads.forEach(l => {
-            // Check every possible variation of the company column name
-            const compRaw = l.company_name || l['Company Name'] || l.roofing_company || l['ROOFING COMPANY'] || "";
-            const comp = String(compRaw).toLowerCase().trim();
+            const comp = String(l.company_name || l['Company Name'] || "").toLowerCase().trim();
             if (!comp) return;
             const arr = this._leadsIndexByCompany.get(comp) || [];
             arr.push(l);
             this._leadsIndexByCompany.set(comp, arr);
         });
 
-        // Retaining for legacy compatibility just in case
-        const idx = this.buildLeadIndex(leads);
-        this._leadsIndexByCompany = idx.byCompany;
-
+        // 2. Trigger the table builds
         try {
-          // Pass packages into the table builder
           this.clientHealthRaw = this.normalizeClientHealthRows(clients, packages);
           this.setupFilters(this.clientHealthRaw);
           this.applyClientHealthFilters();
         } catch(e) { console.error("CHM Error:", e); }
 
+        // 3. Keep other dashboard modules alive
         try { this.initLeadsColumnsUI(); this.applyLeadsFilters(); } catch(e) {}
-        try { fetchSalesPipeline(); } catch(e) {} // Triggers the new Sales Pipeline
+        try { fetchSalesPipeline(); } catch(e) {} 
         try { this.bindPassbookUI(clients); this.applyPassbookFilters(clients); } catch(e) {}
-
-        // Restoring other module setups to ensure dashboard remains functional
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
         try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
         try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
         try { this.bindPayrollUI(); this.renderPayrollFinance(); } catch(e) {}
       },
-
+      
       parseDateSafe(value) {
         if (!value) return null;
         const dt = new Date(value);
@@ -1284,7 +1279,7 @@
 
          // --- LEAD MATH SECTION ---
           const compKey = company.toLowerCase().trim();
-          const compKey = this.normalizeCompanyName(company);
+const leadList = this._leadsIndexByCompany?.get(compKey) || [];
           
           const startDt = this.parseDateSafe(activePkg.package_start_date) || new Date(0);
           
