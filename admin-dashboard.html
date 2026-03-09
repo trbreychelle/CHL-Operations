@@ -1223,14 +1223,14 @@
         const leads = state.leads || [];
         const packages = state.packages || [];
 
-        // Index leads for fast math
-        this._leadsIndexByCode = new Map();
+        // Index leads by COMPANY NAME (since leads_raw doesn't have client_code)
+        this._leadsIndexByCompany = new Map();
         leads.forEach(l => {
-            const code = String(l.client_code || l.code_name || l['Client Code'] || l['CODE NAME'] || "").toLowerCase().trim();
-            if (!code) return;
-            const arr = this._leadsIndexByCode.get(code) || [];
+            const comp = String(l.company_name || l['Company Name'] || "").toLowerCase().trim();
+            if (!comp) return;
+            const arr = this._leadsIndexByCompany.get(comp) || [];
             arr.push(l);
-            this._leadsIndexByCode.set(code, arr);
+            this._leadsIndexByCompany.set(comp, arr);
         });
 
         // Retaining for legacy compatibility just in case
@@ -1278,7 +1278,8 @@
 
           // 2. Math
           const purchased = Number(activePkg.purchased_leads) || 0;
-          const leadList = this._leadsIndexByCode.get(code.toLowerCase()) || [];
+          const compKey = String(c.company_name || c.roofing_company || "").toLowerCase().trim();
+const leadList = this._leadsIndexByCompany.get(compKey) || [];
           const startDt = this.parseDateSafe(activePkg.package_start_date) || new Date(0);
           
           let qualified = 0, credited = 0;
@@ -1778,10 +1779,10 @@
         return "st-new";
       },
 
-      extractRoofingCompany(c) { return this.pick(c, ["roofing_company","Roofing Company","ROOFING COMPANY","Company Name","COMPANY NAME"], "—"); },
-      extractCityState(c) { return this.pick(c, ["city_state","CITY STATE","CITY, STATE","City, State","City State","Location","location"], "—"); },
-      extractClientName(c) { return this.pick(c, ["client_name","CLIENT NAME","Client Name","clientName","Client","CLIENT"], "—"); },
-      extractCode(c) { return this.pick(c, ["code_name","CODE NAME","Code Name","codeName","CODE","code","Client Code","CLIENT CODE","Client ID","ClientID"], "N/A"); },
+      extractRoofingCompany(c) { return this.pick(c, ["company_name", "roofing_company", "Company Name"], "—"); },
+      extractCityState(c) { return this.pick(c, ["city_state", "Location", "location"], "—"); },
+      extractClientName(c) { return this.pick(c, ["contact_person", "client_name", "Client Name"], "—"); },
+      extractCode(c) { return this.pick(c, ["client_code", "code_name", "Client Code"], "N/A"); },
 
       buildLeadIndex(leads) {
         const byCompany = new Map();
