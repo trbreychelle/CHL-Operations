@@ -1048,6 +1048,11 @@ async function fetchSalesPipeline() {
 
     let filteredSales = sales || [];
 
+    // 1. Grab the Search Query
+    const searchInput = document.getElementById('admin-sales-search');
+    const query = searchInput ? searchInput.value.toLowerCase().trim() : "";
+
+    // 2. Apply Dropdown Filters
     if (isSalesDash) {
         const currentUser = window.portal?.currentUser?.name || "Unknown";
         filteredSales = filteredSales.filter(s => s.sold_by_name === currentUser);
@@ -1056,8 +1061,19 @@ async function fetchSalesPipeline() {
     } else {
         const catFilter = document.getElementById('admin-sales-category-filter')?.value || 'All';
         const statFilter = document.getElementById('admin-sales-status-filter')?.value || 'all';
+        const pkgFilter = document.getElementById('admin-sales-package-filter')?.value || 'all';
+
         if (catFilter !== 'All') filteredSales = filteredSales.filter(s => s.sales_category === catFilter);
         if (statFilter !== 'all') filteredSales = filteredSales.filter(s => s.status === statFilter);
+        if (pkgFilter !== 'all') filteredSales = filteredSales.filter(s => s.package_status === pkgFilter);
+    }
+
+    // 3. Apply Search Text Filter (Client Name, Code, TXN, Package)
+    if (query) {
+        filteredSales = filteredSales.filter(s => {
+            const combinedText = `${s.client_name} ${s.transaction_number} ${s.package_sold} ${s.status} ${s.package_status}`.toLowerCase();
+            return combinedText.includes(query);
+        });
     }
 
     const tbodyId = isSalesDash ? 'sales-table-body' : 'admin-sales-table-body';
@@ -1100,6 +1116,7 @@ async function fetchSalesPipeline() {
         if (s.package_status === 'Active') pkgColor = "bg-blue-100 text-blue-800";
         if (s.package_status === 'Completed') pkgColor = "bg-purple-100 text-purple-800";
         if (s.package_status === 'Refunded') pkgColor = "bg-orange-100 text-orange-800";
+        if (s.package_status === 'Pause') pkgColor = "bg-yellow-100 text-yellow-800";
 
         return `
         <tr class="hover:bg-gray-50 border-b border-gray-50">
@@ -1165,6 +1182,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('admin-sales-category-filter')?.addEventListener('change', fetchSalesPipeline);
     document.getElementById('admin-sales-status-filter')?.addEventListener('change', fetchSalesPipeline);
     document.getElementById('sales-status-filter')?.addEventListener('change', fetchSalesPipeline);
+    document.getElementById('admin-sales-search')?.addEventListener('input', fetchSalesPipeline);
+    document.getElementById('admin-sales-package-filter')?.addEventListener('change', fetchSalesPipeline);
     
     if (document.getElementById('view-sales')) fetchSalesPipeline();
 });
