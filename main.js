@@ -741,7 +741,7 @@ class CallHammerPortal {
       const purchaseDate = this.getAny(r, ['purchase_date', 'Purchase Date'], '');
 
       return {
-        status, code_name: codeName, roofing_company: roofingCompany, city_state: cityState, client_name: clientName,
+        status, code_name: codeName, roofing_company: roofingCompany, city_state: cityState, clientName,
         last_lead_received: lastLeadReceived, hours_since_last_lead: hoursSinceLastLead, leads_today: leadsToday, leads_yesterday: leadsYesterday,
         purchased_leads: purchasedLeads, owed_leads: owedLeads, package_status: packageStatus, purchase_date: purchaseDate,
       };
@@ -1005,11 +1005,11 @@ async function fetchSalesPipeline() {
     const state = window.portal?.adminState;
     if (!state || !state.packages) return;
 
-    const packages = state.packages;
+    const packages = state.packages; // Pulling from your new Ledger!
     const clients = state.clients || [];
     const leads = state.leads || [];
 
-    // Create a fast lookup index for leads
+    // Fast lookup for leads
     const leadsByCode = new Map();
     leads.forEach(l => {
         const code = String(l.client_code || l.code_name || "").toLowerCase().trim();
@@ -1023,7 +1023,18 @@ async function fetchSalesPipeline() {
     if (!tbody) return;
 
     const query = (document.getElementById('admin-sales-search')?.value || "").toLowerCase().trim();
-    const pkgFilter = document.getElementById('admin-sales-package-filter')?.value || "all";
+    
+    // Update Table Headers
+    const thead = tbody.previousElementSibling;
+    if (thead) {
+        thead.innerHTML = `
+            <tr class="text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-b">
+                <th class="p-4">Purchased Date</th><th class="p-4">TXN #</th><th class="p-4">Roofing Company</th>
+                <th class="p-4">POC</th><th class="p-4">Package</th><th class="p-4">Deal Value</th>
+                <th class="p-4">Deal Status</th><th class="p-4">PKG Status</th><th class="p-4">Sold By</th>
+                <th class="p-4">PKG Started</th><th class="p-4">PKG Ended</th>
+            </tr>`;
+    }
 
     let rows = packages.map(pkg => {
         const code = String(pkg.client_code || "").trim();
@@ -1035,17 +1046,16 @@ async function fetchSalesPipeline() {
         // MATH: Calculate Dynamic Dates
         const pDt = new Date(pkg.purchase_date || 0);
         let validLeads = (leadsByCode.get(code.toLowerCase()) || []).filter(l => {
-            const d = new Date(l.date_submitted);
-            return !isNaN(d.getTime()) && d >= pDt;
-        }).sort((a, b) => new Date(a.date_submitted) - new Date(b.date_submitted));
+            const d = window.portal.parseDateSafe(l.date_submitted);
+            return d && d >= pDt;
+        }).sort((a, b) => window.portal.parseDateSafe(a.date_submitted) - window.portal.parseDateSafe(b.date_submitted));
 
-        let dateStarted = "—";
-        let dateEnded = "—";
+        let dateStarted = "—", dateEnded = "—";
         let qualCount = 0;
         const purchasedAmount = Number(pkg.purchased_leads) || 0;
 
         if (validLeads.length > 0) {
-            dateStarted = new Date(validLeads[0].date_submitted).toLocaleDateString();
+            dateStarted = window.portal.formatDate(validLeads[0].date_submitted);
         }
 
         for (let l of validLeads) {
@@ -1053,36 +1063,28 @@ async function fetchSalesPipeline() {
             if (st.includes('approv') || st.includes('confirm')) qualCount++;
             
             if (qualCount >= purchasedAmount && purchasedAmount > 0) {
-                dateEnded = new Date(l.date_submitted).toLocaleDateString();
+                dateEnded = window.portal.formatDate(l.date_submitted);
             } else {
-                dateEnded = "—"; // Reopens the date if credited later!
+                dateEnded = "—"; // Re-opens if a credit request happens!
             }
         }
 
-        if (pStatus === 'COMPLETED' && dateEnded === "—" && validLeads.length > 0) {
-            dateEnded = new Date(validLeads[validLeads.length - 1].date_submitted).toLocaleDateString();
-        }
-
         return {
-            purchaseDate: pkg.purchase_date || "—",
+            purchaseDate: window.portal.formatDate(pkg.purchase_date) || "—",
             txn: pkg.external_package_id || "—",
             company: client.company_name || "—",
             poc: client.client_name || "—",
             packageLeads: pkg.purchased_leads || "0",
-            dealValue: pkg.amount ? pkg.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : "$0.00",
-            dealStatus: "Closed Won", // Ledger packages are always won
+            dealValue: pkg.amount ? parseFloat(pkg.amount.replace(/[^0-9.-]+/g,"")).toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : "$0.00",
+            dealStatus: "Closed Won", 
             pkgStatus: pStatus,
-            soldBy: "—", // Can link to agents later
+            soldBy: "—", 
             dateStarted,
             dateEnded,
             searchStr: `${code} ${client.company_name} ${pkg.external_package_id}`.toLowerCase()
         };
     });
 
-    if (pkgFilter !== "all") {
-        const filterTarget = pkgFilter === "Active" ? "ONGOING" : pkgFilter.toUpperCase();
-        rows = rows.filter(r => r.pkgStatus === filterTarget);
-    }
     if (query) rows = rows.filter(r => r.searchStr.includes(query));
 
     tbody.innerHTML = rows.map(r => {
@@ -1103,8 +1105,8 @@ async function fetchSalesPipeline() {
             <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800">${r.dealStatus}</span></td>
             <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold uppercase ${pkgColor}">${r.pkgStatus}</span></td>
             <td class="p-4 text-sm text-gray-600">${r.soldBy}</td>
-            <td class="p-4 text-sm text-gray-500">${r.dateStarted}</td>
-            <td class="p-4 text-sm text-gray-500">${r.dateEnded}</td>
+            <td class="p-4 text-sm text-gray-500 font-bold">${r.dateStarted}</td>
+            <td class="p-4 text-sm text-gray-500 font-bold">${r.dateEnded}</td>
         </tr>`;
     }).join('');
 }
@@ -1202,25 +1204,29 @@ async function deleteLead(leadId) {
     const confirmDelete = confirm(`Are you sure you want to permanently delete Lead ID: ${leadId}?`);
     if (!confirmDelete) return;
 
-    // 1. Delete from Supabase
-    const { error } = await supaClient.from('leads_raw').delete().eq('lead_id', leadId);
+    // 1. DELETE FROM SUPABASE INSTANTLY
+    const { error } = await supaClient
+        .from('leads_raw')
+        .delete()
+        .eq('lead_id', leadId);
 
     if (error) {
+        console.error("Failed to delete lead:", error);
         alert("Failed to delete lead from Supabase.");
     } else {
-        // 2. FORCE Webhook Sync (Using no-cors to prevent browser blocks)
-        try {
-            await fetch('https://automate.callhammerleads.com/webhook/delete-lead-sheet', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lead_id: leadId })
-            });
-            console.log(`Success! Lead ${leadId} deleted and sheet triggered.`);
-        } catch (e) { 
-            console.error("Sheet sync failed but DB deleted", e); 
-        }
+        console.log(`Success! Lead ${leadId} deleted.`);
         window.portal.fetchAdminData(true);
     }
+
+    // 2. BACKGROUND SYNC TO GOOGLE SHEETS
+    try {
+        fetch('https://automate.callhammerleads.com/webhook/delete-lead-sheet', {
+            method: 'POST',
+            mode: 'no-cors', // <--- THIS IS THE MAGIC FIX
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lead_id: leadId })
+        });
+    } catch (e) { console.error("Sheet sync failed", e); }
 }
 
 // ==========================================
@@ -1303,19 +1309,23 @@ async function submitNewClient(e) {
 // ==========================================
 async function updateClientPackageStatus(clientCode, newPackageStatus) {
     if (!supaClient) return alert("Database connection missing.");
-    if (!clientCode || clientCode === "N/A") return alert("Cannot update: Client Code is missing.");
-
-    const { error } = await supaClient
-        .from('clients')
-        .update({ package_status: newPackageStatus })
-        .eq('code_name', clientCode);
-
-    if (error) {
-        console.error("Failed to update package status:", error);
-        alert("Failed to update package status in database.");
+    
+    // 1. Find the current active/ongoing package in the LEDGER
+    const { data: pkgs } = await supaClient.from('packages')
+        .select('*')
+        .eq('client_code', clientCode)
+        .eq('status', 'Active'); // Note: DB stores it as 'Active'
+    
+    if (pkgs && pkgs.length > 0) {
+        // 2. Update that specific package
+        const { error } = await supaClient.from('packages')
+            .update({ status: newPackageStatus })
+            .eq('id', pkgs[0].id);
+            
+        if (error) alert("Failed to update package in ledger.");
+        else window.portal.fetchAdminData(true);
     } else {
-        console.log(`✅ ${clientCode} package is now ${newPackageStatus}`);
-        if (window.portal) window.portal.fetchAdminData(true);
+        alert("Could not find an ongoing package in the ledger to update.");
     }
 }
 window.updateClientPackageStatus = updateClientPackageStatus;
