@@ -57,12 +57,30 @@
     .kpi-value { font-size: 20px; font-weight: 800; margin-top: 6px; color: #111827; }
     .kpi-sub { font-size: 12px; font-weight: 600; margin-top: 2px; color: #6B7280; }
 
-    .client-health-scroll { max-height: 315px; overflow-y: auto; }
-    .controls-wrap { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
-    .controls-wrap > * { min-width: 180px; }
-    @media (max-width: 1024px) { .controls-wrap > * { min-width: 160px; } }
-    .table-scroll { overflow-x: auto; }
-    .table-min { min-width: 1100px; }
+    .client-health-scroll {
+      max-height: 315px; 
+      overflow-y: auto;
+    }
+
+    .controls-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    .controls-wrap > * {
+      min-width: 180px;
+    }
+    @media (max-width: 1024px) {
+      .controls-wrap > * { min-width: 160px; }
+    }
+
+    .table-scroll {
+      overflow-x: auto;
+    }
+    .table-min {
+      min-width: 1100px;
+    }
   </style>
 </head>
 
@@ -227,17 +245,41 @@
               <thead class="bg-white sticky top-0 z-10 shadow-sm">
                 <tr>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase w-10">Status</th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="code">Code <span class="sort-icon" id="sort-code">↕</span></th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="roofingCompany">Roofing Company <span class="sort-icon" id="sort-roofingCompany">↕</span></th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="cityState">City/State <span class="sort-icon" id="sort-cityState">↕</span></th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="packageRatio">Package (Owed) <span class="sort-icon" id="sort-packageRatio">↕</span></th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="code">
+                    Code <span class="sort-icon" id="sort-code">↕</span>
+                  </th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="roofingCompany">
+                    Roofing Company <span class="sort-icon" id="sort-roofingCompany">↕</span>
+                  </th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="cityState">
+                    City/State <span class="sort-icon" id="sort-cityState">↕</span>
+                  </th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="packageRatio">
+                    Package (Owed/Purchased) <span class="sort-icon" id="sort-packageRatio">↕</span>
+                  </th>
+
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Qualified</th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Credited</th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center text-red-500">Cancel Rate</th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsToday">Leads Today <span class="sort-icon" id="sort-leadsToday">↕</span></th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsYesterday">Leads Yesterday <span class="sort-icon" id="sort-leadsYesterday">↕</span></th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsToday">
+                    Leads Today <span class="sort-icon" id="sort-leadsToday">↕</span>
+                  </th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsYesterday">
+                    Leads Yesterday <span class="sort-icon" id="sort-leadsYesterday">↕</span>
+                  </th>
+
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase">Package Status</th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="clientName">Client Name <span class="sort-icon" id="sort-clientName">↕</span></th>
+
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="clientName">
+                    Client Name <span class="sort-icon" id="sort-clientName">↕</span>
+                  </th>
+
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase">Purchase Date</th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase">Last Lead Received</th>
                 </tr>
@@ -1234,7 +1276,6 @@
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
         try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
         
-        // ✅ Pull Passbook directly from Supabase, not Google Sheets!
         try {
           if (window.fetchAdminClients) {
             const currentFilter = document.getElementById('clientStatusFilter')?.value || 'Active';
@@ -1362,7 +1403,7 @@
               if (!k) return;
               if (chk.checked) this._leadsVisibleCols.add(k);
               else this._leadsVisibleCols.delete(k);
-              this.applyLeadsFilters(); // re-render
+              this.applyLeadsFilters(); 
             });
           });
         };
@@ -1682,7 +1723,6 @@
         const pkgSel = document.getElementById("health-filter-package");
         const locSel = document.getElementById("health-filter-location");
 
-        // ✅ MULTI-SELECT STATUS POPULATION
         const statusBtn = document.getElementById("health-status-btn");
         const statusPop = document.getElementById("health-status-popover");
         if (statusPop && statusBtn) {
@@ -1739,7 +1779,6 @@
             document.getElementById("health-search").value = "";
             if (pkgSel) pkgSel.value = "all";
             if (locSel) locSel.value = "all";
-            // Reset to defaults
             document.querySelectorAll('.health-st-chk').forEach(chk => {
                 chk.checked = ["ACTIVE", "CRITICAL", "AT RISK", "HEALTHY"].includes(chk.value);
             });
@@ -1813,11 +1852,9 @@
         tbody.innerHTML = rows.map(r => {
           const dotClass = this.statusDotClass(r.status);
           
-          // ✅ Cancellation Rate Math
           const totalQC = r.qualifiedCount + r.creditedCount;
           const cancelRate = totalQC > 0 ? Math.round((r.creditedCount / totalQC) * 100) : 0;
 
-          // ✅ Package Status Color
           let pkgColor = "bg-gray-100 text-gray-700";
           if (r.packageStatus === 'ACTIVE') pkgColor = "bg-blue-100 text-blue-800";
           if (r.packageStatus === 'COMPLETED') pkgColor = "bg-purple-100 text-purple-800";
@@ -1957,19 +1994,6 @@
           return { start, end, grain: "week", label: "Last 6 Weeks" };
         }
         return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "Today" };
-      },
-
-      isQualified(st) { const s = String(st || "").toLowerCase(); return s.includes("confirm") || s.includes("approve"); },
-      isRejected(st) { const s = String(st || "").toLowerCase(); return s.includes("reject"); },
-      isCredited(st) { const s = String(st || "").toLowerCase(); return s.includes("credit"); },
-      isPendingReview(st) { const s = String(st || "").toLowerCase(); return s.includes("pending"); },
-
-      statusBadge(status) {
-        const s = String(status || "").toLowerCase();
-        let cls = "bg-gray-100 text-gray-700 border-gray-200";
-        if (s.includes("approved") || s.includes("confirmed")) cls = "bg-emerald-100 text-emerald-800 border-emerald-200";
-        if (s.includes("rejected") || s.includes("credit"))    cls = "bg-red-100 text-red-800 border-red-200";
-        return `<span class="px-2 py-1 rounded-full text-xs font-extrabold border ${cls}">${status || "—"}</span>`;
       },
 
       _fmtDateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; },
