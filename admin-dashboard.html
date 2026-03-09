@@ -1224,9 +1224,11 @@
         const packages = state.packages || [];
 
         // Index leads by COMPANY NAME (leads_raw table source of truth)
-        this._leadsIndexByCompany = new Map();
+       this._leadsIndexByCompany = new Map();
         leads.forEach(l => {
-            const comp = String(l.company_name || l['Company Name'] || "").toLowerCase().trim();
+            // Check every possible variation of the company column name
+            const compRaw = l.company_name || l['Company Name'] || l.roofing_company || l['ROOFING COMPANY'] || "";
+            const comp = String(compRaw).toLowerCase().trim();
             if (!comp) return;
             const arr = this._leadsIndexByCompany.get(comp) || [];
             arr.push(l);
@@ -1282,7 +1284,7 @@
 
          // --- LEAD MATH SECTION ---
           const compKey = company.toLowerCase().trim();
-          const leadList = this._leadsIndexByCompany?.get(compKey) || [];
+          const compKey = this.normalizeCompanyName(company);
           
           const startDt = this.parseDateSafe(activePkg.package_start_date) || new Date(0);
           
@@ -1294,19 +1296,17 @@
               const d = this.parseDateSafe(dStr);
               
               if (d) {
-                  // Track absolute last lead received for this company
                   if (!lastLeadDate || d > lastLeadDate) lastLeadDate = d;
 
-                  // Daily Counters (formatted YYYY-MM-DD for comparison)
                   const compareStr = d.toISOString().split('T')[0];
                   if (compareStr === todayStr) todayCount++;
                   if (compareStr === yesterdayStr) yesterdayCount++;
 
-                  // Only count towards package if submitted AFTER package start date
                   if (d >= startDt) {
-                      const st = String(l.status || l.STATUS || "").toUpperCase();
-                      if (st.includes('APPROV') || st.includes('CONFIRM')) qualified++;
-                      else if (st.includes('CREDIT') || st.includes('REJECT')) credited++;
+                      // FORCE status to lowercase to match our check
+                      const st = String(l.status || l.STATUS || l.Lead_Status || "").toLowerCase();
+                      if (st.includes('approv') || st.includes('confirm')) qualified++;
+                      else if (st.includes('credit') || st.includes('reject')) credited++;
                   }
               }
           });
