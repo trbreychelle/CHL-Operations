@@ -1291,17 +1291,22 @@ const leadList = this._leadsIndexByCompany?.get(compKey) || [];
               const d = this.parseDateSafe(dStr);
               
               if (d) {
+                  // Track absolute last lead date regardless of package
                   if (!lastLeadDate || d > lastLeadDate) lastLeadDate = d;
 
+                  // Today/Yesterday counters (Strictly based on Date)
                   const compareStr = d.toISOString().split('T')[0];
                   if (compareStr === todayStr) todayCount++;
                   if (compareStr === yesterdayStr) yesterdayCount++;
 
-                  if (d >= startDt) {
-                      // FORCE status to lowercase to match our check
-                      const st = String(l.status || l.STATUS || l.Lead_Status || "").toLowerCase();
-                      if (st.includes('approv') || st.includes('confirm')) qualified++;
-                      else if (st.includes('credit') || st.includes('reject')) credited++;
+                  // Spreadsheet matching logic: Count ALL leads for this company
+                  // We remove the "d >= startDt" check to match your manual tracking
+                  const st = String(l.status || l.STATUS || l.Lead_Status || "").toUpperCase();
+                  
+                  if (st.includes('APPROV') || st.includes('CONFIRM')) {
+                      qualified++;
+                  } else if (st.includes('CREDIT') || st.includes('REJECT')) {
+                      credited++;
                   }
               }
           });
