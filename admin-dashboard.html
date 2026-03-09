@@ -1536,7 +1536,7 @@
       },
 
       getLeadDateObj(l) {
-        const dStr = this.getLeadField(l, ["Date Submitted"], "");
+        const dStr = this.getLeadField(l, ["Date Submitted", "date_submitted", "DATE"], "");
         const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
         return (dt && !isNaN(dt.getTime())) ? dt : null;
       },
@@ -2045,8 +2045,8 @@
           const dt = this.getLeadDateObj(l);
           if (!dt || dt < start || dt > end) return;
 
-          const st = this.pick(l, ["Status","STATUS"], "");
-          const agent = String(this.pick(l, ["Appointment Coordinator Name","Agent Name","AGENT"], "Unknown")).trim();
+          const st = this.pick(l, ["Status", "STATUS", "status"], "");
+          const agent = String(this.pick(l, ["Appointment Coordinator Name", "appointment_coordinator_name", "Agent Name", "AGENT"], "Unknown")).trim();
           
           total++;
 
