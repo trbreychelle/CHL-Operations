@@ -693,24 +693,31 @@ class CallHammerPortal {
   // ------------------------
   // ✅ ADMIN: Fetch + Normalize
   // ------------------------
-  async fetchAdminData(forceRefresh = false) {
+ async fetchAdminData(forceRefresh = false) {
     try {
       console.log('📡 Fetching Master Data...');
-      const response = await fetch(this.webhooks.fetchAdminData);
-      const result = await response.json();
-      const dataRoot = result?.data || result || {};
 
+      // 1. Fetch Supabase FIRST so the dashboard always loads instantly
       const { data: supaLeads } = await supaClient.from('leads_raw').select('*');
       const { data: supaPackages } = await supaClient.from('packages').select('*');
       const { data: supaClients } = await supaClient.from('clients').select('*');
 
       this.adminState.clients = supaClients || [];
       this.adminState.leads = supaLeads || [];
-      this.adminState.packages = supaPackages || []; // Includes your ledger!
-      this.adminState.agents = dataRoot.agents || [];
-      this.adminState.weeklyPayroll = dataRoot.weeklyPayroll || [];
+      this.adminState.packages = supaPackages || [];
 
-      this.triggerAdminRefresh();
+      this.triggerAdminRefresh(); // Render UI immediately!
+
+      // 2. Fetch n8n Webhook in the background
+      try {
+        const response = await fetch(this.webhooks.fetchAdminData);
+        const result = await response.json();
+        const dataRoot = result?.data || result || {};
+        this.adminState.agents = dataRoot.agents || [];
+        this.adminState.weeklyPayroll = dataRoot.weeklyPayroll || [];
+        this.triggerAdminRefresh(); // Render again with agent data
+      } catch(e) { console.warn("Webhook slow, skipping agents."); }
+
     } catch (err) {
       console.error('❌ fetchAdminData failed:', err);
     }
@@ -971,16 +978,15 @@ const supaClient = window.supabase ? window.supabase.createClient(supabaseUrl, s
 async function fetchAdminClients(status = 'Active') {
     if (!supaClient) return;
     
-    // Fetch all clients first to avoid strict database case-sensitivity rules
+    // Fetch ALL clients first to beat Supabase's strict case-sensitivity
     const { data: clients, error } = await supaClient.from('clients').select('*');
     if (error) return console.error("Error fetching clients:", error);
     
     let filtered = clients || [];
     
-    // Filter them in Javascript where we can force case-insensitivity
     if (status !== 'All') {
         filtered = filtered.filter(c => 
-            String(c.client_status || c.status || '').trim().toLowerCase() === String(status).toLowerCase()
+            String(c.client_status || c.status || '').trim().toUpperCase() === String(status).toUpperCase()
         );
     }
     
@@ -1023,7 +1029,7 @@ async function fetchSalesPipeline() {
     // Fast lookup for leads
     const leadsByCode = new Map();
     leads.forEach(l => {
-        const code = String(l.client_code || l.code_name || "").toLowerCase().trim();
+        const client = clients.find(c => String(c.code_name || c.client_code || "").trim().toLowerCase() === code.toLowerCase()) || {};
         if (!code) return;
         const arr = leadsByCode.get(code) || [];
         arr.push(l);
