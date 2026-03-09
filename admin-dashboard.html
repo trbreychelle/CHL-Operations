@@ -57,12 +57,30 @@
     .kpi-value { font-size: 20px; font-weight: 800; margin-top: 6px; color: #111827; }
     .kpi-sub { font-size: 12px; font-weight: 600; margin-top: 2px; color: #6B7280; }
 
-    .client-health-scroll { max-height: 315px; overflow-y: auto; }
-    .controls-wrap { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
-    .controls-wrap > * { min-width: 180px; }
-    @media (max-width: 1024px) { .controls-wrap > * { min-width: 160px; } }
-    .table-scroll { overflow-x: auto; }
-    .table-min { min-width: 1100px; }
+    .client-health-scroll {
+      max-height: 315px; 
+      overflow-y: auto;
+    }
+
+    .controls-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    .controls-wrap > * {
+      min-width: 180px;
+    }
+    @media (max-width: 1024px) {
+      .controls-wrap > * { min-width: 160px; }
+    }
+
+    .table-scroll {
+      overflow-x: auto;
+    }
+    .table-min {
+      min-width: 1100px;
+    }
   </style>
 </head>
 
@@ -202,7 +220,7 @@
                   <i class="fa-solid fa-chevron-down text-gray-400 text-xs"></i>
                 </button>
                 <div id="health-status-popover" class="hidden absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-xl z-50 p-3 space-y-2 max-h-64 overflow-y-auto">
-                  </div>
+                </div>
               </div>
 
               <select id="health-filter-package" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[190px]">
@@ -230,7 +248,7 @@
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="code">Code <span class="sort-icon" id="sort-code">↕</span></th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="roofingCompany">Roofing Company <span class="sort-icon" id="sort-roofingCompany">↕</span></th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="cityState">City/State <span class="sort-icon" id="sort-cityState">↕</span></th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="packageRatio">Package (Owed) <span class="sort-icon" id="sort-packageRatio">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="packageRatio">Package (Owed/Purchased) <span class="sort-icon" id="sort-packageRatio">↕</span></th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Qualified</th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Credited</th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center text-red-500">Cancel Rate</th>
@@ -1153,7 +1171,7 @@
     </div>
   </div>
 
-  <script>
+<script>
     const AdminDashboard = {
       perfPeriod: 'today',
       analyticsPeriod: 'today',
@@ -1229,12 +1247,13 @@
           this.clientHealthRaw = this.normalizeClientHealthRows(clients);
           this.setupFilters(this.clientHealthRaw);
           this.applyClientHealthFilters();
-        } catch(e) {}
+        } catch(e) {
+          console.error("Health Monitor Error:", e);
+        }
 
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
         try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
         
-        // ✅ Pull Passbook directly from Supabase, not Google Sheets!
         try {
           if (window.fetchAdminClients) {
             const currentFilter = document.getElementById('clientStatusFilter')?.value || 'Active';
@@ -1250,7 +1269,7 @@
         } catch(e) {}
 
         try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
-        try { this.bindPayrollUI(); this.renderPayrollFinance(); } catch(e) {}
+        try { this.bindPayrollUI(); this.renderPayrollFinance(); } catch(e) { console.error("Payroll UI Error:", e); }
       },
 
       _setActiveButton(btnSelector, btnElement) {
@@ -1682,7 +1701,6 @@
         const pkgSel = document.getElementById("health-filter-package");
         const locSel = document.getElementById("health-filter-location");
 
-        // ✅ MULTI-SELECT STATUS POPULATION
         const statusBtn = document.getElementById("health-status-btn");
         const statusPop = document.getElementById("health-status-popover");
         if (statusPop && statusBtn) {
@@ -1739,11 +1757,11 @@
             document.getElementById("health-search").value = "";
             if (pkgSel) pkgSel.value = "all";
             if (locSel) locSel.value = "all";
-            // Reset to defaults
             document.querySelectorAll('.health-st-chk').forEach(chk => {
                 chk.checked = ["ACTIVE", "CRITICAL", "AT RISK", "HEALTHY"].includes(chk.value);
             });
-            document.getElementById("health-status-label").textContent = `Status: 4 selected`;
+            const statusLbl = document.getElementById("health-status-label");
+            if (statusLbl) statusLbl.textContent = `Status: 4 selected`;
             this.applyClientHealthFilters();
           });
 
@@ -1766,7 +1784,8 @@
       },
 
       applyClientHealthFilters() {
-        const q = String(document.getElementById("health-search").value || "").toLowerCase().trim();
+        const searchEl = document.getElementById("health-search");
+        const q = searchEl ? String(searchEl.value || "").toLowerCase().trim() : "";
         const pkg = document.getElementById("health-filter-package")?.value || "all";
         const loc = document.getElementById("health-filter-location")?.value || "all";
 
@@ -1805,6 +1824,8 @@
 
       renderClientHealthTable(rows) {
         const tbody = document.getElementById("client-health-body");
+        if (!tbody) return;
+
         if (!rows.length) {
           tbody.innerHTML = `<tr><td colspan="15" class="p-6 text-center text-gray-400 italic">No results found.</td></tr>`;
           return;
@@ -1813,11 +1834,9 @@
         tbody.innerHTML = rows.map(r => {
           const dotClass = this.statusDotClass(r.status);
           
-          // ✅ Cancellation Rate Math
-          const totalQC = r.qualifiedCount + r.creditedCount;
+          const totalQC = (r.qualifiedCount || 0) + (r.creditedCount || 0);
           const cancelRate = totalQC > 0 ? Math.round((r.creditedCount / totalQC) * 100) : 0;
 
-          // ✅ Package Status Color
           let pkgColor = "bg-gray-100 text-gray-700";
           if (r.packageStatus === 'ACTIVE') pkgColor = "bg-blue-100 text-blue-800";
           if (r.packageStatus === 'COMPLETED') pkgColor = "bg-purple-100 text-purple-800";
@@ -1957,19 +1976,6 @@
           return { start, end, grain: "week", label: "Last 6 Weeks" };
         }
         return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "Today" };
-      },
-
-      isQualified(st) { const s = String(st || "").toLowerCase(); return s.includes("confirm") || s.includes("approve"); },
-      isRejected(st) { const s = String(st || "").toLowerCase(); return s.includes("reject"); },
-      isCredited(st) { const s = String(st || "").toLowerCase(); return s.includes("credit"); },
-      isPendingReview(st) { const s = String(st || "").toLowerCase(); return s.includes("pending"); },
-
-      statusBadge(status) {
-        const s = String(status || "").toLowerCase();
-        let cls = "bg-gray-100 text-gray-700 border-gray-200";
-        if (s.includes("approved") || s.includes("confirmed")) cls = "bg-emerald-100 text-emerald-800 border-emerald-200";
-        if (s.includes("rejected") || s.includes("credit"))    cls = "bg-red-100 text-red-800 border-red-200";
-        return `<span class="px-2 py-1 rounded-full text-xs font-extrabold border ${cls}">${status || "—"}</span>`;
       },
 
       _fmtDateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; },
@@ -2325,6 +2331,9 @@
       },
 
       applyPassbookFilters(clients) {
+        this.setupPassbookFilters(clients);
+        this.bindPassbookUI(clients);
+
         const q = String(document.getElementById("passbook-search")?.value || "").toLowerCase().trim();
         const loc = document.getElementById("passbook-filter-location")?.value || "all";
 
@@ -3172,8 +3181,8 @@
       }
     };
 
-    window.adminDashboard = AdminDashboard;
     window.Admin = AdminDashboard;
+    window.adminDashboard = AdminDashboard;
   </script>
 
   <script src="main.js"></script>
