@@ -1316,7 +1316,24 @@ const leadList = this._leadsIndexByCompany?.get(compKey) || [];
           const rawStat = c.client_status || c.status || "INACTIVE";
           
           let healthStatus = String(rawStat).toUpperCase().trim(); 
-          if (!["CRITICAL", "AT RISK", "HEALTHY"].includes(healthStatus)) healthStatus = "NOT STARTED";
+          // --- LIVE HEALTH CALCULATION ---
+          // Use the lastLeadDate we found during the math loop
+          const nowMs = Date.now();
+          const hoursSinceLastLead = lastLeadDate ? (nowMs - lastLeadDate.getTime()) / (1000 * 60 * 60) : 9999;
+
+          if (!lastLeadDate) {
+              // BLUE: Never received a lead since purchase
+              healthStatus = "NOT STARTED"; 
+          } else if (todayCount >= 1 && yesterdayCount >= 1) {
+              // GREEN: Active today AND yesterday
+              healthStatus = "HEALTHY";    
+          } else if (hoursSinceLastLead > 48) {
+              // RED: No leads in over 48 hours
+              healthStatus = "CRITICAL";   
+          } else {
+              // YELLOW: Recent lead, but missing the "Healthy" streak
+              healthStatus = "AT RISK";    
+          }
 
           return {
             _raw: c,
