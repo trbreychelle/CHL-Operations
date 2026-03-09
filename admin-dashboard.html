@@ -2530,7 +2530,8 @@ const leadList = this._leadsIndexByCompany?.get(compKey) || [];
 
       _computeAgentMetrics(name, leads, start, end) {
         const inRange = leads.filter(l => {
-          const a = this.pick(l, ["Appointment Coordinator Name","Agent Name","AGENT"], "");
+          // Add lowercase column name to match Supabase
+          const a = this.pick(l, ["appointment_coordinator_name", "Appointment Coordinator Name", "Agent Name", "AGENT"], "");
           const dt = this.getLeadDateObj(l);
           return dt && dt >= start && dt <= end && String(a).trim().toLowerCase() === String(name).trim().toLowerCase();
         });
@@ -2742,22 +2743,22 @@ const leadList = this._leadsIndexByCompany?.get(compKey) || [];
           return;
         }
 
-        tbody.innerHTML = m.leads.map(l => `
+       tbody.innerHTML = m.leads.map(l => `
           <tr>
-            <td class="p-3">${this.getLeadField(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["LEAD ID","Lead ID","lead_id","ID"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["Company Name","COMPANY NAME","Roofing Company","Client","CLIENT"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent","Agent Name"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["Homeowner Name(s)","Homeowner Name","Homeowner"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["Email of Homeowner","Homeowner Email","Email","EMAIL"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["Homeowner Phone Number(s)","Homeowner Phone Number","Phone","PHONE","Phone Number"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["Appointment Date /Time","Appointment Date / Time","Appointment Date","Appointment Time"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["Address","ADDRESS","Job Address"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["Age of Roof","AGE OF ROOF"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["Insurance Company","INSURANCE COMPANY"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["Additional Notes","ADDITIONAL NOTES","Notes","NOTES"])}</td>
-            <td class="p-3">${this.statusBadge(this.getLeadField(l, ["Status","STATUS"]))}</td>
-            <td class="p-3">${this.getLeadField(l, ["Reviewed By","REVIEWED BY","Reviewer","REVIEWER"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["date_submitted", "Date Submitted"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["lead_id", "LEAD ID"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["company_name", "Company Name", "Roofing Company"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["appointment_coordinator_name", "Appointment Coordinator Name"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["homeowner_names", "Homeowner Name(s)"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["email_of_homeowner", "Email of Homeowner"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["homeowner_phone_numbers", "Homeowner Phone Number"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["appointment_date_time", "Appointment Date /Time"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["address", "Address"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["age_of_roof", "Age of Roof"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["insurance_company", "Insurance Company"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["additional_notes", "Additional Notes"])}</td>
+            <td class="p-3">${this.statusBadge(this.getLeadField(l, ["status", "Status", "STATUS"]))}</td>
+            <td class="p-3">${this.getLeadField(l, ["reviewed_by", "Reviewed By"])}</td>
           </tr>
         `).join("");
       },
