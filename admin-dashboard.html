@@ -220,7 +220,7 @@
                   <i class="fa-solid fa-chevron-down text-gray-400 text-xs"></i>
                 </button>
                 <div id="health-status-popover" class="hidden absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-xl z-50 p-3 space-y-2 max-h-64 overflow-y-auto">
-                  </div>
+                </div>
               </div>
 
               <select id="health-filter-package" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[190px]">
@@ -1809,6 +1809,7 @@
         const pkg = document.getElementById("health-filter-package")?.value || "all";
         const loc = document.getElementById("health-filter-location")?.value || "all";
 
+        // Read from the new multi-select checkboxes!
         const checkedStatuses = Array.from(document.querySelectorAll('.health-st-chk:checked')).map(cb => cb.value.toUpperCase());
 
         let filtered = [...this.clientHealthRaw];
