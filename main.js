@@ -693,31 +693,33 @@ class CallHammerPortal {
   // ------------------------
   // ✅ ADMIN: Fetch + Normalize
   // ------------------------
- async fetchAdminData(forceRefresh = false) {
+async fetchAdminData(forceRefresh = false) {
     try {
       console.log('📡 Fetching Master Data...');
+      const response = await fetch(this.webhooks.fetchAdminData);
+      const result = await response.json();
+      const dataRoot = result?.data || result || {};
 
-      // 1. Fetch Supabase FIRST so the dashboard always loads instantly
-      const { data: supaLeads } = await supaClient.from('leads_raw').select('*');
-      const { data: supaPackages } = await supaClient.from('packages').select('*');
-      const { data: supaClients } = await supaClient.from('clients').select('*');
+      let supaLeads = [], supaPackages = [], supaClients = [];
+      if (supaClient) {
+          const [lRes, pRes, cRes] = await Promise.all([
+              supaClient.from('leads_raw').select('*'),
+              supaClient.from('packages').select('*'),
+              supaClient.from('clients').select('*')
+          ]);
+          supaLeads = lRes.data || [];
+          supaPackages = pRes.data || [];
+          supaClients = cRes.data || [];
+      }
 
-      this.adminState.clients = supaClients || [];
-      this.adminState.leads = supaLeads || [];
-      this.adminState.packages = supaPackages || [];
+      // Merge. If Supabase fails (RLS), it uses your n8n data as fallback.
+      this.adminState.clients = supaClients.length > 0 ? supaClients : (dataRoot.clients || []);
+      this.adminState.leads = supaLeads.length > 0 ? supaLeads : (dataRoot.leads || []);
+      this.adminState.packages = supaPackages.length > 0 ? supaPackages : (dataRoot.packages || []); 
+      this.adminState.agents = dataRoot.agents || [];
+      this.adminState.weeklyPayroll = dataRoot.weeklyPayroll || [];
 
-      this.triggerAdminRefresh(); // Render UI immediately!
-
-      // 2. Fetch n8n Webhook in the background
-      try {
-        const response = await fetch(this.webhooks.fetchAdminData);
-        const result = await response.json();
-        const dataRoot = result?.data || result || {};
-        this.adminState.agents = dataRoot.agents || [];
-        this.adminState.weeklyPayroll = dataRoot.weeklyPayroll || [];
-        this.triggerAdminRefresh(); // Render again with agent data
-      } catch(e) { console.warn("Webhook slow, skipping agents."); }
-
+      this.triggerAdminRefresh();
     } catch (err) {
       console.error('❌ fetchAdminData failed:', err);
     }
@@ -976,24 +978,21 @@ const supaClient = window.supabase ? window.supabase.createClient(supabaseUrl, s
 // PASSBOOK CONTROLS (ADMIN & SALES)
 // ==========================================
 async function fetchAdminClients(status = 'Active') {
-    if (!supaClient) return;
-    
-    // Fetch ALL clients first to beat Supabase's strict case-sensitivity
-    const { data: clients, error } = await supaClient.from('clients').select('*');
-    if (error) return console.error("Error fetching clients:", error);
-    
-    let filtered = clients || [];
-    
-    if (status !== 'All') {
-        filtered = filtered.filter(c => 
-            String(c.client_status || c.status || '').trim().toUpperCase() === String(status).toUpperCase()
-        );
-    }
-    
-    if (window.Admin && typeof window.Admin.applyPassbookFilters === 'function') {
-        window.Admin.applyPassbookFilters(filtered);
-    }
-}
+      const state = window.portal?.adminState || {};
+      const clients = state.clients || [];
+      
+      let filtered = clients;
+      if (status !== 'All') {
+          filtered = clients.filter(c => {
+              const st = String(c.client_status || c.status || c.STATUS || c['Client Status'] || '').trim().toLowerCase();
+              return st === String(status).toLowerCase();
+          });
+      }
+      
+      if (window.Admin && typeof window.Admin.applyPassbookFilters === 'function') {
+          window.Admin.applyPassbookFilters(filtered);
+      }
+  }
 
 async function fetchSalesClients(status = 'Active') {
     if (!supaClient) return;
@@ -1022,14 +1021,13 @@ async function fetchSalesPipeline() {
     const state = window.portal?.adminState;
     if (!state || !state.packages) return;
 
-    const packages = state.packages; // Pulling from your new Ledger!
+    const packages = state.packages; 
     const clients = state.clients || [];
     const leads = state.leads || [];
 
-    // Fast lookup for leads
     const leadsByCode = new Map();
     leads.forEach(l => {
-        const client = clients.find(c => String(c.code_name || c.client_code || "").trim().toLowerCase() === code.toLowerCase()) || {};
+        const code = String(l.client_code || l.code_name || l['Client Code'] || l['CODE NAME'] || "").toLowerCase().trim();
         if (!code) return;
         const arr = leadsByCode.get(code) || [];
         arr.push(l);
@@ -1040,8 +1038,8 @@ async function fetchSalesPipeline() {
     if (!tbody) return;
 
     const query = (document.getElementById('admin-sales-search')?.value || "").toLowerCase().trim();
-    
-    // Update Table Headers
+    const pkgFilter = document.getElementById('admin-sales-package-filter')?.value || "all";
+
     const thead = tbody.previousElementSibling;
     if (thead) {
         thead.innerHTML = `
@@ -1055,44 +1053,53 @@ async function fetchSalesPipeline() {
 
     let rows = packages.map(pkg => {
         const code = String(pkg.client_code || "").trim();
-        const client = clients.find(c => String(c.code_name).toLowerCase() === code.toLowerCase()) || {};
+        
+        // Bulletproof client matching
+        const client = clients.find(c => String(c.code_name || c.client_code || c.CODE || c['CODE NAME'] || "").trim().toLowerCase() === code.toLowerCase()) || {};
         
         let pStatus = String(pkg.status || "COMPLETED").toUpperCase();
         if (pStatus === 'ACTIVE') pStatus = 'ONGOING';
 
-        // MATH: Calculate Dynamic Dates
         const pDt = new Date(pkg.purchase_date || 0);
         let validLeads = (leadsByCode.get(code.toLowerCase()) || []).filter(l => {
-            const d = window.portal.parseDateSafe(l.date_submitted);
+            const d = window.portal.parseDateSafe(l.date_submitted || l['Date Submitted']);
             return d && d >= pDt;
-        }).sort((a, b) => window.portal.parseDateSafe(a.date_submitted) - window.portal.parseDateSafe(b.date_submitted));
+        }).sort((a, b) => window.portal.parseDateSafe(a.date_submitted || a['Date Submitted']) - window.portal.parseDateSafe(b.date_submitted || b['Date Submitted']));
 
         let dateStarted = "—", dateEnded = "—";
         let qualCount = 0;
         const purchasedAmount = Number(pkg.purchased_leads) || 0;
 
         if (validLeads.length > 0) {
-            dateStarted = window.portal.formatDate(validLeads[0].date_submitted);
+            dateStarted = window.portal.formatDate(validLeads[0].date_submitted || validLeads[0]['Date Submitted']);
         }
 
         for (let l of validLeads) {
-            const st = String(l.status || "").toLowerCase();
+            const st = String(l.status || l.STATUS || "").toLowerCase();
             if (st.includes('approv') || st.includes('confirm')) qualCount++;
             
             if (qualCount >= purchasedAmount && purchasedAmount > 0) {
-                dateEnded = window.portal.formatDate(l.date_submitted);
+                dateEnded = window.portal.formatDate(l.date_submitted || l['Date Submitted']);
             } else {
-                dateEnded = "—"; // Re-opens if a credit request happens!
+                dateEnded = "—"; 
             }
         }
+
+        if (pStatus === 'COMPLETED' && dateEnded === "—" && validLeads.length > 0) {
+            dateEnded = window.portal.formatDate(validLeads[validLeads.length - 1].date_submitted || validLeads[validLeads.length - 1]['Date Submitted']);
+        }
+
+        // Fixed Crash: String(pkg.amount)
+        const rawAmt = pkg.amount ? String(pkg.amount).replace(/[^0-9.-]+/g,"") : "0";
+        const valFormatted = parseFloat(rawAmt).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 
         return {
             purchaseDate: window.portal.formatDate(pkg.purchase_date) || "—",
             txn: pkg.external_package_id || "—",
-            company: client.company_name || "—",
-            poc: client.client_name || "—",
+            company: client.company_name || client.roofing_company || client['COMPANY NAME'] || "—",
+            poc: client.client_name || client['CLIENT NAME'] || "—",
             packageLeads: pkg.purchased_leads || "0",
-            dealValue: pkg.amount ? parseFloat(pkg.amount.replace(/[^0-9.-]+/g,"")).toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : "$0.00",
+            dealValue: valFormatted,
             dealStatus: "Closed Won", 
             pkgStatus: pStatus,
             soldBy: "—", 
@@ -1102,6 +1109,10 @@ async function fetchSalesPipeline() {
         };
     });
 
+    if (pkgFilter !== "all") {
+        const filterTarget = pkgFilter === "Active" ? "ONGOING" : pkgFilter.toUpperCase();
+        rows = rows.filter(r => r.pkgStatus === filterTarget);
+    }
     if (query) rows = rows.filter(r => r.searchStr.includes(query));
 
     tbody.innerHTML = rows.map(r => {
