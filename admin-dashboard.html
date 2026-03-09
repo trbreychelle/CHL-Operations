@@ -1233,7 +1233,12 @@
             this._leadsIndexByCode.set(code, arr);
         });
 
+        // Retaining for legacy compatibility just in case
+        const idx = this.buildLeadIndex(leads);
+        this._leadsIndexByCompany = idx.byCompany;
+
         try {
+          // Pass packages into the table builder
           this.clientHealthRaw = this.normalizeClientHealthRows(clients, packages);
           this.setupFilters(this.clientHealthRaw);
           this.applyClientHealthFilters();
@@ -1242,6 +1247,8 @@
         try { this.initLeadsColumnsUI(); this.applyLeadsFilters(); } catch(e) {}
         try { fetchSalesPipeline(); } catch(e) {} // Triggers the new Sales Pipeline
         try { this.bindPassbookUI(clients); this.applyPassbookFilters(clients); } catch(e) {}
+
+        // Restoring other module setups to ensure dashboard remains functional
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
         try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
         try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
@@ -1256,14 +1263,15 @@
 
       normalizeClientHealthRows(clients, packages) {
         return clients.map(c => {
+          // Force trim everything to kill invisible Excel spaces
           const code = String(c.code_name || c.client_code || "").trim();
           
           // 1. Find the active/ongoing package for this client
-          const clientPkgs = packages.filter(p => String(p.client_code).toLowerCase() === code.toLowerCase());
-          const activePkg = clientPkgs.find(p => String(p.status).toUpperCase() === 'ACTIVE') || clientPkgs[0] || {};
+          const clientPkgs = packages.filter(p => String(p.client_code || "").trim().toLowerCase() === code.toLowerCase());
+          const activePkg = clientPkgs.find(p => String(p.status || "").trim().toUpperCase() === 'ACTIVE') || clientPkgs[0] || {};
 
           // Convert "Active" to "ONGOING"
-          let pkgStatus = String(activePkg.status || "COMPLETED").toUpperCase();
+          let pkgStatus = String(activePkg.status || "COMPLETED").toUpperCase().trim();
           if (pkgStatus === 'ACTIVE') pkgStatus = 'ONGOING';
 
           // 2. Math
@@ -1283,16 +1291,21 @@
           });
 
           const owed = Math.max(purchased - qualified, 0);
-          const pbStatus = String(c.client_status || "INACTIVE").toUpperCase();
+          
+          // Bulletproof passbook status catch
+          const pbStatus = String(c.client_status || c.status || "INACTIVE").trim().toUpperCase();
 
           // 3. Health Status Logic
-          let healthStatus = c.status || "NOT STARTED"; // Pulling from your n8n raw status if available
+          let healthStatus = String(c.status || "NOT STARTED").toUpperCase().trim(); 
+          if (!["CRITICAL", "AT RISK", "HEALTHY"].includes(healthStatus)) {
+              healthStatus = "NOT STARTED";
+          }
 
           return {
             _raw: c,
             code: code,
             passbookStatus: pbStatus, 
-            healthStatus: String(healthStatus).toUpperCase(),
+            healthStatus: healthStatus,
             roofingCompany: c.company_name || "—",
             cityState: c.city_state || "—",
             clientName: c.client_name || "—",
@@ -1302,8 +1315,8 @@
             qualifiedCount: qualified,
             creditedCount: credited,
             purchaseDate: activePkg.purchase_date || "—",
-            leadsToday: 0, // Handled by your n8n webhook
-            leadsYesterday: 0 // Handled by your n8n webhook
+            leadsToday: 0, 
+            leadsYesterday: 0 
           };
         });
       },
