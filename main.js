@@ -695,65 +695,24 @@ class CallHammerPortal {
   // ------------------------
   async fetchAdminData(forceRefresh = false) {
     try {
-      console.log('📡 Fetching Admin Dashboard Data...');
-      const response = await fetch(this.webhooks.fetchAdminData, {
-        method: 'GET',
-        headers: { 'Accept': 'application/json' }
-      });
-
-      if (!response.ok) throw new Error(`Admin Data Error: HTTP ${response.status}`);
-
+      console.log('📡 Fetching Master Data...');
+      const response = await fetch(this.webhooks.fetchAdminData);
       const result = await response.json();
-      this.lastAdminFetch = Date.now();
-
       const dataRoot = result?.data || result || {};
-      const rawHealthMonitor = dataRoot.healthMonitor || result.healthMonitor || [];
-      const rawClients = dataRoot.clients || dataRoot.Clients || dataRoot.CLIENTS || result.clients || [];
-      const rawAgents = dataRoot.agents || dataRoot.Agents || dataRoot.AGENTS || result.agents || [];
-      const rawStatuses = dataRoot.clientStatuses || dataRoot.statuses || result.clientStatuses || [];
-      const rawPackages = dataRoot.packages || dataRoot.leadPackages || result.packages || [];
 
-      let supaLeads = [];
-      if (window.supaClient) {
-          const { data, error } = await window.supaClient.from('leads_raw').select('*');
-          if (!error && data) {
-              supaLeads = data;
-          } else {
-              console.error("Supabase leads fetch error:", error);
-          }
-      }
+      const { data: supaLeads } = await supaClient.from('leads_raw').select('*');
+      const { data: supaPackages } = await supaClient.from('packages').select('*');
+      const { data: supaClients } = await supaClient.from('clients').select('*');
 
-      // FETCH PACKAGES TABLE
-      let supaPackages = [];
-      if (window.supaClient) {
-          const { data, error } = await window.supaClient.from('packages').select('*');
-          if (!error && data) {
-              supaPackages = data;
-          } else {
-              console.error("Supabase packages fetch error:", error);
-          }
-      }
-      
-      const rawLeads = supaLeads.length > 0 ? supaLeads : (dataRoot.leads || dataRoot.Leads || result.leads || []);
+      this.adminState.clients = supaClients || [];
+      this.adminState.leads = supaLeads || [];
+      this.adminState.packages = supaPackages || []; // Includes your ledger!
+      this.adminState.agents = dataRoot.agents || [];
+      this.adminState.weeklyPayroll = dataRoot.weeklyPayroll || [];
 
-      if (Array.isArray(rawHealthMonitor) && rawHealthMonitor.length > 0) {
-        this.normalizeAdminFromHealthMonitor(rawHealthMonitor);
-        this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
-        this.adminState.agents = Array.isArray(rawAgents) ? rawAgents : [];
-        this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
-        this.adminState.rawPackages = supaPackages.length > 0 ? supaPackages : (Array.isArray(rawPackages) ? rawPackages : []);
-      } else {
-        this.normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, supaPackages.length > 0 ? supaPackages : rawPackages);
-      }
-
-      console.log('✅ Admin State Ready. Triggering render...');
       this.triggerAdminRefresh();
-
     } catch (err) {
       console.error('❌ fetchAdminData failed:', err);
-      const tbody = document.getElementById("client-health-body");
-      if (tbody) tbody.innerHTML = `<tr><td colspan="14" class="p-6 text-center text-red-500 font-bold">❌ Connection Error: Could not load data from n8n. Please check your webhook.</td></tr>`;
-      this.triggerAdminRefresh();
     }
   }
 
@@ -1043,105 +1002,110 @@ async function toggleShareWithSales(codeName, checkboxElement) {
 // SALES PIPELINE CONTROLS (UPGRADED HYBRID LEDGER)
 // ==========================================
 async function fetchSalesPipeline() {
-    if (!supaClient) return;
-    
-    const isSalesDash = document.getElementById('salesClientStatusFilter') !== null;
-    const isAdminDash = document.getElementById('admin-sales-category-filter') !== null;
+    const state = window.portal?.adminState;
+    if (!state || !state.packages) return;
 
-    if (!isSalesDash && !isAdminDash) return;
-    
-    let { data: sales, error } = await supaClient.from('sales_pipeline').select('*').order('created_at', { ascending: false });
-    
-    if (error) {
-        console.error("Error fetching sales:", error);
-        return;
-    }
+    const packages = state.packages;
+    const clients = state.clients || [];
+    const leads = state.leads || [];
 
-    let filteredSales = sales || [];
+    // Create a fast lookup index for leads
+    const leadsByCode = new Map();
+    leads.forEach(l => {
+        const code = String(l.client_code || l.code_name || "").toLowerCase().trim();
+        if (!code) return;
+        const arr = leadsByCode.get(code) || [];
+        arr.push(l);
+        leadsByCode.set(code, arr);
+    });
 
-    // 1. Grab the Search Query
-    const searchInput = document.getElementById('admin-sales-search');
-    const query = searchInput ? searchInput.value.toLowerCase().trim() : "";
-
-    // 2. Apply Dropdown Filters
-    if (isSalesDash) {
-        const currentUser = window.portal?.currentUser?.name || "Unknown";
-        filteredSales = filteredSales.filter(s => s.sold_by_name === currentUser);
-        const statFilter = document.getElementById('sales-status-filter')?.value || 'all';
-        if (statFilter !== 'all') filteredSales = filteredSales.filter(s => s.status === statFilter);
-    } else {
-        const catFilter = document.getElementById('admin-sales-category-filter')?.value || 'All';
-        const statFilter = document.getElementById('admin-sales-status-filter')?.value || 'all';
-        const pkgFilter = document.getElementById('admin-sales-package-filter')?.value || 'all';
-
-        if (catFilter !== 'All') filteredSales = filteredSales.filter(s => s.sales_category === catFilter);
-        if (statFilter !== 'all') filteredSales = filteredSales.filter(s => s.status === statFilter);
-        if (pkgFilter !== 'all') filteredSales = filteredSales.filter(s => s.package_status === pkgFilter);
-    }
-
-    // 3. Apply Search Text Filter (Client Name, Code, TXN, Package)
-    if (query) {
-        filteredSales = filteredSales.filter(s => {
-            const combinedText = `${s.client_name} ${s.transaction_number} ${s.package_sold} ${s.status} ${s.package_status}`.toLowerCase();
-            return combinedText.includes(query);
-        });
-    }
-
-    const tbodyId = isSalesDash ? 'sales-table-body' : 'admin-sales-table-body';
-    const tbody = document.getElementById(tbodyId);
-    const thead = tbody?.previousElementSibling;
+    const tbody = document.getElementById('admin-sales-table-body');
     if (!tbody) return;
 
-    if (thead) {
-        thead.innerHTML = `
-            <tr class="text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-b">
-                <th class="p-4">Date</th>
-                <th class="p-4">TXN #</th>
-                <th class="p-4">Client Name</th>
-                <th class="p-4">Package</th>
-                <th class="p-4">Deal Value</th>
-                <th class="p-4">Deal Status</th>
-                <th class="p-4">Pkg Status</th>
-                <th class="p-4">Sold By</th>
-                ${!isSalesDash ? `<th class="p-4">Category</th>` : ''}
-            </tr>
-        `;
-    }
+    const query = (document.getElementById('admin-sales-search')?.value || "").toLowerCase().trim();
+    const pkgFilter = document.getElementById('admin-sales-package-filter')?.value || "all";
 
-    if (filteredSales.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-400 italic">No deals found.</td></tr>`;
-        return;
-    }
-
-    tbody.innerHTML = filteredSales.map(s => {
-        const d = new Date(s.created_at).toLocaleDateString();
-        const val = parseFloat(s.deal_value).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+    let rows = packages.map(pkg => {
+        const code = String(pkg.client_code || "").trim();
+        const client = clients.find(c => String(c.code_name).toLowerCase() === code.toLowerCase()) || {};
         
-        let stColor = "bg-gray-100 text-gray-700";
-        if (s.status === 'Closed Won') stColor = "bg-emerald-100 text-emerald-800";
-        if (s.status === 'Closed Lost') stColor = "bg-red-100 text-red-800";
-        if (s.status === 'Negotiating') stColor = "bg-yellow-100 text-yellow-800";
-        if (s.status === 'Prospecting') stColor = "bg-blue-100 text-blue-800";
+        let pStatus = String(pkg.status || "COMPLETED").toUpperCase();
+        if (pStatus === 'ACTIVE') pStatus = 'ONGOING';
 
+        // MATH: Calculate Dynamic Dates
+        const pDt = new Date(pkg.purchase_date || 0);
+        let validLeads = (leadsByCode.get(code.toLowerCase()) || []).filter(l => {
+            const d = new Date(l.date_submitted);
+            return !isNaN(d.getTime()) && d >= pDt;
+        }).sort((a, b) => new Date(a.date_submitted) - new Date(b.date_submitted));
+
+        let dateStarted = "—";
+        let dateEnded = "—";
+        let qualCount = 0;
+        const purchasedAmount = Number(pkg.purchased_leads) || 0;
+
+        if (validLeads.length > 0) {
+            dateStarted = new Date(validLeads[0].date_submitted).toLocaleDateString();
+        }
+
+        for (let l of validLeads) {
+            const st = String(l.status || "").toLowerCase();
+            if (st.includes('approv') || st.includes('confirm')) qualCount++;
+            
+            if (qualCount >= purchasedAmount && purchasedAmount > 0) {
+                dateEnded = new Date(l.date_submitted).toLocaleDateString();
+            } else {
+                dateEnded = "—"; // Reopens the date if credited later!
+            }
+        }
+
+        if (pStatus === 'COMPLETED' && dateEnded === "—" && validLeads.length > 0) {
+            dateEnded = new Date(validLeads[validLeads.length - 1].date_submitted).toLocaleDateString();
+        }
+
+        return {
+            purchaseDate: pkg.purchase_date || "—",
+            txn: pkg.external_package_id || "—",
+            company: client.company_name || "—",
+            poc: client.client_name || "—",
+            packageLeads: pkg.purchased_leads || "0",
+            dealValue: pkg.amount ? pkg.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : "$0.00",
+            dealStatus: "Closed Won", // Ledger packages are always won
+            pkgStatus: pStatus,
+            soldBy: "—", // Can link to agents later
+            dateStarted,
+            dateEnded,
+            searchStr: `${code} ${client.company_name} ${pkg.external_package_id}`.toLowerCase()
+        };
+    });
+
+    if (pkgFilter !== "all") {
+        const filterTarget = pkgFilter === "Active" ? "ONGOING" : pkgFilter.toUpperCase();
+        rows = rows.filter(r => r.pkgStatus === filterTarget);
+    }
+    if (query) rows = rows.filter(r => r.searchStr.includes(query));
+
+    tbody.innerHTML = rows.map(r => {
         let pkgColor = "bg-gray-100 text-gray-700";
-        if (s.package_status === 'Active') pkgColor = "bg-blue-100 text-blue-800";
-        if (s.package_status === 'Completed') pkgColor = "bg-purple-100 text-purple-800";
-        if (s.package_status === 'Refunded') pkgColor = "bg-orange-100 text-orange-800";
-        if (s.package_status === 'Pause') pkgColor = "bg-yellow-100 text-yellow-800";
+        if (r.pkgStatus === 'ONGOING') pkgColor = "bg-blue-100 text-blue-800";
+        if (r.pkgStatus === 'COMPLETED') pkgColor = "bg-purple-100 text-purple-800";
+        if (r.pkgStatus === 'REFUNDED') pkgColor = "bg-orange-100 text-orange-800";
+        if (r.pkgStatus === 'PAUSE') pkgColor = "bg-yellow-100 text-yellow-800";
 
         return `
         <tr class="hover:bg-gray-50 border-b border-gray-50">
-            <td class="p-4 text-sm text-gray-500">${d}</td>
-            <td class="p-4 text-xs font-mono text-gray-400 font-bold">${s.transaction_number || '—'}</td>
-            <td class="p-4 font-bold text-gray-900">${s.client_name}</td>
-            <td class="p-4 text-sm text-gray-600">${s.package_sold || '—'}</td>
-            <td class="p-4 font-bold text-emerald-600">${val}</td>
-            <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold uppercase ${stColor}">${s.status}</span></td>
-            <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold uppercase ${pkgColor}">${s.package_status || 'ACTIVE'}</span></td>
-            <td class="p-4 text-sm text-gray-600">${s.sold_by_name}</td>
-            ${!isSalesDash ? `<td class="p-4 text-sm text-gray-500">${s.sales_category}</td>` : ''}
-        </tr>
-        `;
+            <td class="p-4 text-sm text-gray-500">${r.purchaseDate}</td>
+            <td class="p-4 text-xs font-mono text-gray-400 font-bold">${r.txn}</td>
+            <td class="p-4 font-bold text-gray-900">${r.company}</td>
+            <td class="p-4 text-sm text-gray-600">${r.poc}</td>
+            <td class="p-4 font-bold text-gray-900">${r.packageLeads}</td>
+            <td class="p-4 font-bold text-emerald-600">${r.dealValue}</td>
+            <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800">${r.dealStatus}</span></td>
+            <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold uppercase ${pkgColor}">${r.pkgStatus}</span></td>
+            <td class="p-4 text-sm text-gray-600">${r.soldBy}</td>
+            <td class="p-4 text-sm text-gray-500">${r.dateStarted}</td>
+            <td class="p-4 text-sm text-gray-500">${r.dateEnded}</td>
+        </tr>`;
     }).join('');
 }
 
@@ -1238,28 +1202,25 @@ async function deleteLead(leadId) {
     const confirmDelete = confirm(`Are you sure you want to permanently delete Lead ID: ${leadId}?`);
     if (!confirmDelete) return;
 
-    // 1. DELETE FROM SUPABASE INSTANTLY
-    const { error } = await supaClient
-        .from('leads_raw')
-        .delete()
-        .eq('lead_id', leadId);
+    // 1. Delete from Supabase
+    const { error } = await supaClient.from('leads_raw').delete().eq('lead_id', leadId);
 
     if (error) {
-        console.error("Failed to delete lead:", error);
         alert("Failed to delete lead from Supabase.");
     } else {
-        console.log(`Success! Lead ${leadId} deleted.`);
+        // 2. FORCE Webhook Sync (Using no-cors to prevent browser blocks)
+        try {
+            await fetch('https://automate.callhammerleads.com/webhook/delete-lead-sheet', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lead_id: leadId })
+            });
+            console.log(`Success! Lead ${leadId} deleted and sheet triggered.`);
+        } catch (e) { 
+            console.error("Sheet sync failed but DB deleted", e); 
+        }
         window.portal.fetchAdminData(true);
     }
-
-    // 2. BACKGROUND SYNC TO GOOGLE SHEETS
-    try {
-        fetch('https://automate.callhammerleads.com/webhook/delete-lead-sheet', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ lead_id: leadId })
-        });
-    } catch (e) { console.error("Sheet sync failed", e); }
 }
 
 // ==========================================
