@@ -1223,10 +1223,10 @@
         const leads = state.leads || [];
         const packages = state.packages || [];
 
-        // Index leads by COMPANY NAME (since leads_raw doesn't have client_code)
+        // Index leads by COMPANY NAME (leads_raw table source of truth)
         this._leadsIndexByCompany = new Map();
         leads.forEach(l => {
-            const comp = String(l.company_name || l['Company Name'] || l.roofing_company || "").toLowerCase().trim();
+            const comp = String(l.company_name || l['Company Name'] || "").toLowerCase().trim();
             if (!comp) return;
             const arr = this._leadsIndexByCompany.get(comp) || [];
             arr.push(l);
@@ -1280,8 +1280,8 @@
           let pkgStatus = String(activePkg.status || "COMPLETED").toUpperCase().trim();
           if (pkgStatus === 'ACTIVE') pkgStatus = 'ONGOING';
 
-          // --- LEAD MATH SECTION ---
-          const compKey = company.toLowerCase();
+         // --- LEAD MATH SECTION ---
+          const compKey = company.toLowerCase().trim();
           const leadList = this._leadsIndexByCompany?.get(compKey) || [];
           
           const startDt = this.parseDateSafe(activePkg.package_start_date) || new Date(0);
@@ -1816,7 +1816,7 @@
         const byCode = new Map();
 
         for (const l of (leads || [])) {
-          const company = this.pick(l, ["Company Name","COMPANY NAME","Client"], "");
+          const company = this.pick(l, ["Company Name","company_name","Client"], "");
           const companyKey = this.normalizeCompanyName(company);
           const leadCode = this.pick(l, ["Client Code","CLIENT CODE","Code Name","CODE NAME","Code","CODE"], "");
           const codeKey = this.normalizeCode(leadCode);
@@ -2229,7 +2229,7 @@
 
         const liveSheet = get("liveSheet","Live Sheet","LIVE SHEET");
         const codeName = get("codeName","CODE NAME","Code Name") || "—";
-        const companyName = get("companyName","COMPANY NAME","Company Name") || "Unknown";
+        const companyName = get("companyName","COMPANY NAME","Company Name","company_name") || "Unknown";
         const cityState = get("cityState","CITY/STATE","City/State","Location") || "—";
 
         document.getElementById("passbook-modal-title").textContent = companyName;
