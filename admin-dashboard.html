@@ -10,7 +10,6 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
@@ -53,39 +52,17 @@
     th.sortable:hover { background: rgba(17,24,39,0.02); }
     .sort-icon { font-size: 10px; margin-left: 6px; color: #9CA3AF; }
 
-    /* KPI tiles */
     .kpi-tile { background: #fff; border: 1px solid #F3F4F6; border-radius: 16px; padding: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
     .kpi-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .12em; color: #9CA3AF; }
     .kpi-value { font-size: 20px; font-weight: 800; margin-top: 6px; color: #111827; }
     .kpi-sub { font-size: 12px; font-weight: 600; margin-top: 2px; color: #6B7280; }
 
-    /* Client Health fixed scroll height */
-    .client-health-scroll {
-      max-height: 315px; /* ~5 rows visible */
-      overflow-y: auto;
-    }
-
-    /* Helps when zooming: keep controls from overlapping */
-    .controls-wrap {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: flex-end;
-    }
-    .controls-wrap > * {
-      min-width: 180px;
-    }
-    @media (max-width: 1024px) {
-      .controls-wrap > * { min-width: 160px; }
-    }
-
-    /* Table stays readable, scroll instead of collapsing */
-    .table-scroll {
-      overflow-x: auto;
-    }
-    .table-min {
-      min-width: 1100px;
-    }
+    .client-health-scroll { max-height: 315px; overflow-y: auto; }
+    .controls-wrap { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+    .controls-wrap > * { min-width: 180px; }
+    @media (max-width: 1024px) { .controls-wrap > * { min-width: 160px; } }
+    .table-scroll { overflow-x: auto; }
+    .table-min { min-width: 1100px; }
   </style>
 </head>
 
@@ -219,9 +196,14 @@
                 />
               </div>
 
-              <select id="health-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
-                <option value="all">All Status</option>
-              </select>
+              <div class="relative min-w-[170px]">
+                <button id="health-status-btn" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white flex justify-between items-center hover:bg-gray-50">
+                  <span id="health-status-label" class="font-bold text-gray-700">Status: Active</span>
+                  <i class="fa-solid fa-chevron-down text-gray-400 text-xs"></i>
+                </button>
+                <div id="health-status-popover" class="hidden absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-xl z-50 p-3 space-y-2 max-h-64 overflow-y-auto">
+                  </div>
+              </div>
 
               <select id="health-filter-package" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[190px]">
                 <option value="all">All Package Status</option>
@@ -245,46 +227,23 @@
               <thead class="bg-white sticky top-0 z-10 shadow-sm">
                 <tr>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase w-10">Status</th>
-
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="code">
-                    Code <span class="sort-icon" id="sort-code">↕</span>
-                  </th>
-
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="roofingCompany">
-                    Roofing Company <span class="sort-icon" id="sort-roofingCompany">↕</span>
-                  </th>
-
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="cityState">
-                    City/State <span class="sort-icon" id="sort-cityState">↕</span>
-                  </th>
-
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="packageRatio">
-                    Package (Owed/Purchased) <span class="sort-icon" id="sort-packageRatio">↕</span>
-                  </th>
-
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="code">Code <span class="sort-icon" id="sort-code">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="roofingCompany">Roofing Company <span class="sort-icon" id="sort-roofingCompany">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="cityState">City/State <span class="sort-icon" id="sort-cityState">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="packageRatio">Package (Owed) <span class="sort-icon" id="sort-packageRatio">↕</span></th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Qualified</th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Credited</th>
-
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsToday">
-                    Leads Today <span class="sort-icon" id="sort-leadsToday">↕</span>
-                  </th>
-
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsYesterday">
-                    Leads Yesterday <span class="sort-icon" id="sort-leadsYesterday">↕</span>
-                  </th>
-
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center text-red-500">Cancel Rate</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsToday">Leads Today <span class="sort-icon" id="sort-leadsToday">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsYesterday">Leads Yesterday <span class="sort-icon" id="sort-leadsYesterday">↕</span></th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase">Package Status</th>
-
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="clientName">
-                    Client Name <span class="sort-icon" id="sort-clientName">↕</span>
-                  </th>
-
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="clientName">Client Name <span class="sort-icon" id="sort-clientName">↕</span></th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase">Purchase Date</th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase">Last Lead Received</th>
                 </tr>
               </thead>
               <tbody id="client-health-body" class="text-sm divide-y divide-gray-50">
-                <tr><td colspan="14" class="p-6 text-center text-gray-400 italic">Loading clients...</td></tr>
+                <tr><td colspan="15" class="p-6 text-center text-gray-400 italic">Loading clients...</td></tr>
               </tbody>
             </table>
           </div>
@@ -504,7 +463,12 @@
       </div>
 
       <div id="view-clients" class="view-section">
-        <h2 class="text-2xl font-bold text-gray-900 mb-6">Passbook Clients</h2>
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-900">Passbook Clients</h2>
+            <button onclick="document.getElementById('add-client-modal').classList.remove('hidden')" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-extrabold hover:bg-blue-700 transition-colors shadow-sm">
+                <i class="fas fa-plus mr-2"></i> Add Client
+            </button>
+        </div>
         
         <div class="client-filter-container">
             <label for="clientStatusFilter">Filter Clients: </label>
@@ -1153,12 +1117,48 @@
     </div>
   </main>
 
+  <div id="add-client-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-[400px] p-6 relative">
+        <button onclick="document.getElementById('add-client-modal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700">
+            <i class="fa-solid fa-xmark text-xl"></i>
+        </button>
+        
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Add New Client</h2>
+        
+        <form id="add-client-form" onsubmit="submitNewClient(event)">
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-gray-500 mb-1">CLIENT CODE</label>
+                <input type="text" id="new-client-code" required placeholder="e.g. Client 160" class="w-full border rounded p-2 text-sm outline-none focus:border-blue-500">
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-gray-500 mb-1">COMPANY NAME</label>
+                <input type="text" id="new-client-name" required placeholder="e.g. Apex Roofing" class="w-full border rounded p-2 text-sm outline-none focus:border-blue-500">
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-xs font-bold text-gray-500 mb-1">INITIAL STATUS</label>
+                <select id="new-client-status" class="w-full border rounded p-2 text-sm outline-none focus:border-blue-500">
+                    <option value="Active">ACTIVE</option>
+                    <option value="Pause">PAUSE</option>
+                    <option value="Blacklisted">BLACKLISTED</option>
+                    <option value="Inactive">INACTIVE</option>
+                </select>
+            </div>
+
+            <button type="submit" id="save-client-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors">
+                Add Client
+            </button>
+        </form>
+    </div>
+  </div>
+
   <script>
     const AdminDashboard = {
       perfPeriod: 'today',
       analyticsPeriod: 'today',
 
-      // ✅ TEAM STATE
+      // TEAM STATE
       teamPeriod: 'today',
       _teamCustomRange: { active: false, start: null, end: null },
       teamStageFilter: 'active',
@@ -1167,21 +1167,17 @@
       teamSortDir: 'asc',
       _teamBound: false,
 
-      // ✅ AGENT DRILLDOWN STATE
+      // AGENT DRILLDOWN STATE
       _agentSelectedName: null,
       agentPeriod: 'today',
       _agentCustomRange: { active: false, start: null, end: null },
       _agentBound: false,
       
-      // ✅ PAYROLL STATE
+      // PAYROLL STATE
       _payrollBound: false,
       _payrollCustomRange: { active: false, start: null, end: null },
       _payrollCharts: { revenue: null, coordinator: null },
-      // Part C: New Payroll Logic State
-      payrollState: {
-        rawRows: [], // Data from API
-        unsavedChanges: new Set(), // Track modified row IDs
-      },
+      payrollState: { rawRows: [], unsavedChanges: new Set() },
 
       clientHealthRaw: [],
       clientHealthView: [],
@@ -1189,28 +1185,26 @@
 
       _companyToCodeMap: null,
       _companyToPackageMap: null,
-
       _analyticsChart: null,
 
-      // ✅ lead index (by company + by code) for purchase-date based counting
+      // index
       _leadsIndexByCompany: null,
       _leadsIndexByCode: null,
-
-      // ✅ custom range for analytics
       _customRange: { active: false, start: null, end: null },
 
-      // ✅ Leads Master Record UI state
+      // Leads Master Record UI state
       _leadsCols: null,
       _leadsVisibleCols: null,
       _leadsFiltersBound: false,
-      _leadsSort: { key: "date_submitted", dir: "desc" }, // default newest first
+      _leadsSort: { key: "date_submitted", dir: "desc" }, 
 
-      // ✅ Passbook View state
+      // Passbook View state
       _passbookView: "cards",
       _passbookFiltersBound: false,
-
-      // ✅ NEW: Owed KPI
       _owedKpiBound: false,
+
+      // Track if filters have been initially built
+      _firstLoadDone: false,
 
       getState() {
         return (window.portal && window.portal.adminState) ? window.portal.adminState : null;
@@ -1227,7 +1221,6 @@
         this._companyToCodeMap = null;
         this._companyToPackageMap = null;
 
-        // ✅ build lead index (so we can count FROM purchase date per client row)
         const idx = this.buildLeadIndex(leads);
         this._leadsIndexByCompany = idx.byCompany;
         this._leadsIndexByCode = idx.byCode;
@@ -1239,11 +1232,8 @@
         } catch(e) {}
 
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
-
-        // ✅ Bind Team UI + Render
         try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
         
-        // ✅ New Passbook Logic
         try {
           this.setupPassbookFilters(clients);
           this.bindPassbookUI(clients);
@@ -1251,21 +1241,16 @@
         } catch(e) {}
         
         try {
-          // ✅ setup lead filters UI + columns UI + render filtered view
           this.initLeadsColumnsUI();
           this.setupLeadFilters(leads);
           this.bindLeadsMasterEvents();
-          this.applyLeadsFilters(); // renders with filters/search applied
+          this.applyLeadsFilters();
         } catch(e) {}
 
-        // ✅ NEW: Update Owed KPI
         try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
-
-        // ✅ NEW: Update Payroll
         try { this.bindPayrollUI(); this.renderPayrollFinance(); } catch(e) {}
       },
 
-      // ✅ Generic: highlights the clicked button in a segmented control
       _setActiveButton(btnSelector, btnElement) {
         document.querySelectorAll(btnSelector).forEach(b => {
           b.classList.remove("bg-white", "shadow", "text-gray-900");
@@ -1277,7 +1262,6 @@
         }
       },
 
-      // ✅ Optional: show custom is active (adds a ring to the Custom button)
       _setCustomActive(toggleId, isActive) {
         const t = document.getElementById(toggleId);
         if (!t) return;
@@ -1293,7 +1277,6 @@
         return fallback;
       },
 
-      // ✅ Lead field getter (supports many header spellings)
       getLeadField(l, keys, fallback="—") {
         return this.pick(l, keys, fallback);
       },
@@ -1317,19 +1300,16 @@
         ];
       },
 
-      // ✅ Default visible columns (minimal view)
       getLeadsDefaultVisibleCols() {
         return new Set(["date_submitted","homeowner_name","appointment_coordinator","roofing_company","status"]);
       },
 
-      // ✅ Parse lead date using existing portal.parseDateSafe
       getLeadDateObj(l) {
         const dStr = this.getLeadField(l, ["Date Submitted"], "");
         const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
         return (dt && !isNaN(dt.getTime())) ? dt : null;
       },
 
-      // ✅ Build dropdown filter options
       setupLeadFilters(leads) {
         const statusSel = document.getElementById("leads-filter-status");
         const compSel = document.getElementById("leads-filter-company");
@@ -1349,7 +1329,6 @@
         hoSel.innerHTML = `<option value="all">All Homeowners</option>` + homeowners.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
       },
 
-      // ✅ Column selector UI
       initLeadsColumnsUI() {
         if (this._leadsCols) return;
 
@@ -1412,7 +1391,6 @@
         renderChecks();
       },
 
-      // ✅ Apply search + dropdown filters + date range
       applyLeadsFilters() {
         const state = this.getState();
         const leads = (state && Array.isArray(state.leads)) ? state.leads : [];
@@ -1444,7 +1422,6 @@
           filtered = filtered.filter(l => String(this.getLeadField(l, ["Homeowner Name(s)","Homeowner Name","Homeowner","HOMEOWNER NAME"], "")).trim() === hoVal);
         }
 
-        // date range filter
         if (startDt || endDt) {
           filtered = filtered.filter(l => {
             const dt = this.getLeadDateObj(l);
@@ -1455,7 +1432,6 @@
           });
         }
 
-        // text search across many fields
         if (q) {
           filtered = filtered.filter(l => {
             const hay = [
@@ -1472,14 +1448,11 @@
           });
         }
 
-        // ✅ apply sorting (Date Submitted)
         if (this._leadsSort?.key === "date_submitted") {
           const dir = this._leadsSort.dir === "asc" ? 1 : -1;
-
           filtered.sort((a, b) => {
             const da = this.getLeadDateObj(a);
             const db = this.getLeadDateObj(b);
-            // put invalid dates at bottom
             if (!da && !db) return 0;
             if (!da) return 1;
             if (!db) return -1;
@@ -1487,14 +1460,12 @@
           });
         }
 
-        // update count + render
         const countEl = document.getElementById("leads-count");
         if (countEl) countEl.textContent = filtered.length;
 
         this.renderLeads(filtered);
       },
 
-      // ✅ Bind once
       bindLeadsMasterEvents() {
         if (this._leadsFiltersBound) return;
         this._leadsFiltersBound = true;
@@ -1544,7 +1515,6 @@
         return String(code || "").toLowerCase().replace(/\s+/g, "").trim();
       },
 
-      // ✅ Sold-By mapping persisted locally
       getSoldByForClient(code) {
         try {
           const raw = localStorage.getItem("ch_soldby_map");
@@ -1575,6 +1545,7 @@
         const s = String(v || "").trim().toUpperCase();
         if (s.startsWith("PAUS")) return "PAUSE";
         if (s.includes("REFUND")) return "REFUNDED";
+        if (s.includes("COMPLET")) return "COMPLETED";
         if (s.includes("ACTIVE")) return "ACTIVE";
         return s || "—";
       },
@@ -1586,21 +1557,10 @@
         return "st-new";
       },
 
-      extractRoofingCompany(c) {
-        return this.pick(c, ["roofing_company","Roofing Company","ROOFING COMPANY","Company Name","COMPANY NAME"], "—");
-      },
-
-      extractCityState(c) {
-        return this.pick(c, ["city_state","CITY STATE","CITY, STATE","City, State","City State","Location","location"], "—");
-      },
-
-      extractClientName(c) {
-        return this.pick(c, ["client_name","CLIENT NAME","Client Name","clientName","Client","CLIENT"], "—");
-      },
-
-      extractCode(c) {
-        return this.pick(c, ["code_name","CODE NAME","Code Name","codeName","CODE","code","Client Code","CLIENT CODE","Client ID","ClientID"], "N/A");
-      },
+      extractRoofingCompany(c) { return this.pick(c, ["roofing_company","Roofing Company","ROOFING COMPANY","Company Name","COMPANY NAME"], "—"); },
+      extractCityState(c) { return this.pick(c, ["city_state","CITY STATE","CITY, STATE","City, State","City State","Location","location"], "—"); },
+      extractClientName(c) { return this.pick(c, ["client_name","CLIENT NAME","Client Name","clientName","Client","CLIENT"], "—"); },
+      extractCode(c) { return this.pick(c, ["code_name","CODE NAME","Code Name","codeName","CODE","code","Client Code","CLIENT CODE","Client ID","ClientID"], "N/A"); },
 
       buildLeadIndex(leads) {
         const byCompany = new Map();
@@ -1644,14 +1604,12 @@
         return out;
       },
 
-      // ✅ ADDED HELPER: Compute Owed = Purchased - Qualified
       computeOwedRemaining(purchased, qualified) {
         const p = Number(purchased) || 0;
         const q = Number(qualified) || 0;
         return Math.max(p - q, 0);
       },
 
-      // ✅ ADDED HELPER: Extract Purchased Leads robustly
       getPurchasedLeads(c) {
         return Number(this.pick(c, [
           "purchased_leads","Purchased Leads","PURCHASED LEADS","Purchased",
@@ -1673,7 +1631,6 @@
           const leadsToday = Number(this.pick(c, ["leads_today","Leads Today"], 0)) || 0;
           const leadsYesterday = Number(this.pick(c, ["leads_yesterday","Leads Yesterday"], 0)) || 0;
 
-          // ✅ UPDATED LOGIC: Get purchased first, owed calculated later
           const purchased = this.getPurchasedLeads(c);
           let owed = 0; 
           let pkgLabel = `0 / ${purchased}`;
@@ -1690,7 +1647,6 @@
           const list = this._leadsIndexByCode?.get(codeKey) || this._leadsIndexByCompany?.get(companyKey) || [];
           const counts = this.countQualifiedCreditedFrom(list, pDt);
           
-          // ✅ UPDATED LOGIC: Owed is based on PURCHASED - QUALIFIED
           owed = this.computeOwedRemaining(purchased, counts.qualified);
           pkgLabel = `${owed} / ${purchased}`;
           pkgRatio = purchased === 0 ? 0 : (owed / purchased);
@@ -1714,7 +1670,6 @@
             packageRatio: pkgRatio,
             leadsToday,
             leadsYesterday,
-            // ✅ Add these for the KPI tile to use
             owedRemaining: owed,
             purchasedLeads: purchased
           };
@@ -1722,31 +1677,43 @@
       },
 
       setupFilters(rows) {
-        const statusSel = document.getElementById("health-filter-status");
         const pkgSel = document.getElementById("health-filter-package");
         const locSel = document.getElementById("health-filter-location");
 
-        // ✅ Save current selections
-        const prevStatus = statusSel.value;
+        // ✅ MULTI-SELECT STATUS POPULATION
+        const statusBtn = document.getElementById("health-status-btn");
+        const statusPop = document.getElementById("health-status-popover");
+        if (statusPop && statusBtn) {
+            const prevChecked = Array.from(statusPop.querySelectorAll('input:checked')).map(cb => cb.value);
+            const defaults = this._firstLoadDone ? prevChecked : ["ACTIVE", "CRITICAL", "AT RISK", "HEALTHY"];
+            this._firstLoadDone = true;
+
+            const alwaysStatuses = ["ACTIVE", "PAUSE", "BLACKLISTED", "INACTIVE", "CRITICAL", "AT RISK", "HEALTHY", "NOT STARTED"];
+            const foundStatuses = [...new Set(rows.map(r => r.status))].filter(Boolean);
+            const statuses = [...new Set([...alwaysStatuses, ...foundStatuses])].sort();
+
+            statusPop.innerHTML = statuses.map(s => {
+                const isChecked = defaults.includes(s) ? 'checked' : '';
+                return `<label class="flex items-center text-sm cursor-pointer p-2 hover:bg-gray-50 rounded"><input type="checkbox" value="${s}" class="health-st-chk mr-2" ${isChecked}> ${s}</label>`;
+            }).join("");
+
+            const updateLabel = () => {
+                const count = statusPop.querySelectorAll('.health-st-chk:checked').length;
+                document.getElementById("health-status-label").textContent = `Status: ${count} selected`;
+            };
+            updateLabel();
+
+            statusPop.querySelectorAll('.health-st-chk').forEach(chk => {
+                chk.addEventListener('change', () => { updateLabel(); this.applyClientHealthFilters(); });
+            });
+        }
+
         const prevLoc = locSel ? locSel.value : "all";
-
-        const alwaysStatuses = ["CRITICAL", "AT RISK", "HEALTHY", "NOT STARTED"];
-        const foundStatuses = [...new Set(rows.map(r => r.status))].filter(Boolean);
-        const statuses = [...new Set([...alwaysStatuses, ...foundStatuses])];
-
-        statusSel.innerHTML = `<option value="all">All Status</option>` + statuses.map(s => `<option value="${s}">${s}</option>`).join("");
-
-        // ✅ Restore status selection safely
-        const statusExists = Array.from(statusSel.options).some(o => o.value === prevStatus);
-        statusSel.value = statusExists ? prevStatus : "all";
-
-        // ✅ NEW: Populate Location Filter
         if (locSel) {
            const uniq = (arr) => [...new Set(arr.filter(x => String(x||"").trim() !== ""))].sort((a,b)=>String(a).localeCompare(String(b)));
            const locs = uniq(rows.map(r => r.cityState));
            locSel.innerHTML = `<option value="all">All Locations</option>` + locs.map(l => `<option value="${String(l).replace(/"/g,'&quot;')}">${l}</option>`).join("");
            
-           // ✅ Restore location selection safely
            const locExists = Array.from(locSel.options).some(o => o.value === prevLoc);
            locSel.value = locExists ? prevLoc : "all";
         }
@@ -1754,15 +1721,27 @@
         if (!this._filtersBound) {
           this._filtersBound = true;
           document.getElementById("health-search").addEventListener("input", () => this.applyClientHealthFilters());
-          statusSel.addEventListener("change", () => this.applyClientHealthFilters());
           if (pkgSel) pkgSel.addEventListener("change", () => this.applyClientHealthFilters());
           if (locSel) locSel.addEventListener("change", () => this.applyClientHealthFilters());
 
+          if (statusBtn && statusPop) {
+              statusBtn.addEventListener("click", (e) => { e.preventDefault(); statusPop.classList.toggle("hidden"); });
+              document.addEventListener("click", (e) => {
+                  if (!statusPop.contains(e.target) && e.target !== statusBtn && !statusBtn.contains(e.target)) {
+                      statusPop.classList.add("hidden");
+                  }
+              });
+          }
+
           document.getElementById("health-clear").addEventListener("click", () => {
             document.getElementById("health-search").value = "";
-            statusSel.value = "all";
             if (pkgSel) pkgSel.value = "all";
             if (locSel) locSel.value = "all";
+            // Reset to defaults
+            document.querySelectorAll('.health-st-chk').forEach(chk => {
+                chk.checked = ["ACTIVE", "CRITICAL", "AT RISK", "HEALTHY"].includes(chk.value);
+            });
+            document.getElementById("health-status-label").textContent = `Status: 4 selected`;
             this.applyClientHealthFilters();
           });
 
@@ -1773,33 +1752,6 @@
               this.applyClientHealthFilters();
             });
           });
-
-          const toggle = document.getElementById("custom-range-toggle");
-          const pop = document.getElementById("custom-range-popover");
-          const apply = document.getElementById("custom-apply");
-          const clear = document.getElementById("custom-clear");
-
-          if (toggle && pop && apply && clear && !this._customBound) {
-            this._customBound = true;
-            toggle.addEventListener("click", (e) => { e.preventDefault(); pop.classList.toggle("hidden"); });
-            document.addEventListener("click", (e) => { if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) pop.classList.add("hidden"); });
-            apply.addEventListener("click", () => {
-              const s = document.getElementById("custom-start").value;
-              const e = document.getElementById("custom-end").value;
-              if (!s || !e) return;
-              this._customRange.active = true;
-              this._customRange.start = s; this._customRange.end = e;
-              this.analyticsPeriod = "custom";
-              pop.classList.add("hidden");
-              this.updateAnalytics(this.analyticsPeriod);
-            });
-            clear.addEventListener("click", () => {
-              document.getElementById("custom-start").value = "";
-              document.getElementById("custom-end").value = "";
-              this._customRange.active = false; pop.classList.add("hidden");
-              this.updateAnalytics(this.analyticsPeriod === "custom" ? "today" : this.analyticsPeriod);
-            });
-          }
         }
       },
 
@@ -1813,13 +1765,19 @@
 
       applyClientHealthFilters() {
         const q = String(document.getElementById("health-search").value || "").toLowerCase().trim();
-        const status = document.getElementById("health-filter-status").value;
         const pkg = document.getElementById("health-filter-package")?.value || "all";
         const loc = document.getElementById("health-filter-location")?.value || "all";
 
+        const checkedStatuses = Array.from(document.querySelectorAll('.health-st-chk:checked')).map(cb => cb.value.toUpperCase());
+
         let filtered = [...this.clientHealthRaw];
 
-        if (status !== "all") filtered = filtered.filter(r => r.status === status);
+        if (checkedStatuses.length > 0) {
+            filtered = filtered.filter(r => checkedStatuses.includes(String(r.status).toUpperCase()));
+        } else {
+            filtered = [];
+        }
+
         if (pkg !== "all") filtered = filtered.filter(r => String(r.packageStatus || "").toUpperCase() === pkg);
         if (loc !== "all") filtered = filtered.filter(r => String(r.cityState || "") === loc);
 
@@ -1846,13 +1804,23 @@
       renderClientHealthTable(rows) {
         const tbody = document.getElementById("client-health-body");
         if (!rows.length) {
-          tbody.innerHTML = `<tr><td colspan="14" class="p-6 text-center text-gray-400 italic">No results found.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="15" class="p-6 text-center text-gray-400 italic">No results found.</td></tr>`;
           return;
         }
 
         tbody.innerHTML = rows.map(r => {
           const dotClass = this.statusDotClass(r.status);
-          const soldByVal = r.soldBy || "";
+          
+          // ✅ Cancellation Rate Math
+          const totalQC = r.qualifiedCount + r.creditedCount;
+          const cancelRate = totalQC > 0 ? Math.round((r.creditedCount / totalQC) * 100) : 0;
+
+          // ✅ Package Status Color
+          let pkgColor = "bg-gray-100 text-gray-700";
+          if (r.packageStatus === 'ACTIVE') pkgColor = "bg-blue-100 text-blue-800";
+          if (r.packageStatus === 'COMPLETED') pkgColor = "bg-purple-100 text-purple-800";
+          if (r.packageStatus === 'REFUNDED') pkgColor = "bg-orange-100 text-orange-800";
+
           return `
             <tr class="hover:bg-gray-50">
               <td class="p-4">
@@ -1867,37 +1835,33 @@
               <td class="p-4 text-center text-gray-900 font-bold">${r.packageLabel}</td>
               <td class="p-4 text-center text-blue-500 font-bold">${r.qualifiedCount}</td>
               <td class="p-4 text-center text-purple-500 font-bold">${r.creditedCount}</td>
+              <td class="p-4 text-center text-gray-700 font-bold">${cancelRate}%</td>
               <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsToday}</td>
               <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsYesterday}</td>
-              <td class="p-4 text-gray-500">${r.packageStatus}</td>
+              
+              <td class="p-4">
+                <select onchange="window.updateClientPackageStatus('${r.code}', this.value)" class="px-2 py-1 rounded text-[10px] font-extrabold border outline-none cursor-pointer shadow-sm ${pkgColor}">
+                    <option value="Active" ${r.packageStatus === 'ACTIVE' ? 'selected' : ''}>ACTIVE</option>
+                    <option value="Pause" ${r.packageStatus === 'PAUSE' ? 'selected' : ''}>PAUSE</option>
+                    <option value="Completed" ${r.packageStatus === 'COMPLETED' ? 'selected' : ''}>COMPLETED</option>
+                    <option value="Refunded" ${r.packageStatus === 'REFUNDED' ? 'selected' : ''}>REFUNDED</option>
+                </select>
+              </td>
+
               <td class="p-4 text-gray-700 max-w-[260px] truncate" title="${r.clientName}">${r.clientName}</td>
               <td class="p-4 text-gray-500">${r.purchaseDate}</td>
               <td class="p-4 text-gray-500">${r.lastLead}</td>
-              <td class="p-4 text-center">
-              </td>
             </tr>
           `;
         }).join("");
-
-        tbody.querySelectorAll('select[data-soldby-code]').forEach(sel => {
-          sel.addEventListener('change', (e) => {
-            const code = e.target.getAttribute('data-soldby-code');
-            this.setSoldByForClient(code, e.target.value);
-            const row = this.clientHealthRaw.find(x => x.code === code);
-            if (row) row.soldBy = e.target.value;
-          });
-        });
       },
 
-      // ✅ NEW: Compute Total Owed Leads (Summing the Owed Remaining)
       computeTotalOwedLeads(packageStatus = "all") {
-        // ✅ Use the already-normalized rows (same math as the table)
         const rows = Array.isArray(this.clientHealthRaw) ? this.clientHealthRaw : [];
-
         let total = 0;
         for (const r of rows) {
           if (packageStatus !== "all" && String(r.packageStatus || "").toUpperCase() !== packageStatus) continue;
-          total += Number(r.owedRemaining) || 0;  // ✅ sum the "owed" part
+          total += Number(r.owedRemaining) || 0; 
         }
         return total;
       },
@@ -1940,27 +1904,22 @@
         const startOfDay = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
         const endOfDay   = (d) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
 
-        // Payroll week: Sat -> Fri
         const getPayrollWeekRangeLocal = (d) => {
           const x = new Date(d);
-          const day = x.getDay(); // 0=Sun ... 6=Sat
+          const day = x.getDay(); 
           const diffToSat = (day - 6);
           const start = new Date(x);
           start.setDate(start.getDate() - diffToSat);
           start.setHours(0,0,0,0);
-
           const end = new Date(start);
-          end.setDate(end.getDate() + 6); // Sat + 6 = Fri
+          end.setDate(end.getDate() + 6); 
           end.setHours(23,59,59,999);
-
           return { start, end };
         };
 
         const payrollThis = window.portal?.getPayrollWeekRange ? window.portal.getPayrollWeekRange() : null;
         const payrollPrev = window.portal?.getPreviousPayrollWeekRange ? window.portal.getPreviousPayrollWeekRange() : null;
-
         const localThis = getPayrollWeekRangeLocal(now);
-
         const thisWeekStart = (payrollThis?.start && !isNaN(new Date(payrollThis.start).getTime())) ? new Date(payrollThis.start) : localThis.start;
         const thisWeekEnd = (payrollThis?.end && !isNaN(new Date(payrollThis.end).getTime())) ? new Date(payrollThis.end) : localThis.end;
 
@@ -1975,15 +1934,9 @@
           return { start: startOfDay(new Date(this._customRange.start + "T00:00:00")), end: endOfDay(new Date(this._customRange.end + "T23:59:59")), grain: "day", label: "Custom Range" };
         }
         
-        // ✅ Patch: All-Time Support
         if (period === "all-time") {
-          const dates = (leads || [])
-            .map(l => this.getLeadDateObj(l))
-            .filter(d => d && !isNaN(d.getTime()))
-            .sort((a,b) => a - b);
-
+          const dates = (leads || []).map(l => this.getLeadDateObj(l)).filter(d => d && !isNaN(d.getTime())).sort((a,b) => a - b);
           if (!dates.length) return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "All-Time" };
-
           const start = startOfDay(dates[0]);
           const end   = endOfDay(dates[dates.length - 1]);
           return { start, end, grain: "week", label: "All-Time" };
@@ -2009,22 +1962,18 @@
       isCredited(st) { const s = String(st || "").toLowerCase(); return s.includes("credit"); },
       isPendingReview(st) { const s = String(st || "").toLowerCase(); return s.includes("pending"); },
 
-      // ✅ NEW: Status Badge Helper
       statusBadge(status) {
         const s = String(status || "").toLowerCase();
         let cls = "bg-gray-100 text-gray-700 border-gray-200";
-
         if (s.includes("approved") || s.includes("confirmed")) cls = "bg-emerald-100 text-emerald-800 border-emerald-200";
         if (s.includes("rejected") || s.includes("credit"))    cls = "bg-red-100 text-red-800 border-red-200";
-
         return `<span class="px-2 py-1 rounded-full text-xs font-extrabold border ${cls}">${status || "—"}</span>`;
       },
 
       _fmtDateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; },
       _fmtWeekKey(d) {
-        // Payroll week starts Saturday
         const x = new Date(d);
-        const day = x.getDay(); // 0=Sun ... 6=Sat
+        const day = x.getDay(); 
         const diffToSat = (day - 6);
         x.setDate(x.getDate() - diffToSat);
         x.setHours(0,0,0,0);
@@ -2032,7 +1981,7 @@
       },
 
       _buildBuckets(start, end, grain) {
-        const buckets = []; const cursor = new Date(start); cursor.setHours(0,0,0,0);
+        const buckets = []; cursor = new Date(start); cursor.setHours(0,0,0,0);
         if (grain === "day") { while (cursor <= end) { buckets.push(this._fmtDateKey(cursor)); cursor.setDate(cursor.getDate() + 1); } return buckets; }
         if (grain === "week") { let wkCursor = new Date(this._fmtWeekKey(cursor) + "T00:00:00"); while (wkCursor <= end) { buckets.push(this._fmtDateKey(wkCursor)); wkCursor.setDate(wkCursor.getDate() + 7); } return buckets; }
         return buckets;
@@ -2051,11 +2000,10 @@
         this._analyticsChart = new Chart(ctx, {
           type: "bar",
           data: { labels, datasets: [
-            // ✅ Team Performance Colors
-            { label: "Qualified",   data: series.qualified, stack: "stack", backgroundColor: "#3B82F6" }, // blue
-            { label: "QC Rejected", data: series.rejected,  stack: "stack", backgroundColor: "#EF4444" }, // red
-            { label: "Credited",    data: series.credited,  stack: "stack", backgroundColor: "#A855F7" }, // purple
-            { label: "Pending",     data: series.pending,   stack: "stack", backgroundColor: "#FACC15" }, // yellow
+            { label: "Qualified",   data: series.qualified, stack: "stack", backgroundColor: "#3B82F6" }, 
+            { label: "QC Rejected", data: series.rejected,  stack: "stack", backgroundColor: "#EF4444" }, 
+            { label: "Credited",    data: series.credited,  stack: "stack", backgroundColor: "#A855F7" }, 
+            { label: "Pending",     data: series.pending,   stack: "stack", backgroundColor: "#FACC15" }, 
           ]},
           options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
         });
@@ -2084,20 +2032,15 @@
         const seriesMap = new Map();
         buckets.forEach(b => seriesMap.set(b, { qualified: 0, rejected: 0, credited: 0, pending: 0 }));
 
-        // ✅ 1. SEED: Initialize analytics with ACTIVE agents so 0-lead agents appear
         const agents = (state && Array.isArray(state.agents)) ? state.agents : [];
-
         agents.forEach(a => {
-          const stage = this.getAgentStage(a); // uses same logic as Team tab
+          const stage = this.getAgentStage(a); 
           if (stage !== "active") return;
-
           const name = String(this.pick(a, ["Employee Name","Name","Agent Name","Full Name"], "Unknown")).trim();
           if (!name) return;
-
           agentAgg.set(name, { name, total: 0, qualified: 0, rejected: 0, credited: 0, pending: 0 });
         });
 
-        // ✅ 2. UPDATE: Process leads (increments existing seeded agents or adds unknown ones)
         leads.forEach(l => {
           const dt = this.getLeadDateObj(l);
           if (!dt || dt < start || dt > end) return;
@@ -2140,23 +2083,17 @@
         document.getElementById("kpi-pending").textContent = pending;
         document.getElementById("kpi-cancel").textContent = `${(qualified + credited > 0) ? Math.round((credited / (qualified + credited)) * 100) : 0}%`;
 
-        // ✅ 3. SORT: Update sorting logic to handle ties better
         const top = Array.from(agentAgg.values())
           .sort((a,b) => (b.qualified - a.qualified) || (b.total - a.total))
           .slice(0, 10);
 
         const bottom = Array.from(agentAgg.values())
           .filter(a => a.total <= 5)
-          .sort((a,b) => 
-            (a.total - b.total) || 
-            (a.qualified - b.qualified) || 
-            a.name.localeCompare(b.name)
-          )
+          .sort((a,b) => (a.total - b.total) || (a.qualified - b.qualified) || a.name.localeCompare(b.name))
           .slice(0, 5);
 
         const renderRow = (a) => {
           const d = a.qualified + a.credited;
-          // ✅ Team Performance Colors applied here
           return `<tr><td class="p-4 font-bold text-gray-900">${a.name}</td><td class="p-4 text-center text-gray-600 font-semibold">${a.total}</td><td class="p-4 text-center text-red-500 font-bold">${a.rejected}</td><td class="p-4 text-center text-blue-500 font-bold">${a.qualified}</td><td class="p-4 text-center text-purple-500 font-bold">${a.credited}</td><td class="p-4 text-center text-yellow-600 font-bold">${a.pending}</td><td class="p-4 text-center text-gray-600 font-semibold">${d > 0 ? Math.round((a.credited/d)*100) : 0}%</td></tr>`;
         };
 
@@ -2174,9 +2111,45 @@
       renderClientCards(clients) {
         const container = document.getElementById('client-cards-container');
         if (!container) return;
-        container.innerHTML = (clients || []).map(c => {
-          const code = this.extractCode(c);
-          return `<button type="button" class="text-left bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition" onclick="Admin.openPassbookClient('${String(code).replace(/'/g, "\\'")}')"><div class="flex items-center justify-between"><h3 class="font-bold text-gray-900 text-lg">${this.extractRoofingCompany(c)}</h3><span class="text-xs font-bold text-gray-500">${code}</span></div><p class="text-xs text-gray-500 mt-1">${this.extractCityState(c)}</p><p class="text-[10px] font-extrabold text-yellow-600 uppercase tracking-wider mt-3">Click to open</p><div class="sales-share-toggle"><label><input type="checkbox" class="share-checkbox" onchange="toggleShareWithSales('${code}', this)" ${c.shared_with_sales ? 'checked' : ''}> Share with Sales</label></div></button>`;
+        container.innerHTML = (clients || []).map(client => {
+          const code = this.extractCode(client);
+          return `<div class="text-left bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition relative">
+
+            <div onclick="Admin.openPassbookClient('${String(code).replace(/'/g, "\\'")}')" class="cursor-pointer">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-gray-900 text-lg">${this.extractRoofingCompany(client)}</h3>
+                    <span class="text-xs font-bold text-gray-500">${code}</span>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">${this.extractCityState(client)}</p>
+                <p class="text-[10px] font-extrabold text-yellow-600 uppercase tracking-wider mt-3">Click to open</p>
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center relative z-10">
+                
+                <label class="flex items-center text-sm text-gray-600 cursor-pointer">
+                    <input type="checkbox" class="mr-2" 
+                           onchange="toggleShareWithSales('${code}', this)" 
+                           ${client.shared_with_sales ? 'checked' : ''}>
+                    Share with Sales
+                </label>
+
+                <div class="flex items-center gap-2">
+                    <select id="status-select-${client.id}" 
+                            onchange="updateClientStatus('${client.id}', this.value)" 
+                            class="px-2 py-1 rounded-full text-[10px] font-extrabold border outline-none cursor-pointer transition-all shadow-sm ${window.getClientStatusColor ? getClientStatusColor(client.client_status) : ''}">
+                        <option value="Active" ${client.client_status === 'Active' ? 'selected' : ''}>ACTIVE</option>
+                        <option value="Pause" ${client.client_status === 'Pause' ? 'selected' : ''}>PAUSE</option>
+                        <option value="Blacklisted" ${client.client_status === 'Blacklisted' ? 'selected' : ''}>BLACKLISTED</option>
+                        <option value="Inactive" ${client.client_status === 'Inactive' ? 'selected' : ''}>INACTIVE</option>
+                    </select>
+
+                    <button onclick="deletePassbookClient('${client.id}', '${client.company_name}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Client">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+                
+            </div>
+        </div>`;
         }).join('') || '<div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">No results</div>';
       },
 
@@ -2192,28 +2165,18 @@
       async _fetchAndRenderPassbookClient(codeName) {
         try {
           const base = window.portal.webhooks.passbookClientDetails;
-
-          const url = base.includes("?")
-            ? `${base}&codeName=${encodeURIComponent(codeName)}`
-            : `${base}?codeName=${encodeURIComponent(codeName)}`;
-
+          const url = base.includes("?") ? `${base}&codeName=${encodeURIComponent(codeName)}` : `${base}?codeName=${encodeURIComponent(codeName)}`;
           const res = await fetch(url, { method: "GET" });
-
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const json = await res.json();
-
           this._renderPassbookForm(json);
         } catch (err) {
-          document.getElementById("passbook-form-body").innerHTML =
-            '<div class="p-4 text-red-700">Failed to load details.</div>';
+          document.getElementById("passbook-form-body").innerHTML = '<div class="p-4 text-red-700">Failed to load details.</div>';
         }
       },
 
       _renderPassbookForm(data) {
-        // data might be: { client: {...}, packages:[...] } OR just the row itself
         const raw = data?.client ? data.client : (data || {});
-
-        // helper: read either "camelCase" keys OR sheet header keys
         const get = (...keys) => {
           for (const k of keys) {
             const v = raw?.[k];
@@ -2222,7 +2185,6 @@
           return "";
         };
 
-        // Map your Google Sheet headers to the UI fields
         const fields = [
           { label: "Code Name", key: "CODE NAME", keys: ["codeName","CODE NAME","Code Name"] },
           { label: "Company Name", key: "COMPANY NAME", keys: ["companyName","COMPANY NAME","Company Name"] },
@@ -2248,7 +2210,6 @@
         ];
 
         const liveSheet = get("liveSheet","Live Sheet","LIVE SHEET");
-
         const codeName = get("codeName","CODE NAME","Code Name") || "—";
         const companyName = get("companyName","COMPANY NAME","Company Name") || "Unknown";
         const cityState = get("cityState","CITY/STATE","City/State","Location") || "—";
@@ -2257,7 +2218,6 @@
         document.getElementById("passbook-modal-sub").textContent = `Code: ${codeName} • ${cityState}`;
         document.getElementById("codeName").value = codeName;
 
-        // Render layout
         let html = `
           <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
@@ -2283,18 +2243,11 @@
           const value = get(...f.keys);
           const safe = value.replace(/"/g, "&quot;");
 
-          // make Website clickable
           if (f.label === "Website" && value) {
-            html += `
-              <div>
-                <label class="block text-[10px] font-bold text-gray-500 uppercase">${f.label}</label>
-                <a href="${safe}" target="_blank" class="text-sm text-blue-600 underline break-words">${safe}</a>
-              </div>
-            `;
+            html += `<div><label class="block text-[10px] font-bold text-gray-500 uppercase">${f.label}</label><a href="${safe}" target="_blank" class="text-sm text-blue-600 underline break-words">${safe}</a></div>`;
             continue;
           }
 
-          // long text fields as textarea
           const isLong = ["Additional Notes / Requests", "Regions / Cities / Zip Codes"].includes(f.label);
 
           html += `
@@ -2310,7 +2263,6 @@
         }
 
         html += `</div>`;
-
         document.getElementById("passbook-form-body").innerHTML = html;
       },
 
@@ -2322,10 +2274,8 @@
         this.initLeadsColumnsUI();
         const visibleCols = this._leadsCols.filter(c => this._leadsVisibleCols.has(c.key));
         
-        // 1. Render Headers + Add an 'Actions' column at the end
         thead.innerHTML = `<tr>${visibleCols.map(c => `<th class="p-4">${c.label}</th>`).join("")}<th class="p-4 text-center">Actions</th></tr>`;
         
-        // 2. Render Rows with Interactive Dropdowns
         tbody.innerHTML = leads.map(l => {
           const leadId = this.getLeadField(l, ["LEAD ID", "lead_id", "ID"], "unknown");
           
@@ -2367,7 +2317,6 @@
       },
       
       getClientSortNumber(code) {
-        // supports "Client 001" or "001" or "client001"
         const s = String(code || "");
         const m = s.match(/(\d+)/);
         return m ? parseInt(m[1], 10) : 999999;
@@ -2387,9 +2336,7 @@
           );
         }
 
-        // ✅ chronological sort
         rows.sort((a,b) => this.getClientSortNumber(this.extractCode(a)) - this.getClientSortNumber(this.extractCode(b)));
-
         document.getElementById("passbook-count").textContent = rows.length;
 
         if (this._passbookView === "list") this.renderPassbookList(rows);
@@ -2397,7 +2344,20 @@
       },
 
       renderPassbookList(clients) {
-        document.getElementById("passbook-list-body").innerHTML = (clients || []).map(c => `<tr class="hover:bg-gray-50"><td class="p-4">${this.extractCode(c)}</td><td class="p-4 font-bold">${this.extractRoofingCompany(c)}</td><td class="p-4">${this.extractCityState(c)}</td><td class="p-4">${this.extractClientName(c)}</td><td class="p-4 text-right"><div class="sales-share-toggle" style="display:inline-block; margin-right:10px;"><label><input type="checkbox" class="share-checkbox" onchange="toggleShareWithSales('${this.extractCode(c)}', this)" ${c.shared_with_sales ? 'checked' : ''}> Share with Sales</label></div><button class="px-3 py-1 rounded bg-gray-900 text-white text-xs" onclick="Admin.openPassbookClient('${this.extractCode(c)}')">Open</button></td></tr>`).join("");
+        document.getElementById("passbook-list-body").innerHTML = (clients || []).map(client => `<tr class="hover:bg-gray-50"><td class="p-4">${this.extractCode(client)}</td><td class="p-4 font-bold">${this.extractRoofingCompany(client)}</td><td class="p-4">${this.extractCityState(client)}</td><td class="p-4">${this.extractClientName(client)}</td><td class="p-4 text-right"><div style="display:inline-flex; align-items:center; gap:8px; margin-right:15px;">
+<select id="status-select-${client.id}" 
+        onchange="updateClientStatus('${client.id}', this.value)" 
+        class="px-2 py-1 rounded-full text-[10px] font-extrabold border outline-none cursor-pointer transition-all shadow-sm ${window.getClientStatusColor ? getClientStatusColor(client.client_status) : ''}">
+    <option value="Active" ${client.client_status === 'Active' ? 'selected' : ''}>ACTIVE</option>
+    <option value="Pause" ${client.client_status === 'Pause' ? 'selected' : ''}>PAUSE</option>
+    <option value="Blacklisted" ${client.client_status === 'Blacklisted' ? 'selected' : ''}>BLACKLISTED</option>
+    <option value="Inactive" ${client.client_status === 'Inactive' ? 'selected' : ''}>INACTIVE</option>
+</select>
+
+<button onclick="deletePassbookClient('${client.id}', '${client.company_name}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Client">
+    <i class="fa-solid fa-trash-can"></i>
+</button>
+</div><div class="sales-share-toggle" style="display:inline-block; margin-right:10px;"><label><input type="checkbox" class="share-checkbox" onchange="toggleShareWithSales('${this.extractCode(client)}', this)" ${client.shared_with_sales ? 'checked' : ''}> Share with Sales</label></div><button class="px-3 py-1 rounded bg-gray-900 text-white text-xs" onclick="Admin.openPassbookClient('${this.extractCode(client)}')">Open</button></td></tr>`).join("");
       },
 
       bindPassbookUI(clients) {
@@ -2419,21 +2379,16 @@
         }
       },
 
-      // ✅ Replace your setTeamPeriod with this:
       setTeamPeriod(period, btnElement) {
         this.teamPeriod = period;
-
-        // presets: move the white pill
         if (period !== "custom") {
           this._teamCustomRange.active = false;
           this._setCustomActive("team-custom-toggle", false);
           this._setActiveButton(".team-btn", btnElement);
         } else {
-          // custom: remove pill from presets, ring the custom button
           this._setActiveButton(".team-btn", null);
           this._setCustomActive("team-custom-toggle", true);
         }
-
         this.renderTeam();
       },
       
@@ -2459,22 +2414,19 @@
         const warnedSel = document.getElementById("team-warned-filter");
 
         if (search) search.addEventListener("input", () => this.renderTeam());
-
         if (stageSel) {
           stageSel.addEventListener("change", () => {
-            this.teamStageFilter = stageSel.value; // "all|active|onboarding|offboarded"
+            this.teamStageFilter = stageSel.value; 
             this.renderTeam();
           });
         }
-
         if (warnedSel) {
           warnedSel.addEventListener("change", () => {
-            this.teamWarnedFilter = warnedSel.value; // "all|warned|not-warned"
+            this.teamWarnedFilter = warnedSel.value; 
             this.renderTeam();
           });
         }
 
-        // ✅ Custom popover wiring
         const toggle = document.getElementById("team-custom-toggle");
         const pop = document.getElementById("team-custom-popover");
         const apply = document.getElementById("team-custom-apply");
@@ -2485,7 +2437,6 @@
             e.preventDefault();
             pop.classList.toggle("hidden");
           });
-
           document.addEventListener("click", (e) => {
             if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
               pop.classList.add("hidden");
@@ -2528,7 +2479,6 @@
           "Status"
         ], "")).toLowerCase().trim();
 
-        // normalize possible values
         if (s.includes("active")) return "active";
         if (s.includes("onboard")) return "onboarding";
         if (s.includes("offboard")) return "offboarded";
@@ -2545,14 +2495,12 @@
 
       _computeAgentMetrics(name, leads, start, end) {
         const inRange = leads.filter(l => {
-          // ✅ Patch: Match logic same as analytics + Exact Match
           const a = this.pick(l, ["Appointment Coordinator Name","Agent Name","AGENT"], "");
           const dt = this.getLeadDateObj(l);
           return dt && dt >= start && dt <= end && String(a).trim().toLowerCase() === String(name).trim().toLowerCase();
         });
         let q = 0, c = 0, r = 0, p = 0;
         inRange.forEach(l => {
-          // ✅ Quick fix: make _computeAgentMetrics status extraction more robust
           const st = this.pick(l, ["Status","STATUS"], "");
           if (this.isQualified(st)) q++; else if (this.isCredited(st)) c++; else if (this.isRejected(st)) r++; else p++;
         });
@@ -2583,19 +2531,11 @@
           };
         });
 
-        // ✅ stage filter
-        if (stageFilter !== "all") {
-          rows = rows.filter(r => r.stage === stageFilter);
-        }
-
-        // ✅ warned filter
+        if (stageFilter !== "all") rows = rows.filter(r => r.stage === stageFilter);
         if (warnedFilter === "warned") rows = rows.filter(r => r.warned);
         if (warnedFilter === "not-warned") rows = rows.filter(r => !r.warned);
-
-        // ✅ search filter
         if (q) rows = rows.filter(r => String(r.name).toLowerCase().includes(q));
 
-        // ✅ sorting
         const key = this.teamSortKey;
         const dir = this.teamSortDir === "asc" ? 1 : -1;
 
@@ -2611,7 +2551,6 @@
 
         if (sorters[key]) rows.sort(sorters[key]);
 
-        // ✅ show correct count + range label
         const countEl = document.getElementById("team-count");
         if (countEl) countEl.textContent = rows.length;
 
@@ -2626,7 +2565,6 @@
         };
 
         const tbody = document.getElementById("team-body");
-
         if (!rows.length) {
           tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No agents found.</td></tr>`;
           return;
@@ -2648,21 +2586,16 @@
         `).join("");
       },
 
-      // ✅ Update openAgentModal so it binds UI + sets title
       openAgentModal(name) {
         this._agentSelectedName = name;
         this.bindAgentUI();
-
-        // default: mirror whatever Team tab is using (optional but feels consistent)
         this.agentPeriod = this.teamPeriod || "today";
         this._agentCustomRange.active = false;
         this._setCustomActive("agent-custom-toggle", false);
-
         document.getElementById("agent-modal").classList.remove("hidden");
         this.renderAgentLeads();
       },
 
-      // ✅ Add a real Agent UI binder + custom wiring
       bindAgentUI() {
         if (this._agentBound) return;
         this._agentBound = true;
@@ -2677,7 +2610,6 @@
             e.preventDefault();
             pop.classList.toggle("hidden");
           });
-
           document.addEventListener("click", (e) => {
             if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
               pop.classList.add("hidden");
@@ -2695,7 +2627,6 @@
             this._agentCustomRange.start = s;
             this._agentCustomRange.end = e;
 
-            // make "Custom" the active period visually
             this.agentPeriod = "custom";
             this._setActiveButton(".agent-btn", null);
             this._setCustomActive("agent-custom-toggle", true);
@@ -2711,9 +2642,8 @@
             document.getElementById("agent-custom-end").value = "";
             this._agentCustomRange.active = false;
 
-            // reset to today and move pill to Today
             this.agentPeriod = "today";
-            const todayBtn = document.querySelector(".agent-btn"); // first one is Today
+            const todayBtn = document.querySelector(".agent-btn"); 
             this._setActiveButton(".agent-btn", todayBtn);
             this._setCustomActive("agent-custom-toggle", false);
 
@@ -2723,7 +2653,6 @@
         }
       },
 
-      // ✅ Add agent-specific range getter (so custom works):
       getAgentRangeFor() {
         const state = this.getState();
         const leads = state?.leads || [];
@@ -2738,7 +2667,6 @@
 
       closeAgentModal() { document.getElementById("agent-modal").classList.add("hidden"); },
       
-      // ✅ Replace setAgentPeriod with this (so pill moves)
       setAgentPeriod(period, btnElement) {
         this.agentPeriod = period;
 
@@ -2754,30 +2682,23 @@
         this.renderAgentLeads();
       },
 
-      // ✅ Replace renderAgentLeads() with this full version:
       renderAgentLeads() {
         const state = this.getState();
         const leads = state?.leads || [];
         const name = this._agentSelectedName || "Agent";
 
         const { start, end, label } = this.getAgentRangeFor();
-
-        // compute metrics + leads list
         const m = this._computeAgentMetrics(name, leads, start, end);
 
-        // ✅ Title shows agent name
         const titleEl = document.getElementById("agent-modal-title");
         if (titleEl) titleEl.textContent = `${name} — Leads`;
 
-        // ✅ Count updates
         const countEl = document.getElementById("agent-leads-count");
         if (countEl) countEl.textContent = m.leads.length;
 
-        // ✅ Range label updates
         const rangeEl = document.getElementById("agent-range-label");
         if (rangeEl) rangeEl.textContent = `${label}: ${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
 
-        // ✅ Render ALL 14 columns (matches your table header)
         const tbody = document.getElementById("agent-leads-body");
         if (!tbody) return;
 
@@ -2806,22 +2727,14 @@
         `).join("");
       },
 
-      // ===== PAYROLL & FINANCE (NEW LOGIC + OLD HELPERS) =====
-
-      // Part C: New Controller Logic for Payroll
       renderPayrollFinance() {
         const state = this.getState();
-        // Determine source: Weekly Payroll or History based on a filter toggle
-        // For now, let's merge them or just use Weekly for the active view
         const weeklyData = state.weeklyPayroll || [];
-        
-        // Filter based on Date Range & Search
         const q = String(document.getElementById("payroll-search")?.value || "").toLowerCase().trim();
         const range = this._payrollCustomRange.active ? this._payrollCustomRange : null;
         
-        let rows = weeklyData.map((r, index) => ({...r, _id: index})); // Add temp ID
+        let rows = weeklyData.map((r, index) => ({...r, _id: index})); 
 
-        // 1. Apply Search
         if (q) {
             rows = rows.filter(r => 
                 String(r['Agent Name'] || "").toLowerCase().includes(q) ||
@@ -2829,7 +2742,6 @@
             );
         }
 
-        // 2. Apply Date Filter (if custom range active)
         if (range) {
               const start = new Date(range.start);
               const end = new Date(range.end);
@@ -2839,12 +2751,11 @@
               });
         }
 
-        this.payrollState.rawRows = rows; // Store for calculation
+        this.payrollState.rawRows = rows;
         this.renderPayrollLedger(rows);
         this.updatePayrollKPIs(rows);
       },
 
-      // New Method: Render Ledger
       renderPayrollLedger(rows) {
         const tbody = document.getElementById("payroll-ledger-body");
         if (!tbody) return;
@@ -2859,16 +2770,13 @@
         let grandTotal = 0;
 
         tbody.innerHTML = rows.map(r => {
-            // Safe Number Parsing
             const hourlyRate = parseFloat(String(r['Hourly Rate'] || "0").replace(/[$,]/g, '')) || 0;
             const hours = parseFloat(String(r['Total Hours'] || "0")) || 0;
             const incentive = parseFloat(String(r['Incentive Pay'] || "0").replace(/[$,]/g, '')) || 0;
             
-            // Calculate Base & Total (Frontend Logic)
             const basePay = hours * hourlyRate;
             const totalPay = basePay + incentive;
 
-            // Update Totals
             totalBase += basePay;
             totalIncentive += incentive;
             grandTotal += totalPay;
@@ -2920,38 +2828,31 @@
             `;
         }).join("");
 
-        // Update Footer Totals
         document.getElementById("footer-base-pay").textContent = "$" + totalBase.toLocaleString(undefined, {minimumFractionDigits: 2});
         document.getElementById("footer-incentives").textContent = "$" + totalIncentive.toLocaleString(undefined, {minimumFractionDigits: 2});
         document.getElementById("footer-total-pay").textContent = "$" + grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2});
         
-        // Sync "Est. Expense" KPI tile
         const expenseEl = document.getElementById("payroll-kpi-expense");
         if(expenseEl) expenseEl.textContent = "$" + grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2});
       },
 
-      // New Method: Handle Input Change
       handlePayrollChange(input) {
         const id = input.getAttribute("data-id");
         const newHours = parseFloat(input.value) || 0;
         const rate = parseFloat(input.getAttribute("data-rate")) || 0;
         const incentive = parseFloat(input.getAttribute("data-incentive")) || 0;
 
-        // Recalculate
         const newBase = newHours * rate;
         const newTotal = newBase + incentive;
 
-        // Update DOM immediately
         document.getElementById(`base-${id}`).textContent = "$" + newBase.toFixed(2);
         document.getElementById(`total-${id}`).textContent = "$" + newTotal.toFixed(2);
 
-        // Mark as unsaved
         this.payrollState.unsavedChanges.add(parseInt(id));
         document.getElementById(`pay-row-${id}`).classList.add("bg-yellow-50");
         document.getElementById("btn-save-payroll").classList.remove("hidden");
       },
 
-      // New Method: Render Status
       renderPayrollStatus(status) {
         const s = String(status || "PENDING").toUpperCase();
         let color = "bg-gray-100 text-gray-600";
@@ -2960,31 +2861,27 @@
         return `<span class="px-2 py-1 rounded text-[10px] font-extrabold ${color}">${s}</span>`;
       },
 
-      // New Method: Save Row
       async saveSingleRow(id) {
         const rowData = this.payrollState.rawRows[id];
         const input = document.querySelector(`input[data-id="${id}"]`);
         const newHours = input.value;
 
-        // Visual Feedback
         const btn = input.closest('tr').querySelector('button');
         const originalIcon = btn.innerHTML;
         btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
 
         try {
             await window.portal.updatePayrollRow({
-                email: rowData['Email'], // Key to find row in Sheet
-                weekStart: rowData['Payroll Week Start'], // Key to find row
+                email: rowData['Email'], 
+                weekStart: rowData['Payroll Week Start'], 
                 totalHours: newHours
             });
 
-            // Success State
             this.payrollState.unsavedChanges.delete(id);
             document.getElementById(`pay-row-${id}`).classList.remove("bg-yellow-50");
             btn.innerHTML = `<i class="fa-solid fa-check text-emerald-500"></i>`;
             setTimeout(() => btn.innerHTML = originalIcon, 2000);
 
-            // Hide main save button if no changes left
             if(this.payrollState.unsavedChanges.size === 0) {
                 document.getElementById("btn-save-payroll").classList.add("hidden");
             }
@@ -2995,7 +2892,6 @@
         }
       },
 
-      // New Method: Basic KPI update (Sums the table rows to avoid NaN errors)
       updatePayrollKPIs(rows) {
          let totalPay = 0;
          rows.forEach(r => {
@@ -3004,37 +2900,22 @@
              const inc = parseFloat(String(r['Incentive Pay']||"0").replace(/[$,]/g,''))||0;
              totalPay += (hourly * hours) + inc;
          });
-         // Updates the expense tile with the sum of the visible table
          const expEl = document.getElementById("payroll-kpi-expense");
          if(expEl) expEl.textContent = "$" + totalPay.toLocaleString(undefined, {minimumFractionDigits: 2});
       },
 
-      // --- OLD HELPERS (PRESERVED) ---
-      // These are kept so you don't lose chart logic or old helpers, even if the new table logic bypasses them for now.
-
       getLeadPayrollWeekStart(l) {
-        // supports multiple header spellings
-        const s = this.pick(l, [
-          "Payroll Week Start",
-          "PAYROLL WEEK START",
-          "payroll_week_start",
-          "PayrollWeekStart"
-        ], "");
-
-        // If missing, fallback to existing Sat->Fri logic using lead Date Submitted
+        const s = this.pick(l, ["Payroll Week Start","PAYROLL WEEK START","payroll_week_start","PayrollWeekStart"], "");
         if (!s) {
           const dt = this.getLeadDateObj(l);
           if (!dt) return "";
-          // start-of-week Saturday
           const x = new Date(dt);
-          const day = x.getDay(); // 0 Sun ... 6 Sat
+          const day = x.getDay(); 
           const diffToSat = (day - 6);
           x.setDate(x.getDate() - diffToSat);
           x.setHours(0,0,0,0);
           return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`;
         }
-
-        // normalize to YYYY-MM-DD
         const d = window.portal?.parseDateSafe ? window.portal.parseDateSafe(s) : new Date(s);
         if (!d || isNaN(d.getTime())) return String(s);
         return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -3043,7 +2924,7 @@
       computePayrollFromLeads(leads) {
         const rows = Array.isArray(leads) ? leads : [];
         const weekSet = new Set();
-        const weekAgentMap = new Map(); // key: `${week}||${agent}` -> { qualified, unqualified }
+        const weekAgentMap = new Map(); 
 
         for (const l of rows) {
           const week = this.getLeadPayrollWeekStart(l);
@@ -3069,8 +2950,8 @@
           weekAgentMap.set(k, agg);
         }
 
-        const weeks = [...weekSet].sort((a,b) => String(b).localeCompare(String(a))); // latest first
-        const byWeek = new Map(); // week -> [rows...]
+        const weeks = [...weekSet].sort((a,b) => String(b).localeCompare(String(a))); 
+        const byWeek = new Map(); 
 
         for (const v of weekAgentMap.values()) {
           const arr = byWeek.get(v.week) || [];
@@ -3078,7 +2959,6 @@
           byWeek.set(v.week, arr);
         }
 
-        // sort agents per week (qualified desc, then total desc)
         for (const [wk, arr] of byWeek.entries()) {
           arr.sort((a,b) => (b.qualified - a.qualified) || ((b.qualified+b.unqualified) - (a.qualified+a.unqualified)) || a.agent.localeCompare(b.agent));
         }
@@ -3108,7 +2988,6 @@
 
         if (!candidates) return 0;
 
-        // Match rows by week if possible
         const weekKey = String(chosenWeek || "").trim();
 
         const get = (obj, keys) => {
@@ -3132,8 +3011,7 @@
       },
 
       _renderPayrollCharts({ weeks, byWeek, chosenWeek, view }) {
-        // Revenue trend by week (qualified * 125)
-        const revLabels = weeks.slice().reverse(); // oldest -> newest for nicer line
+        const revLabels = weeks.slice().reverse(); 
         const revData = revLabels.map(wk => {
           const rows = byWeek.get(wk) || [];
           const q = rows.reduce((a,r)=>a + (r.qualified||0), 0);
@@ -3150,7 +3028,6 @@
           });
         }
 
-        // Coordinator bar (current selected view)
         const names = view.map(r => r.agent);
         const qVals = view.map(r => r.qualified || 0);
         const uVals = view.map(r => r.unqualified || 0);
@@ -3194,7 +3071,6 @@
         if (coord) coord.addEventListener("change", () => this.renderPayrollFinance());
         if (sort) sort.addEventListener("change", () => this.renderPayrollFinance());
 
-        // custom date range (by payroll week start)
         const apply = document.getElementById("payroll-date-apply");
         const clear = document.getElementById("payroll-date-clear");
         if (apply) {
@@ -3217,7 +3093,6 @@
           });
         }
 
-        // export
         const btn = document.getElementById("payroll-export");
         if (btn) {
           btn.addEventListener("click", () => {
@@ -3289,7 +3164,6 @@
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
         linkEl.classList.add('active');
         
-        // ✅ optional: render payroll on demand
         if (viewId === "payroll") {
           try { this.renderPayrollFinance(); } catch(e) {}
         }
