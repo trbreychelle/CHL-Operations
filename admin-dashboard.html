@@ -1263,14 +1263,16 @@
 
       normalizeClientHealthRows(clients, packages) {
         return clients.map(c => {
-          // Force trim everything to kill invisible Excel spaces
-          const code = String(c.code_name || c.client_code || "").trim();
+          // Check all possible variations of column names
+          const code = String(c.code_name || c.client_code || c.CODE || c['CODE NAME'] || "").trim();
+          const company = String(c.company_name || c.roofing_company || c['COMPANY NAME'] || "—").trim();
+          const clientName = String(c.client_name || c['CLIENT NAME'] || "—").trim();
+          const cityState = String(c.city_state || c['CITY STATE'] || "—").trim();
           
-          // 1. Find the ongoing package for this client
+          // 1. Find the active/ongoing package for this client
           const clientPkgs = packages.filter(p => String(p.client_code || "").trim().toLowerCase() === code.toLowerCase());
           const activePkg = clientPkgs.find(p => String(p.status || "").trim().toUpperCase() === 'ACTIVE') || clientPkgs[0] || {};
 
-          // Convert "Active" to "ONGOING"
           let pkgStatus = String(activePkg.status || "COMPLETED").toUpperCase().trim();
           if (pkgStatus === 'ACTIVE') pkgStatus = 'ONGOING';
 
@@ -1283,7 +1285,7 @@
           leadList.forEach(l => {
               const d = this.parseDateSafe(l.date_submitted || l['Date Submitted']);
               if (d && d >= startDt) {
-                  const st = String(l.status || "").toLowerCase();
+                  const st = String(l.status || l.STATUS || "").toLowerCase();
                   if (st.includes('approv') || st.includes('confirm')) qualified++;
                   else if (st.includes('credit') || st.includes('reject')) credited++;
               }
@@ -1292,15 +1294,16 @@
           const owed = Math.max(purchased - qualified, 0);
           
           // Bulletproof passbook status catch
-          const pbStatus = String(c.client_status || c.status || "INACTIVE").trim().toUpperCase();
+          const rawStat = c.client_status || c.status || c.STATUS || c['Client Status'] || "INACTIVE";
+          const pbStatus = String(rawStat).trim().toUpperCase();
 
           // 3. Health Status Logic
-          let healthStatus = String(c.status || "NOT STARTED").toUpperCase().trim(); 
+          let healthStatus = String(rawStat).toUpperCase().trim(); 
           if (!["CRITICAL", "AT RISK", "HEALTHY"].includes(healthStatus)) healthStatus = "NOT STARTED";
 
           return {
             _raw: c, code, passbookStatus: pbStatus, healthStatus,
-            roofingCompany: c.company_name || "—", cityState: c.city_state || "—", clientName: c.client_name || "—",
+            roofingCompany: company, cityState: cityState, clientName: clientName,
             packageStatus: pkgStatus, packageLabel: `${owed} / ${purchased}`, owedRemaining: owed,
             qualifiedCount: qualified, creditedCount: credited, purchaseDate: activePkg.purchase_date || "—",
             leadsToday: 0, leadsYesterday: 0 
