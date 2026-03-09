@@ -2535,10 +2535,19 @@ const leadList = this._leadsIndexByCompany?.get(compKey) || [];
           const dt = this.getLeadDateObj(l);
           return dt && dt >= start && dt <= end && String(a).trim().toLowerCase() === String(name).trim().toLowerCase();
         });
-        let q = 0, c = 0, r = 0, p = 0;
-        inRange.forEach(l => {
-          const st = this.pick(l, ["Status","STATUS"], "");
-          if (this.isQualified(st)) q++; else if (this.isCredited(st)) c++; else if (this.isRejected(st)) r++; else p++;
+inRange.forEach(l => {
+          // Force status to lowercase for robust matching
+          const st = String(l.status || l.STATUS || l.Lead_Status || "").toLowerCase();
+          
+          if (st.includes('approv') || st.includes('confirm')) {
+              q++; 
+          } else if (st.includes('credit')) {
+              c++; 
+          } else if (st.includes('reject')) {
+              r++; 
+          } else {
+              p++; 
+          }
         });
         return { total: inRange.length, qualified: q, credited: c, rejected: r, pending: p, cancelRate: (q+c>0)?Math.round((c/(q+c))*100):0, leads: inRange };
       },
