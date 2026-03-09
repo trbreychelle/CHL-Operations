@@ -970,11 +970,22 @@ const supaClient = window.supabase ? window.supabase.createClient(supabaseUrl, s
 // ==========================================
 async function fetchAdminClients(status = 'Active') {
     if (!supaClient) return;
-    let query = supaClient.from('clients').select('*');
-    if (status !== 'All') query = query.eq('client_status', status);
-    const { data: clients, error } = await query;
-    if (!error && window.Admin && typeof window.Admin.applyPassbookFilters === 'function') {
-        window.Admin.applyPassbookFilters(clients);
+    
+    // Fetch all clients first to avoid strict database case-sensitivity rules
+    const { data: clients, error } = await supaClient.from('clients').select('*');
+    if (error) return console.error("Error fetching clients:", error);
+    
+    let filtered = clients || [];
+    
+    // Filter them in Javascript where we can force case-insensitivity
+    if (status !== 'All') {
+        filtered = filtered.filter(c => 
+            String(c.client_status || c.status || '').trim().toLowerCase() === String(status).toLowerCase()
+        );
+    }
+    
+    if (window.Admin && typeof window.Admin.applyPassbookFilters === 'function') {
+        window.Admin.applyPassbookFilters(filtered);
     }
 }
 
