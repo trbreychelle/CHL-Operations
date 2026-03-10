@@ -1259,27 +1259,18 @@
       },
 
       normalizeClientHealthRows(clients, packages) {
-        // --- MST TIMEZONE FORCER ---
-        const getMSTDateStr = (dateObj) => {
-            if (!dateObj || isNaN(dateObj.getTime())) return null;
-            // Forces the date into Mountain Time and extracts the exact YYYY-MM-DD
-            const parts = new Intl.DateTimeFormat('en-US', { 
-                timeZone: 'America/Denver', 
-                year: 'numeric', month: '2-digit', day: '2-digit' 
-            }).formatToParts(dateObj);
-            
-            const y = parts.find(p => p.type === 'year').value;
-            const m = parts.find(p => p.type === 'month').value;
-            const d = parts.find(p => p.type === 'day').value;
-            return `${y}-${m}-${d}`;
-        };
+        // --- BULLETPROOF MST DATE FORMATTER ---
+        const mstFormatter = new Intl.DateTimeFormat('en-CA', { 
+            timeZone: 'America/Denver', 
+            year: 'numeric', month: '2-digit', day: '2-digit' 
+        });
 
         const now = new Date();
-        const todayStr = getMSTDateStr(now);
+        const todayStr = mstFormatter.format(now); // Strict YYYY-MM-DD
         
         const yesterday = new Date(now);
         yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = getMSTDateStr(yesterday);
+        const yesterdayStr = mstFormatter.format(yesterday);
 
         return clients.map(c => {
           const code = String(c.code_name || c.client_code || "").trim();
@@ -1290,32 +1281,37 @@
           const clientPkgs = packages.filter(p => String(p.client_code || "").trim().toLowerCase() === code.toLowerCase());
           const activePkg = clientPkgs.find(p => String(p.status || "").trim().toUpperCase() === 'ACTIVE') || clientPkgs[0] || {};
 
-         // --- LEAD MATH SECTION ---
-          const compKey = company.toLowerCase().trim();
-const leadList = this._leadsIndexByCompany?.get(compKey) || [];
-          
-          const startDt = this.parseDateSafe(activePkg.package_start_date) || new Date(0);
+          // --- LEAD MATH SECTION ---
+          const compKey = this.normalizeCompanyName(company);
+          const leadList = this._leadsIndexByCompany?.get(compKey) || [];
           
           let qualified = 0, credited = 0, todayCount = 0, yesterdayCount = 0;
           let lastLeadDate = null;
 
           leadList.forEach(l => {
               const dStr = l.date_submitted || l['Date Submitted'] || l.created_at;
-              const d = this.parseDateSafe(dStr);
+              const d = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
               
-              if (d) {
-                  // Track absolute last lead date regardless of package
+              if (d && !isNaN(d.getTime())) {
                   if (!lastLeadDate || d > lastLeadDate) lastLeadDate = d;
 
-                  // Evaluate the lead's submission time strictly in MST
-                  const compareStr = getMSTDateStr(d);
+                  // DATE PROTECTION: Prevent strings from shifting timezones
+                  let compareStr;
+                  const rawStr = String(dStr).trim();
+                  
+                  if (rawStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                      compareStr = rawStr.substring(0, 10); // Use YYYY-MM-DD exactly as-is
+                  } else if (rawStr.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+                      const [mm, dd, yyyy] = rawStr.split('/');
+                      compareStr = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`; // Convert MM/DD/YYYY exactly as-is
+                  } else {
+                      compareStr = mstFormatter.format(d); // Apply MST to full timestamps
+                  }
+
                   if (compareStr === todayStr) todayCount++;
                   if (compareStr === yesterdayStr) yesterdayCount++;
 
-                  // Spreadsheet matching logic: Count ALL leads for this company
-                  // We remove the "d >= startDt" check to match your manual tracking
                   const st = String(l.status || l.STATUS || l.Lead_Status || "").toUpperCase();
-                  
                   if (st.includes('APPROV') || st.includes('CONFIRM')) {
                       qualified++;
                   } else if (st.includes('CREDIT') || st.includes('REJECT')) {
