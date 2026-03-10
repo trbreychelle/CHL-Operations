@@ -1342,27 +1342,41 @@ async function submitNewClient(e) {
 // ==========================================
 // ✅ CLIENT HEALTH MONITOR (MISSION CONTROL)
 // ==========================================
-async function updateClientPackageStatus(clientCode, newPackageStatus) {
+window.updateClientPackageStatus = async function(clientCode, newPackageStatus) {
     if (!supaClient) return alert("Database connection missing.");
-    
-    // 1. Find the current active/ongoing package in the LEDGER
-    const { data: pkgs } = await supaClient.from('packages')
-        .select('*')
-        .eq('client_code', clientCode)
-        .eq('status', 'Active'); // Note: DB stores it as 'Active'
-    
-    if (pkgs && pkgs.length > 0) {
-        // 2. Update that specific package
-        const { error } = await supaClient.from('packages')
+
+    try {
+        // 1. Find the MOST RECENT package for this client (no strict 'Active' rule!)
+        const { data: pkgs, error: fetchErr } = await supaClient.from('packages')
+            .select('*')
+            .eq('client_code', clientCode)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        if (fetchErr || !pkgs || pkgs.length === 0) {
+            return alert("Could not find any package in the ledger to update.");
+        }
+
+        // 2. Update that specific package ID
+        const { error: updateErr } = await supaClient.from('packages')
             .update({ status: newPackageStatus })
             .eq('id', pkgs[0].id);
-            
-        if (error) alert("Failed to update package in ledger.");
-        else window.portal.fetchAdminData(true);
-    } else {
-        alert("Could not find an ongoing package in the ledger to update.");
+
+        if (updateErr) {
+            alert("Failed to update package in ledger.");
+        } else {
+            // 3. Refresh the dashboard
+            if (window.portal && window.portal.fetchAdminData) {
+                window.portal.fetchAdminData(true);
+            } else {
+                location.reload();
+            }
+        }
+    } catch (error) {
+        console.error("Status Update Error:", error);
+        alert("An error occurred while updating.");
     }
-}
+};
 window.updateClientPackageStatus = async function(clientCode, newStatus) {
     try {
         // Grab the actual connected instance, ignoring the uninitialized library
