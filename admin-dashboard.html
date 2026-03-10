@@ -1259,11 +1259,27 @@
       },
 
       normalizeClientHealthRows(clients, packages) {
+        // --- MST TIMEZONE FORCER ---
+        const getMSTDateStr = (dateObj) => {
+            if (!dateObj || isNaN(dateObj.getTime())) return null;
+            // Forces the date into Mountain Time and extracts the exact YYYY-MM-DD
+            const parts = new Intl.DateTimeFormat('en-US', { 
+                timeZone: 'America/Denver', 
+                year: 'numeric', month: '2-digit', day: '2-digit' 
+            }).formatToParts(dateObj);
+            
+            const y = parts.find(p => p.type === 'year').value;
+            const m = parts.find(p => p.type === 'month').value;
+            const d = parts.find(p => p.type === 'day').value;
+            return `${y}-${m}-${d}`;
+        };
+
         const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
-        const yesterday = new Date();
-        yesterday.setDate(now.getDate() - 1);
-        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        const todayStr = getMSTDateStr(now);
+        
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = getMSTDateStr(yesterday);
 
         return clients.map(c => {
           const code = String(c.code_name || c.client_code || "").trim();
@@ -1294,8 +1310,8 @@ const leadList = this._leadsIndexByCompany?.get(compKey) || [];
                   // Track absolute last lead date regardless of package
                   if (!lastLeadDate || d > lastLeadDate) lastLeadDate = d;
 
-                  // Today/Yesterday counters (Strictly based on Date)
-                  const compareStr = d.toISOString().split('T')[0];
+                  // Evaluate the lead's submission time strictly in MST
+                  const compareStr = getMSTDateStr(d);
                   if (compareStr === todayStr) todayCount++;
                   if (compareStr === yesterdayStr) yesterdayCount++;
 
@@ -1429,7 +1445,12 @@ const leadList = this._leadsIndexByCompany?.get(compKey) || [];
 
         // RULE 2: PACKAGE FILTER (Defaults to ONGOING)
         if (pkgFilter !== "ALL") {
-            filtered = filtered.filter(r => r.packageStatus === pkgFilter);
+            filtered = filtered.filter(r => {
+                // Show if it matches exactly OR if it's a new client that hasn't started yet
+                const isOngoing = r.packageStatus === pkgFilter;
+                const isNew = r.healthStatus === "NOT STARTED" && pkgFilter === "ONGOING";
+                return isOngoing || isNew;
+            });
         }
 
         // RULE 3: HEALTH STATUS (At risk, critical, etc.)
