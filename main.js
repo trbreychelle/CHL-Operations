@@ -1342,11 +1342,14 @@ async function submitNewClient(e) {
 // ==========================================
 // ✅ CLIENT HEALTH MONITOR (MISSION CONTROL)
 // ==========================================
+// ==========================================
+// ✅ CLIENT HEALTH MONITOR (MISSION CONTROL)
+// ==========================================
 window.updateClientPackageStatus = async function(clientCode, newPackageStatus) {
     if (!supaClient) return alert("Database connection missing.");
 
     try {
-        // 1. Find the MOST RECENT package for this client (no strict 'Active' rule!)
+        // 1. Find the MOST RECENT package for this client
         const { data: pkgs, error: fetchErr } = await supaClient.from('packages')
             .select('*')
             .eq('client_code', clientCode)
@@ -1366,7 +1369,7 @@ window.updateClientPackageStatus = async function(clientCode, newPackageStatus) 
             alert("Failed to update package in ledger.");
         } else {
             // 3. Refresh the dashboard
-            if (window.portal && window.portal.fetchAdminData) {
+            if (window.portal && typeof window.portal.fetchAdminData === 'function') {
                 window.portal.fetchAdminData(true);
             } else {
                 location.reload();
@@ -1375,50 +1378,5 @@ window.updateClientPackageStatus = async function(clientCode, newPackageStatus) 
     } catch (error) {
         console.error("Status Update Error:", error);
         alert("An error occurred while updating.");
-    }
-};
-window.updateClientPackageStatus = async function(clientCode, newStatus) {
-    try {
-        // Grab the actual connected instance, ignoring the uninitialized library
-        const dbClient = window.supabaseClient || (window.portal && window.portal.supabase);
-        
-        if (!dbClient || typeof dbClient.from !== 'function') {
-            throw new Error("Could not find the active database connection.");
-        }
-
-        // 1. Find the most recent package for this client
-        const { data: pkgs, error: fetchErr } = await dbClient
-            .from('packages')
-            .select('*')
-            .ilike('client_code', clientCode)
-            .order('created_at', { ascending: false })
-            .limit(1);
-
-        if (fetchErr) throw fetchErr;
-
-        if (!pkgs || pkgs.length === 0) {
-            alert("Could not find any package for this client to update.");
-            return;
-        }
-
-        // 2. Update the status of that specific package ID directly
-        const targetId = pkgs[0].id;
-        const { error: updateErr } = await dbClient
-            .from('packages')
-            .update({ status: newStatus })
-            .eq('id', targetId);
-
-        if (updateErr) throw updateErr;
-
-        // 3. Reload the dashboard data
-        if (typeof fetchAdminClients === 'function') {
-            fetchAdminClients();
-        } else {
-            location.reload();
-        }
-
-    } catch (error) {
-        console.error("Status Update Error:", error);
-        alert("Update Failed: " + (error.message || "Check Console"));
     }
 };
