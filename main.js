@@ -1365,12 +1365,12 @@ async function updateClientPackageStatus(clientCode, newPackageStatus) {
 }
 window.updateClientPackageStatus = async function(clientCode, newStatus) {
     try {
-        // Auto-detect the correct database client variable in your environment
-        const dbClient = typeof supabase !== 'undefined' ? supabase : 
-                         (typeof supabaseClient !== 'undefined' ? supabaseClient : 
-                         (window.portal && window.portal.supabase ? window.portal.supabase : null));
+        // Grab the actual connected instance, ignoring the uninitialized library
+        const dbClient = window.supabaseClient || (window.portal && window.portal.supabase);
         
-        if (!dbClient) throw new Error("Database connection variable not found.");
+        if (!dbClient || typeof dbClient.from !== 'function') {
+            throw new Error("Could not find the active database connection.");
+        }
 
         // 1. Find the most recent package for this client
         const { data: pkgs, error: fetchErr } = await dbClient
@@ -1396,19 +1396,15 @@ window.updateClientPackageStatus = async function(clientCode, newStatus) {
 
         if (updateErr) throw updateErr;
 
-        // 3. Reload the dashboard data silently
+        // 3. Reload the dashboard data
         if (typeof fetchAdminClients === 'function') {
             fetchAdminClients();
-        } else if (window.Admin && window.Admin.refreshDashboard) {
-            // Fallback to our new refresh method
-            location.reload(); 
         } else {
             location.reload();
         }
 
     } catch (error) {
         console.error("Status Update Error:", error);
-        // This will print the EXACT error on your screen so we know what is wrong
         alert("Update Failed: " + (error.message || "Check Console"));
     }
 };
