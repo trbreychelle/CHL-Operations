@@ -1446,10 +1446,12 @@ const leadList = this._leadsIndexByCompany?.get(compKey) || [];
         // RULE 2: PACKAGE FILTER (Defaults to ONGOING)
         if (pkgFilter !== "ALL") {
             filtered = filtered.filter(r => {
-                // Show if it matches exactly OR if it's a new client that hasn't started yet
-                const isOngoing = r.packageStatus === pkgFilter;
-                const isNew = r.healthStatus === "NOT STARTED" && pkgFilter === "ONGOING";
-                return isOngoing || isNew;
+                if (pkgFilter === "ONGOING") {
+                    // Show if the package explicitly says ONGOING, 
+                    // OR if they are an Active client who is currently owed leads (Purchased > Qualified)
+                    return r.packageStatus === "ONGOING" || (r.owedRemaining > 0 && r.packageStatus !== "PAUSE");
+                }
+                return r.packageStatus === pkgFilter;
             });
         }
 
