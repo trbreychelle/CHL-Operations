@@ -1228,8 +1228,13 @@
         // 1. Index leads by COMPANY NAME for Health Monitor math
         this._leadsIndexByCompany = new Map();
         leads.forEach(l => {
-            const comp = String(l.company_name || l['Company Name'] || "").toLowerCase().trim();
+            // Grab the company name from whichever column the database is actually using
+            const rawComp = this.getLeadField(l, ["Company Name", "company_name", "roofing_company", "Client"]);
+            
+            // Normalize it (strips extra spaces, makes lowercase) so it matches perfectly
+            const comp = this.normalizeCompanyName(rawComp);
             if (!comp) return;
+            
             const arr = this._leadsIndexByCompany.get(comp) || [];
             arr.push(l);
             this._leadsIndexByCompany.set(comp, arr);
@@ -1282,6 +1287,7 @@
           const activePkg = clientPkgs.find(p => String(p.status || "").trim().toUpperCase() === 'ACTIVE') || clientPkgs[0] || {};
 
           // --- LEAD MATH SECTION ---
+          // Use the exact same normalizer so the keys match perfectly!
           const compKey = this.normalizeCompanyName(company);
           const leadList = this._leadsIndexByCompany?.get(compKey) || [];
           
