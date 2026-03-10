@@ -1365,8 +1365,15 @@ async function updateClientPackageStatus(clientCode, newPackageStatus) {
 }
 window.updateClientPackageStatus = async function(clientCode, newStatus) {
     try {
-        // 1. Find the most recent package for this client, regardless of its current status
-        const { data: pkgs, error: fetchErr } = await supabase // Note: Use your existing supabase client variable here
+        // Auto-detect the correct database client variable in your environment
+        const dbClient = typeof supabase !== 'undefined' ? supabase : 
+                         (typeof supabaseClient !== 'undefined' ? supabaseClient : 
+                         (window.portal && window.portal.supabase ? window.portal.supabase : null));
+        
+        if (!dbClient) throw new Error("Database connection variable not found.");
+
+        // 1. Find the most recent package for this client
+        const { data: pkgs, error: fetchErr } = await dbClient
             .from('packages')
             .select('*')
             .ilike('client_code', clientCode)
@@ -1382,7 +1389,7 @@ window.updateClientPackageStatus = async function(clientCode, newStatus) {
 
         // 2. Update the status of that specific package ID directly
         const targetId = pkgs[0].id;
-        const { error: updateErr } = await supabase
+        const { error: updateErr } = await dbClient
             .from('packages')
             .update({ status: newStatus })
             .eq('id', targetId);
@@ -1392,12 +1399,16 @@ window.updateClientPackageStatus = async function(clientCode, newStatus) {
         // 3. Reload the dashboard data silently
         if (typeof fetchAdminClients === 'function') {
             fetchAdminClients();
+        } else if (window.Admin && window.Admin.refreshDashboard) {
+            // Fallback to our new refresh method
+            location.reload(); 
         } else {
-            location.reload(); // Fallback refresh
+            location.reload();
         }
 
     } catch (error) {
         console.error("Status Update Error:", error);
-        alert("Failed to update package status. Check console.");
+        // This will print the EXACT error on your screen so we know what is wrong
+        alert("Update Failed: " + (error.message || "Check Console"));
     }
 };
