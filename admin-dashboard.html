@@ -1457,14 +1457,18 @@
         // RULE 1: STRICTLY PASSBOOK 'ACTIVE' ONLY
         filtered = filtered.filter(r => r.passbookStatus === 'ACTIVE');
 
-        // RULE 2: PACKAGE FILTER (Defaults to ONGOING)
+       // RULE 2: PACKAGE FILTER (Defaults to ONGOING)
         if (pkgFilter !== "ALL") {
             filtered = filtered.filter(r => {
                 if (pkgFilter === "ONGOING") {
-                    // Show if the package explicitly says ONGOING, 
-                    // OR if they are an Active client who is currently owed leads (Purchased > Qualified)
-                    return r.packageStatus === "ONGOING" || (r.owedRemaining > 0 && r.packageStatus !== "PAUSE");
+                    // HARD BLOCK: If the package is PAUSE or REFUNDED, never show it in default view
+                    if (r.packageStatus === "PAUSE" || r.packageStatus === "REFUNDED") return false;
+                    
+                    // Otherwise, show if explicitly ONGOING, or if we owe them leads
+                    return r.packageStatus === "ONGOING" || r.owedRemaining > 0;
                 }
+                
+                // For all other dropdown selections (Pause, Completed, etc.), match exactly
                 return r.packageStatus === pkgFilter;
             });
         }
