@@ -1363,4 +1363,41 @@ async function updateClientPackageStatus(clientCode, newPackageStatus) {
         alert("Could not find an ongoing package in the ledger to update.");
     }
 }
-window.updateClientPackageStatus = updateClientPackageStatus;
+window.updateClientPackageStatus = async function(clientCode, newStatus) {
+    try {
+        // 1. Find the most recent package for this client, regardless of its current status
+        const { data: pkgs, error: fetchErr } = await supabase // Note: Use your existing supabase client variable here
+            .from('packages')
+            .select('*')
+            .ilike('client_code', clientCode)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        if (fetchErr) throw fetchErr;
+
+        if (!pkgs || pkgs.length === 0) {
+            alert("Could not find any package for this client to update.");
+            return;
+        }
+
+        // 2. Update the status of that specific package ID directly
+        const targetId = pkgs[0].id;
+        const { error: updateErr } = await supabase
+            .from('packages')
+            .update({ status: newStatus })
+            .eq('id', targetId);
+
+        if (updateErr) throw updateErr;
+
+        // 3. Reload the dashboard data silently
+        if (typeof fetchAdminClients === 'function') {
+            fetchAdminClients();
+        } else {
+            location.reload(); // Fallback refresh
+        }
+
+    } catch (error) {
+        console.error("Status Update Error:", error);
+        alert("Failed to update package status. Check console.");
+    }
+};
