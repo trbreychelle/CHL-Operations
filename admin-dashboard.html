@@ -1290,9 +1290,6 @@
           const clientPkgs = packages.filter(p => String(p.client_code || "").trim().toLowerCase() === code.toLowerCase());
           const activePkg = clientPkgs.find(p => String(p.status || "").trim().toUpperCase() === 'ACTIVE') || clientPkgs[0] || {};
 
-          let pkgStatus = String(activePkg.status || "COMPLETED").toUpperCase().trim();
-          if (pkgStatus === 'ACTIVE') pkgStatus = 'ONGOING';
-
          // --- LEAD MATH SECTION ---
           const compKey = company.toLowerCase().trim();
 const leadList = this._leadsIndexByCompany?.get(compKey) || [];
@@ -1330,6 +1327,21 @@ const leadList = this._leadsIndexByCompany?.get(compKey) || [];
           const purchased = Number(activePkg.purchased_leads) || 0;
           const owed = Math.max(purchased - qualified, 0);
           const rawStat = c.client_status || c.status || "INACTIVE";
+          
+          // --- SMART PACKAGE STATUS OVERRIDE ---
+          let pkgStatus = String(activePkg.status || "").toUpperCase().trim();
+          if (pkgStatus === 'ACTIVE') pkgStatus = 'ONGOING';
+
+          // As long as it is not manually Paused or Refunded, force the status based on Owed Leads
+          if (pkgStatus !== 'PAUSE' && pkgStatus !== 'REFUNDED') {
+              if (owed > 0) {
+                  pkgStatus = 'ONGOING';   // Force ONGOING because we still owe them leads
+              } else if (purchased > 0 && owed === 0) {
+                  pkgStatus = 'COMPLETED'; // Auto-complete when fulfilled
+              } else {
+                  pkgStatus = 'COMPLETED'; // Fallback for 0/0 empty packages
+              }
+          }
           
           let healthStatus = String(rawStat).toUpperCase().trim(); 
           // --- LIVE HEALTH CALCULATION ---
