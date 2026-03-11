@@ -2547,20 +2547,21 @@
       },
       
       getAgentStage(agent) {
+        // FIXED: Explicitly looking for the 'employment_status' column from your DB
         const s = String(this.pick(agent, [
-          "Employment Status",
-          "Employment_Status",
-          "Stage",
-          "Status"
-        ], "")).toLowerCase().trim();
+          "employment_status", "Employment Status", "Employment_Status", "Stage", "Status"
+        ], "active")).toLowerCase().trim();
 
         if (s.includes("active")) return "active";
         if (s.includes("onboard")) return "onboarding";
         if (s.includes("offboard")) return "offboarded";
-        return s || "unknown";
-      },
+        return "active"; // Default to active so agents aren't hidden
+      }
       
-      isAgentWarned(agent) { const s = String(this.pick(agent, ["Warned","Tags"], "")).toLowerCase(); return s.includes("warned"); },
+      isAgentWarned(agent) { 
+          const s = String(this.pick(agent, ["Warned","Tags"], "")).toLowerCase(); 
+          return s.includes("warned"); 
+      }
       
       setTeamSort(key) {
         if (this.teamSortKey === key) this.teamSortDir = this.teamSortDir === "asc" ? "desc" : "asc";
@@ -2570,28 +2571,20 @@
 
       _computeAgentMetrics(name, leads, start, end) {
         const inRange = leads.filter(l => {
-          // Add lowercase column name to match Supabase
-          const a = this.pick(l, ["appointment_coordinator_name", "Appointment Coordinator Name", "Agent Name", "AGENT"], "");
+          // FIXED: Adding 'agent_name' to the search arrays
+          const a = this.pick(l, ["appointment_coordinator_name", "Appointment Coordinator Name", "agent_name", "Agent Name", "AGENT"], "");
           const dt = this.getLeadDateObj(l);
           return dt && dt >= start && dt <= end && String(a).trim().toLowerCase() === String(name).trim().toLowerCase();
         });
 
-        // Initialize counters to 0
         let q = 0, c = 0, r = 0, p = 0;
 
         inRange.forEach(l => {
-          // Force status to lowercase for robust matching
           const st = String(l.status || l.STATUS || l.Lead_Status || "").toLowerCase();
-          
-          if (st.includes('approv') || st.includes('confirm')) {
-              q++; // Qualified
-          } else if (st.includes('credit')) {
-              c++; // Credited
-          } else if (st.includes('reject')) {
-              r++; // QC Rejected
-          } else {
-              p++; // Pending
-          }
+          if (st.includes('approv') || st.includes('confirm')) { q++; } 
+          else if (st.includes('credit')) { c++; } 
+          else if (st.includes('reject')) { r++; } 
+          else { p++; }
         });
 
         return { 
@@ -2616,8 +2609,10 @@
         const stageFilter = this.teamStageFilter || (document.getElementById("team-stage-filter")?.value || "active");
         const warnedFilter = this.teamWarnedFilter || (document.getElementById("team-warned-filter")?.value || "all");
 
+        // Loop directly through your Supabase Agents table
         let rows = agents.map(a => {
-          const agentName = this.pick(a, ["Employee Name","Name","Agent Name","Full Name"], "Unknown");
+          // FIXED: Reading 'agent_name' directly
+          const agentName = this.pick(a, ["agent_name", "Employee Name", "Name", "Agent Name", "Full Name"], "Unknown");
           const stage = this.getAgentStage(a);
           const warned = this.isAgentWarned(a);
 
@@ -2664,7 +2659,7 @@
 
         const tbody = document.getElementById("team-body");
         if (!rows.length) {
-          tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No agents found.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No agents found matching criteria.</td></tr>`;
           return;
         }
 
@@ -2810,7 +2805,7 @@
             <td class="p-3">${this.getLeadField(l, ["date_submitted", "Date Submitted"])}</td>
             <td class="p-3">${this.getLeadField(l, ["lead_id", "LEAD ID"])}</td>
             <td class="p-3">${this.getLeadField(l, ["company_name", "Company Name", "Roofing Company"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["appointment_coordinator_name", "Appointment Coordinator Name"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["appointment_coordinator_name", "Appointment Coordinator Name", "agent_name"])}</td>
             <td class="p-3">${this.getLeadField(l, ["homeowner_names", "Homeowner Name(s)"])}</td>
             <td class="p-3">${this.getLeadField(l, ["email_of_homeowner", "Email of Homeowner"])}</td>
             <td class="p-3">${this.getLeadField(l, ["homeowner_phone_numbers", "Homeowner Phone Number"])}</td>
@@ -2825,15 +2820,16 @@
         `).join("");
       },
 
-      // --- NEW PAYROLL MATH & LOGIC ---
+      // --- PAYROLL MATH & LOGIC (STRICTLY MST TIMEZONE) ---
       renderPayrollFinance() {
         const state = this.getState();
         const leads = Array.isArray(state.leads) ? state.leads : [];
         const timeEvents = Array.isArray(state.timeEvents) ? state.timeEvents : [];
-        const agents = Array.isArray(state.agents) ? state.agents : [];
-
-        // 1. Group leads by Week (Sat-Fri)
+        
+        // Group leads by Week (Sat-Fri in MST)
         const { weeks, byWeek } = this.computePayrollFromLeads(leads);
+        
+        if (weeks.length === 0) weeks.push(this.getLeadPayrollWeekStart({})); 
         
         const weekSelect = document.getElementById("payroll-week-select");
         if (weekSelect && weeks.length > 0) {
@@ -2847,50 +2843,40 @@
 
         document.getElementById("payroll-ledger-period").textContent = this.getPayrollWeekRangeLabel(selectedWeek);
 
-        // 2. Load Saved Notes
+        // Load Saved Notes
         const notesEl = document.getElementById("payroll-notes");
         if (notesEl && !notesEl.oninput) {
             notesEl.value = localStorage.getItem(`payroll_notes_${selectedWeek}`) || "";
             notesEl.oninput = (e) => localStorage.setItem(`payroll_notes_${selectedWeek}`, e.target.value);
         }
 
-        // 3. Setup Week Boundary for Time Tracking
-        const weekStartDt = new Date(selectedWeek + "T00:00:00");
-        const weekEndDt = new Date(weekStartDt);
-        weekEndDt.setDate(weekEndDt.getDate() + 6);
-        weekEndDt.setHours(23, 59, 59, 999);
-
-        // 4. Auto-Calculate Hours from time_events
-        const autoHours = this._calculateHoursFromEvents(timeEvents, weekStartDt, weekEndDt);
+        // Auto-Calculate Hours from time_events (Passing the week string to handle MST math inside)
+        const autoHours = this._calculateHoursFromEvents(timeEvents, selectedWeek);
 
         const weekRows = byWeek.get(selectedWeek) || [];
         let notificationsHTML = "";
         let totalAutoBonus = 0, totalManualBonus = 0, grandTotalPay = 0;
 
         const tbody = document.getElementById("payroll-ledger-body");
+        
+        if (!weekRows || weekRows.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="16" class="p-6 text-center text-gray-400 italic text-sm">No payroll records found for this week.</td></tr>`;
+            return;
+        }
+
         tbody.innerHTML = weekRows.map(r => {
-            // Find Agent Profile for base info
-            const agentProfile = agents.find(a => String(a.name || a.agent_name || "").toLowerCase() === r.agent.toLowerCase()) || {};
-            
-            // Calculate Bonus based on tiers
             const cancelRate = (r.qualified + r.unqualified > 0) ? (r.unqualified / (r.qualified + r.unqualified)) * 100 : 0;
             const bonus = this.calculateTieredBonus(r.qualified, cancelRate);
 
-            // Notifications
             if (r.qualified >= 9 && cancelRate < 20) {
                 notificationsHTML += `<div class="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-800 font-bold">🎟️ ${r.agent} earned 1 Raffle Entry (${r.qualified} apts, ${cancelRate.toFixed(1)}% cx)!</div>`;
             }
 
-            // In a real app, you'd fetch this from the DB. We use LocalStorage to remember edits.
             const memKey = `pay_${selectedWeek}_${r.agent.replace(/\s/g,'_')}`;
-            
-            // Pre-load the auto-calculated hours if no manual edit exists yet
             const autoAgentHrs = autoHours[r.agent.toLowerCase()] || { m:0,t:0,w:0,th:0,f:0,sa:0,su:0 };
             
             const savedData = JSON.parse(localStorage.getItem(memKey)) || { 
-                rate: 5.00, 
-                m: autoAgentHrs.m, t: autoAgentHrs.t, w: autoAgentHrs.w, th: autoAgentHrs.th, f: autoAgentHrs.f, sa: autoAgentHrs.sa, su: autoAgentHrs.su, 
-                manual: 0, paid: false 
+                rate: 5.00, m: autoAgentHrs.m, t: autoAgentHrs.t, w: autoAgentHrs.w, th: autoAgentHrs.th, f: autoAgentHrs.f, sa: autoAgentHrs.sa, su: autoAgentHrs.su, manual: 0, paid: false 
             };
 
             const baseRate = Number(savedData.rate) || 5.00;
@@ -2941,18 +2927,65 @@
         this.bindExportCSV(selectedWeek, weekRows, autoHours);
       },
 
-      _calculateHoursFromEvents(events, weekStart, weekEnd) {
-          // Note: Full logic requires tracking 'Clock In' to 'Clock Out' and subtracting 30m break.
-          // This is a placeholder structure that will cleanly accept that math.
+      _calculateHoursFromEvents(events, weekStartStr) {
           const hrs = {};
-          events.forEach(e => {
-              const dt = new Date(e.created_at);
-              if (dt >= weekStart && dt <= weekEnd) {
+          if (!events || !Array.isArray(events)) return hrs;
+
+          // Create Strict MST Boundaries for the selected week (Sat 00:00 to Fri 23:59)
+          const [y, m, d] = weekStartStr.split('-');
+          const weekStartMST = new Date(y, m-1, d, 0, 0, 0);
+          const weekEndMST = new Date(y, m-1, d, 23, 59, 59);
+          weekEndMST.setDate(weekEndMST.getDate() + 6); 
+
+          const sorted = [...events].sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+          const agentLogs = {};
+          
+          sorted.forEach(e => {
+              const mstDt = this.toMST(e.created_at); // Convert Supabase UTC to MST
+              if (mstDt >= weekStartMST && mstDt <= weekEndMST) {
                   const ag = String(e.agent_name || "").toLowerCase();
-                  if (!hrs[ag]) hrs[ag] = { m:0,t:0,w:0,th:0,f:0,sa:0,su:0 };
-                  // Complex time diff math goes here. For now, it outputs 0.
+                  if (!agentLogs[ag]) agentLogs[ag] = [];
+                  agentLogs[ag].push({ ...e, mstDt });
               }
           });
+
+          for (const [ag, logs] of Object.entries(agentLogs)) {
+              hrs[ag] = { m:0, t:0, w:0, th:0, f:0, sa:0, su:0 };
+              const byDay = {};
+              
+              logs.forEach(l => {
+                  const dStr = `${l.mstDt.getFullYear()}-${String(l.mstDt.getMonth()+1).padStart(2,'0')}-${String(l.mstDt.getDate()).padStart(2,'0')}`;
+                  if (!byDay[dStr]) byDay[dStr] = [];
+                  byDay[dStr].push(l);
+              });
+
+              for (const [dateStr, dayLogs] of Object.entries(byDay)) {
+                  let totalMs = 0;
+                  let lastIn = null;
+
+                  dayLogs.forEach(l => {
+                      const action = String(l.action).trim().toLowerCase();
+                      const time = l.mstDt.getTime();
+
+                      if (action === 'clock in' || action === 'resume') {
+                          lastIn = time;
+                      } 
+                      else if (action === 'clock out' || action === 'break start') {
+                          if (lastIn) {
+                              totalMs += (time - lastIn);
+                              lastIn = null;
+                          }
+                      }
+                  });
+                  
+                  // Because Break Start/Resume naturally pauses the timer, the break is already unpaid!
+                  let hours = totalMs / (1000 * 60 * 60);
+                  
+                  const dayIdx = new Date(dateStr + "T12:00:00").getDay(); // 0=Sun, 6=Sat
+                  const dayMap = [ 'su', 'm', 't', 'w', 'th', 'f', 'sa' ];
+                  hrs[ag][dayMap[dayIdx]] = Math.max(0, hours);
+              }
+          }
           return hrs;
       },
 
@@ -2961,7 +2994,6 @@
           let bonus = 0;
 
           if (qualified >= 6) bonus += 50; 
-          if (qualified === 7) {} // $0
           if (qualified >= 8) bonus += (isHigh ? 50 : 30);
           
           if (qualified >= 9) {
@@ -3017,7 +3049,6 @@
           const btn = document.getElementById("btn-save-payroll");
           btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Saving...`;
           
-          // To Database logic goes here later
           setTimeout(() => {
               btn.innerHTML = `<i class="fa-solid fa-check mr-2"></i> Saved!`;
               setTimeout(() => btn.classList.add("hidden"), 2000);
@@ -3028,7 +3059,6 @@
       bindExportCSV(week, rows, autoHours) {
         const btn = document.getElementById("payroll-export");
         if (!btn) return;
-        // Clean up old listeners
         const newBtn = btn.cloneNode(true);
         btn.parentNode.replaceChild(newBtn, btn);
 
@@ -3057,7 +3087,80 @@
         });
       },
 
-      // --- END NEW PAYROLL MATH ---
+      getLeadPayrollWeekStart(l) {
+        let dt = this.getLeadDateObj(l);
+        if (!dt) return "";
+        dt = this.toMST(dt); // Force into MST first!
+        const day = dt.getDay(); // 0=Sun, 6=Sat
+        const diff = (day === 6) ? 0 : day + 1; // Subtract days to find preceding Saturday
+        dt.setDate(dt.getDate() - diff);
+        return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
+      },
+
+      computePayrollFromLeads(leads) {
+        const rows = Array.isArray(leads) ? leads : [];
+        const weekSet = new Set();
+        const weekAgentMap = new Map(); 
+
+        for (const l of rows) {
+          const week = this.getLeadPayrollWeekStart(l);
+          if (!week) continue;
+          weekSet.add(week);
+
+          // FIXED: Adding 'agent_name' to ensure it connects
+          const agent = String(this.pick(l, [
+            "agent_name",
+            "Appointment Coordinator Name",
+            "Appointment Coordinator",
+            "Setter",
+            "Agent",
+            "Agent Name"
+          ], "Unknown")).trim() || "Unknown";
+
+          const status = this.pick(l, ["Status","STATUS"], "");
+          const k = `${week}||${agent}`;
+
+          const agg = weekAgentMap.get(k) || { week, agent, qualified: 0, unqualified: 0 };
+
+          if (this.isQualified(status)) agg.qualified += 1;
+          else if (this.isCredited(status)) agg.unqualified += 1;
+
+          weekAgentMap.set(k, agg);
+        }
+
+        const weeks = [...weekSet].sort((a,b) => String(b).localeCompare(String(a))); 
+        const byWeek = new Map(); 
+
+        for (const v of weekAgentMap.values()) {
+          const arr = byWeek.get(v.week) || [];
+          arr.push(v);
+          byWeek.set(v.week, arr);
+        }
+
+        for (const [wk, arr] of byWeek.entries()) {
+          arr.sort((a,b) => (b.qualified - a.qualified) || ((b.qualified+b.unqualified) - (a.qualified+a.unqualified)) || a.agent.localeCompare(b.agent));
+        }
+
+        return { weeks, byWeek };
+      },
+
+      getPayrollWeekRangeLabel(weekStartStr) {
+        if (!weekStartStr) return "—";
+        const start = new Date(weekStartStr + "T00:00:00");
+        if (isNaN(start.getTime())) return weekStartStr;
+
+        const end = new Date(start);
+        end.setDate(end.getDate() + 6);
+
+        return `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
+      },
+
+      bindPayrollUI() {
+        if (this._payrollBound) return;
+        this._payrollBound = true;
+        const sel = document.getElementById("payroll-week-select");
+        if (sel) sel.addEventListener("change", () => this.renderPayrollFinance());
+      },
 
       nav(viewId, linkEl) {
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
