@@ -1109,7 +1109,7 @@ window.fetchSalesPipeline = function() {
             <td class="p-4 text-sm text-gray-600">${r.soldBy}</td>
             <td class="p-4 text-sm text-gray-500 font-bold">${r.dateStarted}</td>
             <td class="p-4 text-center">
-                <button onclick="window.editDealModal('${r.id}')" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded">Edit</button>
+                <button onclick="window.editDealModal('${r.id}')" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded shadow-sm">Edit</button>
             </td>
         </tr>`;
     }).join('');
