@@ -706,8 +706,8 @@ async fetchAdminData(forceRefresh = false) {
               supaClient.from('leads_raw').select('*'),
               supaClient.from('packages').select('*'),
               supaClient.from('clients').select('*'),
-              supaClient.from('time_events').select('*'), // Added for Payroll Hours
-              supaClient.from('agents').select('*')       // Added for Base Rate Tenure
+              supaClient.from('time_events').select('*'), // <-- THIS PULLS THE HOURS
+              supaClient.from('agents').select('*')       // <-- THIS PULLS THE AGENTS
           ]);
           supaLeads = lRes.data || [];
           supaPackages = pRes.data || [];
@@ -716,12 +716,12 @@ async fetchAdminData(forceRefresh = false) {
           supaAgents = aRes.data || [];
       }
 
-      // Merge data into adminState
+      // Merge data into the dashboard state
       this.adminState.clients = supaClients.length > 0 ? supaClients : (dataRoot.clients || []);
       this.adminState.leads = supaLeads.length > 0 ? supaLeads : (dataRoot.leads || []);
       this.adminState.packages = supaPackages.length > 0 ? supaPackages : (dataRoot.packages || []); 
-      this.adminState.agents = supaAgents.length > 0 ? supaAgents : (dataRoot.agents || []);
       this.adminState.timeEvents = supaTime;
+      this.adminState.agents = supaAgents.length > 0 ? supaAgents : (dataRoot.agents || []);
       this.adminState.weeklyPayroll = dataRoot.weeklyPayroll || [];
 
       this.triggerAdminRefresh();
