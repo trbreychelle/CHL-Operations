@@ -2547,21 +2547,16 @@
       },
       
       getAgentStage(agent) {
-        // FIXED: Explicitly looking for the 'employment_status' column from your DB
+        // Now accurately looks for employment_status from your Supabase
         const s = String(this.pick(agent, [
-          "employment_status", "Employment Status", "Employment_Status", "Stage", "Status"
+          "employment_status", "Employment Status", "Stage", "Status"
         ], "active")).toLowerCase().trim();
 
         if (s.includes("active")) return "active";
         if (s.includes("onboard")) return "onboarding";
         if (s.includes("offboard")) return "offboarded";
         return "active"; // Default to active so agents aren't hidden
-      }
-      
-      isAgentWarned(agent) { 
-          const s = String(this.pick(agent, ["Warned","Tags"], "")).toLowerCase(); 
-          return s.includes("warned"); 
-      }
+      },
       
       setTeamSort(key) {
         if (this.teamSortKey === key) this.teamSortDir = this.teamSortDir === "asc" ? "desc" : "asc";
@@ -2609,12 +2604,17 @@
         const stageFilter = this.teamStageFilter || (document.getElementById("team-stage-filter")?.value || "active");
         const warnedFilter = this.teamWarnedFilter || (document.getElementById("team-warned-filter")?.value || "all");
 
-        // Loop directly through your Supabase Agents table
-        let rows = agents.map(a => {
-          // FIXED: Reading 'agent_name' directly
-          const agentName = this.pick(a, ["agent_name", "Employee Name", "Name", "Agent Name", "Full Name"], "Unknown");
-          const stage = this.getAgentStage(a);
-          const warned = this.isAgentWarned(a);
+        // Pulls directly from leads if agents table is missing someone, and maps agent_name perfectly
+        const uniqueAgentNames = new Set(agents.map(a => String(a.name || a.agent_name || "").trim()).filter(Boolean));
+        leads.forEach(l => {
+            const agName = String(this.pick(l, ["appointment_coordinator_name", "Appointment Coordinator Name", "agent_name", "Agent Name", "AGENT"], "")).trim();
+            if (agName) uniqueAgentNames.add(agName);
+        });
+
+        let rows = Array.from(uniqueAgentNames).map(agentName => {
+          const dbAgent = agents.find(a => String(a.name || a.agent_name || "").trim() === agentName) || {};
+          const stage = this.getAgentStage(dbAgent);
+          const warned = this.isAgentWarned(dbAgent);
 
           return {
             name: agentName,
@@ -2828,7 +2828,6 @@
         
         // Group leads by Week (Sat-Fri in MST)
         const { weeks, byWeek } = this.computePayrollFromLeads(leads);
-        
         if (weeks.length === 0) weeks.push(this.getLeadPayrollWeekStart({})); 
         
         const weekSelect = document.getElementById("payroll-week-select");
@@ -2840,7 +2839,6 @@
 
         const selectedWeek = weekSelect ? weekSelect.value : (weeks[0] || null);
         if (!selectedWeek) return;
-
         document.getElementById("payroll-ledger-period").textContent = this.getPayrollWeekRangeLabel(selectedWeek);
 
         // Load Saved Notes
@@ -2850,7 +2848,7 @@
             notesEl.oninput = (e) => localStorage.setItem(`payroll_notes_${selectedWeek}`, e.target.value);
         }
 
-        // Auto-Calculate Hours from time_events (Passing the week string to handle MST math inside)
+        // Auto-Calculate Hours from time_events (MST Boundary)
         const autoHours = this._calculateHoursFromEvents(timeEvents, selectedWeek);
 
         const weekRows = byWeek.get(selectedWeek) || [];
@@ -2858,7 +2856,6 @@
         let totalAutoBonus = 0, totalManualBonus = 0, grandTotalPay = 0;
 
         const tbody = document.getElementById("payroll-ledger-body");
-        
         if (!weekRows || weekRows.length === 0) {
             tbody.innerHTML = `<tr><td colspan="16" class="p-6 text-center text-gray-400 italic text-sm">No payroll records found for this week.</td></tr>`;
             return;
@@ -2931,7 +2928,6 @@
           const hrs = {};
           if (!events || !Array.isArray(events)) return hrs;
 
-          // Create Strict MST Boundaries for the selected week (Sat 00:00 to Fri 23:59)
           const [y, m, d] = weekStartStr.split('-');
           const weekStartMST = new Date(y, m-1, d, 0, 0, 0);
           const weekEndMST = new Date(y, m-1, d, 23, 59, 59);
@@ -2967,14 +2963,9 @@
                       const action = String(l.action).trim().toLowerCase();
                       const time = l.mstDt.getTime();
 
-                      if (action === 'clock in' || action === 'resume') {
-                          lastIn = time;
-                      } 
+                      if (action === 'clock in' || action === 'resume') { lastIn = time; } 
                       else if (action === 'clock out' || action === 'break start') {
-                          if (lastIn) {
-                              totalMs += (time - lastIn);
-                              lastIn = null;
-                          }
+                          if (lastIn) { totalMs += (time - lastIn); lastIn = null; }
                       }
                   });
                   
@@ -3090,9 +3081,9 @@
       getLeadPayrollWeekStart(l) {
         let dt = this.getLeadDateObj(l);
         if (!dt) return "";
-        dt = this.toMST(dt); // Force into MST first!
-        const day = dt.getDay(); // 0=Sun, 6=Sat
-        const diff = (day === 6) ? 0 : day + 1; // Subtract days to find preceding Saturday
+        dt = this.toMST(dt); 
+        const day = dt.getDay(); 
+        const diff = (day === 6) ? 0 : day + 1; 
         dt.setDate(dt.getDate() - diff);
         return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
       },
@@ -3107,14 +3098,8 @@
           if (!week) continue;
           weekSet.add(week);
 
-          // FIXED: Adding 'agent_name' to ensure it connects
           const agent = String(this.pick(l, [
-            "agent_name",
-            "Appointment Coordinator Name",
-            "Appointment Coordinator",
-            "Setter",
-            "Agent",
-            "Agent Name"
+            "agent_name", "Appointment Coordinator Name", "Appointment Coordinator", "Setter", "Agent", "Agent Name"
           ], "Unknown")).trim() || "Unknown";
 
           const status = this.pick(l, ["Status","STATUS"], "");
