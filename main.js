@@ -706,8 +706,8 @@ async fetchAdminData(forceRefresh = false) {
               supaClient.from('leads_raw').select('*'),
               supaClient.from('packages').select('*'),
               supaClient.from('clients').select('*'),
-              supaClient.from('time_events').select('*'), // <-- THIS PULLS THE HOURS
-              supaClient.from('agents').select('*')       // <-- THIS PULLS THE AGENTS
+              supaClient.from('time_events').select('*'),
+              supaClient.from('agents').select('*')
           ]);
           supaLeads = lRes.data || [];
           supaPackages = pRes.data || [];
@@ -716,7 +716,6 @@ async fetchAdminData(forceRefresh = false) {
           supaAgents = aRes.data || [];
       }
 
-      // Merge data into the dashboard state
       this.adminState.clients = supaClients.length > 0 ? supaClients : (dataRoot.clients || []);
       this.adminState.leads = supaLeads.length > 0 ? supaLeads : (dataRoot.leads || []);
       this.adminState.packages = supaPackages.length > 0 ? supaPackages : (dataRoot.packages || []); 
