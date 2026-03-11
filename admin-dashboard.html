@@ -407,15 +407,21 @@
         </div>
       </div>
       
-      <div id="view-sales" class="view-section">
+    <div id="view-sales" class="view-section">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
           <div>
             <h2 class="text-2xl font-bold text-gray-900">Master Sales Pipeline</h2>
             <p class="text-sm text-gray-500 mt-1">Track all active deals and closed won revenue across the company.</p>
           </div>
-          <button class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-extrabold hover:bg-emerald-700 shadow-lg shadow-emerald-600/20" onclick="document.getElementById('add-sale-modal').classList.remove('hidden')">
-            <i class="fas fa-plus mr-2"></i> Add Deal
-          </button>
+          <div class="flex gap-3 items-end">
+            <div class="bg-white px-5 py-2 rounded-xl border border-gray-100 shadow-sm text-right">
+              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TOTAL SALES</p>
+              <p class="text-xl font-bold text-emerald-600" id="sales-total-kpi">$0.00</p>
+            </div>
+            <button class="px-4 py-3 rounded-lg bg-emerald-600 text-white text-sm font-extrabold hover:bg-emerald-700 shadow-lg shadow-emerald-600/20" onclick="window.openAddDealModal()">
+              <i class="fas fa-plus mr-2"></i> Add Deal
+            </button>
+          </div>
         </div>
 
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
@@ -431,17 +437,9 @@
               <option value="Sales Team">View: Sales Team</option>
             </select>
 
-            <select id="admin-sales-status-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
-              <option value="all">All Deal Statuses</option>
-              <option value="Prospecting">Prospecting</option>
-              <option value="Negotiating">Negotiating</option>
-              <option value="Closed Won">Closed Won</option>
-              <option value="Closed Lost">Closed Lost</option>
-            </select>
-
             <select id="admin-sales-package-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[170px] text-gray-700">
               <option value="all">All Package Statuses</option>
-              <option value="Active">Active</option>
+              <option value="Active">Active / Ongoing</option>
               <option value="Pause">Pause</option>
               <option value="Completed">Completed</option>
               <option value="Refunded">Refunded</option>
@@ -458,17 +456,89 @@
                   <th class="p-4">TXN #</th>
                   <th class="p-4">Roofing Company</th>
                   <th class="p-4">POC</th>
-                  <th class="p-4">Package</th>
-                  <th class="p-4">Deal Value</th>
-                  <th class="p-4">Deal Status</th>
+                  <th class="p-4">Total Leads</th>
+                  <th class="p-4 text-emerald-600">Deal Value</th>
+                  <th class="p-4 text-purple-600">Total Comm.</th>
                   <th class="p-4">PKG Status</th>
                   <th class="p-4">Sold By</th>
-                  <th class="p-4">PKG Started</th>
-                  <th class="p-4">PKG Ended</th>
+                  <th class="p-4">Started</th>
+                  <th class="p-4 text-center">Action</th>
                 </tr>
               </thead>
               <tbody id="admin-sales-table-body" class="divide-y divide-gray-50">
                 <tr><td colspan="11" class="p-6 text-center text-gray-400 italic">Loading master pipeline...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="view-leads" class="view-section">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">Leads Master Record</h2>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+          <div class="controls-wrap">
+            <div class="flex-1 relative" style="min-width: 260px;">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+              <input
+                id="leads-search"
+                type="text"
+                placeholder="Search homeowner, appointment coordinator, roofing company, status, lead ID, email, phone..."
+                class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              />
+            </div>
+
+            <select id="leads-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
+              <option value="all">All Status</option>
+            </select>
+
+            <select id="leads-filter-company" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[240px]">
+              <option value="all">All Roofing Company</option>
+            </select>
+
+            <select id="leads-filter-ac" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
+              <option value="all">All Appointment Coordinators</option>
+            </select>
+
+            <div class="flex items-center gap-2">
+              <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+                <input id="leads-date-start" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+                <input id="leads-date-end" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
+              </div>
+            </div>
+
+            <button id="leads-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
+              Clear
+            </button>
+
+            <div class="relative">
+              <button id="leads-columns-toggle" class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800 flex items-center gap-2">
+                <i class="fa-solid fa-table-columns"></i> Columns
+              </button>
+
+              <div id="leads-columns-popover" class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">Visible Columns</div>
+                <div id="leads-columns-box" class="max-h-[280px] overflow-y-auto space-y-2 pr-1"></div>
+                <div class="flex justify-end gap-2 mt-3">
+                  <button id="leads-columns-all" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">All</button>
+                  <button id="leads-columns-min" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">Minimal</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="mt-3 text-xs text-gray-500">Showing <span class="font-bold" id="leads-count">0</span> leads</div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div class="table-scroll">
+            <table class="table-min w-full text-left text-sm whitespace-nowrap">
+              <thead id="leads-table-head" class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100"></thead>
+              <tbody id="leads-table-body" class="divide-y divide-gray-50">
+                <tr><td class="p-6 text-center text-gray-400">Loading leads...</td></tr>
               </tbody>
             </table>
           </div>
@@ -1076,60 +1146,74 @@
 
       <div id="add-sale-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center">
         <div class="absolute inset-0 bg-black/40" onclick="document.getElementById('add-sale-modal').classList.add('hidden')"></div>
-        <div class="relative bg-white rounded-2xl shadow-xl w-[90%] max-w-md p-6">
+        <div class="relative bg-white rounded-2xl shadow-xl w-[90%] max-w-md p-6 max-h-[90vh] overflow-y-auto">
           <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-3">
-            <h3 class="font-bold text-xl text-gray-900">Log New Deal</h3>
+            <h3 class="font-bold text-xl text-gray-900" id="sale-modal-title">Log New Deal</h3>
             <button onclick="document.getElementById('add-sale-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-900"><i class="fa-solid fa-xmark"></i></button>
           </div>
-          <form id="add-sale-form" onsubmit="submitNewSale(event)" class="space-y-4">
+          <form id="add-sale-form" onsubmit="window.submitNewSale(event)" class="space-y-4">
+            <input type="hidden" id="sale-package-id" value="">
+            
             <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Client Name / Roofing Co.</label>
-              <input type="text" id="sale-client-name" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Package Sold</label>
-              <input type="text" id="sale-package" placeholder="e.g. 10 Leads / $2111" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Deal Value ($)</label>
-              <input type="number" id="sale-value" step="0.01" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
-            </div>
-            <div class="mb-4">
-                <label class="block text-xs font-bold text-gray-500 mb-1">TRANSACTION NUMBER</label>
-                <input type="text" id="sale-transaction-id" placeholder="e.g. TXN-2026-001" class="w-full border rounded p-2 text-sm outline-none focus:border-blue-500">
-            </div>
-            <div class="mb-4">
-                <label class="block text-xs font-bold text-gray-500 mb-1">PACKAGE STATUS</label>
-                <select id="sale-package-status" class="w-full border rounded p-2 text-sm outline-none focus:border-blue-500">
-                    <option value="Active">Active</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Refunded">Refunded</option>
-                </select>
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Status</label>
-              <select id="sale-status" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
-                <option value="Prospecting">Prospecting</option>
-                <option value="Negotiating">Negotiating</option>
-                <option value="Closed Won" selected>Closed Won</option>
-                <option value="Closed Lost">Closed Lost</option>
+              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Select Client</label>
+              <select id="sale-client-code" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
+                <option value="">-- Choose Client --</option>
               </select>
             </div>
-            <div id="sale-category-container">
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Sale Category</label>
-              <select id="sale-category" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
-                <option value="Sales Team">Sales Team</option>
-                <option value="CHL">CHL (Admin)</option>
-              </select>
+            
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Purchased Leads</label>
+                  <input type="number" id="sale-leads" placeholder="e.g. 10" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Deal Value ($)</label>
+                  <input type="number" id="sale-value" step="0.01" placeholder="e.g. 2111" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+                </div>
             </div>
-            <button type="submit" id="save-sale-btn" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg mt-2">Save Deal</button>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Commission (Per Lead $)</label>
+                  <input type="number" id="sale-commission" step="0.01" placeholder="e.g. 10" value="0" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Purchase Date</label>
+                  <input type="date" id="sale-date" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">TRANSACTION NUMBER</label>
+                <input type="text" id="sale-transaction-id" placeholder="e.g. TXN-2026-001" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+            </div>
+            
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">PKG STATUS</label>
+                    <select id="sale-package-status" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
+                        <option value="Active">Active</option>
+                        <option value="Pause">Pause</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Refunded">Refunded</option>
+                    </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Sale Category</label>
+                  <select id="sale-category" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
+                    <option value="Sales Team">Sales Team</option>
+                    <option value="CHL">CHL (Admin)</option>
+                  </select>
+                </div>
+            </div>
+            
+            <button type="submit" id="save-sale-btn" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg mt-2 shadow-lg">Save Deal</button>
           </form>
         </div>
       </div>
 
     </div>
   </main>
-
   <div id="add-client-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
     <div class="bg-white rounded-lg shadow-xl w-[400px] p-6 relative">
         <button onclick="document.getElementById('add-client-modal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700">
@@ -1249,8 +1333,10 @@
 
         // 3. Keep other dashboard modules alive
         try { this.initLeadsColumnsUI(); this.applyLeadsFilters(); } catch(e) {}
-        try { fetchSalesPipeline(); } catch(e) {} 
+        try { this.bindLeadsMasterEvents(); } catch(e) {} 
+        try { window.fetchSalesPipeline(); } catch(e) {} 
         try { this.bindPassbookUI(clients); this.applyPassbookFilters(clients); } catch(e) {}
+        try { this.bindOverviewAnalyticsUI(); } catch(e) {} 
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
         try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
         try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
@@ -1630,10 +1716,15 @@
         const acs = uniq(leads.map(l => this.getLeadField(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent","Agent Name"], "")));
         const homeowners = uniq(leads.map(l => this.getLeadField(l, ["Homeowner Name(s)","Homeowner Name","Homeowner","HOMEOWNER NAME"], "")));
 
-        statusSel.innerHTML = `<option value="all">All Status</option>` + statuses.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
+        statusSel.innerHTML = `
+          <option value="all">All Status</option>
+          <option value="APPROVED">APPROVED</option>
+          <option value="CREDITED">CREDITED</option>
+          <option value="PENDING REVIEW">PENDING REVIEW</option>
+          <option value="REJECTED">REJECTED</option>
+        `;
         compSel.innerHTML = `<option value="all">All Roofing Company</option>` + companies.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
         acSel.innerHTML = `<option value="all">All Appointment Coordinators</option>` + acs.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
-        hoSel.innerHTML = `<option value="all">All Homeowners</option>` + homeowners.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
       },
 
       initLeadsColumnsUI() {
