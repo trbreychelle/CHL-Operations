@@ -247,7 +247,7 @@ class CallHammerPortal {
       
       setTimeout(() => {
         this.fetchAdminData(false);
-        this.loadPayrollData(false); 
+        // this.loadPayrollData(false); 
       }, 300);
 
       this.startAdminAutoRefresh();
