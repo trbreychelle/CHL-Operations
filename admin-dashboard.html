@@ -2605,8 +2605,8 @@
         const warnedFilter = this.teamWarnedFilter || (document.getElementById("team-warned-filter")?.value || "all");
 
         // FIX: Null-safe checking to prevent fatal crashes
-        const uniqueAgentNames = new Set();
-        agents.forEach(a => { if (a) uniqueAgentNames.add(String(a.name || a.agent_name || "").trim()); });
+        const uniqueAgentNames = new Set(
+          agents.filter(a => a != null).map(a => String(a.name || a.agent_name || "").trim()).filter(Boolean)
         );
         leads.forEach(l => {
             const agName = String(this.pick(l, ["appointment_coordinator_name", "Appointment Coordinator Name", "Agent Name", "agent_name", "AGENT"], "")).trim();
@@ -2615,7 +2615,7 @@
 
         let rows = Array.from(uniqueAgentNames).map(agentName => {
           // FIX: Null-safe agent mapping
-          const dbAgent = agents.find(a => a && String(a.name || a.agent_name || "").trim() === agentName) || {};
+          const dbAgent = agents.find(a => a != null && String(a.name || a.agent_name || "").trim() === agentName) || {};
           const stage = this.getAgentStage(dbAgent);
           const warned = this.isAgentWarned(dbAgent);
 
@@ -3139,7 +3139,7 @@
       getLeadPayrollWeekStart(l) {
         let dt = this.getLeadDateObj(l);
         if (!dt) return "";
-        dt = window.portal.toMST(dt); // Force into MST first!
+        dt = this.toMST(dt); // Force into MST first!
         const day = dt.getDay(); // 0=Sun, 6=Sat
         const diff = (day === 6) ? 0 : day + 1; // Subtract days to find preceding Saturday
         dt.setDate(dt.getDate() - diff);
