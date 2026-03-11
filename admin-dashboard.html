@@ -944,13 +944,13 @@
                 <tr>
                   <th class="p-3">Agent</th>
                   <th class="p-3 text-center" title="Editable Base Rate">Rate/Hr</th>
-                  <th class="p-3 text-center">Sat</th>
-                  <th class="p-3 text-center">Sun</th>
-                  <th class="p-3 text-center">Mon</th>
-                  <th class="p-3 text-center">Tue</th>
-                  <th class="p-3 text-center">Wed</th>
-                  <th class="p-3 text-center">Thu</th>
-                  <th class="p-3 text-center">Fri</th>
+                 <th class="p-3 text-center leading-tight">Sat<br><span id="head-date-sat" class="text-[9px] font-normal text-gray-400"></span></th>
+                  <th class="p-3 text-center leading-tight">Sun<br><span id="head-date-sun" class="text-[9px] font-normal text-gray-400"></span></th>
+                  <th class="p-3 text-center leading-tight">Mon<br><span id="head-date-mon" class="text-[9px] font-normal text-gray-400"></span></th>
+                  <th class="p-3 text-center leading-tight">Tue<br><span id="head-date-tue" class="text-[9px] font-normal text-gray-400"></span></th>
+                  <th class="p-3 text-center leading-tight">Wed<br><span id="head-date-wed" class="text-[9px] font-normal text-gray-400"></span></th>
+                  <th class="p-3 text-center leading-tight">Thu<br><span id="head-date-thu" class="text-[9px] font-normal text-gray-400"></span></th>
+                  <th class="p-3 text-center leading-tight">Fri<br><span id="head-date-fri" class="text-[9px] font-normal text-gray-400"></span></th>
                   <th class="p-3 text-center bg-gray-50 text-gray-700">Total Hrs</th>
                   <th class="p-3 text-center text-blue-500">Qual</th>
                   <th class="p-3 text-center text-red-400">CX %</th>
@@ -2820,6 +2820,17 @@
         weekEndDt.setDate(weekEndDt.getDate() + 6);
         weekEndDt.setHours(23, 59, 59, 999);
 
+        // Inject dynamic dates into the table headers
+        const dayNames = ['sat', 'sun', 'mon', 'tue', 'wed', 'thu', 'fri'];
+        dayNames.forEach((dName, i) => {
+            const el = document.getElementById(`head-date-${dName}`);
+            if (el) {
+                const dayDt = new Date(weekStartDt);
+                dayDt.setDate(dayDt.getDate() + i);
+                el.textContent = `${dayDt.getMonth() + 1}/${dayDt.getDate()}`;
+            }
+        });
+
         // Auto Calculate Hours in MST!
         const autoHours = this._calculateHoursFromEvents(timeEvents, selectedWeek);
 
@@ -2867,7 +2878,10 @@
                 const autoAgentHrs = autoHours[r.agent.toLowerCase()] || { m:0,t:0,w:0,th:0,f:0,sa:0,su:0 };
                 
                 const dbAgent = agents.find(a => a && String(a.agent_name || "").toLowerCase() === r.agent.toLowerCase()) || {};
-                const dbRate = Number(dbAgent.effective_hourly_rate || dbAgent.base_rate || 5);
+                
+                // FIX: Strips out the '$' from base_rate so JS can do the math properly
+                const parseRate = (val) => Number(String(val).replace(/[^0-9.]/g, '')) || 5.00;
+                const dbRate = parseRate(dbAgent.effective_hourly_rate || dbAgent.base_rate || 5);
 
                 const savedData = JSON.parse(localStorage.getItem(memKey)) || { 
                     rate: dbRate, m: autoAgentHrs.m, t: autoAgentHrs.t, w: autoAgentHrs.w, th: autoAgentHrs.th, f: autoAgentHrs.f, sa: autoAgentHrs.sa, su: autoAgentHrs.su, manual: 0, paid: false 
@@ -2935,11 +2949,19 @@
           const weekEndMST = new Date(y, m-1, d, 23, 59, 59);
           weekEndMST.setDate(weekEndMST.getDate() + 6); 
 
-          const sorted = [...events].sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+          // FIX: Look at 'occurred_at' instead of 'created_at'
+          const sorted = [...events].sort((a,b) => {
+              const dateA = new Date(a.occurred_at || a.created_at || 0);
+              const dateB = new Date(b.occurred_at || b.created_at || 0);
+              return dateA - dateB;
+          });
           const agentLogs = {};
           
           sorted.forEach(e => {
-              const mstDt = window.portal && window.portal.toMST ? window.portal.toMST(e.created_at) : new Date(e.created_at);
+              const timestamp = e.occurred_at || e.created_at;
+              if (!timestamp) return;
+
+              const mstDt = window.portal && window.portal.toMST ? window.portal.toMST(timestamp) : new Date(timestamp);
               if (mstDt >= weekStartMST && mstDt <= weekEndMST) {
                   const ag = String(e.agent_name || "").toLowerCase();
                   if (!agentLogs[ag]) agentLogs[ag] = [];
@@ -2984,7 +3006,7 @@
           }
           return hrs;
       },
-
+      
       calculateTieredBonus(qualified, cancelRate) {
           const isHigh = cancelRate < 25;
           let bonus = 0;
