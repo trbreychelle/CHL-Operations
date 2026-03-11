@@ -700,23 +700,28 @@ async fetchAdminData(forceRefresh = false) {
       const result = await response.json();
       const dataRoot = result?.data || result || {};
 
-      let supaLeads = [], supaPackages = [], supaClients = [];
+      let supaLeads = [], supaPackages = [], supaClients = [], supaTime = [], supaAgents = [];
       if (supaClient) {
-          const [lRes, pRes, cRes] = await Promise.all([
+          const [lRes, pRes, cRes, tRes, aRes] = await Promise.all([
               supaClient.from('leads_raw').select('*'),
               supaClient.from('packages').select('*'),
-              supaClient.from('clients').select('*')
+              supaClient.from('clients').select('*'),
+              supaClient.from('time_events').select('*'), // Added for Payroll Hours
+              supaClient.from('agents').select('*')       // Added for Base Rate Tenure
           ]);
           supaLeads = lRes.data || [];
           supaPackages = pRes.data || [];
           supaClients = cRes.data || [];
+          supaTime = tRes.data || [];
+          supaAgents = aRes.data || [];
       }
 
-      // Merge. If Supabase fails (RLS), it uses your n8n data as fallback.
+      // Merge data into adminState
       this.adminState.clients = supaClients.length > 0 ? supaClients : (dataRoot.clients || []);
       this.adminState.leads = supaLeads.length > 0 ? supaLeads : (dataRoot.leads || []);
       this.adminState.packages = supaPackages.length > 0 ? supaPackages : (dataRoot.packages || []); 
-      this.adminState.agents = dataRoot.agents || [];
+      this.adminState.agents = supaAgents.length > 0 ? supaAgents : (dataRoot.agents || []);
+      this.adminState.timeEvents = supaTime;
       this.adminState.weeklyPayroll = dataRoot.weeklyPayroll || [];
 
       this.triggerAdminRefresh();
@@ -1369,9 +1374,6 @@ async function submitNewClient(e) {
     btn.disabled = false;
 }
 
-// ==========================================
-// ✅ CLIENT HEALTH MONITOR (MISSION CONTROL)
-// ==========================================
 // ==========================================
 // ✅ CLIENT HEALTH MONITOR (MISSION CONTROL)
 // ==========================================
