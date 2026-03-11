@@ -407,21 +407,15 @@
         </div>
       </div>
       
-     <div id="view-sales" class="view-section">
+      <div id="view-sales" class="view-section">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
           <div>
             <h2 class="text-2xl font-bold text-gray-900">Master Sales Pipeline</h2>
             <p class="text-sm text-gray-500 mt-1">Track all active deals and closed won revenue across the company.</p>
           </div>
-          <div class="flex gap-3 items-end">
-            <div class="bg-white px-5 py-2 rounded-xl border border-gray-100 shadow-sm text-right">
-              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TOTAL SALES</p>
-              <p class="text-xl font-bold text-emerald-600" id="sales-total-kpi">$0.00</p>
-            </div>
-            <button class="px-4 py-3 rounded-lg bg-emerald-600 text-white text-sm font-extrabold hover:bg-emerald-700 shadow-lg shadow-emerald-600/20" onclick="window.openAddDealModal()">
-              <i class="fas fa-plus mr-2"></i> Add Deal
-            </button>
-          </div>
+          <button class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-extrabold hover:bg-emerald-700 shadow-lg shadow-emerald-600/20" onclick="document.getElementById('add-sale-modal').classList.remove('hidden')">
+            <i class="fas fa-plus mr-2"></i> Add Deal
+          </button>
         </div>
 
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
@@ -437,9 +431,17 @@
               <option value="Sales Team">View: Sales Team</option>
             </select>
 
+            <select id="admin-sales-status-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
+              <option value="all">All Deal Statuses</option>
+              <option value="Prospecting">Prospecting</option>
+              <option value="Negotiating">Negotiating</option>
+              <option value="Closed Won">Closed Won</option>
+              <option value="Closed Lost">Closed Lost</option>
+            </select>
+
             <select id="admin-sales-package-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[170px] text-gray-700">
               <option value="all">All Package Statuses</option>
-              <option value="Active">Active / Ongoing</option>
+              <option value="Active">Active</option>
               <option value="Pause">Pause</option>
               <option value="Completed">Completed</option>
               <option value="Refunded">Refunded</option>
@@ -456,13 +458,13 @@
                   <th class="p-4">TXN #</th>
                   <th class="p-4">Roofing Company</th>
                   <th class="p-4">POC</th>
-                  <th class="p-4">Total Leads</th>
-                  <th class="p-4 text-emerald-600">Deal Value</th>
-                  <th class="p-4 text-purple-600">Total Comm.</th>
+                  <th class="p-4">Package</th>
+                  <th class="p-4">Deal Value</th>
+                  <th class="p-4">Deal Status</th>
                   <th class="p-4">PKG Status</th>
                   <th class="p-4">Sold By</th>
-                  <th class="p-4">Started</th>
-                  <th class="p-4 text-center">Action</th>
+                  <th class="p-4">PKG Started</th>
+                  <th class="p-4">PKG Ended</th>
                 </tr>
               </thead>
               <tbody id="admin-sales-table-body" class="divide-y divide-gray-50">
@@ -473,70 +475,654 @@
         </div>
       </div>
 
-      <div id="add-sale-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center">
-        <div class="absolute inset-0 bg-black/40" onclick="document.getElementById('add-sale-modal').classList.add('hidden')"></div>
-        <div class="relative bg-white rounded-2xl shadow-xl w-[90%] max-w-md p-6 max-h-[90vh] overflow-y-auto">
-          <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-3">
-            <h3 class="font-bold text-xl text-gray-900" id="sale-modal-title">Log New Deal</h3>
-            <button onclick="document.getElementById('add-sale-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-900"><i class="fa-solid fa-xmark"></i></button>
+      <div id="view-clients" class="view-section">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-900">Passbook Clients</h2>
+            <button onclick="document.getElementById('add-client-modal').classList.remove('hidden')" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-extrabold hover:bg-blue-700 transition-colors shadow-sm">
+                <i class="fas fa-plus mr-2"></i> Add Client
+            </button>
+        </div>
+        
+        <div class="client-filter-container">
+            <label for="clientStatusFilter">Filter Clients: </label>
+            <select id="clientStatusFilter" onchange="fetchAdminClients(this.value)">
+                <option value="Active" selected>Active</option> <option value="Pause">Pause</option>
+                <option value="Blacklisted">Blacklisted</option>
+                <option value="All">All</option>
+            </select>
+        </div>
+        
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+          <div class="flex flex-col lg:flex-row gap-3 lg:items-end">
+            <div class="flex-1 relative">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+              <input
+                id="passbook-search"
+                type="text"
+                placeholder="Search roofing company, code, city/state, client name..."
+                class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              />
+            </div>
+
+            <select id="passbook-filter-location"
+                    class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
+              <option value="all">All Locations</option>
+            </select>
+
+            <div class="flex bg-gray-200 p-1 rounded-lg">
+              <button id="passbook-view-cards"
+                      class="px-3 py-2 text-xs font-extrabold rounded-md bg-white shadow text-gray-900">
+                Cards
+              </button>
+              <button id="passbook-view-list"
+                      class="px-3 py-2 text-xs font-extrabold rounded-md text-gray-500 hover:text-gray-900">
+                List
+              </button>
+            </div>
+
+            <button id="passbook-clear"
+                    class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
+              Clear
+            </button>
           </div>
-          <form id="add-sale-form" onsubmit="window.submitNewSale(event)" class="space-y-4">
-            <input type="hidden" id="sale-package-id" value="">
-            
-            <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Select Client</label>
-              <select id="sale-client-code" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
-                <option value="">-- Choose Client --</option>
+
+          <div class="mt-3 text-xs text-gray-500">
+            Showing <span class="font-bold" id="passbook-count">0</span> clients
+          </div>
+        </div>
+
+        <div id="passbook-list-wrap" class="hidden bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-6">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm whitespace-nowrap">
+              <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+                <tr>
+                  <th class="p-4">Code</th>
+                  <th class="p-4">Roofing Company</th>
+                  <th class="p-4">City/State</th>
+                  <th class="p-4">Client Name</th>
+                  <th class="p-4 text-right">Open</th>
+                </tr>
+              </thead>
+              <tbody id="passbook-list-body" class="divide-y divide-gray-50"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="client-cards-container">
+          <div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">
+            Waiting for admin data...
+          </div>
+        </div>
+
+        <div id="passbook-modal" class="hidden fixed inset-0 z-50">
+          <div class="absolute inset-0 bg-black/40" onclick="Admin.closePassbookModal()"></div>
+
+          <div class="relative mx-auto mt-10 w-[94%] max-w-5xl bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+            <div class="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <div>
+                <h3 class="font-extrabold text-gray-900" id="passbook-modal-title">Client Details</h3>
+                <p class="text-xs text-gray-500 mt-1" id="passbook-modal-sub">—</p>
+              </div>
+              <button class="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                      onclick="Admin.closePassbookModal()">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <form id="passbookClientForm" class="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+              <input type="hidden" id="codeName" name="codeName" value="">
+
+              <div id="passbook-form-body">
+                <div class="p-4 rounded-xl border border-gray-100 bg-gray-50/40 text-sm text-gray-500 italic">
+                  Loading client details...
+                </div>
+              </div>
+
+              <div class="flex items-center justify-end gap-2 pt-4 border-t border-gray-100">
+                <button type="button"
+                        class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50"
+                        onclick="Admin.closePassbookModal()">
+                  Cancel
+                </button>
+                <button id="passbookSaveButton" type="submit"
+                        class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800">
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div id="view-leads" class="view-section">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">Leads Master Record</h2>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+          <div class="controls-wrap">
+            <div class="flex-1 relative" style="min-width: 260px;">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+              <input
+                id="leads-search"
+                type="text"
+                placeholder="Search homeowner, appointment coordinator, roofing company, status, lead ID, email, phone..."
+                class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              />
+            </div>
+
+            <select id="leads-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
+              <option value="all">All Status</option>
+            </select>
+
+            <select id="leads-filter-company" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[240px]">
+              <option value="all">All Roofing Company</option>
+            </select>
+
+            <select id="leads-filter-ac" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
+              <option value="all">All Appointment Coordinators</option>
+            </select>
+
+            <select id="leads-filter-homeowner" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
+              <option value="all">All Homeowners</option>
+            </select>
+
+            <div class="flex items-center gap-2">
+              <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+                <input id="leads-date-start" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+                <input id="leads-date-end" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
+              </div>
+            </div>
+
+            <button id="leads-clear"
+                    class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
+              Clear
+            </button>
+
+            <div class="relative">
+              <button id="leads-columns-toggle"
+                      class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800 flex items-center gap-2">
+                <i class="fa-solid fa-table-columns"></i> Columns
+              </button>
+
+              <div id="leads-columns-popover"
+                   class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">
+                  Visible Columns
+                </div>
+                <div id="leads-columns-box" class="max-h-[280px] overflow-y-auto space-y-2 pr-1"></div>
+
+                <div class="flex justify-end gap-2 mt-3">
+                  <button id="leads-columns-all"
+                          class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
+                    All
+                  </button>
+                  <button id="leads-columns-min"
+                          class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
+                    Minimal
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="mt-3 text-xs text-gray-500">
+            Showing <span class="font-bold" id="leads-count">0</span> leads
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div class="table-scroll">
+            <table class="table-min w-full text-left text-sm whitespace-nowrap">
+              <thead id="leads-table-head" class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100"></thead>
+              <tbody id="leads-table-body" class="divide-y divide-gray-50">
+                <tr><td class="p-6 text-center text-gray-400">Loading leads...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="view-team" class="view-section">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">Team</h2>
+            <p class="text-sm text-gray-500 mt-1">Monitor all agents + drill into each agent’s leads.</p>
+          </div>
+
+          <div class="flex items-center gap-2 flex-wrap">
+            <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
+              <button onclick="Admin.setTeamPeriod('today', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
+              <button onclick="Admin.setTeamPeriod('this-week', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
+              <button onclick="Admin.setTeamPeriod('previous-week', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Previous Week</button>
+              <button onclick="Admin.setTeamPeriod('4-weeks', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">4 Weeks</button>
+              <button onclick="Admin.setTeamPeriod('6-weeks', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">6 Weeks</button>
+              <button onclick="Admin.setTeamPeriod('all-time', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
+            </div>
+
+            <div class="relative">
+              <button id="team-custom-toggle"
+                      class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                <i class="fa-regular fa-calendar"></i> Custom
+              </button>
+
+              <div id="team-custom-popover"
+                   class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">
+                  Custom Timeframe
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+                    <input id="team-custom-start" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+                    <input id="team-custom-end" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
+                  </div>
+                </div>
+                <div class="flex justify-end gap-2 mt-3">
+                  <button id="team-custom-clear"
+                          class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
+                        Clear
+                  </button>
+                  <button id="team-custom-apply"
+                          class="px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">
+                    Apply
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+          <div class="flex flex-col md:flex-row md:items-center gap-3">
+            <div class="flex-1 relative">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+              <input
+                id="team-search"
+                type="text"
+                placeholder="Search agent name..."
+                class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              />
+            </div>
+            <div class="flex items-center gap-2">
+              <select id="team-stage-filter"
+                      class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
+                <option value="all">All Stages</option>
+                <option value="active" selected>Active</option>
+                <option value="onboarding">Onboarding</option>
+                <option value="offboarded">Offboarded</option>
+              </select>
+              <select id="team-warned-filter"
+                      class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
+                <option value="all" selected>Warned: All</option>
+                <option value="warned">Warned Only</option>
+                <option value="not-warned">Not Warned</option>
               </select>
             </div>
-            
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Purchased Leads</label>
-                  <input type="number" id="sale-leads" placeholder="e.g. 10" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+          </div>
+
+          <div class="mt-3 text-xs text-gray-500">
+            Showing <span class="font-bold" id="team-count">0</span> agents
+            <span class="ml-2 text-gray-400" id="team-range-label">—</span>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm whitespace-nowrap">
+              <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+                <tr>
+                  <th class="p-4 cursor-pointer select-none" onclick="Admin.setTeamSort('name')">
+                    Agent <span id="team-sort-name" class="text-[10px] ml-1 text-gray-300">↕</span>
+                  </th>
+                  <th class="p-4 text-center cursor-pointer select-none" onclick="Admin.setTeamSort('total')">
+                    Total <span id="team-sort-total" class="text-[10px] ml-1 text-gray-300">↕</span>
+                  </th>
+                  <th class="p-4 text-center text-red-500 cursor-pointer select-none" onclick="Admin.setTeamSort('rejected')">
+                    QC Rejected <span id="team-sort-rejected" class="text-[10px] ml-1 text-gray-300">↕</span>
+                  </th>
+                  <th class="p-4 text-center text-blue-500 cursor-pointer select-none" onclick="Admin.setTeamSort('qualified')">
+                    Qualified <span id="team-sort-qualified" class="text-[10px] ml-1 text-gray-300">↕</span>
+                  </th>
+                  <th class="p-4 text-center text-purple-500 cursor-pointer select-none" onclick="Admin.setTeamSort('credited')">
+                    Credited <span id="team-sort-credited" class="text-[10px] ml-1 text-gray-300">↕</span>
+                  </th>
+                  <th class="p-4 text-center text-yellow-500 cursor-pointer select-none" onclick="Admin.setTeamSort('pending')">
+                    Pending <span id="team-sort-pending" class="text-[10px] ml-1 text-gray-300">↕</span>
+                  </th>
+                  <th class="p-4 text-center cursor-pointer select-none" onclick="Admin.setTeamSort('cancelRate')">
+                    Cancellation Rate <span id="team-sort-cancelRate" class="text-[10px] ml-1 text-gray-300">↕</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="team-body" class="divide-y divide-gray-50">
+                <tr><td colspan="7" class="p-6 text-center text-gray-400 italic">Loading team performance...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="agent-modal" class="hidden fixed inset-0 z-50">
+          <div class="absolute inset-0 bg-black/40" onclick="Admin.closeAgentModal()"></div>
+          <div class="relative mx-auto mt-10 w-[94%] max-w-6xl bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+            <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-gray-50/50">
+              <div>
+                <h3 class="font-extrabold text-gray-900" id="agent-modal-title">Agent Leads</h3>
+                <p class="text-xs text-gray-500 mt-1" id="agent-modal-sub">—</p>
+              </div>
+
+              <div class="flex items-center gap-2 flex-wrap">
+                <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
+                  <button onclick="Admin.setAgentPeriod('today', this)" class="agent-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
+                  <button onclick="Admin.setAgentPeriod('this-week', this)" class="agent-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
+                  <button onclick="Admin.setAgentPeriod('previous-week', this)" class="agent-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Previous Week</button>
+                  <button onclick="Admin.setAgentPeriod('4-weeks', this)" class="agent-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">4 Weeks</button>
+                  <button onclick="Admin.setAgentPeriod('6-weeks', this)" class="agent-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">6 Weeks</button>
+                  <button onclick="Admin.setAgentPeriod('all-time', this)" class="agent-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
                 </div>
-                <div>
-                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Deal Value ($)</label>
-                  <input type="number" id="sale-value" step="0.01" placeholder="e.g. 2111" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+
+                <div class="relative">
+                  <button id="agent-custom-toggle"
+                          class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                    <i class="fa-regular fa-calendar"></i> Custom
+                  </button>
+
+                  <div id="agent-custom-popover"
+                       class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                    <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">
+                      Custom Timeframe
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                      <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+                        <input id="agent-custom-start" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
+                      </div>
+                      <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+                        <input id="agent-custom-end" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
+                      </div>
+                    </div>
+                    <div class="flex justify-end gap-2 mt-3">
+                      <button id="agent-custom-clear"
+                              class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
+                        Clear
+                      </button>
+                      <button id="agent-custom-apply"
+                              class="px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">
+                        Apply
+                      </button>
+                    </div>
+                  </div>
                 </div>
+
+                <button class="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                        onclick="Admin.closeAgentModal()">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Commission (Per Lead $)</label>
-                  <input type="number" id="sale-commission" step="0.01" placeholder="e.g. 10" value="0" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
-                </div>
-                <div>
-                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Purchase Date</label>
-                  <input type="date" id="sale-date" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
-                </div>
+            <div class="p-4">
+              <div class="text-xs text-gray-500 mb-3">
+                Showing <span class="font-bold" id="agent-leads-count">0</span> leads
+                <span class="ml-2 text-gray-400" id="agent-range-label">—</span>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="min-w-[1400px] w-full text-left text-sm whitespace-nowrap">
+                  <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+                    <tr>
+                      <th class="p-3">Date Submitted</th>
+                      <th class="p-3">Lead ID</th>
+                      <th class="p-3">Roofing Company</th>
+                      <th class="p-3">Appointment Coordinator Name</th>
+                      <th class="p-3">Homeowner Name(s)</th>
+                      <th class="p-3">Email of Homeowner</th>
+                      <th class="p-3">Homeowner Phone Number</th>
+                      <th class="p-3">Appointment Date / Time</th>
+                      <th class="p-3">Address</th>
+                      <th class="p-3">Age of Roof</th>
+                      <th class="p-3">Insurance Company</th>
+                      <th class="p-3">Additional Notes</th>
+                      <th class="p-3">Status</th>
+                      <th class="p-3">Reviewed By</th>
+                    </tr>
+                  </thead>
+                  <tbody id="agent-leads-body" class="divide-y divide-gray-50">
+                    <tr><td colspan="14" class="p-6 text-center text-gray-400 italic">Loading leads...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="view-payroll" class="view-section">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">Payroll & Finance</h2>
+            <p class="text-sm text-gray-500 mt-1">Weekly payroll rollups + financial totals (based on Payroll Week Start).</p>
+          </div>
+
+          <div class="flex items-end gap-2 flex-wrap">
+            <div>
+              <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Payroll Week</label>
+              <select id="payroll-week-select" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
+                <option value="latest" selected>Latest</option>
+              </select>
             </div>
 
+            <div class="flex items-end gap-2">
+              <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+                <input id="payroll-date-start" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+                <input id="payroll-date-end" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
+              </div>
+              <button id="payroll-date-apply" class="px-3 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800">
+                Apply
+              </button>
+              <button id="payroll-date-clear" class="px-3 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
+                Clear
+              </button>
+            </div>
+
+            <button id="payroll-export"
+                    class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800">
+              <i class="fa-solid fa-file-export mr-2"></i> Export CSV
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+          <div class="flex flex-col lg:flex-row gap-3 lg:items-end">
+            <div class="flex-1 relative">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+              <input
+                id="payroll-search"
+                type="text"
+                placeholder="Search appointment coordinator..."
+                class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              />
+            </div>
+
+            <select id="payroll-filter-coordinator" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[260px]">
+              <option value="all">All Coordinators</option>
+            </select>
+
+            <select id="payroll-sort" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
+              <option value="qualified_desc" selected>Sort: Qualified (High → Low)</option>
+              <option value="total_desc">Sort: Total (High → Low)</option>
+              <option value="revenue_desc">Sort: Revenue (High → Low)</option>
+              <option value="name_asc">Sort: Name (A → Z)</option>
+            </select>
+          </div>
+
+          <div class="mt-3 text-xs text-gray-500">
+            Showing <span class="font-bold" id="payroll-count">0</span> coordinators
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-3 mb-5">
+          <div class="kpi-tile">
+            <div class="kpi-label">Qualified Appointments</div>
+            <div class="kpi-value text-blue-500" id="payroll-kpi-qualified">0</div>
+            <div class="kpi-sub">Confirmed / Approved</div>
+          </div>
+          <div class="kpi-tile">
+            <div class="kpi-label">Unqualified Appointments</div>
+            <div class="kpi-value text-purple-500" id="payroll-kpi-unqualified">0</div>
+            <div class="kpi-sub">Credited only</div>
+          </div>
+          <div class="kpi-tile">
+            <div class="kpi-label">Est. Revenue</div>
+            <div class="kpi-value text-emerald-600" id="payroll-kpi-revenue">$0.00</div>
+            <div class="kpi-sub">$125 × Qualified</div>
+          </div>
+          <div class="kpi-tile">
+            <div class="kpi-label">Est. Expense</div>
+            <div class="kpi-value text-red-600" id="payroll-kpi-expense">$0.00</div>
+            <div class="kpi-sub" id="payroll-kpi-expense-sub">From payroll data (if available)</div>
+          </div>
+          <div class="kpi-tile">
+            <div class="kpi-label">Net (Revenue - Expense)</div>
+            <div class="kpi-value" id="payroll-kpi-net">$0.00</div>
+            <div class="kpi-sub">Quick profitability check</div>
+          </div>
+          <div class="kpi-tile">
+            <div class="kpi-label">Payroll Week Range</div>
+            <div class="kpi-value" style="font-size:14px;" id="payroll-kpi-range">—</div>
+            <div class="kpi-sub">Based on Payroll Week Start</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-5">
+          <div class="bg-white border border-gray-100 rounded-2xl p-4">
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Revenue Trend (by Payroll Week)</p>
+              <p class="text-xs text-gray-400" id="payroll-trend-label">—</p>
+            </div>
+            <div class="w-full overflow-x-auto">
+              <div class="min-w-[720px]">
+                <canvas id="payroll-revenue-chart" height="120"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white border border-gray-100 rounded-2xl p-4">
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Qualified vs Unqualified (by Coordinator)</p>
+              <p class="text-xs text-gray-400">Selected period</p>
+            </div>
+            <div class="w-full overflow-x-auto">
+              <div class="min-w-[720px]">
+                <canvas id="payroll-coordinator-chart" height="120"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col h-full">
+          <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+            <div class="flex items-center gap-3">
+                <h3 class="font-bold text-gray-900">Weekly Payroll Ledger</h3>
+                <span class="px-2 py-1 rounded text-xs font-bold bg-blue-100 text-blue-700" id="payroll-ledger-period">Loading...</span>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="Admin.saveAllPayrollChanges()" id="btn-save-payroll" class="hidden px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20">
+                  <i class="fa-solid fa-floppy-disk mr-2"></i> Save Changes
+                </button>
+            </div>
+          </div>
+
+          <div class="table-scroll flex-1 overflow-auto">
+            <table class="w-full text-left text-sm whitespace-nowrap">
+              <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100 sticky top-0 z-10 shadow-sm">
+                <tr>
+                  <th class="p-4 bg-gray-50">Agent</th>
+                  <th class="p-4 bg-gray-50 text-center">Week Start</th>
+                  <th class="p-4 bg-gray-50 text-center w-32">Total Hours</th> <th class="p-4 bg-gray-50 text-center">Hrly Rate</th>
+                  <th class="p-4 bg-gray-50 text-right">Base Pay</th> <th class="p-4 bg-gray-50 text-right">Incentives</th>
+                  <th class="p-4 bg-gray-50 text-right text-emerald-600">Total Pay</th>
+                  <th class="p-4 bg-gray-50 text-center">Status</th>
+                  <th class="p-4 bg-gray-50 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="payroll-ledger-body" class="divide-y divide-gray-50">
+                <tr><td colspan="9" class="p-6 text-center text-gray-400 italic">Loading ledger...</td></tr>
+              </tbody>
+              <tfoot class="bg-gray-100 font-bold text-gray-900 sticky bottom-0 z-10 border-t border-gray-200">
+                <tr>
+                    <td class="p-4">TOTALS</td>
+                    <td colspan="3"></td>
+                    <td class="p-4 text-right" id="footer-base-pay">$0.00</td>
+                    <td class="p-4 text-right" id="footer-incentives">$0.00</td>
+                    <td class="p-4 text-right text-emerald-700 text-base" id="footer-total-pay">$0.00</td>
+                    <td colspan="2"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="add-sale-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/40" onclick="document.getElementById('add-sale-modal').classList.add('hidden')"></div>
+        <div class="relative bg-white rounded-2xl shadow-xl w-[90%] max-w-md p-6">
+          <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-3">
+            <h3 class="font-bold text-xl text-gray-900">Log New Deal</h3>
+            <button onclick="document.getElementById('add-sale-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-900"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <form id="add-sale-form" onsubmit="submitNewSale(event)" class="space-y-4">
+            <div>
+              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Client Name / Roofing Co.</label>
+              <input type="text" id="sale-client-name" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Package Sold</label>
+              <input type="text" id="sale-package" placeholder="e.g. 10 Leads / $2111" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Deal Value ($)</label>
+              <input type="number" id="sale-value" step="0.01" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
+            </div>
             <div class="mb-4">
-                <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">TRANSACTION NUMBER</label>
-                <input type="text" id="sale-transaction-id" placeholder="e.g. TXN-2026-001" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+                <label class="block text-xs font-bold text-gray-500 mb-1">TRANSACTION NUMBER</label>
+                <input type="text" id="sale-transaction-id" placeholder="e.g. TXN-2026-001" class="w-full border rounded p-2 text-sm outline-none focus:border-blue-500">
             </div>
-            
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">PKG STATUS</label>
-                    <select id="sale-package-status" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
-                        <option value="Active">Active</option>
-                        <option value="Pause">Pause</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Refunded">Refunded</option>
-                    </select>
-                </div>
-                <div>
-                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Sale Category</label>
-                  <select id="sale-category" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
-                    <option value="Sales Team">Sales Team</option>
-                    <option value="CHL">CHL (Admin)</option>
-                  </select>
-                </div>
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-gray-500 mb-1">PACKAGE STATUS</label>
+                <select id="sale-package-status" class="w-full border rounded p-2 text-sm outline-none focus:border-blue-500">
+                    <option value="Active">Active</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Refunded">Refunded</option>
+                </select>
             </div>
-            
-            <button type="submit" id="save-sale-btn" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg mt-2 shadow-lg">Save Deal</button>
+            <div>
+              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Status</label>
+              <select id="sale-status" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+                <option value="Prospecting">Prospecting</option>
+                <option value="Negotiating">Negotiating</option>
+                <option value="Closed Won" selected>Closed Won</option>
+                <option value="Closed Lost">Closed Lost</option>
+              </select>
+            </div>
+            <div id="sale-category-container">
+              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Sale Category</label>
+              <select id="sale-category" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+                <option value="Sales Team">Sales Team</option>
+                <option value="CHL">CHL (Admin)</option>
+              </select>
+            </div>
+            <button type="submit" id="save-sale-btn" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg mt-2">Save Deal</button>
           </form>
         </div>
       </div>
@@ -663,15 +1249,12 @@
 
         // 3. Keep other dashboard modules alive
         try { this.initLeadsColumnsUI(); this.applyLeadsFilters(); } catch(e) {}
-        try { this.bindLeadsMasterEvents(); } catch(e) {} 
         try { fetchSalesPipeline(); } catch(e) {} 
         try { this.bindPassbookUI(clients); this.applyPassbookFilters(clients); } catch(e) {}
-        try { this.bindOverviewAnalyticsUI(); } catch(e) {} 
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
         try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
         try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
         try { this.bindPayrollUI(); this.renderPayrollFinance(); } catch(e) {}
-      },
       },
       
       parseDateSafe(value) {
@@ -1047,13 +1630,7 @@
         const acs = uniq(leads.map(l => this.getLeadField(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent","Agent Name"], "")));
         const homeowners = uniq(leads.map(l => this.getLeadField(l, ["Homeowner Name(s)","Homeowner Name","Homeowner","HOMEOWNER NAME"], "")));
 
-        statusSel.innerHTML = `
-          <option value="all">All Status</option>
-          <option value="APPROVED">APPROVED</option>
-          <option value="CREDITED">CREDITED</option>
-          <option value="PENDING REVIEW">PENDING REVIEW</option>
-          <option value="REJECTED">REJECTED</option>
-        `;
+        statusSel.innerHTML = `<option value="all">All Status</option>` + statuses.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
         compSel.innerHTML = `<option value="all">All Roofing Company</option>` + companies.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
         acSel.innerHTML = `<option value="all">All Appointment Coordinators</option>` + acs.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
         hoSel.innerHTML = `<option value="all">All Homeowners</option>` + homeowners.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
@@ -1904,47 +2481,44 @@
         return this.getRangeFor(this.teamPeriod, leads);
       },
       
-      bindOverviewAnalyticsUI() {
-        if (this._overviewBound) return;
-        this._overviewBound = true;
+      bindTeamUI() {
+        if (this._teamBound) return;
+        this._teamBound = true;
 
-        const toggle = document.getElementById("custom-range-toggle");
-        const pop = document.getElementById("custom-range-popover");
-        const apply = document.getElementById("custom-apply");
-        const clear = document.getElementById("custom-clear");
+        const search = document.getElementById("team-search");
+        const stageSel = document.getElementById("team-stage-filter");
+        const warnedSel = document.getElementById("team-warned-filter");
+
+        if (search) search.addEventListener("input", () => this.renderTeam());
+        if (stageSel) {
+          stageSel.addEventListener("change", () => {
+            this.teamStageFilter = stageSel.value; 
+            this.renderTeam();
+          });
+        }
+        if (warnedSel) {
+          warnedSel.addEventListener("change", () => {
+            this.teamWarnedFilter = warnedSel.value; 
+            this.renderTeam();
+          });
+        }
+
+        const toggle = document.getElementById("team-custom-toggle");
+        const pop = document.getElementById("team-custom-popover");
+        const apply = document.getElementById("team-custom-apply");
+        const clear = document.getElementById("team-custom-clear");
 
         if (toggle && pop) {
-          toggle.addEventListener("click", (e) => { e.preventDefault(); pop.classList.toggle("hidden"); });
+          toggle.addEventListener("click", (e) => {
+            e.preventDefault();
+            pop.classList.toggle("hidden");
+          });
           document.addEventListener("click", (e) => {
-            if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) pop.classList.add("hidden");
+            if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
+              pop.classList.add("hidden");
+            }
           });
         }
-
-        if (apply) {
-          apply.addEventListener("click", () => {
-            const s = document.getElementById("custom-start")?.value;
-            const e = document.getElementById("custom-end")?.value;
-            if (!s || !e) return;
-            this._customRange.active = true;
-            this._customRange.start = s;
-            this._customRange.end = e;
-            this.setAnalyticsPeriod("custom", null);
-            this._setCustomActive("custom-range-toggle", true);
-            pop?.classList.add("hidden");
-          });
-        }
-
-        if (clear) {
-          clear.addEventListener("click", () => {
-            document.getElementById("custom-start").value = "";
-            document.getElementById("custom-end").value = "";
-            this._customRange.active = false;
-            this.setAnalyticsPeriod("today", document.querySelector('.analytics-btn'));
-            this._setCustomActive("custom-range-toggle", false);
-            pop?.classList.add("hidden");
-          });
-        }
-      },
 
         if (apply) {
           apply.addEventListener("click", () => {
