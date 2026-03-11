@@ -1022,40 +1022,21 @@ async function toggleShareWithSales(codeName, checkboxElement) {
 // ==========================================
 // SALES PIPELINE CONTROLS (UPGRADED HYBRID LEDGER)
 // ==========================================
-async function fetchSalesPipeline() {
+window.fetchSalesPipeline = function() {
     const state = window.portal?.adminState;
     if (!state || !state.packages) return;
 
     const packages = state.packages; 
     const clients = state.clients || [];
-    const leads = state.leads || [];
-
-    // Connect leads by COMPANY NAME
-    const leadsByCompany = new Map();
-    leads.forEach(l => {
-        const comp = String(l.company_name || l['Company Name'] || "").toLowerCase().trim();
-        if (!comp) return;
-        const arr = leadsByCompany.get(comp) || [];
-        arr.push(l);
-        leadsByCompany.set(comp, arr);
-    });
 
     const tbody = document.getElementById('admin-sales-table-body');
     if (!tbody) return;
 
     const query = (document.getElementById('admin-sales-search')?.value || "").toLowerCase().trim();
     const pkgFilter = document.getElementById('admin-sales-package-filter')?.value || "all";
+    const catFilter = document.getElementById('admin-sales-category-filter')?.value || "All";
 
-    const thead = tbody.previousElementSibling;
-    if (thead) {
-        thead.innerHTML = `
-            <tr class="text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-b">
-                <th class="p-4">Purchased Date</th><th class="p-4">TXN #</th><th class="p-4">Roofing Company</th>
-                <th class="p-4">POC</th><th class="p-4">Package</th><th class="p-4">Deal Value</th>
-                <th class="p-4">Deal Status</th><th class="p-4">PKG Status</th><th class="p-4">Sold By</th>
-                <th class="p-4">PKG Started</th><th class="p-4">PKG Ended</th>
-            </tr>`;
-    }
+    let totalSalesValue = 0;
 
     let rows = packages.map(pkg => {
         const code = String(pkg.client_code || "").trim();
@@ -1064,65 +1045,51 @@ async function fetchSalesPipeline() {
         let pStatus = String(pkg.status || "COMPLETED").toUpperCase();
         if (pStatus === 'ACTIVE') pStatus = 'ONGOING';
 
-        const compKey = String(client.company_name || "").toLowerCase().trim();
-        const pDt = new Date(pkg.purchase_date || 0);
-        
-        let validLeads = (leadsByCompany.get(compKey) || []).filter(l => {
-            const d = window.portal.parseDateSafe(l.date_submitted || l['Date Submitted']);
-            return d && d >= pDt;
-        }).sort((a, b) => window.portal.parseDateSafe(a.date_submitted) - window.portal.parseDateSafe(b.date_submitted));
-
-        let dateStarted = "—", dateEnded = "—";
-        let qualCount = 0;
-        const purchasedAmount = Number(pkg.purchased_leads) || 0;
-
-        if (validLeads.length > 0) {
-
-            dateStarted = window.portal.formatDate(validLeads[0].date_submitted || validLeads[0]['Date Submitted']);
-        }
-
-        for (let l of validLeads) {
-            const st = String(l.status || l.STATUS || "").toLowerCase();
-            if (st.includes('approv') || st.includes('confirm')) qualCount++;
-            
-            if (qualCount >= purchasedAmount && purchasedAmount > 0) {
-                dateEnded = window.portal.formatDate(l.date_submitted || l['Date Submitted']);
-            } else {
-                dateEnded = "—"; 
-            }
-        }
-
-        if (pStatus === 'COMPLETED' && dateEnded === "—" && validLeads.length > 0) {
-            dateEnded = window.portal.formatDate(validLeads[validLeads.length - 1].date_submitted || validLeads[validLeads.length - 1]['Date Submitted']);
-        }
-
-        // Fixed Crash: String(pkg.amount)
         const rawAmt = pkg.amount ? String(pkg.amount).replace(/[^0-9.-]+/g,"") : "0";
-        const valFormatted = parseFloat(rawAmt).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        const valNum = parseFloat(rawAmt) || 0;
+        const valFormatted = valNum.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+
+        // Math for Total Commission (Purchased Leads * Commission Per Lead)
+        const purchasedAmount = Number(pkg.purchased_leads) || 0;
+        const commPerLead = Number(pkg.commission_per_lead) || 0;
+        const totalComm = purchasedAmount * commPerLead;
+        const commFormatted = totalComm.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 
         return {
+            id: pkg.id,
+            purchaseDateRaw: new Date(pkg.purchase_date || 0),
             purchaseDate: window.portal.formatDate(pkg.purchase_date) || "—",
             txn: pkg.external_package_id || "—",
-            company: client.company_name || client.roofing_company || client['COMPANY NAME'] || "—",
+            company: client.company_name || client.roofing_company || "—",
             poc: client.contact_person || client.client_name || "—",
-            packageLeads: pkg.purchased_leads || "0",
+            packageLeads: purchasedAmount,
+            dealValueNum: valNum,
             dealValue: valFormatted,
-            dealStatus: "Closed Won", 
+            totalComm: commFormatted,
             pkgStatus: pStatus,
-            soldBy: "—", 
-            dateStarted,
-            dateEnded,
+            soldBy: pkg.sales_category || "CHL", 
+            dateStarted: window.portal.formatDate(pkg.package_start_date) || "—",
             searchStr: `${code} ${client.company_name} ${pkg.external_package_id}`.toLowerCase()
         };
     });
 
+    // 1. Apply Filters
     if (pkgFilter !== "all") {
         const filterTarget = pkgFilter === "Active" ? "ONGOING" : pkgFilter.toUpperCase();
         rows = rows.filter(r => r.pkgStatus === filterTarget);
     }
+    if (catFilter !== "All") {
+        rows = rows.filter(r => r.soldBy === catFilter);
+    }
     if (query) rows = rows.filter(r => r.searchStr.includes(query));
 
+    // 2. Sort by Latest Sale First
+    rows.sort((a, b) => b.purchaseDateRaw - a.purchaseDateRaw);
+
+    // 3. Render Table & Calculate Total KPI
     tbody.innerHTML = rows.map(r => {
+        totalSalesValue += r.dealValueNum; // Add to total
+
         let pkgColor = "bg-gray-100 text-gray-700";
         if (r.pkgStatus === 'ONGOING') pkgColor = "bg-blue-100 text-blue-800";
         if (r.pkgStatus === 'COMPLETED') pkgColor = "bg-purple-100 text-purple-800";
@@ -1130,57 +1097,120 @@ async function fetchSalesPipeline() {
         if (r.pkgStatus === 'PAUSE') pkgColor = "bg-yellow-100 text-yellow-800";
 
         return `
-        <tr class="hover:bg-gray-50 border-b border-gray-50">
+        <tr class="hover:bg-gray-50 border-b border-gray-50 transition-colors">
             <td class="p-4 text-sm text-gray-500">${r.purchaseDate}</td>
             <td class="p-4 text-xs font-mono text-gray-400 font-bold">${r.txn}</td>
             <td class="p-4 font-bold text-gray-900">${r.company}</td>
             <td class="p-4 text-sm text-gray-600">${r.poc}</td>
-            <td class="p-4 font-bold text-gray-900">${r.packageLeads}</td>
+            <td class="p-4 font-bold text-gray-900">${r.packageLeads} Leads</td>
             <td class="p-4 font-bold text-emerald-600">${r.dealValue}</td>
-            <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800">${r.dealStatus}</span></td>
+            <td class="p-4 font-bold text-purple-600">${r.totalComm}</td>
             <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold uppercase ${pkgColor}">${r.pkgStatus}</span></td>
             <td class="p-4 text-sm text-gray-600">${r.soldBy}</td>
             <td class="p-4 text-sm text-gray-500 font-bold">${r.dateStarted}</td>
-            <td class="p-4 text-sm text-gray-500 font-bold">${r.dateEnded}</td>
+            <td class="p-4 text-center">
+                <button onclick="window.editDealModal('${r.id}')" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded">Edit</button>
+            </td>
         </tr>`;
     }).join('');
+
+    // Update KPI
+    const kpiEl = document.getElementById('sales-total-kpi');
+    if (kpiEl) kpiEl.textContent = totalSalesValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 }
 
-async function submitNewSale(e) {
+// Opens modal for a NEW deal
+window.openAddDealModal = function() {
+    document.getElementById('add-sale-form').reset();
+    document.getElementById('sale-package-id').value = ""; // Clear ID
+    document.getElementById('sale-modal-title').innerText = "Log New Deal";
+    document.getElementById('save-sale-btn').innerText = "Save Deal";
+    window.populateSalesClientDropdown();
+    document.getElementById('add-sale-modal').classList.remove('hidden');
+}
+
+// Opens modal to EDIT an existing deal
+window.editDealModal = function(pkgId) {
+    const pkg = window.portal.adminState.packages.find(p => p.id == pkgId);
+    if (!pkg) return;
+
+    window.populateSalesClientDropdown();
+
+    document.getElementById('sale-package-id').value = pkg.id;
+    document.getElementById('sale-client-code').value = pkg.client_code || "";
+    document.getElementById('sale-leads').value = pkg.purchased_leads || "";
+    document.getElementById('sale-value').value = String(pkg.amount || "").replace(/[^0-9.-]+/g,"");
+    document.getElementById('sale-commission').value = pkg.commission_per_lead || 0;
+    
+    // Format date for date input
+    if (pkg.purchase_date) {
+        document.getElementById('sale-date').value = new Date(pkg.purchase_date).toISOString().split('T')[0];
+    }
+
+    document.getElementById('sale-transaction-id').value = pkg.external_package_id || "";
+    document.getElementById('sale-package-status').value = pkg.status === "Active" ? "Active" : pkg.status;
+    document.getElementById('sale-category').value = pkg.sales_category || "Sales Team";
+
+    document.getElementById('sale-modal-title').innerText = "Edit Deal Details";
+    document.getElementById('save-sale-btn').innerText = "Update Deal";
+    document.getElementById('add-sale-modal').classList.remove('hidden');
+}
+
+window.populateSalesClientDropdown = function() {
+    const select = document.getElementById('sale-client-code');
+    if (!select) return;
+    const clients = window.portal?.adminState?.clients || [];
+    
+    let html = `<option value="">-- Choose Client --</option>`;
+    clients.sort((a,b) => (a.company_name || "").localeCompare(b.company_name || "")).forEach(c => {
+        html += `<option value="${c.code_name || c.client_code}">${c.company_name || c.roofing_company} (${c.code_name || c.client_code})</option>`;
+    });
+    select.innerHTML = html;
+}
+
+window.submitNewSale = async function(e) {
     e.preventDefault();
     if (!supaClient) return alert("Database connection missing.");
+
+    const pkgId = document.getElementById('sale-package-id').value; // Exists if Editing
+    const clientCode = document.getElementById('sale-client-code').value;
     
-    const isSalesDash = document.getElementById('salesClientStatusFilter') !== null;
-    const currentUser = window.portal?.currentUser?.name || "Unknown User";
-    const category = isSalesDash ? 'Sales Team' : document.getElementById('sale-category').value;
+    if (!clientCode) return alert("Please select a client from the dropdown.");
 
     const payload = {
-        client_name: document.getElementById('sale-client-name').value,
-        package_sold: document.getElementById('sale-package').value,
-        deal_value: parseFloat(document.getElementById('sale-value').value) || 0,
-        status: document.getElementById('sale-status').value,
-        sold_by_name: currentUser,
-        sales_category: category,
-        transaction_number: document.getElementById('sale-transaction-id')?.value || '',
-        package_status: document.getElementById('sale-package-status')?.value || 'Active'
+        client_code: clientCode,
+        purchased_leads: parseInt(document.getElementById('sale-leads').value) || 0,
+        amount: parseFloat(document.getElementById('sale-value').value) || 0,
+        commission_per_lead: parseFloat(document.getElementById('sale-commission').value) || 0,
+        purchase_date: document.getElementById('sale-date').value,
+        external_package_id: document.getElementById('sale-transaction-id').value,
+        status: document.getElementById('sale-package-status').value,
+        sales_category: document.getElementById('sale-category').value
     };
 
     const btn = document.getElementById('save-sale-btn');
     btn.innerText = "Saving...";
 
-    const { error } = await supaClient.from('sales_pipeline').insert([payload]);
+    let error;
+    if (pkgId) {
+        // UPDATE existing
+        const res = await supaClient.from('packages').update(payload).eq('id', pkgId);
+        error = res.error;
+    } else {
+        // INSERT new
+        const res = await supaClient.from('packages').insert([payload]);
+        error = res.error;
+    }
     
     if (error) {
         console.error("Sale Save Error:", error);
         alert("Failed to save deal.");
     } else {
         document.getElementById('add-sale-modal').classList.add('hidden');
-        document.getElementById('add-sale-form').reset();
-        fetchSalesPipeline();
+        window.portal.fetchAdminData(true); // Refresh whole dashboard!
     }
-    btn.innerText = "Save Deal";
+    btn.innerText = pkgId ? "Update Deal" : "Save Deal";
 }
-
 // ==========================================
 // GLOBAL EVENT LISTENERS
 // ==========================================
