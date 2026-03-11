@@ -2604,15 +2604,18 @@
         const stageFilter = this.teamStageFilter || (document.getElementById("team-stage-filter")?.value || "active");
         const warnedFilter = this.teamWarnedFilter || (document.getElementById("team-warned-filter")?.value || "all");
 
-        // Pulls directly from leads if agents table is missing someone, and maps agent_name perfectly
-        const uniqueAgentNames = new Set(agents.map(a => String(a.name || a.agent_name || "").trim()).filter(Boolean));
+        // FIX: Null-safe checking to prevent fatal crashes
+        const uniqueAgentNames = new Set(
+          agents.filter(a => a != null).map(a => String(a.name || a.agent_name || "").trim()).filter(Boolean)
+        );
         leads.forEach(l => {
-            const agName = String(this.pick(l, ["appointment_coordinator_name", "Appointment Coordinator Name", "agent_name", "Agent Name", "AGENT"], "")).trim();
+            const agName = String(this.pick(l, ["appointment_coordinator_name", "Appointment Coordinator Name", "Agent Name", "agent_name", "AGENT"], "")).trim();
             if (agName) uniqueAgentNames.add(agName);
         });
 
         let rows = Array.from(uniqueAgentNames).map(agentName => {
-          const dbAgent = agents.find(a => String(a.name || a.agent_name || "").trim() === agentName) || {};
+          // FIX: Null-safe agent mapping
+          const dbAgent = agents.find(a => a != null && String(a.name || a.agent_name || "").trim() === agentName) || {};
           const stage = this.getAgentStage(dbAgent);
           const warned = this.isAgentWarned(dbAgent);
 
@@ -2825,21 +2828,32 @@
         const state = this.getState();
         const leads = Array.isArray(state.leads) ? state.leads : [];
         const timeEvents = Array.isArray(state.timeEvents) ? state.timeEvents : [];
+        const agents = Array.isArray(state.agents) ? state.agents : [];
         
         // Group leads by Week (Sat-Fri in MST)
         const { weeks, byWeek } = this.computePayrollFromLeads(leads);
-        if (weeks.length === 0) weeks.push(this.getLeadPayrollWeekStart({})); 
+        
+        // Safety Fallback if no weeks exist
+        if (weeks.length === 0) {
+            const today = new Date();
+            const day = today.getDay(); 
+            const diff = (day === 6) ? 0 : day + 1; 
+            today.setDate(today.getDate() - diff);
+            weeks.push(`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`); 
+        }
         
         const weekSelect = document.getElementById("payroll-week-select");
         if (weekSelect && weeks.length > 0) {
-            if (weekSelect.options[0].value === "latest") {
+            if (weekSelect.options.length === 0 || weekSelect.options[0].value === "latest") {
                 weekSelect.innerHTML = weeks.map(w => `<option value="${w}">${this.getPayrollWeekRangeLabel(w)}</option>`).join("");
             }
         }
 
         const selectedWeek = weekSelect ? weekSelect.value : (weeks[0] || null);
         if (!selectedWeek) return;
-        document.getElementById("payroll-ledger-period").textContent = this.getPayrollWeekRangeLabel(selectedWeek);
+
+        const periodLabel = document.getElementById("payroll-ledger-period");
+        if (periodLabel) periodLabel.textContent = this.getPayrollWeekRangeLabel(selectedWeek);
 
         // Load Saved Notes
         const notesEl = document.getElementById("payroll-notes");
@@ -2848,80 +2862,119 @@
             notesEl.oninput = (e) => localStorage.setItem(`payroll_notes_${selectedWeek}`, e.target.value);
         }
 
-        // Auto-Calculate Hours from time_events (MST Boundary)
+        // Setup Week Boundary for Time Tracking
+        const weekStartDt = new Date(selectedWeek + "T00:00:00");
+        const weekEndDt = new Date(weekStartDt);
+        weekEndDt.setDate(weekEndDt.getDate() + 6);
+        weekEndDt.setHours(23, 59, 59, 999);
+
+        // Auto-Calculate Hours from time_events
         const autoHours = this._calculateHoursFromEvents(timeEvents, selectedWeek);
 
         const weekRows = byWeek.get(selectedWeek) || [];
         let notificationsHTML = "";
         let totalAutoBonus = 0, totalManualBonus = 0, grandTotalPay = 0;
+        let totalQual = 0, totalUnqual = 0;
 
         const tbody = document.getElementById("payroll-ledger-body");
+        
         if (!weekRows || weekRows.length === 0) {
             tbody.innerHTML = `<tr><td colspan="16" class="p-6 text-center text-gray-400 italic text-sm">No payroll records found for this week.</td></tr>`;
-            return;
+        } else {
+            tbody.innerHTML = weekRows.map(r => {
+                const cancelRate = (r.qualified + r.unqualified > 0) ? (r.unqualified / (r.qualified + r.unqualified)) * 100 : 0;
+                const bonus = this.calculateTieredBonus(r.qualified, cancelRate);
+
+                totalQual += r.qualified;
+                totalUnqual += r.unqualified;
+
+                if (r.qualified >= 9 && cancelRate < 20) {
+                    notificationsHTML += `<div class="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-800 font-bold">🎟️ ${r.agent} earned 1 Raffle Entry (${r.qualified} apts, ${cancelRate.toFixed(1)}% cx)!</div>`;
+                }
+
+                const memKey = `pay_${selectedWeek}_${r.agent.replace(/\s/g,'_')}`;
+                const autoAgentHrs = autoHours[r.agent.toLowerCase()] || { m:0,t:0,w:0,th:0,f:0,sa:0,su:0 };
+                
+                const savedData = JSON.parse(localStorage.getItem(memKey)) || { 
+                    rate: 5.00, m: autoAgentHrs.m, t: autoAgentHrs.t, w: autoAgentHrs.w, th: autoAgentHrs.th, f: autoAgentHrs.f, sa: autoAgentHrs.sa, su: autoAgentHrs.su, manual: 0, paid: false 
+                };
+
+                const baseRate = Number(savedData.rate) || 5.00;
+                const totalHrs = Number(savedData.m)+Number(savedData.t)+Number(savedData.w)+Number(savedData.th)+Number(savedData.f)+Number(savedData.sa)+Number(savedData.su);
+                const basePay = totalHrs * baseRate;
+                const finalPay = basePay + bonus + Number(savedData.manual);
+
+                totalAutoBonus += bonus;
+                totalManualBonus += Number(savedData.manual);
+                grandTotalPay += finalPay;
+
+                const days = ['sa','su','m','t','w','th','f'];
+                const dayInputs = days.map(d => `
+                    <td class="p-2 text-center">
+                        <input type="number" step="0.25" min="0" value="${Number(savedData[d]).toFixed(2)}" data-agent="${r.agent}" data-field="${d}" class="pay-input w-14 text-center font-bold border border-gray-300 rounded focus:ring-2 focus:ring-yellow-400 py-1 text-xs" onchange="Admin.recalcRow(this)">
+                    </td>
+                `).join("");
+
+                return `
+                <tr class="hover:bg-gray-50 border-b border-gray-50" data-agent="${r.agent}">
+                  <td class="p-3 font-bold text-gray-900">${r.agent}</td>
+                  <td class="p-3 text-center font-mono">
+                     <input type="number" step="0.25" min="0" value="${baseRate.toFixed(2)}" data-agent="${r.agent}" data-field="rate" class="pay-input w-16 text-center font-bold border border-gray-300 rounded focus:ring-2 focus:ring-yellow-400 py-1 text-xs text-gray-600" onchange="Admin.recalcRow(this)">
+                  </td>
+                  ${dayInputs}
+                  <td class="p-3 text-center bg-gray-50 font-bold text-gray-800 row-total-hrs">${totalHrs.toFixed(2)}</td>
+                  <td class="p-3 text-center font-bold text-blue-500">${r.qualified}</td>
+                  <td class="p-3 text-center font-bold ${cancelRate < 25 ? 'text-emerald-500' : 'text-red-400'}">${cancelRate.toFixed(1)}%</td>
+                  <td class="p-3 text-right font-mono font-bold text-purple-600" data-bonus="${bonus}">$${bonus.toFixed(2)}</td>
+                  <td class="p-3 text-center">
+                     <input type="number" step="1" value="${savedData.manual}" data-agent="${r.agent}" data-field="manual" class="pay-input w-16 text-center font-bold border border-purple-200 bg-purple-50 rounded focus:ring-2 focus:ring-purple-400 py-1 text-xs" onchange="Admin.recalcRow(this)">
+                  </td>
+                  <td class="p-3 text-right font-extrabold text-emerald-600 font-mono text-sm row-total-pay">$${finalPay.toFixed(2)}</td>
+                  <td class="p-3 text-center">
+                     <button onclick="Admin.togglePaid(this, '${selectedWeek}', '${r.agent}')" class="px-2 py-1 rounded text-[10px] font-extrabold ${savedData.paid ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-500'}">
+                        ${savedData.paid ? 'PAID ✓' : 'PENDING'}
+                     </button>
+                  </td>
+                </tr>
+                `;
+            }).join("");
         }
 
-        tbody.innerHTML = weekRows.map(r => {
-            const cancelRate = (r.qualified + r.unqualified > 0) ? (r.unqualified / (r.qualified + r.unqualified)) * 100 : 0;
-            const bonus = this.calculateTieredBonus(r.qualified, cancelRate);
+        // UPDATE FOOTER AND TOP KPIS
+        const notifEl = document.getElementById("payroll-notifications");
+        if (notifEl) notifEl.innerHTML = notificationsHTML || `<div class="p-3 bg-gray-50 border border-gray-100 rounded-lg text-xs text-gray-500 italic">No alerts this week.</div>`;
+        
+        const fAuto = document.getElementById("footer-auto-bonus");
+        if(fAuto) fAuto.textContent = "$" + totalAutoBonus.toFixed(2);
+        
+        const fMan = document.getElementById("footer-manual-bonus");
+        if (fMan) fMan.textContent = "$" + totalManualBonus.toFixed(2);
+        
+        const fTot = document.getElementById("footer-total-pay");
+        if (fTot) fTot.textContent = "$" + grandTotalPay.toFixed(2);
 
-            if (r.qualified >= 9 && cancelRate < 20) {
-                notificationsHTML += `<div class="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-800 font-bold">🎟️ ${r.agent} earned 1 Raffle Entry (${r.qualified} apts, ${cancelRate.toFixed(1)}% cx)!</div>`;
-            }
+        const kpiQual = document.getElementById("payroll-kpi-qualified");
+        if(kpiQual) kpiQual.textContent = totalQual;
+        
+        const kpiUnqual = document.getElementById("payroll-kpi-unqualified");
+        if(kpiUnqual) kpiUnqual.textContent = totalUnqual;
 
-            const memKey = `pay_${selectedWeek}_${r.agent.replace(/\s/g,'_')}`;
-            const autoAgentHrs = autoHours[r.agent.toLowerCase()] || { m:0,t:0,w:0,th:0,f:0,sa:0,su:0 };
-            
-            const savedData = JSON.parse(localStorage.getItem(memKey)) || { 
-                rate: 5.00, m: autoAgentHrs.m, t: autoAgentHrs.t, w: autoAgentHrs.w, th: autoAgentHrs.th, f: autoAgentHrs.f, sa: autoAgentHrs.sa, su: autoAgentHrs.su, manual: 0, paid: false 
-            };
+        const estRev = totalQual * 125;
+        const kpiRev = document.getElementById("payroll-kpi-revenue");
+        if(kpiRev) kpiRev.textContent = "$" + estRev.toLocaleString(undefined, {minimumFractionDigits: 2});
 
-            const baseRate = Number(savedData.rate) || 5.00;
-            const totalHrs = Number(savedData.m)+Number(savedData.t)+Number(savedData.w)+Number(savedData.th)+Number(savedData.f)+Number(savedData.sa)+Number(savedData.su);
-            const basePay = totalHrs * baseRate;
-            const finalPay = basePay + bonus + Number(savedData.manual);
+        const kpiExp = document.getElementById("payroll-kpi-expense");
+        if(kpiExp) kpiExp.textContent = "$" + grandTotalPay.toLocaleString(undefined, {minimumFractionDigits: 2});
 
-            totalAutoBonus += bonus;
-            totalManualBonus += Number(savedData.manual);
-            grandTotalPay += finalPay;
+        const kpiNet = document.getElementById("payroll-kpi-net");
+        if(kpiNet) kpiNet.textContent = "$" + (estRev - grandTotalPay).toLocaleString(undefined, {minimumFractionDigits: 2});
 
-            const days = ['sa','su','m','t','w','th','f'];
-            const dayInputs = days.map(d => `
-                <td class="p-2 text-center">
-                    <input type="number" step="0.25" min="0" value="${Number(savedData[d]).toFixed(2)}" data-agent="${r.agent}" data-field="${d}" class="pay-input w-14 text-center font-bold border border-gray-300 rounded focus:ring-2 focus:ring-yellow-400 py-1 text-xs" onchange="Admin.recalcRow(this)">
-                </td>
-            `).join("");
-
-            return `
-            <tr class="hover:bg-gray-50 border-b border-gray-50" data-agent="${r.agent}">
-              <td class="p-3 font-bold text-gray-900">${r.agent}</td>
-              <td class="p-3 text-center font-mono">
-                 <input type="number" step="0.25" min="0" value="${baseRate.toFixed(2)}" data-agent="${r.agent}" data-field="rate" class="pay-input w-16 text-center font-bold border border-gray-300 rounded focus:ring-2 focus:ring-yellow-400 py-1 text-xs text-gray-600" onchange="Admin.recalcRow(this)">
-              </td>
-              ${dayInputs}
-              <td class="p-3 text-center bg-gray-50 font-bold text-gray-800 row-total-hrs">${totalHrs.toFixed(2)}</td>
-              <td class="p-3 text-center font-bold text-blue-500">${r.qualified}</td>
-              <td class="p-3 text-center font-bold ${cancelRate < 25 ? 'text-emerald-500' : 'text-red-400'}">${cancelRate.toFixed(1)}%</td>
-              <td class="p-3 text-right font-mono font-bold text-purple-600" data-bonus="${bonus}">$${bonus.toFixed(2)}</td>
-              <td class="p-3 text-center">
-                 <input type="number" step="1" value="${savedData.manual}" data-agent="${r.agent}" data-field="manual" class="pay-input w-16 text-center font-bold border border-purple-200 bg-purple-50 rounded focus:ring-2 focus:ring-purple-400 py-1 text-xs" onchange="Admin.recalcRow(this)">
-              </td>
-              <td class="p-3 text-right font-extrabold text-emerald-600 font-mono text-sm row-total-pay">$${finalPay.toFixed(2)}</td>
-              <td class="p-3 text-center">
-                 <button onclick="Admin.togglePaid(this, '${selectedWeek}', '${r.agent}')" class="px-2 py-1 rounded text-[10px] font-extrabold ${savedData.paid ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-500'}">
-                    ${savedData.paid ? 'PAID ✓' : 'PENDING'}
-                 </button>
-              </td>
-            </tr>
-            `;
-        }).join("");
-
-        document.getElementById("payroll-notifications").innerHTML = notificationsHTML || `<div class="p-3 bg-gray-50 border border-gray-100 rounded-lg text-xs text-gray-500 italic">No alerts this week.</div>`;
-        document.getElementById("footer-auto-bonus").textContent = "$" + totalAutoBonus.toFixed(2);
-        document.getElementById("footer-manual-bonus").textContent = "$" + totalManualBonus.toFixed(2);
-        document.getElementById("footer-total-pay").textContent = "$" + grandTotalPay.toFixed(2);
+        const kpiRange = document.getElementById("payroll-kpi-range");
+        if(kpiRange) kpiRange.textContent = this.getPayrollWeekRangeLabel(selectedWeek);
 
         this.bindExportCSV(selectedWeek, weekRows, autoHours);
+
+        try { this._renderPayrollCharts({ weeks, byWeek, chosenWeek: selectedWeek, view: weekRows }); } catch(e) {}
       },
 
       _calculateHoursFromEvents(events, weekStartStr) {
@@ -2963,13 +3016,18 @@
                       const action = String(l.action).trim().toLowerCase();
                       const time = l.mstDt.getTime();
 
-                      if (action === 'clock in' || action === 'resume') { lastIn = time; } 
+                      if (action === 'clock in' || action === 'resume') {
+                          lastIn = time;
+                      } 
                       else if (action === 'clock out' || action === 'break start') {
-                          if (lastIn) { totalMs += (time - lastIn); lastIn = null; }
+                          if (lastIn) {
+                              totalMs += (time - lastIn);
+                              lastIn = null;
+                          }
                       }
                   });
                   
-                  // Because Break Start/Resume naturally pauses the timer, the break is already unpaid!
+                  // Break Start/Resume naturally pauses the timer, the 30min is natively skipped!
                   let hours = totalMs / (1000 * 60 * 60);
                   
                   const dayIdx = new Date(dateStr + "T12:00:00").getDay(); // 0=Sun, 6=Sat
@@ -3081,9 +3139,9 @@
       getLeadPayrollWeekStart(l) {
         let dt = this.getLeadDateObj(l);
         if (!dt) return "";
-        dt = this.toMST(dt); 
-        const day = dt.getDay(); 
-        const diff = (day === 6) ? 0 : day + 1; 
+        dt = this.toMST(dt); // Force into MST first!
+        const day = dt.getDay(); // 0=Sun, 6=Sat
+        const diff = (day === 6) ? 0 : day + 1; // Subtract days to find preceding Saturday
         dt.setDate(dt.getDate() - diff);
         return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
       },
@@ -3098,6 +3156,7 @@
           if (!week) continue;
           weekSet.add(week);
 
+          // FIX: Using exact agent names to link everything properly
           const agent = String(this.pick(l, [
             "agent_name", "Appointment Coordinator Name", "Appointment Coordinator", "Setter", "Agent", "Agent Name"
           ], "Unknown")).trim() || "Unknown";
