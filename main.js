@@ -706,8 +706,8 @@ async fetchAdminData(forceRefresh = false) {
               supaClient.from('leads_raw').select('*'),
               supaClient.from('packages').select('*'),
               supaClient.from('clients').select('*'),
-              supaClient.from('time_events').select('*'),
-              supaClient.from('agents').select('*')
+              supaClient.from('time_events').select('*'), // PULLS HOURS
+              supaClient.from('agents').select('*')       // PULLS AGENTS
           ]);
           supaLeads = lRes.data || [];
           supaPackages = pRes.data || [];
