@@ -2908,22 +2908,15 @@
         const warnedFilter = document.getElementById("team-warned-filter")?.value || "all";
 
         // ONLY SHOW ACTIVE AGENTS (Exclude Admin, Offboarded, Resigned)
-        let activeAgentsOnly = agents.filter(a => {
-            const status = String(a.employment_status || "").toLowerCase().trim();
-            const role = String(a.role || "").toLowerCase().trim();
-            return status === "active" && role !== "admin";
-        });
-
-        let rows = activeAgentsOnly.map(a => {
-          const agentName = this.pick(a, ["agent_name", "Employee Name", "Name"], "Unknown");
-          const warned = this.isAgentWarned(a);
-
-          return {
-            name: agentName,
-            stage: "active",
-            warned,
-            ...this._computeAgentMetrics(agentName, leads, start, end)
-          };
+        const uniqueAgentNames = new Set();
+        agents.forEach(a => {
+            if (a) {
+                const status = String(a.employment_status || a.Status || "").toLowerCase().trim();
+                const role = String(a.role || a.Role || "").toLowerCase().trim();
+                if (status === "active" && role !== "admin" && (a.name || a.agent_name)) {
+                    uniqueAgentNames.add(String(a.name || a.agent_name).trim());
+                }
+            }
         });
 
         let rows = Array.from(uniqueAgentNames).map(agentName => {
