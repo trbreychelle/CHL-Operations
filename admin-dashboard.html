@@ -2109,7 +2109,7 @@
         agents.forEach(a => {
           const stage = this.getAgentStage(a); 
           if (stage !== "active") return;
-          const name = String(this.pick(a, ["Employee Name","Name","Agent Name","Full Name"], "Unknown")).trim();
+          const agentName = this.pick(a, ["agent_name", "Employee Name","Name","Agent Name","Full Name","appointment_coordinator_name"], "Unknown");
           if (!name) return;
           agentAgg.set(name, { name, total: 0, qualified: 0, rejected: 0, credited: 0, pending: 0 });
         });
@@ -2546,10 +2546,8 @@
       
       getAgentStage(agent) {
         // Now accurately looks for employment_status from your Supabase
-        const s = String(this.pick(agent, [
-          "employment_status", "Employment Status", "Stage", "Status"
-        ], "active")).toLowerCase().trim();
-
+        const s = String(this.pick(agent, ["employment_status", "Employment Status", "Stage", "Status"], "active")).toLowerCase().trim();
+        
         if (s.includes("active")) return "active";
         if (s.includes("onboard")) return "onboarding";
         if (s.includes("offboard")) return "offboarded";
