@@ -407,15 +407,21 @@
         </div>
       </div>
       
-      <div id="view-sales" class="view-section">
+    <div id="view-sales" class="view-section">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
           <div>
             <h2 class="text-2xl font-bold text-gray-900">Master Sales Pipeline</h2>
             <p class="text-sm text-gray-500 mt-1">Track all active deals and closed won revenue across the company.</p>
           </div>
-          <button class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-extrabold hover:bg-emerald-700 shadow-lg shadow-emerald-600/20" onclick="document.getElementById('add-sale-modal').classList.remove('hidden')">
-            <i class="fas fa-plus mr-2"></i> Add Deal
-          </button>
+          <div class="flex gap-3 items-end">
+            <div class="bg-white px-5 py-2 rounded-xl border border-gray-100 shadow-sm text-right">
+              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TOTAL SALES</p>
+              <p class="text-xl font-bold text-emerald-600" id="sales-total-kpi">$0.00</p>
+            </div>
+            <button class="px-4 py-3 rounded-lg bg-emerald-600 text-white text-sm font-extrabold hover:bg-emerald-700 shadow-lg shadow-emerald-600/20" onclick="window.openAddDealModal()">
+              <i class="fas fa-plus mr-2"></i> Add Deal
+            </button>
+          </div>
         </div>
 
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
@@ -431,17 +437,9 @@
               <option value="Sales Team">View: Sales Team</option>
             </select>
 
-            <select id="admin-sales-status-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
-              <option value="all">All Deal Statuses</option>
-              <option value="Prospecting">Prospecting</option>
-              <option value="Negotiating">Negotiating</option>
-              <option value="Closed Won">Closed Won</option>
-              <option value="Closed Lost">Closed Lost</option>
-            </select>
-
             <select id="admin-sales-package-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[170px] text-gray-700">
               <option value="all">All Package Statuses</option>
-              <option value="Active">Active</option>
+              <option value="Active">Active / Ongoing</option>
               <option value="Pause">Pause</option>
               <option value="Completed">Completed</option>
               <option value="Refunded">Refunded</option>
@@ -458,17 +456,89 @@
                   <th class="p-4">TXN #</th>
                   <th class="p-4">Roofing Company</th>
                   <th class="p-4">POC</th>
-                  <th class="p-4">Package</th>
-                  <th class="p-4">Deal Value</th>
-                  <th class="p-4">Deal Status</th>
+                  <th class="p-4">Total Leads</th>
+                  <th class="p-4 text-emerald-600">Deal Value</th>
+                  <th class="p-4 text-purple-600">Total Comm.</th>
                   <th class="p-4">PKG Status</th>
                   <th class="p-4">Sold By</th>
-                  <th class="p-4">PKG Started</th>
-                  <th class="p-4">PKG Ended</th>
+                  <th class="p-4">Started</th>
+                  <th class="p-4 text-center">Action</th>
                 </tr>
               </thead>
               <tbody id="admin-sales-table-body" class="divide-y divide-gray-50">
                 <tr><td colspan="11" class="p-6 text-center text-gray-400 italic">Loading master pipeline...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="view-leads" class="view-section">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">Leads Master Record</h2>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+          <div class="controls-wrap">
+            <div class="flex-1 relative" style="min-width: 260px;">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+              <input
+                id="leads-search"
+                type="text"
+                placeholder="Search homeowner, appointment coordinator, roofing company, status, lead ID, email, phone..."
+                class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              />
+            </div>
+
+            <select id="leads-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
+              <option value="all">All Status</option>
+            </select>
+
+            <select id="leads-filter-company" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[240px]">
+              <option value="all">All Roofing Company</option>
+            </select>
+
+            <select id="leads-filter-ac" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
+              <option value="all">All Appointment Coordinators</option>
+            </select>
+
+            <div class="flex items-center gap-2">
+              <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+                <input id="leads-date-start" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+                <input id="leads-date-end" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
+              </div>
+            </div>
+
+            <button id="leads-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
+              Clear
+            </button>
+
+            <div class="relative">
+              <button id="leads-columns-toggle" class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800 flex items-center gap-2">
+                <i class="fa-solid fa-table-columns"></i> Columns
+              </button>
+
+              <div id="leads-columns-popover" class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">Visible Columns</div>
+                <div id="leads-columns-box" class="max-h-[280px] overflow-y-auto space-y-2 pr-1"></div>
+                <div class="flex justify-end gap-2 mt-3">
+                  <button id="leads-columns-all" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">All</button>
+                  <button id="leads-columns-min" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">Minimal</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="mt-3 text-xs text-gray-500">Showing <span class="font-bold" id="leads-count">0</span> leads</div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div class="table-scroll">
+            <table class="table-min w-full text-left text-sm whitespace-nowrap">
+              <thead id="leads-table-head" class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100"></thead>
+              <tbody id="leads-table-body" class="divide-y divide-gray-50">
+                <tr><td class="p-6 text-center text-gray-400">Loading leads...</td></tr>
               </tbody>
             </table>
           </div>
@@ -904,169 +974,77 @@
       </div>
 
       <div id="view-payroll" class="view-section">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+        <div class="flex justify-between items-end mb-4">
           <div>
             <h2 class="text-2xl font-bold text-gray-900">Payroll & Finance</h2>
-            <p class="text-sm text-gray-500 mt-1">Weekly payroll rollups + financial totals (based on Payroll Week Start).</p>
+            <p class="text-sm text-gray-500 mt-1">Automated timesheets, tiered base rates, and performance bonuses.</p>
           </div>
-
-          <div class="flex items-end gap-2 flex-wrap">
-            <div>
-              <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Payroll Week</label>
-              <select id="payroll-week-select" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
-                <option value="latest" selected>Latest</option>
-              </select>
-            </div>
-
-            <div class="flex items-end gap-2">
-              <div>
-                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
-                <input id="payroll-date-start" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
-              </div>
-              <div>
-                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
-                <input id="payroll-date-end" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
-              </div>
-              <button id="payroll-date-apply" class="px-3 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800">
-                Apply
-              </button>
-              <button id="payroll-date-clear" class="px-3 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
-                Clear
-              </button>
-            </div>
-
-            <button id="payroll-export"
-                    class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800">
+          <div class="flex gap-2">
+            <select id="payroll-week-select" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-bold text-blue-700 shadow-sm focus:ring-2 focus:ring-yellow-400">
+              <option value="latest" selected>Loading Weeks...</option>
+            </select>
+            <button id="payroll-export" class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800 shadow-sm">
               <i class="fa-solid fa-file-export mr-2"></i> Export CSV
             </button>
           </div>
         </div>
 
-        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
-          <div class="flex flex-col lg:flex-row gap-3 lg:items-end">
-            <div class="flex-1 relative">
-              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
-              <input
-                id="payroll-search"
-                type="text"
-                placeholder="Search appointment coordinator..."
-                class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              />
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+          <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+            <h3 class="font-bold text-gray-900 text-sm mb-3 flex items-center gap-2"><i class="fa-solid fa-bell text-yellow-500"></i> Performance Alerts (This Week)</h3>
+            <div id="payroll-notifications" class="space-y-2 max-h-32 overflow-y-auto pr-2">
+              <div class="p-3 bg-gray-50 border border-gray-100 rounded-lg text-xs text-gray-500 italic">Calculating performance metrics...</div>
             </div>
-
-            <select id="payroll-filter-coordinator" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[260px]">
-              <option value="all">All Coordinators</option>
-            </select>
-
-            <select id="payroll-sort" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
-              <option value="qualified_desc" selected>Sort: Qualified (High → Low)</option>
-              <option value="total_desc">Sort: Total (High → Low)</option>
-              <option value="revenue_desc">Sort: Revenue (High → Low)</option>
-              <option value="name_asc">Sort: Name (A → Z)</option>
-            </select>
           </div>
-
-          <div class="mt-3 text-xs text-gray-500">
-            Showing <span class="font-bold" id="payroll-count">0</span> coordinators
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col">
+            <h3 class="font-bold text-gray-900 text-sm mb-2 flex items-center gap-2"><i class="fa-solid fa-thumbtack text-blue-500"></i> Manual Spiffs & Notes</h3>
+            <textarea id="payroll-notes" class="flex-1 w-full bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs focus:outline-none focus:ring-2 focus:ring-yellow-400" placeholder="Type reminders here (e.g., 'Give John extra $50 for Saturday coverage'). Saves automatically."></textarea>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-6 gap-3 mb-5">
-          <div class="kpi-tile">
-            <div class="kpi-label">Qualified Appointments</div>
-            <div class="kpi-value text-blue-500" id="payroll-kpi-qualified">0</div>
-            <div class="kpi-sub">Confirmed / Approved</div>
-          </div>
-          <div class="kpi-tile">
-            <div class="kpi-label">Unqualified Appointments</div>
-            <div class="kpi-value text-purple-500" id="payroll-kpi-unqualified">0</div>
-            <div class="kpi-sub">Credited only</div>
-          </div>
-          <div class="kpi-tile">
-            <div class="kpi-label">Est. Revenue</div>
-            <div class="kpi-value text-emerald-600" id="payroll-kpi-revenue">$0.00</div>
-            <div class="kpi-sub">$125 × Qualified</div>
-          </div>
-          <div class="kpi-tile">
-            <div class="kpi-label">Est. Expense</div>
-            <div class="kpi-value text-red-600" id="payroll-kpi-expense">$0.00</div>
-            <div class="kpi-sub" id="payroll-kpi-expense-sub">From payroll data (if available)</div>
-          </div>
-          <div class="kpi-tile">
-            <div class="kpi-label">Net (Revenue - Expense)</div>
-            <div class="kpi-value" id="payroll-kpi-net">$0.00</div>
-            <div class="kpi-sub">Quick profitability check</div>
-          </div>
-          <div class="kpi-tile">
-            <div class="kpi-label">Payroll Week Range</div>
-            <div class="kpi-value" style="font-size:14px;" id="payroll-kpi-range">—</div>
-            <div class="kpi-sub">Based on Payroll Week Start</div>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-5">
-          <div class="bg-white border border-gray-100 rounded-2xl p-4">
-            <div class="flex items-center justify-between mb-2">
-              <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Revenue Trend (by Payroll Week)</p>
-              <p class="text-xs text-gray-400" id="payroll-trend-label">—</p>
-            </div>
-            <div class="w-full overflow-x-auto">
-              <div class="min-w-[720px]">
-                <canvas id="payroll-revenue-chart" height="120"></canvas>
-              </div>
-            </div>
-          </div>
-
-          <div class="bg-white border border-gray-100 rounded-2xl p-4">
-            <div class="flex items-center justify-between mb-2">
-              <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Qualified vs Unqualified (by Coordinator)</p>
-              <p class="text-xs text-gray-400">Selected period</p>
-            </div>
-            <div class="w-full overflow-x-auto">
-              <div class="min-w-[720px]">
-                <canvas id="payroll-coordinator-chart" height="120"></canvas>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col h-full">
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col mb-8">
           <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
             <div class="flex items-center gap-3">
                 <h3 class="font-bold text-gray-900">Weekly Payroll Ledger</h3>
-                <span class="px-2 py-1 rounded text-xs font-bold bg-blue-100 text-blue-700" id="payroll-ledger-period">Loading...</span>
+                <span class="px-2 py-1 rounded text-xs font-bold bg-blue-100 text-blue-700" id="payroll-ledger-period">Select a week</span>
             </div>
-            <div class="flex gap-2">
-                <button onclick="Admin.saveAllPayrollChanges()" id="btn-save-payroll" class="hidden px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20">
-                  <i class="fa-solid fa-floppy-disk mr-2"></i> Save Changes
-                </button>
-            </div>
+            <button onclick="Admin.saveAllPayrollChanges()" id="btn-save-payroll" class="hidden px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20">
+              <i class="fa-solid fa-floppy-disk mr-2"></i> Save Ledger Changes
+            </button>
           </div>
 
-          <div class="table-scroll flex-1 overflow-auto">
-            <table class="w-full text-left text-sm whitespace-nowrap">
-              <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100 sticky top-0 z-10 shadow-sm">
+          <div class="table-scroll overflow-auto" style="max-height: 500px;">
+            <table class="w-full text-left text-[11px] whitespace-nowrap">
+              <thead class="bg-white font-bold text-gray-400 uppercase border-b border-gray-100 sticky top-0 z-10 shadow-sm">
                 <tr>
-                  <th class="p-4 bg-gray-50">Agent</th>
-                  <th class="p-4 bg-gray-50 text-center">Week Start</th>
-                  <th class="p-4 bg-gray-50 text-center w-32">Total Hours</th> <th class="p-4 bg-gray-50 text-center">Hrly Rate</th>
-                  <th class="p-4 bg-gray-50 text-right">Base Pay</th> <th class="p-4 bg-gray-50 text-right">Incentives</th>
-                  <th class="p-4 bg-gray-50 text-right text-emerald-600">Total Pay</th>
-                  <th class="p-4 bg-gray-50 text-center">Status</th>
-                  <th class="p-4 bg-gray-50 text-center">Actions</th>
+                  <th class="p-3">Agent</th>
+                  <th class="p-3 text-center" title="Editable Base Rate">Rate/Hr</th>
+                  <th class="p-3 text-center">Sat</th>
+                  <th class="p-3 text-center">Sun</th>
+                  <th class="p-3 text-center">Mon</th>
+                  <th class="p-3 text-center">Tue</th>
+                  <th class="p-3 text-center">Wed</th>
+                  <th class="p-3 text-center">Thu</th>
+                  <th class="p-3 text-center">Fri</th>
+                  <th class="p-3 text-center bg-gray-50 text-gray-700">Total Hrs</th>
+                  <th class="p-3 text-center text-blue-500">Qual</th>
+                  <th class="p-3 text-center text-red-400">CX %</th>
+                  <th class="p-3 text-right text-purple-600" title="Calculated Tiered Bonus">Auto Bonus</th>
+                  <th class="p-3 text-center" title="Manual additions (Spiffs)">Manual $</th>
+                  <th class="p-3 text-right text-emerald-600 text-sm">Total Pay</th>
+                  <th class="p-3 text-center">Status</th>
                 </tr>
               </thead>
               <tbody id="payroll-ledger-body" class="divide-y divide-gray-50">
-                <tr><td colspan="9" class="p-6 text-center text-gray-400 italic">Loading ledger...</td></tr>
+                <tr><td colspan="16" class="p-6 text-center text-gray-400 italic text-sm">Loading payroll data...</td></tr>
               </tbody>
               <tfoot class="bg-gray-100 font-bold text-gray-900 sticky bottom-0 z-10 border-t border-gray-200">
                 <tr>
-                    <td class="p-4">TOTALS</td>
-                    <td colspan="3"></td>
-                    <td class="p-4 text-right" id="footer-base-pay">$0.00</td>
-                    <td class="p-4 text-right" id="footer-incentives">$0.00</td>
-                    <td class="p-4 text-right text-emerald-700 text-base" id="footer-total-pay">$0.00</td>
-                    <td colspan="2"></td>
+                    <td class="p-3" colspan="12">WEEKLY TOTALS</td>
+                    <td class="p-3 text-right text-purple-700" id="footer-auto-bonus">$0.00</td>
+                    <td class="p-3 text-center text-gray-700" id="footer-manual-bonus">$0.00</td>
+                    <td class="p-3 text-right text-emerald-700 text-base" id="footer-total-pay">$0.00</td>
+                    <td></td>
                 </tr>
               </tfoot>
             </table>
@@ -1076,60 +1054,74 @@
 
       <div id="add-sale-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center">
         <div class="absolute inset-0 bg-black/40" onclick="document.getElementById('add-sale-modal').classList.add('hidden')"></div>
-        <div class="relative bg-white rounded-2xl shadow-xl w-[90%] max-w-md p-6">
+        <div class="relative bg-white rounded-2xl shadow-xl w-[90%] max-w-md p-6 max-h-[90vh] overflow-y-auto">
           <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-3">
-            <h3 class="font-bold text-xl text-gray-900">Log New Deal</h3>
+            <h3 class="font-bold text-xl text-gray-900" id="sale-modal-title">Log New Deal</h3>
             <button onclick="document.getElementById('add-sale-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-900"><i class="fa-solid fa-xmark"></i></button>
           </div>
-          <form id="add-sale-form" onsubmit="submitNewSale(event)" class="space-y-4">
+          <form id="add-sale-form" onsubmit="window.submitNewSale(event)" class="space-y-4">
+            <input type="hidden" id="sale-package-id" value="">
+            
             <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Client Name / Roofing Co.</label>
-              <input type="text" id="sale-client-name" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Package Sold</label>
-              <input type="text" id="sale-package" placeholder="e.g. 10 Leads / $2111" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Deal Value ($)</label>
-              <input type="number" id="sale-value" step="0.01" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
-            </div>
-            <div class="mb-4">
-                <label class="block text-xs font-bold text-gray-500 mb-1">TRANSACTION NUMBER</label>
-                <input type="text" id="sale-transaction-id" placeholder="e.g. TXN-2026-001" class="w-full border rounded p-2 text-sm outline-none focus:border-blue-500">
-            </div>
-            <div class="mb-4">
-                <label class="block text-xs font-bold text-gray-500 mb-1">PACKAGE STATUS</label>
-                <select id="sale-package-status" class="w-full border rounded p-2 text-sm outline-none focus:border-blue-500">
-                    <option value="Active">Active</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Refunded">Refunded</option>
-                </select>
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Status</label>
-              <select id="sale-status" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
-                <option value="Prospecting">Prospecting</option>
-                <option value="Negotiating">Negotiating</option>
-                <option value="Closed Won" selected>Closed Won</option>
-                <option value="Closed Lost">Closed Lost</option>
+              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Select Client</label>
+              <select id="sale-client-code" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
+                <option value="">-- Choose Client --</option>
               </select>
             </div>
-            <div id="sale-category-container">
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Sale Category</label>
-              <select id="sale-category" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
-                <option value="Sales Team">Sales Team</option>
-                <option value="CHL">CHL (Admin)</option>
-              </select>
+            
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Purchased Leads</label>
+                  <input type="number" id="sale-leads" placeholder="e.g. 10" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Deal Value ($)</label>
+                  <input type="number" id="sale-value" step="0.01" placeholder="e.g. 2111" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+                </div>
             </div>
-            <button type="submit" id="save-sale-btn" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg mt-2">Save Deal</button>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Commission (Per Lead $)</label>
+                  <input type="number" id="sale-commission" step="0.01" placeholder="e.g. 10" value="0" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Purchase Date</label>
+                  <input type="date" id="sale-date" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">TRANSACTION NUMBER</label>
+                <input type="text" id="sale-transaction-id" placeholder="e.g. TXN-2026-001" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+            </div>
+            
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">PKG STATUS</label>
+                    <select id="sale-package-status" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
+                        <option value="Active">Active</option>
+                        <option value="Pause">Pause</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Refunded">Refunded</option>
+                    </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Sale Category</label>
+                  <select id="sale-category" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
+                    <option value="Sales Team">Sales Team</option>
+                    <option value="CHL">CHL (Admin)</option>
+                  </select>
+                </div>
+            </div>
+            
+            <button type="submit" id="save-sale-btn" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg mt-2 shadow-lg">Save Deal</button>
           </form>
         </div>
       </div>
 
     </div>
   </main>
-
   <div id="add-client-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
     <div class="bg-white rounded-lg shadow-xl w-[400px] p-6 relative">
         <button onclick="document.getElementById('add-client-modal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700">
@@ -1249,8 +1241,10 @@
 
         // 3. Keep other dashboard modules alive
         try { this.initLeadsColumnsUI(); this.applyLeadsFilters(); } catch(e) {}
-        try { fetchSalesPipeline(); } catch(e) {} 
+        try { this.bindLeadsMasterEvents(); } catch(e) {} 
+        try { window.fetchSalesPipeline(); } catch(e) {} 
         try { this.bindPassbookUI(clients); this.applyPassbookFilters(clients); } catch(e) {}
+        try { this.bindOverviewAnalyticsUI(); } catch(e) {} 
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
         try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
         try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
@@ -1630,10 +1624,15 @@
         const acs = uniq(leads.map(l => this.getLeadField(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent","Agent Name"], "")));
         const homeowners = uniq(leads.map(l => this.getLeadField(l, ["Homeowner Name(s)","Homeowner Name","Homeowner","HOMEOWNER NAME"], "")));
 
-        statusSel.innerHTML = `<option value="all">All Status</option>` + statuses.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
+        statusSel.innerHTML = `
+          <option value="all">All Status</option>
+          <option value="APPROVED">APPROVED</option>
+          <option value="CREDITED">CREDITED</option>
+          <option value="PENDING REVIEW">PENDING REVIEW</option>
+          <option value="REJECTED">REJECTED</option>
+        `;
         compSel.innerHTML = `<option value="all">All Roofing Company</option>` + companies.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
         acSel.innerHTML = `<option value="all">All Appointment Coordinators</option>` + acs.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
-        hoSel.innerHTML = `<option value="all">All Homeowners</option>` + homeowners.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
       },
 
       initLeadsColumnsUI() {
@@ -2548,20 +2547,16 @@
       },
       
       getAgentStage(agent) {
+        // Now accurately looks for employment_status from your Supabase
         const s = String(this.pick(agent, [
-          "Employment Status",
-          "Employment_Status",
-          "Stage",
-          "Status"
-        ], "")).toLowerCase().trim();
+          "employment_status", "Employment Status", "Stage", "Status"
+        ], "active")).toLowerCase().trim();
 
         if (s.includes("active")) return "active";
         if (s.includes("onboard")) return "onboarding";
         if (s.includes("offboard")) return "offboarded";
-        return s || "unknown";
+        return "active"; // Default to active so agents aren't hidden
       },
-      
-      isAgentWarned(agent) { const s = String(this.pick(agent, ["Warned","Tags"], "")).toLowerCase(); return s.includes("warned"); },
       
       setTeamSort(key) {
         if (this.teamSortKey === key) this.teamSortDir = this.teamSortDir === "asc" ? "desc" : "asc";
@@ -2571,28 +2566,20 @@
 
       _computeAgentMetrics(name, leads, start, end) {
         const inRange = leads.filter(l => {
-          // Add lowercase column name to match Supabase
-          const a = this.pick(l, ["appointment_coordinator_name", "Appointment Coordinator Name", "Agent Name", "AGENT"], "");
+          // FIXED: Adding 'agent_name' to the search arrays
+          const a = this.pick(l, ["appointment_coordinator_name", "Appointment Coordinator Name", "agent_name", "Agent Name", "AGENT"], "");
           const dt = this.getLeadDateObj(l);
           return dt && dt >= start && dt <= end && String(a).trim().toLowerCase() === String(name).trim().toLowerCase();
         });
 
-        // Initialize counters to 0
         let q = 0, c = 0, r = 0, p = 0;
 
         inRange.forEach(l => {
-          // Force status to lowercase for robust matching
           const st = String(l.status || l.STATUS || l.Lead_Status || "").toLowerCase();
-          
-          if (st.includes('approv') || st.includes('confirm')) {
-              q++; // Qualified
-          } else if (st.includes('credit')) {
-              c++; // Credited
-          } else if (st.includes('reject')) {
-              r++; // QC Rejected
-          } else {
-              p++; // Pending
-          }
+          if (st.includes('approv') || st.includes('confirm')) { q++; } 
+          else if (st.includes('credit')) { c++; } 
+          else if (st.includes('reject')) { r++; } 
+          else { p++; }
         });
 
         return { 
@@ -2617,10 +2604,20 @@
         const stageFilter = this.teamStageFilter || (document.getElementById("team-stage-filter")?.value || "active");
         const warnedFilter = this.teamWarnedFilter || (document.getElementById("team-warned-filter")?.value || "all");
 
-        let rows = agents.map(a => {
-          const agentName = this.pick(a, ["Employee Name","Name","Agent Name","Full Name"], "Unknown");
-          const stage = this.getAgentStage(a);
-          const warned = this.isAgentWarned(a);
+        // FIX: Null-safe checking to prevent fatal crashes
+        const uniqueAgentNames = new Set(
+          agents.filter(a => a != null).map(a => String(a.name || a.agent_name || "").trim()).filter(Boolean)
+        );
+        leads.forEach(l => {
+            const agName = String(this.pick(l, ["appointment_coordinator_name", "Appointment Coordinator Name", "Agent Name", "agent_name", "AGENT"], "")).trim();
+            if (agName) uniqueAgentNames.add(agName);
+        });
+
+        let rows = Array.from(uniqueAgentNames).map(agentName => {
+          // FIX: Null-safe agent mapping
+          const dbAgent = agents.find(a => a != null && String(a.name || a.agent_name || "").trim() === agentName) || {};
+          const stage = this.getAgentStage(dbAgent);
+          const warned = this.isAgentWarned(dbAgent);
 
           return {
             name: agentName,
@@ -2665,7 +2662,7 @@
 
         const tbody = document.getElementById("team-body");
         if (!rows.length) {
-          tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No agents found.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No agents found matching criteria.</td></tr>`;
           return;
         }
 
@@ -2811,7 +2808,7 @@
             <td class="p-3">${this.getLeadField(l, ["date_submitted", "Date Submitted"])}</td>
             <td class="p-3">${this.getLeadField(l, ["lead_id", "LEAD ID"])}</td>
             <td class="p-3">${this.getLeadField(l, ["company_name", "Company Name", "Roofing Company"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["appointment_coordinator_name", "Appointment Coordinator Name"])}</td>
+            <td class="p-3">${this.getLeadField(l, ["appointment_coordinator_name", "Appointment Coordinator Name", "agent_name"])}</td>
             <td class="p-3">${this.getLeadField(l, ["homeowner_names", "Homeowner Name(s)"])}</td>
             <td class="p-3">${this.getLeadField(l, ["email_of_homeowner", "Email of Homeowner"])}</td>
             <td class="p-3">${this.getLeadField(l, ["homeowner_phone_numbers", "Homeowner Phone Number"])}</td>
@@ -2826,198 +2823,327 @@
         `).join("");
       },
 
+      // --- PAYROLL MATH & LOGIC (STRICTLY MST TIMEZONE) ---
       renderPayrollFinance() {
         const state = this.getState();
-        const weeklyData = state.weeklyPayroll || [];
-        const q = String(document.getElementById("payroll-search")?.value || "").toLowerCase().trim();
-        const range = this._payrollCustomRange.active ? this._payrollCustomRange : null;
+        const leads = Array.isArray(state.leads) ? state.leads : [];
+        const timeEvents = Array.isArray(state.timeEvents) ? state.timeEvents : [];
+        const agents = Array.isArray(state.agents) ? state.agents : [];
         
-        let rows = weeklyData.map((r, index) => ({...r, _id: index})); 
-
-        if (q) {
-            rows = rows.filter(r => 
-                String(r['Agent Name'] || "").toLowerCase().includes(q) ||
-                String(r['Email'] || "").toLowerCase().includes(q)
-            );
-        }
-
-        if (range) {
-              const start = new Date(range.start);
-              const end = new Date(range.end);
-              rows = rows.filter(r => {
-                  const d = window.portal.parseDateSafe(r['Payroll Week Start']);
-                  return d && d >= start && d <= end;
-              });
-        }
-
-        this.payrollState.rawRows = rows;
-        this.renderPayrollLedger(rows);
-        this.updatePayrollKPIs(rows);
-      },
-
-      renderPayrollLedger(rows) {
-        const tbody = document.getElementById("payroll-ledger-body");
-        if (!tbody) return;
-
-        if (!rows.length) {
-            tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-400 italic">No payroll records found.</td></tr>`;
-            return;
-        }
-
-        let totalBase = 0;
-        let totalIncentive = 0;
-        let grandTotal = 0;
-
-        tbody.innerHTML = rows.map(r => {
-            const hourlyRate = parseFloat(String(r['Hourly Rate'] || "0").replace(/[$,]/g, '')) || 0;
-            const hours = parseFloat(String(r['Total Hours'] || "0")) || 0;
-            const incentive = parseFloat(String(r['Incentive Pay'] || "0").replace(/[$,]/g, '')) || 0;
-            
-            const basePay = hours * hourlyRate;
-            const totalPay = basePay + incentive;
-
-            totalBase += basePay;
-            totalIncentive += incentive;
-            grandTotal += totalPay;
-
-            const isSaved = !this.payrollState.unsavedChanges.has(r._id);
-            const rowClass = isSaved ? "" : "bg-yellow-50";
-
-            return `
-            <tr class="hover:bg-gray-50 transition-colors ${rowClass}" id="pay-row-${r._id}">
-              <td class="p-4">
-                <div class="font-bold text-gray-900">${r['Agent Name']}</div>
-                <div class="text-xs text-gray-500">${r['Email']}</div>
-              </td>
-              <td class="p-4 text-center text-gray-500 text-xs">
-                ${window.portal.formatDate(r['Payroll Week Start'])}
-              </td>
-              <td class="p-4 text-center">
-                <input 
-                    type="number" 
-                    step="0.5" 
-                    min="0"
-                    value="${hours}" 
-                    data-id="${r._id}"
-                    data-rate="${hourlyRate}"
-                    data-incentive="${incentive}"
-                    class="w-20 text-center font-bold border border-gray-300 rounded focus:ring-2 focus:ring-yellow-400 focus:outline-none py-1"
-                    onchange="Admin.handlePayrollChange(this)"
-                />
-              </td>
-              <td class="p-4 text-center text-gray-600">$${hourlyRate.toFixed(2)}</td>
-              <td class="p-4 text-right text-gray-600 font-mono" id="base-${r._id}">
-                $${basePay.toFixed(2)}
-              </td>
-              <td class="p-4 text-right text-gray-600 font-mono">
-                $${incentive.toFixed(2)}
-              </td>
-              <td class="p-4 text-right font-extrabold text-emerald-700 font-mono" id="total-${r._id}">
-                $${totalPay.toFixed(2)}
-              </td>
-              <td class="p-4 text-center">
-                ${this.renderPayrollStatus(r['Payroll Status'])}
-              </td>
-              <td class="p-4 text-center">
-                <button onclick="Admin.saveSingleRow(${r._id})" class="text-gray-400 hover:text-emerald-600 transition-colors" title="Save Row">
-                    <i class="fa-solid fa-save"></i>
-                </button>
-              </td>
-            </tr>
-            `;
-        }).join("");
-
-        document.getElementById("footer-base-pay").textContent = "$" + totalBase.toLocaleString(undefined, {minimumFractionDigits: 2});
-        document.getElementById("footer-incentives").textContent = "$" + totalIncentive.toLocaleString(undefined, {minimumFractionDigits: 2});
-        document.getElementById("footer-total-pay").textContent = "$" + grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2});
+        // Group leads by Week (Sat-Fri in MST)
+        const { weeks, byWeek } = this.computePayrollFromLeads(leads);
         
-        const expenseEl = document.getElementById("payroll-kpi-expense");
-        if(expenseEl) expenseEl.textContent = "$" + grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2});
-      },
-
-      handlePayrollChange(input) {
-        const id = input.getAttribute("data-id");
-        const newHours = parseFloat(input.value) || 0;
-        const rate = parseFloat(input.getAttribute("data-rate")) || 0;
-        const incentive = parseFloat(input.getAttribute("data-incentive")) || 0;
-
-        const newBase = newHours * rate;
-        const newTotal = newBase + incentive;
-
-        document.getElementById(`base-${id}`).textContent = "$" + newBase.toFixed(2);
-        document.getElementById(`total-${id}`).textContent = "$" + newTotal.toFixed(2);
-
-        this.payrollState.unsavedChanges.add(parseInt(id));
-        document.getElementById(`pay-row-${id}`).classList.add("bg-yellow-50");
-        document.getElementById("btn-save-payroll").classList.remove("hidden");
-      },
-
-      renderPayrollStatus(status) {
-        const s = String(status || "PENDING").toUpperCase();
-        let color = "bg-gray-100 text-gray-600";
-        if(s === "PAID") color = "bg-emerald-100 text-emerald-700";
-        if(s === "PROCESSING") color = "bg-blue-100 text-blue-700";
-        return `<span class="px-2 py-1 rounded text-[10px] font-extrabold ${color}">${s}</span>`;
-      },
-
-      async saveSingleRow(id) {
-        const rowData = this.payrollState.rawRows[id];
-        const input = document.querySelector(`input[data-id="${id}"]`);
-        const newHours = input.value;
-
-        const btn = input.closest('tr').querySelector('button');
-        const originalIcon = btn.innerHTML;
-        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
-
-        try {
-            await window.portal.updatePayrollRow({
-                email: rowData['Email'], 
-                weekStart: rowData['Payroll Week Start'], 
-                totalHours: newHours
-            });
-
-            this.payrollState.unsavedChanges.delete(id);
-            document.getElementById(`pay-row-${id}`).classList.remove("bg-yellow-50");
-            btn.innerHTML = `<i class="fa-solid fa-check text-emerald-500"></i>`;
-            setTimeout(() => btn.innerHTML = originalIcon, 2000);
-
-            if(this.payrollState.unsavedChanges.size === 0) {
-                document.getElementById("btn-save-payroll").classList.add("hidden");
+        // Safety Fallback if no weeks exist
+        if (weeks.length === 0) {
+            const today = new Date();
+            const day = today.getDay(); 
+            const diff = (day === 6) ? 0 : day + 1; 
+            today.setDate(today.getDate() - diff);
+            weeks.push(`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`); 
+        }
+        
+        const weekSelect = document.getElementById("payroll-week-select");
+        if (weekSelect && weeks.length > 0) {
+            if (weekSelect.options.length === 0 || weekSelect.options[0].value === "latest") {
+                weekSelect.innerHTML = weeks.map(w => `<option value="${w}">${this.getPayrollWeekRangeLabel(w)}</option>`).join("");
             }
-
-        } catch(e) {
-            alert("Failed to save. Check console.");
-            btn.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red-500"></i>`;
         }
+
+        const selectedWeek = weekSelect ? weekSelect.value : (weeks[0] || null);
+        if (!selectedWeek) return;
+
+        const periodLabel = document.getElementById("payroll-ledger-period");
+        if (periodLabel) periodLabel.textContent = this.getPayrollWeekRangeLabel(selectedWeek);
+
+        // Load Saved Notes
+        const notesEl = document.getElementById("payroll-notes");
+        if (notesEl && !notesEl.oninput) {
+            notesEl.value = localStorage.getItem(`payroll_notes_${selectedWeek}`) || "";
+            notesEl.oninput = (e) => localStorage.setItem(`payroll_notes_${selectedWeek}`, e.target.value);
+        }
+
+        // Setup Week Boundary for Time Tracking
+        const weekStartDt = new Date(selectedWeek + "T00:00:00");
+        const weekEndDt = new Date(weekStartDt);
+        weekEndDt.setDate(weekEndDt.getDate() + 6);
+        weekEndDt.setHours(23, 59, 59, 999);
+
+        // Auto-Calculate Hours from time_events
+        const autoHours = this._calculateHoursFromEvents(timeEvents, selectedWeek);
+
+        const weekRows = byWeek.get(selectedWeek) || [];
+        let notificationsHTML = "";
+        let totalAutoBonus = 0, totalManualBonus = 0, grandTotalPay = 0;
+        let totalQual = 0, totalUnqual = 0;
+
+        const tbody = document.getElementById("payroll-ledger-body");
+        
+        if (!weekRows || weekRows.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="16" class="p-6 text-center text-gray-400 italic text-sm">No payroll records found for this week.</td></tr>`;
+        } else {
+            tbody.innerHTML = weekRows.map(r => {
+                const cancelRate = (r.qualified + r.unqualified > 0) ? (r.unqualified / (r.qualified + r.unqualified)) * 100 : 0;
+                const bonus = this.calculateTieredBonus(r.qualified, cancelRate);
+
+                totalQual += r.qualified;
+                totalUnqual += r.unqualified;
+
+                if (r.qualified >= 9 && cancelRate < 20) {
+                    notificationsHTML += `<div class="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-800 font-bold">🎟️ ${r.agent} earned 1 Raffle Entry (${r.qualified} apts, ${cancelRate.toFixed(1)}% cx)!</div>`;
+                }
+
+                const memKey = `pay_${selectedWeek}_${r.agent.replace(/\s/g,'_')}`;
+                const autoAgentHrs = autoHours[r.agent.toLowerCase()] || { m:0,t:0,w:0,th:0,f:0,sa:0,su:0 };
+                
+                const savedData = JSON.parse(localStorage.getItem(memKey)) || { 
+                    rate: 5.00, m: autoAgentHrs.m, t: autoAgentHrs.t, w: autoAgentHrs.w, th: autoAgentHrs.th, f: autoAgentHrs.f, sa: autoAgentHrs.sa, su: autoAgentHrs.su, manual: 0, paid: false 
+                };
+
+                const baseRate = Number(savedData.rate) || 5.00;
+                const totalHrs = Number(savedData.m)+Number(savedData.t)+Number(savedData.w)+Number(savedData.th)+Number(savedData.f)+Number(savedData.sa)+Number(savedData.su);
+                const basePay = totalHrs * baseRate;
+                const finalPay = basePay + bonus + Number(savedData.manual);
+
+                totalAutoBonus += bonus;
+                totalManualBonus += Number(savedData.manual);
+                grandTotalPay += finalPay;
+
+                const days = ['sa','su','m','t','w','th','f'];
+                const dayInputs = days.map(d => `
+                    <td class="p-2 text-center">
+                        <input type="number" step="0.25" min="0" value="${Number(savedData[d]).toFixed(2)}" data-agent="${r.agent}" data-field="${d}" class="pay-input w-14 text-center font-bold border border-gray-300 rounded focus:ring-2 focus:ring-yellow-400 py-1 text-xs" onchange="Admin.recalcRow(this)">
+                    </td>
+                `).join("");
+
+                return `
+                <tr class="hover:bg-gray-50 border-b border-gray-50" data-agent="${r.agent}">
+                  <td class="p-3 font-bold text-gray-900">${r.agent}</td>
+                  <td class="p-3 text-center font-mono">
+                     <input type="number" step="0.25" min="0" value="${baseRate.toFixed(2)}" data-agent="${r.agent}" data-field="rate" class="pay-input w-16 text-center font-bold border border-gray-300 rounded focus:ring-2 focus:ring-yellow-400 py-1 text-xs text-gray-600" onchange="Admin.recalcRow(this)">
+                  </td>
+                  ${dayInputs}
+                  <td class="p-3 text-center bg-gray-50 font-bold text-gray-800 row-total-hrs">${totalHrs.toFixed(2)}</td>
+                  <td class="p-3 text-center font-bold text-blue-500">${r.qualified}</td>
+                  <td class="p-3 text-center font-bold ${cancelRate < 25 ? 'text-emerald-500' : 'text-red-400'}">${cancelRate.toFixed(1)}%</td>
+                  <td class="p-3 text-right font-mono font-bold text-purple-600" data-bonus="${bonus}">$${bonus.toFixed(2)}</td>
+                  <td class="p-3 text-center">
+                     <input type="number" step="1" value="${savedData.manual}" data-agent="${r.agent}" data-field="manual" class="pay-input w-16 text-center font-bold border border-purple-200 bg-purple-50 rounded focus:ring-2 focus:ring-purple-400 py-1 text-xs" onchange="Admin.recalcRow(this)">
+                  </td>
+                  <td class="p-3 text-right font-extrabold text-emerald-600 font-mono text-sm row-total-pay">$${finalPay.toFixed(2)}</td>
+                  <td class="p-3 text-center">
+                     <button onclick="Admin.togglePaid(this, '${selectedWeek}', '${r.agent}')" class="px-2 py-1 rounded text-[10px] font-extrabold ${savedData.paid ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-500'}">
+                        ${savedData.paid ? 'PAID ✓' : 'PENDING'}
+                     </button>
+                  </td>
+                </tr>
+                `;
+            }).join("");
+        }
+
+        // UPDATE FOOTER AND TOP KPIS
+        const notifEl = document.getElementById("payroll-notifications");
+        if (notifEl) notifEl.innerHTML = notificationsHTML || `<div class="p-3 bg-gray-50 border border-gray-100 rounded-lg text-xs text-gray-500 italic">No alerts this week.</div>`;
+        
+        const fAuto = document.getElementById("footer-auto-bonus");
+        if(fAuto) fAuto.textContent = "$" + totalAutoBonus.toFixed(2);
+        
+        const fMan = document.getElementById("footer-manual-bonus");
+        if (fMan) fMan.textContent = "$" + totalManualBonus.toFixed(2);
+        
+        const fTot = document.getElementById("footer-total-pay");
+        if (fTot) fTot.textContent = "$" + grandTotalPay.toFixed(2);
+
+        const kpiQual = document.getElementById("payroll-kpi-qualified");
+        if(kpiQual) kpiQual.textContent = totalQual;
+        
+        const kpiUnqual = document.getElementById("payroll-kpi-unqualified");
+        if(kpiUnqual) kpiUnqual.textContent = totalUnqual;
+
+        const estRev = totalQual * 125;
+        const kpiRev = document.getElementById("payroll-kpi-revenue");
+        if(kpiRev) kpiRev.textContent = "$" + estRev.toLocaleString(undefined, {minimumFractionDigits: 2});
+
+        const kpiExp = document.getElementById("payroll-kpi-expense");
+        if(kpiExp) kpiExp.textContent = "$" + grandTotalPay.toLocaleString(undefined, {minimumFractionDigits: 2});
+
+        const kpiNet = document.getElementById("payroll-kpi-net");
+        if(kpiNet) kpiNet.textContent = "$" + (estRev - grandTotalPay).toLocaleString(undefined, {minimumFractionDigits: 2});
+
+        const kpiRange = document.getElementById("payroll-kpi-range");
+        if(kpiRange) kpiRange.textContent = this.getPayrollWeekRangeLabel(selectedWeek);
+
+        this.bindExportCSV(selectedWeek, weekRows, autoHours);
+
+        try { this._renderPayrollCharts({ weeks, byWeek, chosenWeek: selectedWeek, view: weekRows }); } catch(e) {}
       },
 
-      updatePayrollKPIs(rows) {
-         let totalPay = 0;
-         rows.forEach(r => {
-             const hourly = parseFloat(String(r['Hourly Rate']||"0").replace(/[$,]/g,''))||0;
-             const hours = parseFloat(String(r['Total Hours']||"0"))||0;
-             const inc = parseFloat(String(r['Incentive Pay']||"0").replace(/[$,]/g,''))||0;
-             totalPay += (hourly * hours) + inc;
-         });
-         const expEl = document.getElementById("payroll-kpi-expense");
-         if(expEl) expEl.textContent = "$" + totalPay.toLocaleString(undefined, {minimumFractionDigits: 2});
+      _calculateHoursFromEvents(events, weekStartStr) {
+          const hrs = {};
+          if (!events || !Array.isArray(events)) return hrs;
+
+          const [y, m, d] = weekStartStr.split('-');
+          const weekStartMST = new Date(y, m-1, d, 0, 0, 0);
+          const weekEndMST = new Date(y, m-1, d, 23, 59, 59);
+          weekEndMST.setDate(weekEndMST.getDate() + 6); 
+
+          const sorted = [...events].sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+          const agentLogs = {};
+          
+          sorted.forEach(e => {
+              const mstDt = this.toMST(e.created_at); // Convert Supabase UTC to MST
+              if (mstDt >= weekStartMST && mstDt <= weekEndMST) {
+                  const ag = String(e.agent_name || "").toLowerCase();
+                  if (!agentLogs[ag]) agentLogs[ag] = [];
+                  agentLogs[ag].push({ ...e, mstDt });
+              }
+          });
+
+          for (const [ag, logs] of Object.entries(agentLogs)) {
+              hrs[ag] = { m:0, t:0, w:0, th:0, f:0, sa:0, su:0 };
+              const byDay = {};
+              
+              logs.forEach(l => {
+                  const dStr = `${l.mstDt.getFullYear()}-${String(l.mstDt.getMonth()+1).padStart(2,'0')}-${String(l.mstDt.getDate()).padStart(2,'0')}`;
+                  if (!byDay[dStr]) byDay[dStr] = [];
+                  byDay[dStr].push(l);
+              });
+
+              for (const [dateStr, dayLogs] of Object.entries(byDay)) {
+                  let totalMs = 0;
+                  let lastIn = null;
+
+                  dayLogs.forEach(l => {
+                      const action = String(l.action).trim().toLowerCase();
+                      const time = l.mstDt.getTime();
+
+                      if (action === 'clock in' || action === 'resume') {
+                          lastIn = time;
+                      } 
+                      else if (action === 'clock out' || action === 'break start') {
+                          if (lastIn) {
+                              totalMs += (time - lastIn);
+                              lastIn = null;
+                          }
+                      }
+                  });
+                  
+                  // Break Start/Resume naturally pauses the timer, the 30min is natively skipped!
+                  let hours = totalMs / (1000 * 60 * 60);
+                  
+                  const dayIdx = new Date(dateStr + "T12:00:00").getDay(); // 0=Sun, 6=Sat
+                  const dayMap = [ 'su', 'm', 't', 'w', 'th', 'f', 'sa' ];
+                  hrs[ag][dayMap[dayIdx]] = Math.max(0, hours);
+              }
+          }
+          return hrs;
+      },
+
+      calculateTieredBonus(qualified, cancelRate) {
+          const isHigh = cancelRate < 25;
+          let bonus = 0;
+
+          if (qualified >= 6) bonus += 50; 
+          if (qualified >= 8) bonus += (isHigh ? 50 : 30);
+          
+          if (qualified >= 9) {
+              const qty = Math.min(qualified, 12) - 8;
+              bonus += qty * (isHigh ? 17 : 15);
+          }
+          if (qualified >= 13) {
+              const qty = qualified - 12;
+              bonus += qty * (isHigh ? 27 : 25);
+          }
+          return bonus;
+      },
+
+      recalcRow(inputEl) {
+          const tr = inputEl.closest('tr');
+          const agent = tr.getAttribute('data-agent');
+          const selectedWeek = document.getElementById("payroll-week-select").value;
+          
+          const memKey = `pay_${selectedWeek}_${agent.replace(/\s/g,'_')}`;
+          let savedData = JSON.parse(localStorage.getItem(memKey)) || { rate:5, m:0,t:0,w:0,th:0,f:0,sa:0,su:0, manual:0, paid: false };
+          
+          const field = inputEl.getAttribute('data-field');
+          savedData[field] = Number(inputEl.value) || 0;
+          localStorage.setItem(memKey, JSON.stringify(savedData));
+
+          const totalHrs = Number(savedData.m)+Number(savedData.t)+Number(savedData.w)+Number(savedData.th)+Number(savedData.f)+Number(savedData.sa)+Number(savedData.su);
+          tr.querySelector('.row-total-hrs').textContent = totalHrs.toFixed(2);
+
+          const autoBonus = Number(tr.querySelector('[data-bonus]').getAttribute('data-bonus'));
+          const finalPay = (totalHrs * Number(savedData.rate)) + autoBonus + Number(savedData.manual);
+          
+          tr.querySelector('.row-total-pay').textContent = "$" + finalPay.toFixed(2);
+          document.getElementById("btn-save-payroll").classList.remove("hidden");
+      },
+
+      togglePaid(btn, week, agent) {
+          const memKey = `pay_${week}_${agent.replace(/\s/g,'_')}`;
+          let savedData = JSON.parse(localStorage.getItem(memKey)) || { rate:5, m:0,t:0,w:0,th:0,f:0,sa:0,su:0, manual:0, paid: false };
+          
+          savedData.paid = !savedData.paid;
+          localStorage.setItem(memKey, JSON.stringify(savedData));
+
+          if (savedData.paid) {
+              btn.className = "px-2 py-1 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800";
+              btn.textContent = "PAID ✓";
+          } else {
+              btn.className = "px-2 py-1 rounded text-[10px] font-extrabold bg-gray-100 text-gray-500";
+              btn.textContent = "PENDING";
+          }
+      },
+
+      saveAllPayrollChanges() {
+          const btn = document.getElementById("btn-save-payroll");
+          btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Saving...`;
+          
+          setTimeout(() => {
+              btn.innerHTML = `<i class="fa-solid fa-check mr-2"></i> Saved!`;
+              setTimeout(() => btn.classList.add("hidden"), 2000);
+              this.renderPayrollFinance();
+          }, 800);
+      },
+
+      bindExportCSV(week, rows, autoHours) {
+        const btn = document.getElementById("payroll-export");
+        if (!btn) return;
+        const newBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(newBtn, btn);
+
+        newBtn.addEventListener("click", () => {
+          const lines = [["Agent", "Rate", "Total Hrs", "Qual", "CX %", "Auto Bonus", "Manual", "Total Pay", "Status"].join(",")];
+          
+          rows.forEach(r => {
+             const memKey = `pay_${week}_${r.agent.replace(/\s/g,'_')}`;
+             const s = JSON.parse(localStorage.getItem(memKey)) || { rate:5, m:0,t:0,w:0,th:0,f:0,sa:0,su:0, manual:0, paid:false };
+             const hrs = Number(s.m)+Number(s.t)+Number(s.w)+Number(s.th)+Number(s.f)+Number(s.sa)+Number(s.su);
+             const cx = (r.qualified + r.unqualified > 0) ? (r.unqualified / (r.qualified + r.unqualified)) * 100 : 0;
+             const b = this.calculateTieredBonus(r.qualified, cx);
+             const pay = (hrs * s.rate) + b + Number(s.manual);
+             
+             lines.push(`"${r.agent}",${s.rate},${hrs},${r.qualified},${cx.toFixed(1)}%,${b},${s.manual},${pay},${s.paid?'PAID':'PENDING'}`);
+          });
+
+          const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `payroll_${week}.csv`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        });
       },
 
       getLeadPayrollWeekStart(l) {
-        const s = this.pick(l, ["Payroll Week Start","PAYROLL WEEK START","payroll_week_start","PayrollWeekStart"], "");
-        if (!s) {
-          const dt = this.getLeadDateObj(l);
-          if (!dt) return "";
-          const x = new Date(dt);
-          const day = x.getDay(); 
-          const diffToSat = (day - 6);
-          x.setDate(x.getDate() - diffToSat);
-          x.setHours(0,0,0,0);
-          return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`;
-        }
-        const d = window.portal?.parseDateSafe ? window.portal.parseDateSafe(s) : new Date(s);
-        if (!d || isNaN(d.getTime())) return String(s);
-        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+        let dt = this.getLeadDateObj(l);
+        if (!dt) return "";
+        dt = this.toMST(dt); // Force into MST first!
+        const day = dt.getDay(); // 0=Sun, 6=Sat
+        const diff = (day === 6) ? 0 : day + 1; // Subtract days to find preceding Saturday
+        dt.setDate(dt.getDate() - diff);
+        return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
       },
 
       computePayrollFromLeads(leads) {
@@ -3030,12 +3156,9 @@
           if (!week) continue;
           weekSet.add(week);
 
+          // FIX: Using exact agent names to link everything properly
           const agent = String(this.pick(l, [
-            "Appointment Coordinator Name",
-            "Appointment Coordinator",
-            "Setter",
-            "Agent",
-            "Agent Name"
+            "agent_name", "Appointment Coordinator Name", "Appointment Coordinator", "Setter", "Agent", "Agent Name"
           ], "Unknown")).trim() || "Unknown";
 
           const status = this.pick(l, ["Status","STATUS"], "");
@@ -3076,185 +3199,11 @@
         return `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
       },
 
-      _computePayrollExpenseFromState(state, chosenWeek) {
-        const candidates = [
-          state?.payroll,
-          state?.payroll_history,
-          state?.payrollHistory,
-          state?.weekly_payroll,
-          state?.weeklyPayroll
-        ].find(x => Array.isArray(x));
-
-        if (!candidates) return 0;
-
-        const weekKey = String(chosenWeek || "").trim();
-
-        const get = (obj, keys) => {
-          for (const k of keys) {
-            const v = obj?.[k];
-            if (v !== undefined && v !== null && String(v).trim() !== "") return v;
-          }
-          return "";
-        };
-
-        let sum = 0;
-        for (const r of candidates) {
-          const wk = String(get(r, ["Payroll Week Start","PAYROLL WEEK START","payroll_week_start"]) || "").trim();
-          if (weekKey && wk && wk !== weekKey) continue;
-
-          const payRaw = get(r, ["Total Weekly Pay","TOTAL WEEKLY PAY","total_weekly_pay","Weekly Pay"]);
-          const pay = Number(String(payRaw || "").replace(/[^0-9.\-]/g,"")) || 0;
-          sum += pay;
-        }
-        return sum;
-      },
-
-      _renderPayrollCharts({ weeks, byWeek, chosenWeek, view }) {
-        const revLabels = weeks.slice().reverse(); 
-        const revData = revLabels.map(wk => {
-          const rows = byWeek.get(wk) || [];
-          const q = rows.reduce((a,r)=>a + (r.qualified||0), 0);
-          return q * 125;
-        });
-
-        const revCtx = document.getElementById("payroll-revenue-chart");
-        if (revCtx) {
-          if (this._payrollCharts.revenue) this._payrollCharts.revenue.destroy();
-          this._payrollCharts.revenue = new Chart(revCtx, {
-            type: "line",
-            data: { labels: revLabels, datasets: [{ label: "Est. Revenue", data: revData }] },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
-          });
-        }
-
-        const names = view.map(r => r.agent);
-        const qVals = view.map(r => r.qualified || 0);
-        const uVals = view.map(r => r.unqualified || 0);
-
-        const coordCtx = document.getElementById("payroll-coordinator-chart");
-        if (coordCtx) {
-          if (this._payrollCharts.coordinator) this._payrollCharts.coordinator.destroy();
-          this._payrollCharts.coordinator = new Chart(coordCtx, {
-            type: "bar",
-            data: {
-              labels: names,
-              datasets: [
-                { label: "Qualified", data: qVals, stack: "stack" },
-                { label: "Unqualified", data: uVals, stack: "stack" },
-              ]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
-            }
-          });
-        }
-      },
-
       bindPayrollUI() {
         if (this._payrollBound) return;
         this._payrollBound = true;
-
         const sel = document.getElementById("payroll-week-select");
-        const search = document.getElementById("payroll-search");
-        const coord = document.getElementById("payroll-filter-coordinator");
-        const sort = document.getElementById("payroll-sort");
-
-        if (sel) sel.addEventListener("change", () => {
-          this._payrollCustomRange.active = false;
-          this.renderPayrollFinance();
-        });
-
-        if (search) search.addEventListener("input", () => this.renderPayrollFinance());
-        if (coord) coord.addEventListener("change", () => this.renderPayrollFinance());
-        if (sort) sort.addEventListener("change", () => this.renderPayrollFinance());
-
-        const apply = document.getElementById("payroll-date-apply");
-        const clear = document.getElementById("payroll-date-clear");
-        if (apply) {
-          apply.addEventListener("click", () => {
-            const s = document.getElementById("payroll-date-start")?.value;
-            const e = document.getElementById("payroll-date-end")?.value;
-            if (!s || !e) return;
-            this._payrollCustomRange.active = true;
-            this._payrollCustomRange.start = s;
-            this._payrollCustomRange.end = e;
-            this.renderPayrollFinance();
-          });
-        }
-        if (clear) {
-          clear.addEventListener("click", () => {
-            const s = document.getElementById("payroll-date-start"); if (s) s.value = "";
-            const e = document.getElementById("payroll-date-end"); if (e) e.value = "";
-            this._payrollCustomRange.active = false;
-            this.renderPayrollFinance();
-          });
-        }
-
-        const btn = document.getElementById("payroll-export");
-        if (btn) {
-          btn.addEventListener("click", () => {
-            const state = this.getState();
-            const leads = (state && Array.isArray(state.leads)) ? state.leads : [];
-            const { weeks, byWeek } = this.computePayrollFromLeads(leads);
-
-            let chosen = "";
-            let rows = [];
-
-            if (this._payrollCustomRange.active) {
-              const s = new Date(this._payrollCustomRange.start + "T00:00:00");
-              const e = new Date(this._payrollCustomRange.end + "T23:59:59");
-              const inRangeWeeks = weeks.filter(w => {
-                const d = new Date(w + "T00:00:00");
-                return d && !isNaN(d.getTime()) && d >= s && d <= e;
-              });
-
-              const agg = new Map();
-              for (const wk of inRangeWeeks) {
-                const wkRows = byWeek.get(wk) || [];
-                for (const r of wkRows) {
-                  const cur = agg.get(r.agent) || { agent: r.agent, qualified: 0, unqualified: 0 };
-                  cur.qualified += r.qualified;
-                  cur.unqualified += r.unqualified;
-                  agg.set(r.agent, cur);
-                }
-              }
-              rows = Array.from(agg.values());
-              chosen = `custom_${this._payrollCustomRange.start}_to_${this._payrollCustomRange.end}`;
-            } else {
-              chosen = (sel?.value && sel.value !== "latest") ? sel.value : (weeks[0] || "");
-              rows = chosen ? (byWeek.get(chosen) || []) : [];
-            }
-
-            const header = ["payroll_period","appointment_coordinator","qualified","unqualified","total","est_revenue_usd"];
-            const lines = [header.join(",")];
-
-            for (const r of rows) {
-              const total = r.qualified + r.unqualified;
-              const rev = r.qualified * 125;
-              lines.push([
-                chosen,
-                `"${String(r.agent).replace(/"/g,'""')}"`,
-                r.qualified,
-                r.unqualified,
-                total,
-                rev
-              ].join(","));
-            }
-
-            const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
-            const url = URL.createObjectURL(blob);
-
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `payroll_${chosen || "no_period"}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-          });
-        }
+        if (sel) sel.addEventListener("change", () => this.renderPayrollFinance());
       },
 
       nav(viewId, linkEl) {
