@@ -8,6 +8,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -499,10 +500,6 @@
               <option value="all">All Appointment Coordinators</option>
             </select>
 
-            <select id="leads-filter-homeowner" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
-              <option value="all">All Homeowners</option>
-            </select>
-
             <div class="flex items-center gap-2">
               <div>
                 <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
@@ -514,40 +511,26 @@
               </div>
             </div>
 
-            <button id="leads-clear"
-                    class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
+            <button id="leads-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
               Clear
             </button>
 
             <div class="relative">
-              <button id="leads-columns-toggle"
-                      class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800 flex items-center gap-2">
+              <button id="leads-columns-toggle" class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800 flex items-center gap-2">
                 <i class="fa-solid fa-table-columns"></i> Columns
               </button>
 
-              <div id="leads-columns-popover"
-                   class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+              <div id="leads-columns-popover" class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
                 <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">Visible Columns</div>
                 <div id="leads-columns-box" class="max-h-[280px] overflow-y-auto space-y-2 pr-1"></div>
-
                 <div class="flex justify-end gap-2 mt-3">
-                  <button id="leads-columns-all"
-                          class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
-                    All
-                  </button>
-                  <button id="leads-columns-min"
-                          class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
-                    Minimal
-                  </button>
+                  <button id="leads-columns-all" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">All</button>
+                  <button id="leads-columns-min" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">Minimal</button>
                 </div>
               </div>
             </div>
-
           </div>
-
-          <div class="mt-3 text-xs text-gray-500">
-            Showing <span class="font-bold" id="leads-count">0</span> leads
-          </div>
+          <div class="mt-3 text-xs text-gray-500">Showing <span class="font-bold" id="leads-count">0</span> leads</div>
         </div>
 
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -677,6 +660,98 @@
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      </div>
+
+      <div id="view-leads" class="view-section">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">Leads Master Record</h2>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+          <div class="controls-wrap">
+            <div class="flex-1 relative" style="min-width: 260px;">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+              <input
+                id="leads-search"
+                type="text"
+                placeholder="Search homeowner, appointment coordinator, roofing company, status, lead ID, email, phone..."
+                class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              />
+            </div>
+
+            <select id="leads-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
+              <option value="all">All Status</option>
+            </select>
+
+            <select id="leads-filter-company" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[240px]">
+              <option value="all">All Roofing Company</option>
+            </select>
+
+            <select id="leads-filter-ac" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
+              <option value="all">All Appointment Coordinators</option>
+            </select>
+
+            <select id="leads-filter-homeowner" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
+              <option value="all">All Homeowners</option>
+            </select>
+
+            <div class="flex items-center gap-2">
+              <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+                <input id="leads-date-start" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+                <input id="leads-date-end" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
+              </div>
+            </div>
+
+            <button id="leads-clear"
+                    class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
+              Clear
+            </button>
+
+            <div class="relative">
+              <button id="leads-columns-toggle"
+                      class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800 flex items-center gap-2">
+                <i class="fa-solid fa-table-columns"></i> Columns
+              </button>
+
+              <div id="leads-columns-popover"
+                   class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">
+                  Visible Columns
+                </div>
+                <div id="leads-columns-box" class="max-h-[280px] overflow-y-auto space-y-2 pr-1"></div>
+
+                <div class="flex justify-end gap-2 mt-3">
+                  <button id="leads-columns-all"
+                          class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
+                    All
+                  </button>
+                  <button id="leads-columns-min"
+                          class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
+                    Minimal
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="mt-3 text-xs text-gray-500">
+            Showing <span class="font-bold" id="leads-count">0</span> leads
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div class="table-scroll">
+            <table class="table-min w-full text-left text-sm whitespace-nowrap">
+              <thead id="leads-table-head" class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100"></thead>
+              <tbody id="leads-table-body" class="divide-y divide-gray-50">
+                <tr><td class="p-6 text-center text-gray-400">Loading leads...</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -898,7 +973,7 @@
         </div>
       </div>
 
-      <div id="view-payroll" class="view-section">
+    <div id="view-payroll" class="view-section">
         <div class="flex justify-between items-end mb-4">
           <div>
             <h2 class="text-2xl font-bold text-gray-900">Payroll & Finance</h2>
@@ -1145,54 +1220,337 @@
 
       getState() { return window.portal?.adminState || {}; },
 
-      refreshDashboard() {
+      renderPayrollFinance() {
         const state = this.getState();
-        if (!state) return;
+        const leads = Array.isArray(state.leads) ? state.leads : [];
+        const timeEvents = Array.isArray(state.timeEvents) ? state.timeEvents : [];
+        const agents = Array.isArray(state.agents) ? state.agents : [];
+        
+        const { weeks, byWeek } = this.computePayrollFromLeads(leads);
+        
+        if (weeks.length === 0 || weeks[0] === "") {
+            const today = new Date();
+            const day = today.getDay(); 
+            const diff = (day === 6) ? 0 : day + 1; 
+            today.setDate(today.getDate() - diff);
+            weeks[0] = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`; 
+        }
+        
+        const weekSelect = document.getElementById("payroll-week-select");
+        if (weekSelect && weeks.length > 0) {
+            if (weekSelect.options.length === 0 || weekSelect.options[0].value === "latest" || weekSelect.options[0].value === "") {
+                weekSelect.innerHTML = weeks.filter(w => w).map(w => `<option value="${w}">${this.getPayrollWeekRangeLabel(w)}</option>`).join("");
+            }
+        }
 
-        const clients = state.clients || [];
-        const leads = state.leads || [];
-        const packages = state.packages || [];
+        const selectedWeek = weekSelect ? weekSelect.value : weeks[0];
+        if (!selectedWeek) return;
 
-        // 1. Index leads by COMPANY NAME for Health Monitor math
-        this._leadsIndexByCompany = new Map();
-        leads.forEach(l => {
-            const rawComp = this.getLeadField(l, ["Company Name", "company_name", "roofing_company", "Client"]);
-            const comp = this.normalizeCompanyName(rawComp);
-            if (!comp) return;
-            const arr = this._leadsIndexByCompany.get(comp) || [];
-            arr.push(l);
-            this._leadsIndexByCompany.set(comp, arr);
+        const periodLabel = document.getElementById("payroll-ledger-period");
+        if (periodLabel) periodLabel.textContent = this.getPayrollWeekRangeLabel(selectedWeek);
+
+        const notesEl = document.getElementById("payroll-notes");
+        if (notesEl && !notesEl.oninput) {
+            notesEl.value = localStorage.getItem(`payroll_notes_${selectedWeek}`) || "";
+            notesEl.oninput = (e) => localStorage.setItem(`payroll_notes_${selectedWeek}`, e.target.value);
+        }
+
+        const weekStartDt = new Date(selectedWeek + "T00:00:00");
+        const weekEndDt = new Date(weekStartDt);
+        weekEndDt.setDate(weekEndDt.getDate() + 6);
+        weekEndDt.setHours(23, 59, 59, 999);
+
+        const autoHours = this._calculateHoursFromEvents(timeEvents, selectedWeek);
+
+        // Force all active agents onto the payroll ledger even if they had 0 leads
+        const activeAgents = agents.filter(a => {
+            const status = String(a.employment_status || "").toLowerCase().trim();
+            const role = String(a.role || "").toLowerCase().trim();
+            return status === "active" && role !== "admin";
+        });
+        
+        activeAgents.forEach(a => {
+            const agName = String(a.agent_name || a.name || "").trim();
+            if (agName && !weekRows.find(r => r.agent === agName)) {
+                weekRows.push({ week: selectedWeek, agent: agName, qualified: 0, unqualified: 0 });
+            }
         });
 
-        // 2. Trigger the table builds
-        try {
-          this.clientHealthRaw = this.normalizeClientHealthRows(clients, packages);
-          this.setupFilters(this.clientHealthRaw);
-          this.applyClientHealthFilters();
-        } catch(e) { console.error("CHM Error:", e); }
+        let notificationsHTML = "";
+        let totalAutoBonus = 0, totalManualBonus = 0, grandTotalPay = 0;
+        let totalQual = 0, totalUnqual = 0;
 
-        // 3. Keep other dashboard modules alive
-        try { this.initLeadsColumnsUI(); this.applyLeadsFilters(); } catch(e) {}
-        try { this.bindLeadsMasterEvents(); } catch(e) {} 
-        try { window.fetchSalesPipeline(); } catch(e) {} 
-        try { this.bindPassbookUI(clients); this.applyPassbookFilters(clients); } catch(e) {}
-        try { this.bindOverviewAnalyticsUI(); } catch(e) {} 
-        try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
-        try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
-        try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
-        try { this.bindPayrollUI(); this.renderPayrollFinance(); } catch(e) {}
+        const tbody = document.getElementById("payroll-ledger-body");
+        
+        if (!weekRows || weekRows.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="16" class="p-6 text-center text-gray-400 italic text-sm">No payroll records found for this week.</td></tr>`;
+        } else {
+            tbody.innerHTML = weekRows.map(r => {
+                const cancelRate = (r.qualified + r.unqualified > 0) ? (r.unqualified / (r.qualified + r.unqualified)) * 100 : 0;
+                const bonus = this.calculateTieredBonus(r.qualified, cancelRate);
+
+                totalQual += r.qualified;
+                totalUnqual += r.unqualified;
+
+                if (r.qualified >= 9 && cancelRate < 20) {
+                    notificationsHTML += `<div class="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-800 font-bold">🎟️ ${r.agent} earned 1 Raffle Entry (${r.qualified} apts, ${cancelRate.toFixed(1)}% cx)!</div>`;
+                }
+
+                const memKey = `pay_${selectedWeek}_${r.agent.replace(/\s/g,'_')}`;
+                const autoAgentHrs = autoHours[r.agent.toLowerCase()] || { m:0,t:0,w:0,th:0,f:0,sa:0,su:0 };
+                
+                const dbAgent = agents.find(a => a && String(a.agent_name || "").toLowerCase() === r.agent.toLowerCase()) || {};
+                const dbRate = Number(dbAgent.effective_hourly_rate || dbAgent.base_rate || 5);
+
+                const savedData = JSON.parse(localStorage.getItem(memKey)) || { 
+                    rate: dbRate, m: autoAgentHrs.m, t: autoAgentHrs.t, w: autoAgentHrs.w, th: autoAgentHrs.th, f: autoAgentHrs.f, sa: autoAgentHrs.sa, su: autoAgentHrs.su, manual: 0, paid: false 
+                };
+
+                const baseRate = Number(savedData.rate) || dbRate;
+                const totalHrs = Number(savedData.m)+Number(savedData.t)+Number(savedData.w)+Number(savedData.th)+Number(savedData.f)+Number(savedData.sa)+Number(savedData.su);
+                const basePay = totalHrs * baseRate;
+                const finalPay = basePay + bonus + Number(savedData.manual);
+
+                totalAutoBonus += bonus;
+                totalManualBonus += Number(savedData.manual);
+                grandTotalPay += finalPay;
+
+                const days = ['sa','su','m','t','w','th','f'];
+                const dayInputs = days.map(d => `
+                    <td class="p-2 text-center">
+                        <input type="number" step="0.25" min="0" value="${Number(savedData[d]).toFixed(2)}" data-agent="${r.agent}" data-field="${d}" class="pay-input w-14 text-center font-bold border border-gray-300 rounded focus:ring-2 focus:ring-yellow-400 py-1 text-xs" onchange="Admin.recalcRow(this)">
+                    </td>
+                `).join("");
+
+                return `
+                <tr class="hover:bg-gray-50 border-b border-gray-50" data-agent="${r.agent}">
+                  <td class="p-3 font-bold text-gray-900">${r.agent}</td>
+                  <td class="p-3 text-center font-mono">
+                     <input type="number" step="0.25" min="0" value="${baseRate.toFixed(2)}" data-agent="${r.agent}" data-field="rate" class="pay-input w-16 text-center font-bold border border-gray-300 rounded focus:ring-2 focus:ring-yellow-400 py-1 text-xs text-gray-600" onchange="Admin.recalcRow(this)">
+                  </td>
+                  ${dayInputs}
+                  <td class="p-3 text-center bg-gray-50 font-bold text-gray-800 row-total-hrs">${totalHrs.toFixed(2)}</td>
+                  <td class="p-3 text-center font-bold text-blue-500">${r.qualified}</td>
+                  <td class="p-3 text-center font-bold ${cancelRate < 25 ? 'text-emerald-500' : 'text-red-400'}">${cancelRate.toFixed(1)}%</td>
+                  <td class="p-3 text-right font-mono font-bold text-purple-600" data-bonus="${bonus}">$${bonus.toFixed(2)}</td>
+                  <td class="p-3 text-center">
+                     <input type="number" step="1" value="${savedData.manual}" data-agent="${r.agent}" data-field="manual" class="pay-input w-16 text-center font-bold border border-purple-200 bg-purple-50 rounded focus:ring-2 focus:ring-purple-400 py-1 text-xs" onchange="Admin.recalcRow(this)">
+                  </td>
+                  <td class="p-3 text-right font-extrabold text-emerald-600 font-mono text-sm row-total-pay">$${finalPay.toFixed(2)}</td>
+                  <td class="p-3 text-center">
+                     <button onclick="Admin.togglePaid(this, '${selectedWeek}', '${r.agent}')" class="px-2 py-1 rounded text-[10px] font-extrabold ${savedData.paid ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-500'}">
+                        ${savedData.paid ? 'PAID ✓' : 'PENDING'}
+                     </button>
+                  </td>
+                </tr>
+                `;
+            }).join("");
+        }
+
+        const notifEl = document.getElementById("payroll-notifications");
+        if (notifEl) notifEl.innerHTML = notificationsHTML || `<div class="p-3 bg-gray-50 border border-gray-100 rounded-lg text-xs text-gray-500 italic">No alerts this week.</div>`;
+        const fAuto = document.getElementById("footer-auto-bonus");
+        if(fAuto) fAuto.textContent = "$" + totalAutoBonus.toFixed(2);
+        const fMan = document.getElementById("footer-manual-bonus");
+        if (fMan) fMan.textContent = "$" + totalManualBonus.toFixed(2);
+        const fTot = document.getElementById("footer-total-pay");
+        if (fTot) fTot.textContent = "$" + grandTotalPay.toFixed(2);
+        const kpiExp = document.getElementById("payroll-kpi-expense");
+        if(kpiExp) kpiExp.textContent = "$" + grandTotalPay.toLocaleString(undefined, {minimumFractionDigits: 2});
+
+        this.bindExportCSV(selectedWeek, weekRows, autoHours);
+      },
+
+      _calculateHoursFromEvents(events, weekStartStr) {
+          const hrs = {};
+          if (!events || !Array.isArray(events)) return hrs;
+
+          const [y, m, d] = weekStartStr.split('-');
+          const weekStartMST = new Date(y, m-1, d, 0, 0, 0);
+          const weekEndMST = new Date(y, m-1, d, 23, 59, 59);
+          weekEndMST.setDate(weekEndMST.getDate() + 6); 
+
+          const sorted = [...events].sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+          const agentLogs = {};
+          
+          sorted.forEach(e => {
+              const mstDt = window.portal && window.portal.toMST ? window.portal.toMST(e.created_at) : new Date(e.created_at);
+              if (mstDt >= weekStartMST && mstDt <= weekEndMST) {
+                  const ag = String(e.agent_name || "").toLowerCase();
+                  if (!agentLogs[ag]) agentLogs[ag] = [];
+                  agentLogs[ag].push({ ...e, mstDt });
+              }
+          });
+
+          for (const [ag, logs] of Object.entries(agentLogs)) {
+              hrs[ag] = { m:0, t:0, w:0, th:0, f:0, sa:0, su:0 };
+              const byDay = {};
+              
+              logs.forEach(l => {
+                  const dStr = `${l.mstDt.getFullYear()}-${String(l.mstDt.getMonth()+1).padStart(2,'0')}-${String(l.mstDt.getDate()).padStart(2,'0')}`;
+                  if (!byDay[dStr]) byDay[dStr] = [];
+                  byDay[dStr].push(l);
+              });
+
+              for (const [dateStr, dayLogs] of Object.entries(byDay)) {
+                  let totalMs = 0;
+                  let lastIn = null;
+
+                  dayLogs.forEach(l => {
+                      const action = String(l.action).trim().toLowerCase();
+                      const time = l.mstDt.getTime();
+
+                      if (action === 'clock in' || action === 'resume') { lastIn = time; } 
+                      else if (action === 'clock out' || action === 'break start') {
+                          if (lastIn) { totalMs += (time - lastIn); lastIn = null; }
+                      }
+                  });
+                  
+                  let hours = totalMs / (1000 * 60 * 60);
+                  if (hours >= 7.5) hours -= 0.5; // Auto-deduct 30 mins 
+                  
+                  const dayIdx = new Date(dateStr + "T12:00:00").getDay();
+                  const dayMap = [ 'su', 'm', 't', 'w', 'th', 'f', 'sa' ];
+                  hrs[ag][dayMap[dayIdx]] = Math.max(0, hours);
+              }
+          }
+          return hrs;
+      },
+
+      calculateTieredBonus(qualified, cancelRate) {
+          const isHigh = cancelRate < 25;
+          let bonus = 0;
+
+          if (qualified >= 6 && qualified <= 7) bonus += 50; 
+          if (qualified >= 8) bonus += (isHigh ? 50 : 30);
+          
+          if (qualified >= 9) {
+              const qty = Math.min(qualified, 12) - 8;
+              bonus += qty * (isHigh ? 17 : 15);
+          }
+          if (qualified >= 13) {
+              const qty = qualified - 12;
+              bonus += qty * (isHigh ? 27 : 25);
+          }
+          return bonus;
+      },
+
+      recalcRow(inputEl) {
+          const tr = inputEl.closest('tr');
+          const agent = tr.getAttribute('data-agent');
+          const selectedWeek = document.getElementById("payroll-week-select").value;
+          
+          const memKey = `pay_${selectedWeek}_${agent.replace(/\s/g,'_')}`;
+          let savedData = JSON.parse(localStorage.getItem(memKey)) || { rate:5, m:0,t:0,w:0,th:0,f:0,sa:0,su:0, manual:0, paid: false };
+          
+          const field = inputEl.getAttribute('data-field');
+          savedData[field] = Number(inputEl.value) || 0;
+          localStorage.setItem(memKey, JSON.stringify(savedData));
+
+          const totalHrs = Number(savedData.m)+Number(savedData.t)+Number(savedData.w)+Number(savedData.th)+Number(savedData.f)+Number(savedData.sa)+Number(savedData.su);
+          tr.querySelector('.row-total-hrs').textContent = totalHrs.toFixed(2);
+
+          const autoBonus = Number(tr.querySelector('[data-bonus]').getAttribute('data-bonus'));
+          const finalPay = (totalHrs * Number(savedData.rate)) + autoBonus + Number(savedData.manual);
+          
+          tr.querySelector('.row-total-pay').textContent = "$" + finalPay.toFixed(2);
+          document.getElementById("btn-save-payroll").classList.remove("hidden");
+      },
+
+      togglePaid(btn, week, agent) {
+          const memKey = `pay_${week}_${agent.replace(/\s/g,'_')}`;
+          let savedData = JSON.parse(localStorage.getItem(memKey)) || { rate:5, m:0,t:0,w:0,th:0,f:0,sa:0,su:0, manual:0, paid: false };
+          
+          savedData.paid = !savedData.paid;
+          localStorage.setItem(memKey, JSON.stringify(savedData));
+
+          if (savedData.paid) {
+              btn.className = "px-2 py-1 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800";
+              btn.textContent = "PAID ✓";
+          } else {
+              btn.className = "px-2 py-1 rounded text-[10px] font-extrabold bg-gray-100 text-gray-500";
+              btn.textContent = "PENDING";
+          }
+      },
+
+      saveAllPayrollChanges() {
+          const btn = document.getElementById("btn-save-payroll");
+          btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Saving...`;
+          setTimeout(() => {
+              btn.innerHTML = `<i class="fa-solid fa-check mr-2"></i> Saved!`;
+              setTimeout(() => btn.classList.add("hidden"), 2000);
+          }, 800);
+      },
+
+      getLeadPayrollWeekStart(l) {
+        let dt = this.getLeadDateObj(l);
+        if (!dt) return "";
+        if (window.portal && window.portal.toMST) dt = window.portal.toMST(dt); 
+        const day = dt.getDay(); 
+        const diff = (day === 6) ? 0 : day + 1; 
+        dt.setDate(dt.getDate() - diff);
+        return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
+      },
+
+      computePayrollFromLeads(leads) {
+        const rows = Array.isArray(leads) ? leads : [];
+        const weekSet = new Set();
+        const weekAgentMap = new Map(); 
+
+        for (const l of rows) {
+          const week = this.getLeadPayrollWeekStart(l);
+          if (!week) continue;
+          weekSet.add(week);
+
+          const agent = String(this.pick(l, [
+            "agent_name", "Appointment Coordinator Name", "Appointment Coordinator", "Setter", "Agent", "Agent Name"
+          ], "Unknown")).trim() || "Unknown";
+
+          const status = this.pick(l, ["Status","STATUS"], "");
+          const k = `${week}||${agent}`;
+
+          const agg = weekAgentMap.get(k) || { week, agent, qualified: 0, unqualified: 0 };
+
+          if (this.isQualified(status)) agg.qualified += 1;
+          else if (this.isCredited(status)) agg.unqualified += 1;
+
+          weekAgentMap.set(k, agg);
+        }
+
+        const weeks = [...weekSet].sort((a,b) => String(b).localeCompare(String(a))); 
+        const byWeek = new Map(); 
+
+        for (const v of weekAgentMap.values()) {
+          const arr = byWeek.get(v.week) || [];
+          arr.push(v);
+          byWeek.set(v.week, arr);
+        }
+
+        for (const [wk, arr] of byWeek.entries()) {
+          arr.sort((a,b) => (b.qualified - a.qualified) || ((b.qualified+b.unqualified) - (a.qualified+a.unqualified)) || a.agent.localeCompare(b.agent));
+        }
+
+        return { weeks, byWeek };
+      },
+
+      getPayrollWeekRangeLabel(weekStartStr) {
+        if (!weekStartStr) return "—";
+        const start = new Date(weekStartStr + "T00:00:00");
+        if (isNaN(start.getTime())) return weekStartStr;
+
+        const end = new Date(start);
+        end.setDate(end.getDate() + 6);
+
+        return `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
+      },
+
+      bindPayrollUI() {
+        if (this._payrollBound) return;
+        this._payrollBound = true;
+        const sel = document.getElementById("payroll-week-select");
+        if (sel) sel.addEventListener("change", () => this.renderPayrollFinance());
       },
       
-      toMST(dateVal) {
-        if (!dateVal) return new Date();
-        const d = new Date(dateVal);
-        if (isNaN(d.getTime())) return new Date();
-        if (window.portal && typeof window.portal.toMST === 'function') return window.portal.toMST(d);
-        const mstOffset = -7 * 60; 
-        const localOffset = d.getTimezoneOffset();
-        return new Date(d.getTime() + (mstOffset + localOffset) * 60000);
-      },
-
       parseDateSafe(value) {
         if (!value) return null;
         const dt = new Date(value);
@@ -1200,9 +1558,14 @@
       },
 
       normalizeClientHealthRows(clients, packages) {
-        const mstFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit' });
+        // --- BULLETPROOF MST DATE FORMATTER ---
+        const mstFormatter = new Intl.DateTimeFormat('en-CA', { 
+            timeZone: 'America/Denver', 
+            year: 'numeric', month: '2-digit', day: '2-digit' 
+        });
+
         const now = new Date();
-        const todayStr = mstFormatter.format(now); 
+        const todayStr = mstFormatter.format(now); // Strict YYYY-MM-DD
         
         const yesterday = new Date(now);
         yesterday.setDate(yesterday.getDate() - 1);
@@ -1217,6 +1580,8 @@
           const clientPkgs = packages.filter(p => String(p.client_code || "").trim().toLowerCase() === code.toLowerCase());
           const activePkg = clientPkgs.find(p => String(p.status || "").trim().toUpperCase() === 'ACTIVE') || clientPkgs[0] || {};
 
+          // --- LEAD MATH SECTION ---
+          // Use the exact same normalizer so the keys match perfectly!
           const compKey = this.normalizeCompanyName(company);
           const leadList = this._leadsIndexByCompany?.get(compKey) || [];
           
@@ -1229,16 +1594,18 @@
               
               if (d && !isNaN(d.getTime())) {
                   if (!lastLeadDate || d > lastLeadDate) lastLeadDate = d;
+
+                  // DATE PROTECTION: Prevent strings from shifting timezones
                   let compareStr;
                   const rawStr = String(dStr).trim();
                   
                   if (rawStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                      compareStr = rawStr.substring(0, 10);
+                      compareStr = rawStr.substring(0, 10); // Use YYYY-MM-DD exactly as-is
                   } else if (rawStr.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
                       const [mm, dd, yyyy] = rawStr.split('/');
-                      compareStr = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+                      compareStr = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`; // Convert MM/DD/YYYY exactly as-is
                   } else {
-                      compareStr = mstFormatter.format(d);
+                      compareStr = mstFormatter.format(d); // Apply MST to full timestamps
                   }
 
                   if (compareStr === todayStr) todayCount++;
@@ -1257,35 +1624,58 @@
           const owed = Math.max(purchased - qualified, 0);
           const rawStat = c.client_status || c.status || "INACTIVE";
           
+          // --- SMART PACKAGE STATUS OVERRIDE ---
           let pkgStatus = String(activePkg.status || "").toUpperCase().trim();
           if (pkgStatus === 'ACTIVE') pkgStatus = 'ONGOING';
 
+          // As long as it is not manually Paused or Refunded, force the status based on Owed Leads
           if (pkgStatus !== 'PAUSE' && pkgStatus !== 'REFUNDED') {
               if (owed > 0) {
-                  pkgStatus = 'ONGOING';
+                  pkgStatus = 'ONGOING';   // Force ONGOING because we still owe them leads
               } else if (purchased > 0 && owed === 0) {
-                  pkgStatus = 'COMPLETED';
+                  pkgStatus = 'COMPLETED'; // Auto-complete when fulfilled
               } else {
-                  pkgStatus = 'COMPLETED';
+                  pkgStatus = 'COMPLETED'; // Fallback for 0/0 empty packages
               }
           }
           
           let healthStatus = String(rawStat).toUpperCase().trim(); 
+          // --- LIVE HEALTH CALCULATION ---
+          // Use the lastLeadDate we found during the math loop
           const nowMs = Date.now();
           const hoursSinceLastLead = lastLeadDate ? (nowMs - lastLeadDate.getTime()) / (1000 * 60 * 60) : 9999;
 
-          if (!lastLeadDate) { healthStatus = "NOT STARTED"; } 
-          else if (todayCount >= 1 && yesterdayCount >= 1) { healthStatus = "HEALTHY"; } 
-          else if (hoursSinceLastLead > 48) { healthStatus = "CRITICAL"; } 
-          else { healthStatus = "AT RISK"; }
+          if (!lastLeadDate) {
+              // BLUE: Never received a lead since purchase
+              healthStatus = "NOT STARTED"; 
+          } else if (todayCount >= 1 && yesterdayCount >= 1) {
+              // GREEN: Active today AND yesterday
+              healthStatus = "HEALTHY";    
+          } else if (hoursSinceLastLead > 48) {
+              // RED: No leads in over 48 hours
+              healthStatus = "CRITICAL";   
+          } else {
+              // YELLOW: Recent lead, but missing the "Healthy" streak
+              healthStatus = "AT RISK";    
+          }
 
           return {
-            _raw: c, code: code, passbookStatus: String(rawStat).toUpperCase().trim(),
-            healthStatus: healthStatus, roofingCompany: company, cityState: cityState,
-            clientName: clientName, packageStatus: pkgStatus, packageLabel: `${owed} / ${purchased}`,
-            owedRemaining: owed, qualifiedCount: qualified, creditedCount: credited,
-            purchaseDate: activePkg.purchase_date || "—", leadsToday: todayCount,
-            leadsYesterday: yesterdayCount, lastLead: lastLeadDate ? window.portal.formatDate(lastLeadDate) : "—"
+            _raw: c,
+            code: code,
+            passbookStatus: String(rawStat).toUpperCase().trim(),
+            healthStatus: healthStatus,
+            roofingCompany: company,
+            cityState: cityState,
+            clientName: clientName,
+            packageStatus: pkgStatus,
+            packageLabel: `${owed} / ${purchased}`,
+            owedRemaining: owed,
+            qualifiedCount: qualified,
+            creditedCount: credited,
+            purchaseDate: activePkg.purchase_date || "—",
+            leadsToday: todayCount,
+            leadsYesterday: yesterdayCount,
+            lastLead: lastLeadDate ? window.portal.formatDate(lastLeadDate) : "—"
           };
         });
       },
@@ -1296,6 +1686,7 @@
         
         if (statusPop && statusBtn && !this._firstLoadDone) {
             this._firstLoadDone = true;
+            // Health Statuses ONLY
             const statuses = ["CRITICAL", "AT RISK", "HEALTHY", "NOT STARTED"];
             statusPop.innerHTML = statuses.map(s => {
                 return `<label class="flex items-center text-sm cursor-pointer p-2 hover:bg-gray-50 rounded"><input type="checkbox" value="${s}" class="health-st-chk mr-2" checked> ${s}</label>`;
@@ -1323,16 +1714,21 @@
         }
 
         document.getElementById("health-clear")?.addEventListener("click", () => {
-            const s = document.getElementById("health-search"); if (s) s.value = "";
-            const pkgSel = document.getElementById("health-filter-package"); if (pkgSel) pkgSel.value = "ONGOING";
+            const s = document.getElementById("health-search");
+            if (s) s.value = "";
+            const pkgSel = document.getElementById("health-filter-package");
+            if (pkgSel) pkgSel.value = "ONGOING";
             if (locSel) locSel.value = "all";
             
-            document.querySelectorAll('.health-st-chk').forEach(chk => { chk.checked = true; });
+            document.querySelectorAll('.health-st-chk').forEach(chk => {
+                chk.checked = true;
+            });
             const updateLabel = () => {
                 const count = statusPop.querySelectorAll('.health-st-chk:checked').length;
                 document.getElementById("health-status-label").textContent = `Health: ${count} selected`;
             };
             if(updateLabel) updateLabel();
+
             this.applyClientHealthFilters();
         });
         
@@ -1351,22 +1747,36 @@
         const checkedHealth = Array.from(document.querySelectorAll('.health-st-chk:checked')).map(cb => cb.value.toUpperCase());
 
         let filtered = [...this.clientHealthRaw];
+
+        // RULE 1: STRICTLY PASSBOOK 'ACTIVE' ONLY
         filtered = filtered.filter(r => r.passbookStatus === 'ACTIVE');
 
+       // RULE 2: PACKAGE FILTER (Defaults to ONGOING)
         if (pkgFilter !== "ALL") {
             filtered = filtered.filter(r => {
                 if (pkgFilter === "ONGOING") {
+                    // HARD BLOCK: If the package is PAUSE or REFUNDED, never show it in default view
                     if (r.packageStatus === "PAUSE" || r.packageStatus === "REFUNDED") return false;
+                    
+                    // Otherwise, show if explicitly ONGOING, or if we owe them leads
                     return r.packageStatus === "ONGOING" || r.owedRemaining > 0;
                 }
+                
+                // For all other dropdown selections (Pause, Completed, etc.), match exactly
                 return r.packageStatus === pkgFilter;
             });
         }
 
-        if (checkedHealth.length > 0) { filtered = filtered.filter(r => checkedHealth.includes(r.healthStatus)); } 
-        else { filtered = []; }
+        // RULE 3: HEALTH STATUS (At risk, critical, etc.)
+        if (checkedHealth.length > 0) {
+            filtered = filtered.filter(r => checkedHealth.includes(r.healthStatus));
+        } else {
+            filtered = [];
+        }
 
-        if (q) { filtered = filtered.filter(r => `${r.code} ${r.roofingCompany} ${r.clientName}`.toLowerCase().includes(q)); }
+        if (q) {
+          filtered = filtered.filter(r => `${r.code} ${r.roofingCompany} ${r.clientName}`.toLowerCase().includes(q));
+        }
 
         const loc = document.getElementById("health-filter-location")?.value || "all";
         if (loc !== "all") filtered = filtered.filter(r => String(r.cityState || "") === loc);
@@ -1505,23 +1915,24 @@
         const statusSel = document.getElementById("leads-filter-status");
         const compSel = document.getElementById("leads-filter-company");
         const acSel = document.getElementById("leads-filter-ac");
+        const hoSel = document.getElementById("leads-filter-homeowner");
 
         const uniq = (arr) => [...new Set(arr.filter(x => String(x||"").trim() !== ""))].sort((a,b)=>String(a).localeCompare(String(b)));
 
+        const statuses = uniq(leads.map(l => this.getLeadField(l, ["Status","STATUS"], "")));
         const companies = uniq(leads.map(l => this.getLeadField(l, ["Company Name","COMPANY NAME","Client","CLIENT","Roofing Company"], "")));
         const acs = uniq(leads.map(l => this.getLeadField(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent","Agent Name"], "")));
+        const homeowners = uniq(leads.map(l => this.getLeadField(l, ["Homeowner Name(s)","Homeowner Name","Homeowner","HOMEOWNER NAME"], "")));
 
-        if (statusSel) {
-            statusSel.innerHTML = `
-            <option value="all">All Status</option>
-            <option value="APPROVED">APPROVED</option>
-            <option value="CREDITED">CREDITED</option>
-            <option value="PENDING REVIEW">PENDING REVIEW</option>
-            <option value="REJECTED">REJECTED</option>
-            `;
-        }
-        if (compSel) compSel.innerHTML = `<option value="all">All Roofing Company</option>` + companies.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
-        if (acSel) acSel.innerHTML = `<option value="all">All Appointment Coordinators</option>` + acs.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
+        statusSel.innerHTML = `
+          <option value="all">All Status</option>
+          <option value="APPROVED">APPROVED</option>
+          <option value="CREDITED">CREDITED</option>
+          <option value="PENDING REVIEW">PENDING REVIEW</option>
+          <option value="REJECTED">REJECTED</option>
+        `;
+        compSel.innerHTML = `<option value="all">All Roofing Company</option>` + companies.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
+        acSel.innerHTML = `<option value="all">All Appointment Coordinators</option>` + acs.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
       },
 
       initLeadsColumnsUI() {
@@ -1594,6 +2005,7 @@
         const stVal = document.getElementById("leads-filter-status")?.value || "all";
         const compVal = document.getElementById("leads-filter-company")?.value || "all";
         const acVal = document.getElementById("leads-filter-ac")?.value || "all";
+        const hoVal = document.getElementById("leads-filter-homeowner")?.value || "all";
 
         const sDate = document.getElementById("leads-date-start")?.value || "";
         const eDate = document.getElementById("leads-date-end")?.value || "";
@@ -1604,13 +2016,16 @@
         let filtered = [...leads];
 
         if (stVal !== "all") {
-          filtered = filtered.filter(l => String(this.getLeadField(l, ["Status","STATUS"], "")).trim().toUpperCase() === stVal);
+          filtered = filtered.filter(l => String(this.getLeadField(l, ["Status","STATUS"], "")).trim() === stVal);
         }
         if (compVal !== "all") {
           filtered = filtered.filter(l => String(this.getLeadField(l, ["Company Name","COMPANY NAME","Client","CLIENT","Roofing Company"], "")).trim() === compVal);
         }
         if (acVal !== "all") {
           filtered = filtered.filter(l => String(this.getLeadField(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent","Agent Name"], "")).trim() === acVal);
+        }
+        if (hoVal !== "all") {
+          filtered = filtered.filter(l => String(this.getLeadField(l, ["Homeowner Name(s)","Homeowner Name","Homeowner","HOMEOWNER NAME"], "")).trim() === hoVal);
         }
 
         if (startDt || endDt) {
@@ -1661,7 +2076,15 @@
         if (this._leadsFiltersBound) return;
         this._leadsFiltersBound = true;
 
-        const els = ["leads-search", "leads-filter-status", "leads-filter-company", "leads-filter-ac", "leads-date-start", "leads-date-end"];
+        const els = [
+          "leads-search",
+          "leads-filter-status",
+          "leads-filter-company",
+          "leads-filter-ac",
+          "leads-filter-homeowner",
+          "leads-date-start",
+          "leads-date-end"
+        ];
 
         els.forEach(id => {
           const el = document.getElementById(id);
@@ -1677,6 +2100,7 @@
             const a = document.getElementById("leads-filter-status"); if (a) a.value = "all";
             const b = document.getElementById("leads-filter-company"); if (b) b.value = "all";
             const c = document.getElementById("leads-filter-ac"); if (c) c.value = "all";
+            const d = document.getElementById("leads-filter-homeowner"); if (d) d.value = "all";
             const ds = document.getElementById("leads-date-start"); if (ds) ds.value = "";
             const de = document.getElementById("leads-date-end"); if (de) de.value = "";
             this.applyLeadsFilters();
@@ -1685,10 +2109,228 @@
       },
 
       normalizeCompanyName(name) {
-        return String(name || "").toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+        return String(name || "")
+          .toLowerCase()
+          .replace(/&/g, "and")
+          .replace(/[^a-z0-9\s]/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
       },
 
-      normalizeCode(code) { return String(code || "").toLowerCase().replace(/\s+/g, "").trim(); },
+      normalizeCode(code) {
+        return String(code || "").toLowerCase().replace(/\s+/g, "").trim();
+      },
+
+      getSoldByForClient(code) {
+        try {
+          const raw = localStorage.getItem("ch_soldby_map");
+          const obj = raw ? JSON.parse(raw) : {};
+          return obj?.[code] || "";
+        } catch (e) { return ""; }
+      },
+
+      setSoldByForClient(code, value) {
+        try {
+          const raw = localStorage.getItem("ch_soldby_map");
+          const obj = raw ? JSON.parse(raw) : {};
+          obj[code] = value;
+          localStorage.setItem("ch_soldby_map", JSON.stringify(obj));
+        } catch (e) {}
+      },
+
+      normalizeClientStatus(v) {
+        const s = String(v || "").trim().toUpperCase();
+        if (s.includes("CRITICAL")) return "CRITICAL";
+        if (s.includes("YELLOW") || s.includes("RISK") || s.includes("AT RISK")) return "AT RISK";
+        if (s.includes("GREEN") || s.includes("HEALTHY")) return "HEALTHY";
+        if (s.includes("NOT STARTED") || s.includes("BLUE")) return "NOT STARTED";
+        return s || "UNKNOWN";
+      },
+
+      normalizePackageStatus(v) {
+        const s = String(v || "").trim().toUpperCase();
+        if (s.startsWith("PAUS")) return "PAUSE";
+        if (s.includes("REFUND")) return "REFUNDED";
+        if (s.includes("COMPLET")) return "COMPLETED";
+        if (s.includes("ACTIVE")) return "ACTIVE";
+        return s || "—";
+      },
+
+      statusDotClass(clientStatus) {
+        if (clientStatus === "CRITICAL") return "st-critical";
+        if (clientStatus === "AT RISK") return "st-risk";
+        if (clientStatus === "HEALTHY") return "st-healthy";
+        return "st-new";
+      },
+
+      extractRoofingCompany(c) { return this.pick(c, ["company_name", "roofing_company", "Company Name"], "—"); },
+      extractCityState(c) { return this.pick(c, ["area", "city_state", "Location"], "—"); },
+      extractClientName(c) { return this.pick(c, ["contact_person", "client_name", "Client Name"], "—"); },
+      extractCode(c) { return this.pick(c, ["code_name", "client_code", "Client Code"], "N/A"); },
+
+      buildLeadIndex(leads) {
+        const byCompany = new Map();
+        const byCode = new Map();
+
+        for (const l of (leads || [])) {
+          const company = this.pick(l, ["Company Name","company_name","Client"], "");
+          const companyKey = this.normalizeCompanyName(company);
+          const leadCode = this.pick(l, ["Client Code","CLIENT CODE","Code Name","CODE NAME","Code","CODE"], "");
+          const codeKey = this.normalizeCode(leadCode);
+          const st = this.pick(l, ["Status","STATUS"], "");
+          const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
+          const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+          if (!dt || isNaN(dt.getTime())) continue;
+
+          const push = (map, key) => {
+            if (!key) return;
+            const arr = map.get(key) || [];
+            arr.push({ dt, status: st });
+            map.set(key, arr);
+          };
+
+          push(byCompany, companyKey);
+          push(byCode, codeKey);
+        }
+        return { byCompany, byCode };
+      },
+
+      countQualifiedCreditedFrom(list, startDt) {
+        const out = { qualified: 0, credited: 0 };
+        const start = (startDt && !isNaN(startDt.getTime()))
+          ? new Date(startDt.getFullYear(), startDt.getMonth(), startDt.getDate(), 0, 0, 0, 0)
+          : null;
+
+        for (const item of (list || [])) {
+          if (!item?.dt || isNaN(item.dt.getTime())) continue;
+          if (start && item.dt < start) continue;
+          if (this.isQualified(item.status)) out.qualified += 1;
+          else if (this.isCredited(item.status)) out.credited += 1;
+        }
+        return out;
+      },
+
+      computeOwedRemaining(purchased, qualified) {
+        const p = Number(purchased) || 0;
+        const q = Number(qualified) || 0;
+        return Math.max(p - q, 0);
+      },
+
+      getPurchasedLeads(c) {
+        return Number(this.pick(c, [
+          "purchased_leads","Purchased Leads","PURCHASED LEADS","Purchased",
+          "package_size","Package Size","PACKAGE SIZE"
+        ], 0)) || 0;
+      },
+
+      toggleSort(key) {
+        if (this.sortState.key === key) { this.sortState.dir = this.sortState.dir === "asc" ? "desc" : "asc"; } 
+        else { this.sortState.key = key; this.sortState.dir = "asc"; }
+        document.querySelectorAll(".sort-icon").forEach(i => i.textContent = "↕");
+        const icon = document.getElementById(`sort-${key}`);
+        if (icon) icon.textContent = this.sortState.dir === "asc" ? "↑" : "↓";
+      },
+
+      computeTotalOwedLeads(packageStatus = "all") {
+        const rows = Array.isArray(this.clientHealthRaw) ? this.clientHealthRaw : [];
+        let total = 0;
+        for (const r of rows) {
+          if (packageStatus !== "all" && String(r.packageStatus || "").toUpperCase() !== packageStatus) continue;
+          total += Number(r.owedRemaining) || 0; 
+        }
+        return total;
+      },
+
+      bindOwedLeadsKPI() {
+        const sel = document.getElementById("owed-package-filter");
+        if (!sel || this._owedKpiBound) return;
+        this._owedKpiBound = true;
+        sel.addEventListener("change", () => this.updateOwedLeadsKPI());
+      },
+
+      updateOwedLeadsKPI() {
+        const sel = document.getElementById("owed-package-filter");
+        const val = sel ? sel.value : "all";
+
+        const total = this.computeTotalOwedLeads(val);
+        const el = document.getElementById("pulse-owed");
+        if (el) el.textContent = total;
+
+        const sub = document.getElementById("pulse-owed-sub");
+        if (sub) sub.textContent = (val === "all") ? "All package statuses" : `${val} packages`;
+      },
+
+      setAnalyticsPeriod(period, btnElement) {
+        this.analyticsPeriod = period;
+        if (period !== "custom") { this._customRange.active = false; }
+        if (btnElement) {
+          document.querySelectorAll('.analytics-btn').forEach(b => {
+            b.classList.remove('bg-white', 'shadow', 'text-gray-900');
+            b.classList.add('text-gray-500');
+          });
+          btnElement.classList.add('bg-white', 'shadow', 'text-gray-900');
+          btnElement.classList.remove('text-gray-500');
+        }
+        this.updateAnalytics(period);
+      },
+
+      getRangeFor(period, leads) {
+        const now = new Date();
+        const startOfDay = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+        const endOfDay   = (d) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
+
+        const getPayrollWeekRangeLocal = (d) => {
+          const x = new Date(d);
+          const day = x.getDay(); 
+          const diffToSat = (day - 6);
+          const start = new Date(x);
+          start.setDate(start.getDate() - diffToSat);
+          start.setHours(0,0,0,0);
+          const end = new Date(start);
+          end.setDate(end.getDate() + 6); 
+          end.setHours(23,59,59,999);
+          return { start, end };
+        };
+
+        const payrollThis = window.portal?.getPayrollWeekRange ? window.portal.getPayrollWeekRange() : null;
+        const payrollPrev = window.portal?.getPreviousPayrollWeekRange ? window.portal.getPreviousPayrollWeekRange() : null;
+        const localThis = getPayrollWeekRangeLocal(now);
+        const thisWeekStart = (payrollThis?.start && !isNaN(new Date(payrollThis.start).getTime())) ? new Date(payrollThis.start) : localThis.start;
+        const thisWeekEnd = (payrollThis?.end && !isNaN(new Date(payrollThis.end).getTime())) ? new Date(payrollThis.end) : localThis.end;
+
+        const localPrevStart = new Date(thisWeekStart);
+        localPrevStart.setDate(localPrevStart.getDate() - 7);
+        const localPrev = getPayrollWeekRangeLocal(localPrevStart);
+
+        const prevWeekStart = (payrollPrev?.start && !isNaN(new Date(payrollPrev.start).getTime())) ? new Date(payrollPrev.start) : localPrev.start;
+        const prevWeekEndFinal = (payrollPrev?.end && !isNaN(new Date(payrollPrev.end).getTime())) ? new Date(payrollPrev.end) : localPrev.end;
+
+        if (period === "custom" && this._customRange.active) {
+          return { start: startOfDay(new Date(this._customRange.start + "T00:00:00")), end: endOfDay(new Date(this._customRange.end + "T23:59:59")), grain: "day", label: "Custom Range" };
+        }
+        
+        if (period === "all-time") {
+          const dates = (leads || []).map(l => this.getLeadDateObj(l)).filter(d => d && !isNaN(d.getTime())).sort((a,b) => a - b);
+          if (!dates.length) return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "All-Time" };
+          const start = startOfDay(dates[0]);
+          const end   = endOfDay(dates[dates.length - 1]);
+          return { start, end, grain: "week", label: "All-Time" };
+        }
+
+        if (period === "today") return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "Today" };
+        if (period === "this-week") return { start: startOfDay(thisWeekStart), end: endOfDay(thisWeekEnd), grain: "day", label: "This Week" };
+        if (period === "previous-week") return { start: startOfDay(prevWeekStart), end: endOfDay(prevWeekEndFinal), grain: "day", label: "Previous Week" };
+
+        if (period === "4-weeks") {
+          const end = endOfDay(thisWeekEnd); const start = new Date(end); start.setDate(start.getDate() - 27); start.setHours(0,0,0,0);
+          return { start, end, grain: "week", label: "Last 4 Weeks" };
+        }
+        if (period === "6-weeks") {
+          const end = endOfDay(thisWeekEnd); const start = new Date(end); start.setDate(start.getDate() - 41); start.setHours(0,0,0,0);
+          return { start, end, grain: "week", label: "Last 6 Weeks" };
+        }
+        return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "Today" };
+      },
 
       isQualified(st) { const s = String(st || "").toLowerCase(); return s.includes("confirm") || s.includes("approve"); },
       isRejected(st) { const s = String(st || "").toLowerCase(); return s.includes("reject"); },
@@ -1714,7 +2356,7 @@
       },
 
       _buildBuckets(start, end, grain) {
-        const buckets = []; let cursor = new Date(start); cursor.setHours(0,0,0,0);
+        const buckets = []; cursor = new Date(start); cursor.setHours(0,0,0,0);
         if (grain === "day") { while (cursor <= end) { buckets.push(this._fmtDateKey(cursor)); cursor.setDate(cursor.getDate() + 1); } return buckets; }
         if (grain === "week") { let wkCursor = new Date(this._fmtWeekKey(cursor) + "T00:00:00"); while (wkCursor <= end) { buckets.push(this._fmtDateKey(wkCursor)); wkCursor.setDate(wkCursor.getDate() + 7); } return buckets; }
         return buckets;
@@ -1766,7 +2408,14 @@
         buckets.forEach(b => seriesMap.set(b, { qualified: 0, rejected: 0, credited: 0, pending: 0 }));
 
         const agents = (state && Array.isArray(state.agents)) ? state.agents : [];
-        
+        agents.forEach(a => {
+          const stage = this.getAgentStage(a); 
+          if (stage !== "active") return;
+          const agentName = this.pick(a, ["agent_name", "Employee Name","Name","Agent Name","Full Name","appointment_coordinator_name"], "Unknown");
+          if (!name) return;
+          agentAgg.set(name, { name, total: 0, qualified: 0, rejected: 0, credited: 0, pending: 0 });
+        });
+
         leads.forEach(l => {
           const dt = this.getLeadDateObj(l);
           if (!dt || dt < start || dt > end) return;
@@ -1789,6 +2438,9 @@
 
           agentAgg.set(agent, a);
         });
+
+        const labelEl = document.getElementById("pulse-label");
+        if (labelEl) labelEl.textContent = "EST. VALUE";
 
         const profitEl = document.getElementById("pulse-profit");
         const estValue = qualified * 125;
@@ -1830,45 +2482,274 @@
           pending: buckets.map(b => seriesMap.get(b).pending),
         });
       },
+
+      renderClientCards(clients) {
+        const container = document.getElementById('client-cards-container');
+        if (!container) return;
+        container.innerHTML = (clients || []).map(client => {
+          const code = this.extractCode(client);
+          return `<div class="text-left bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition relative">
+
+            <div onclick="Admin.openPassbookClient('${String(code).replace(/'/g, "\\'")}')" class="cursor-pointer">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-gray-900 text-lg">${this.extractRoofingCompany(client)}</h3>
+                    <span class="text-xs font-bold text-gray-500">${code}</span>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">${this.extractCityState(client)}</p>
+                <p class="text-[10px] font-extrabold text-yellow-600 uppercase tracking-wider mt-3">Click to open</p>
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center relative z-10">
+                
+                <label class="flex items-center text-sm text-gray-600 cursor-pointer">
+                    <input type="checkbox" class="mr-2" 
+                           onchange="toggleShareWithSales('${code}', this)" 
+                           ${client.shared_with_sales ? 'checked' : ''}>
+                    Share with Sales
+                </label>
+
+                <div class="flex items-center gap-2">
+                    <select id="status-select-${client.id}" 
+                            onchange="updateClientStatus('${client.id}', this.value)" 
+                            class="px-2 py-1 rounded-full text-[10px] font-extrabold border outline-none cursor-pointer transition-all shadow-sm ${window.getClientStatusColor ? getClientStatusColor(client.client_status) : ''}">
+                        <option value="Active" ${client.client_status === 'Active' ? 'selected' : ''}>ACTIVE</option>
+                        <option value="Pause" ${client.client_status === 'Pause' ? 'selected' : ''}>PAUSE</option>
+                        <option value="Blacklisted" ${client.client_status === 'Blacklisted' ? 'selected' : ''}>BLACKLISTED</option>
+                        <option value="Inactive" ${client.client_status === 'Inactive' ? 'selected' : ''}>INACTIVE</option>
+                    </select>
+
+                    <button onclick="deletePassbookClient('${client.id}', '${client.company_name}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Client">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+                
+            </div>
+        </div>`;
+        }).join('') || '<div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">No results</div>';
+      },
+
+      openPassbookClient(codeName) { this._openPassbookModalShell(codeName); this._fetchAndRenderPassbookClient(codeName); },
+      _openPassbookModalShell(codeName) {
+        const modal = document.getElementById("passbook-modal"); document.getElementById("codeName").value = codeName;
+        document.getElementById("passbook-modal-sub").textContent = `Code: ${codeName}`;
+        document.getElementById("passbook-form-body").innerHTML = '<div class="p-4 text-sm text-gray-500 italic">Loading...</div>';
+        modal.classList.remove("hidden");
+      },
+      closePassbookModal() { document.getElementById("passbook-modal").classList.add("hidden"); },
+
+      async _fetchAndRenderPassbookClient(codeName) {
+        try {
+          const base = window.portal.webhooks.passbookClientDetails;
+          const url = base.includes("?") ? `${base}&codeName=${encodeURIComponent(codeName)}` : `${base}?codeName=${encodeURIComponent(codeName)}`;
+          const res = await fetch(url, { method: "GET" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const json = await res.json();
+          this._renderPassbookForm(json);
+        } catch (err) {
+          document.getElementById("passbook-form-body").innerHTML = '<div class="p-4 text-red-700">Failed to load details.</div>';
+        }
+      },
+
+      _renderPassbookForm(data) {
+        const raw = data?.client ? data.client : (data || {});
+        const get = (...keys) => {
+          for (const k of keys) {
+            const v = raw?.[k];
+            if (v !== undefined && v !== null && String(v).trim() !== "") return String(v);
+          }
+          return "";
+        };
+
+        const fields = [
+          { label: "Code Name", key: "CODE NAME", keys: ["codeName","CODE NAME","Code Name"] },
+          { label: "Company Name", key: "COMPANY NAME", keys: ["companyName","COMPANY NAME","Company Name"] },
+          { label: "Phone", key: "PHONE", keys: ["phone","PHONE"] },
+          { label: "Contact Person", key: "CONTACT PERSON", keys: ["contactPerson","CONTACT PERSON"] },
+          { label: "Area", key: "AREA", keys: ["area","AREA"] },
+          { label: "Area Codes To Use", key: "AREA CODES TO USE", keys: ["areaCodesToUse","AREA CODES TO USE"] },
+          { label: "Email", key: "EMAIL", keys: ["email","EMAIL"] },
+          { label: "Website", key: "WEBSITE", keys: ["website","WEBSITE"] },
+          { label: "Status", key: "STATUS", keys: ["status","STATUS"] },
+          { label: "Company Address", key: "COMPANY ADDRESS", keys: ["companyAddress","COMPANY ADDRESS","address"] },
+          { label: "Sales Rep Count", key: "SALES REP COUNT", keys: ["salesRepCount","SALES REP COUNT"] },
+          { label: "Regions / Cities / Zip Codes", key: "REGIONS / CITIES / ZIP CODES", keys: ["regions","REGIONS / CITIES / ZIP CODES","REGIONS / CITIES / ZIP CODES "] },
+          { label: "Days of Operation", key: "DAYS OF OPERATION", keys: ["daysOfOperation","DAYS OF OPERATION"] },
+          { label: "Hours of Operation", key: "HOURS OF OPERATION", keys: ["hoursOfOperation","HOURS OF OPERATION"] },
+          { label: "Appointment Interval", key: "APPT INTERVAL", keys: ["appointmentInterval","APPT INTERVAL","APPOINTMENT INTERVAL"] },
+          { label: "Roof Types", key: "ROOF TYPES", keys: ["roofTypes","ROOF TYPES"] },
+          { label: "Leads Per Day Limit", key: "LEADS PER DAY LIMIT", keys: ["leadsPerDayLimit","LEADS PER DAY LIMIT"] },
+          { label: "Double Bookings", key: "DOUBLE BOOKINGS", keys: ["doubleBookings","DOUBLE BOOKINGS"] },
+          { label: "Additional Notes / Requests", key: "ADDITIONAL NOTES / REQUESTS", keys: ["additionalNotes","ADDITIONAL NOTES / REQUESTS","notes"] },
+          { label: "Last Updated", key: "LAST UPDATED", keys: ["lastUpdated","LAST UPDATED"] },
+          { label: "Updated By", key: "UPDATED BY", keys: ["updatedBy","UPDATED BY"] },
+        ];
+
+        const liveSheet = get("liveSheet","Live Sheet","LIVE SHEET");
+        const codeName = get("codeName","CODE NAME","Code Name") || "—";
+        const companyName = get("companyName","COMPANY NAME","Company Name","company_name") || "Unknown";
+        const cityState = get("cityState","CITY/STATE","City/State","Location") || "—";
+
+        document.getElementById("passbook-modal-title").textContent = companyName;
+        document.getElementById("passbook-modal-sub").textContent = `Code: ${codeName} • ${cityState}`;
+        document.getElementById("codeName").value = codeName;
+
+        let html = `
+          <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+              <div>
+                <div class="text-xl font-black text-gray-900">${companyName}</div>
+                <div class="text-sm text-gray-500 mt-1">${cityState}</div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="px-3 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-extrabold">${codeName}</span>
+                ${
+                  liveSheet
+                    ? `<a href="${liveSheet}" target="_blank" class="px-3 py-1 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">Open Live Sheet</a>`
+                    : `<span class="px-3 py-1 rounded-lg bg-gray-100 text-gray-500 text-xs font-extrabold">No Live Sheet</span>`
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        `;
+
+        for (const f of fields) {
+          const value = get(...f.keys);
+          const safe = value.replace(/"/g, "&quot;");
+
+          if (f.label === "Website" && value) {
+            html += `<div><label class="block text-[10px] font-bold text-gray-500 uppercase">${f.label}</label><a href="${safe}" target="_blank" class="text-sm text-blue-600 underline break-words">${safe}</a></div>`;
+            continue;
+          }
+
+          const isLong = ["Additional Notes / Requests", "Regions / Cities / Zip Codes"].includes(f.label);
+
+          html += `
+            <div>
+              <label class="block text-[10px] font-bold text-gray-500 uppercase">${f.label}</label>
+              ${
+                isLong
+                  ? `<textarea class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm h-24" name="${f.key}">${safe}</textarea>`
+                  : `<input class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" name="${f.key}" value="${safe}">`
+              }
+            </div>
+          `;
+        }
+
+        html += `</div>`;
+        document.getElementById("passbook-form-body").innerHTML = html;
+      },
+
+      renderLeads(leads) {
+        const tbody = document.getElementById('leads-table-body');
+        const thead = document.getElementById('leads-table-head');
+        if(!tbody || !thead) return;
+        
+        this.initLeadsColumnsUI();
+        const visibleCols = this._leadsCols.filter(c => this._leadsVisibleCols.has(c.key));
+        
+        thead.innerHTML = `<tr>${visibleCols.map(c => `<th class="p-4">${c.label}</th>`).join("")}<th class="p-4 text-center">Actions</th></tr>`;
+        
+        tbody.innerHTML = leads.map(l => {
+          const leadId = this.getLeadField(l, ["LEAD ID", "lead_id", "ID"], "unknown");
+          
+          return `<tr class="hover:bg-gray-50 transition-colors">
+            ${visibleCols.map(c => {
+              const rawVal = this.getLeadField(l, c.keys);
+              
+              if (c.key === "status") {
+                const safeVal = String(rawVal).toUpperCase();
+                let bg = "bg-gray-100 text-gray-700";
+                if (safeVal.includes("APPROV") || safeVal.includes("CONFIRM")) bg = "bg-emerald-100 text-emerald-800 border-emerald-200";
+                if (safeVal.includes("REJECT") || safeVal.includes("CREDIT")) bg = "bg-red-100 text-red-800 border-red-200";
+                
+                return `<td class="p-4">
+                  <select onchange="updateLeadStatus('${leadId}', this.value)" class="px-2 py-1 rounded-full text-xs font-extrabold border outline-none cursor-pointer hover:shadow-md transition-all ${bg}">
+                    <option value="PENDING REVIEW" ${safeVal.includes("PENDING") ? "selected" : ""}>PENDING REVIEW</option>
+                    <option value="APPROVED" ${safeVal.includes("APPROV") || safeVal.includes("CONFIRM") ? "selected" : ""}>APPROVED</option>
+                    <option value="REJECTED" ${safeVal.includes("REJECT") ? "selected" : ""}>REJECTED</option>
+                    <option value="CREDITED" ${safeVal.includes("CREDIT") ? "selected" : ""}>CREDITED</option>
+                  </select>
+                </td>`;
+              }
+              
+              return `<td class="p-4">${rawVal}</td>`;
+            }).join("")}
+            
+            <td class="p-4 text-center">
+              <button onclick="deleteLead('${leadId}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Lead">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </td>
+          </tr>`;
+        }).join("");
+      },
+
+      setupPassbookFilters(clients) {
+        const locs = [...new Set((clients || []).map(c => this.extractCityState(c)).filter(Boolean))].sort();
+        document.getElementById("passbook-filter-location").innerHTML = `<option value="all">All Locations</option>` + locs.map(l => `<option value="${l}">${l}</option>`).join("");
+      },
       
-      bindOverviewAnalyticsUI() {
-        if (this._overviewBound) return;
-        this._overviewBound = true;
+      getClientSortNumber(code) {
+        const s = String(code || "");
+        const m = s.match(/(\d+)/);
+        return m ? parseInt(m[1], 10) : 999999;
+      },
 
-        const toggle = document.getElementById("custom-range-toggle");
-        const pop = document.getElementById("custom-range-popover");
-        const apply = document.getElementById("custom-apply");
-        const clear = document.getElementById("custom-clear");
+      applyPassbookFilters(clients) {
+        const q = String(document.getElementById("passbook-search")?.value || "").toLowerCase().trim();
+        const loc = document.getElementById("passbook-filter-location")?.value || "all";
 
-        if (toggle && pop) {
-          toggle.addEventListener("click", (e) => { e.preventDefault(); pop.classList.toggle("hidden"); });
-          document.addEventListener("click", (e) => {
-            if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) pop.classList.add("hidden");
-          });
+        let rows = (clients || []).filter(c => (loc === "all" || this.extractCityState(c) === loc));
+
+        if (q) {
+          rows = rows.filter(c => 
+            `${this.extractRoofingCompany(c)} ${this.extractCode(c)} ${this.extractCityState(c)}`
+              .toLowerCase()
+              .includes(q)
+          );
         }
 
-        if (apply) {
-          apply.addEventListener("click", () => {
-            const s = document.getElementById("custom-start")?.value;
-            const e = document.getElementById("custom-end")?.value;
-            if (!s || !e) return;
-            this._customRange.active = true;
-            this._customRange.start = s;
-            this._customRange.end = e;
-            this.setAnalyticsPeriod("custom", null);
-            this._setCustomActive("custom-range-toggle", true);
-            pop?.classList.add("hidden");
-          });
-        }
+        rows.sort((a,b) => this.getClientSortNumber(this.extractCode(a)) - this.getClientSortNumber(this.extractCode(b)));
+        document.getElementById("passbook-count").textContent = rows.length;
 
-        if (clear) {
-          clear.addEventListener("click", () => {
-            document.getElementById("custom-start").value = "";
-            document.getElementById("custom-end").value = "";
-            this._customRange.active = false;
-            this.setAnalyticsPeriod("today", document.querySelector('.analytics-btn'));
-            this._setCustomActive("custom-range-toggle", false);
-            pop?.classList.add("hidden");
+        if (this._passbookView === "list") this.renderPassbookList(rows);
+        else this.renderClientCards(rows);
+      },
+
+      renderPassbookList(clients) {
+        document.getElementById("passbook-list-body").innerHTML = (clients || []).map(client => `<tr class="hover:bg-gray-50"><td class="p-4">${this.extractCode(client)}</td><td class="p-4 font-bold">${this.extractRoofingCompany(client)}</td><td class="p-4">${this.extractCityState(client)}</td><td class="p-4">${this.extractClientName(client)}</td><td class="p-4 text-right"><div style="display:inline-flex; align-items:center; gap:8px; margin-right:15px;">
+<select id="status-select-${client.id}" 
+        onchange="updateClientStatus('${client.id}', this.value)" 
+        class="px-2 py-1 rounded-full text-[10px] font-extrabold border outline-none cursor-pointer transition-all shadow-sm ${window.getClientStatusColor ? getClientStatusColor(client.client_status) : ''}">
+    <option value="Active" ${client.client_status === 'Active' ? 'selected' : ''}>ACTIVE</option>
+    <option value="Pause" ${client.client_status === 'Pause' ? 'selected' : ''}>PAUSE</option>
+    <option value="Blacklisted" ${client.client_status === 'Blacklisted' ? 'selected' : ''}>BLACKLISTED</option>
+    <option value="Inactive" ${client.client_status === 'Inactive' ? 'selected' : ''}>INACTIVE</option>
+</select>
+
+<button onclick="deletePassbookClient('${client.id}', '${client.company_name}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Client">
+    <i class="fa-solid fa-trash-can"></i>
+</button>
+</div><div class="sales-share-toggle" style="display:inline-block; margin-right:10px;"><label><input type="checkbox" class="share-checkbox" onchange="toggleShareWithSales('${this.extractCode(client)}', this)" ${client.shared_with_sales ? 'checked' : ''}> Share with Sales</label></div><button class="px-3 py-1 rounded bg-gray-900 text-white text-xs" onclick="Admin.openPassbookClient('${this.extractCode(client)}')">Open</button></td></tr>`).join("");
+      },
+
+      bindPassbookUI(clients) {
+        if (this._passbookFiltersBound) return; this._passbookFiltersBound = true;
+        document.getElementById("passbook-view-cards").addEventListener("click", () => { this._passbookView="cards"; this.applyPassbookFilters(clients); });
+        document.getElementById("passbook-view-list").addEventListener("click", () => { this._passbookView="list"; this.applyPassbookFilters(clients); });
+        document.getElementById("passbook-search").addEventListener("input", () => this.applyPassbookFilters(clients));
+        document.getElementById("passbook-filter-location").addEventListener("change", () => this.applyPassbookFilters(clients));
+        
+        const clearBtn = document.getElementById("passbook-clear");
+        if (clearBtn) {
+          clearBtn.addEventListener("click", () => {
+            const s = document.getElementById("passbook-search"); if (s) s.value = "";
+            const l = document.getElementById("passbook-filter-location"); if (l) l.value = "all";
+            this._passbookView = "cards";
+            document.getElementById("passbook-list-wrap").classList.add("hidden");
+            this.applyPassbookFilters(clients);
           });
         }
       },
@@ -1966,7 +2847,10 @@
       },
       
       getAgentStage(agent) {
-        const s = String(this.pick(agent, ["employment_status", "Employment Status", "Stage", "Status"], "active")).toLowerCase().trim();
+        const s = String(this.pick(agent, [
+          "employment_status", "Employment Status", "Stage", "Status"
+        ], "active")).toLowerCase().trim();
+
         if (s.includes("active")) return "active";
         if (s.includes("onboard")) return "onboarding";
         if (s.includes("offboard")) return "offboarded";
@@ -2023,16 +2907,23 @@
         const stageFilter = document.getElementById("team-stage-filter")?.value || "active";
         const warnedFilter = document.getElementById("team-warned-filter")?.value || "all";
 
-        // ONLY SHOW ACTIVE AGENTS. Exclude Admin, Offboarded, etc.
-        const uniqueAgentNames = new Set();
-        agents.forEach(a => {
-            if (a) {
-                const status = String(a.employment_status || a.Status || "").toLowerCase().trim();
-                const role = String(a.role || a.Role || "").toLowerCase().trim();
-                if (status === "active" && role !== "admin" && (a.name || a.agent_name)) {
-                    uniqueAgentNames.add(String(a.name || a.agent_name).trim());
-                }
-            }
+        // ONLY SHOW ACTIVE AGENTS (Exclude Admin, Offboarded, Resigned)
+        let activeAgentsOnly = agents.filter(a => {
+            const status = String(a.employment_status || "").toLowerCase().trim();
+            const role = String(a.role || "").toLowerCase().trim();
+            return status === "active" && role !== "admin";
+        });
+
+        let rows = activeAgentsOnly.map(a => {
+          const agentName = this.pick(a, ["agent_name", "Employee Name", "Name"], "Unknown");
+          const warned = this.isAgentWarned(a);
+
+          return {
+            name: agentName,
+            stage: "active",
+            warned,
+            ...this._computeAgentMetrics(agentName, leads, start, end)
+          };
         });
 
         let rows = Array.from(uniqueAgentNames).map(agentName => {
@@ -2276,7 +3167,7 @@
         const weekSelect = document.getElementById("payroll-week-select");
         if (weekSelect && weeks.length > 0) {
             if (weekSelect.options.length === 0 || weekSelect.options[0].value === "latest" || weekSelect.options[0].value === "") {
-                weekSelect.innerHTML = weeks.filter(w => w).map(w => `<option value="${w}">${this.getPayrollWeekRangeLabel(w)}</option>`).join("");
+                weekSelect.innerHTML = weeks.map(w => `<option value="${w}">${this.getPayrollWeekRangeLabel(w)}</option>`).join("");
             }
         }
 
@@ -2412,7 +3303,7 @@
           const agentLogs = {};
           
           sorted.forEach(e => {
-              const mstDt = this.toMST(e.created_at); // Convert Supabase UTC to MST
+              const mstDt = window.portal && window.portal.toMST ? window.portal.toMST(e.created_at) : new Date(e.created_at);
               if (mstDt >= weekStartMST && mstDt <= weekEndMST) {
                   const ag = String(e.agent_name || "").toLowerCase();
                   if (!agentLogs[ag]) agentLogs[ag] = [];
@@ -2526,7 +3417,7 @@
       getLeadPayrollWeekStart(l) {
         let dt = this.getLeadDateObj(l);
         if (!dt) return "";
-        dt = this.toMST(dt); 
+        if (window.portal && window.portal.toMST) dt = window.portal.toMST(dt); 
         const day = dt.getDay(); 
         const diff = (day === 6) ? 0 : day + 1; 
         dt.setDate(dt.getDate() - diff);
