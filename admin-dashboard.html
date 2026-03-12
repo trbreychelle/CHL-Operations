@@ -2820,7 +2820,7 @@
         weekEndDt.setDate(weekEndDt.getDate() + 6);
         weekEndDt.setHours(23, 59, 59, 999);
 
-        // Inject dynamic dates into the table headers
+        // INJECT DATES INTO TABLE HEADERS
         const dayNames = ['sat', 'sun', 'mon', 'tue', 'wed', 'thu', 'fri'];
         dayNames.forEach((dName, i) => {
             const el = document.getElementById(`head-date-${dName}`);
@@ -2831,12 +2831,10 @@
             }
         });
 
-        // Auto Calculate Hours in MST!
         const autoHours = this._calculateHoursFromEvents(timeEvents, selectedWeek);
 
         let weekRows = byWeek.get(selectedWeek) || [];
         
-        // Ensure ALL ACTIVE AGENTS are listed in payroll, even if they had 0 leads this week
         const activeAgents = agents.filter(a => {
             if (!a) return false;
             const status = String(a.employment_status || a.Status || "").toLowerCase().trim();
@@ -2851,12 +2849,15 @@
             }
         });
 
-        // Sort alphabetically
         weekRows.sort((a,b) => a.agent.localeCompare(b.agent));
 
         let notificationsHTML = "";
         let totalAutoBonus = 0, totalManualBonus = 0, grandTotalPay = 0;
-        let totalQual = 0, totalUnqual = 0;
+        
+        const getAgentWeekStats = (weekStr, agentName) => {
+            const r = byWeek.get(weekStr) || [];
+            return r.find(x => x.agent === agentName) || { qualified: 0, unqualified: 0 };
+        };
 
         const tbody = document.getElementById("payroll-ledger-body");
         
@@ -2865,13 +2866,43 @@
         } else {
             tbody.innerHTML = weekRows.map(r => {
                 const cancelRate = (r.qualified + r.unqualified > 0) ? (r.unqualified / (r.qualified + r.unqualified)) * 100 : 0;
-                const bonus = this.calculateTieredBonus(r.qualified, cancelRate);
+                let bonus = this.calculateTieredBonus(r.qualified, cancelRate);
 
-                totalQual += r.qualified;
-                totalUnqual += r.unqualified;
+                // --- 1. CONSISTENCY INCENTIVE ($100 for 4 weeks of 8+) ---
+                let consistencyBonus = 0;
+                const weekIndex = weeks.indexOf(selectedWeek);
+                if (weekIndex >= 0 && weekIndex + 3 < weeks.length) {
+                    let hitStreak = true;
+                    for(let i=0; i<4; i++) {
+                        const pastStats = getAgentWeekStats(weeks[weekIndex + i], r.agent);
+                        if (pastStats.qualified < 8) hitStreak = false;
+                    }
+                    if (hitStreak) consistencyBonus = 100;
+                }
+                bonus += consistencyBonus;
 
-                if (r.qualified >= 9 && cancelRate < 20) {
-                    notificationsHTML += `<div class="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-800 font-bold">🎟️ ${r.agent} earned 1 Raffle Entry (${r.qualified} apts, ${cancelRate.toFixed(1)}% cx)!</div>`;
+                // --- 2. MONTHLY RAFFLE TRACKER ---
+                let raffleMsg = "";
+                if (r.qualified >= 9) {
+                    const monthPrefix = selectedWeek.substring(0, 7);
+                    let mQ = 0, mU = 0;
+                    weeks.forEach(wk => {
+                        if (wk.startsWith(monthPrefix)) {
+                            const mStats = getAgentWeekStats(wk, r.agent);
+                            mQ += mStats.qualified; mU += mStats.unqualified;
+                        }
+                    });
+                    const mCx = (mQ + mU > 0) ? (mU / (mQ + mU)) * 100 : 0;
+                    if (mCx < 20) raffleMsg = `<span class="text-blue-700 ml-2">🎟️ Earned Raffle Ticket! (Mo CX: ${mCx.toFixed(1)}%)</span>`;
+                    else raffleMsg = `<span class="text-red-500 ml-2">❌ Raffle Void (Mo CX: ${mCx.toFixed(1)}%)</span>`;
+                }
+
+                // Alerts Push
+                let alerts = [];
+                if (consistencyBonus > 0) alerts.push("🔥 $100 Consistency Bonus!");
+                if (raffleMsg) alerts.push(raffleMsg);
+                if (alerts.length > 0) {
+                    notificationsHTML += `<div class="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-800 font-bold">${r.agent}: ${alerts.join(' | ')}</div>`;
                 }
 
                 const memKey = `pay_${selectedWeek}_${r.agent.replace(/\s/g,'_')}`;
@@ -2879,9 +2910,39 @@
                 
                 const dbAgent = agents.find(a => a && String(a.agent_name || "").toLowerCase() === r.agent.toLowerCase()) || {};
                 
-                // FIX: Strips out the '$' from base_rate so JS can do the math properly
-                const parseRate = (val) => Number(String(val).replace(/[^0-9.]/g, '')) || 5.00;
-                const dbRate = parseRate(dbAgent.effective_hourly_rate || dbAgent.base_rate || 5);
+                // FIX $NaN: Strips out the '$' from base_rate
+                let dbRate = Number(String(dbAgent.effective_hourly_rate || dbAgent.base_rate || "5.00").replace(/[^0-9.]/g, '')) || 5.00;
+
+                // --- 3. TENURE RAISES (90 Days & 1 Year) ---
+                if (dbAgent.start_date) {
+                    const startDt = new Date(dbAgent.start_date);
+                    const daysTenure = (weekEndDt - startDt) / (1000 * 60 * 60 * 24);
+                    
+                    if (daysTenure >= 90) {
+                        let lQ = 0, lU = 0, wksWorked = 0, wksHit8 = 0;
+                        for (let i = weekIndex; i < weeks.length; i++) {
+                            const wS = getAgentWeekStats(weeks[i], r.agent);
+                            const hrsWk = this._calculateHoursFromEvents(timeEvents, weeks[i]);
+                            const aHrs = hrsWk[r.agent.toLowerCase()] || {};
+                            const totHrs = (aHrs.m||0)+(aHrs.t||0)+(aHrs.w||0)+(aHrs.th||0)+(aHrs.f||0)+(aHrs.sa||0)+(aHrs.su||0);
+                            
+                            if (wS.qualified > 0 || wS.unqualified > 0 || totHrs > 0) { 
+                                wksWorked++; lQ += wS.qualified; lU += wS.unqualified;
+                                if (wS.qualified >= 8) wksHit8++;
+                            }
+                        }
+                        const lCx = (lQ + lU > 0) ? (lU / (lQ + lU)) : 0;
+                        const hitRate = wksWorked > 0 ? (wksHit8 / wksWorked) : 0;
+
+                        if (daysTenure >= 365) {
+                             dbRate += 0.75;
+                             if (lCx < 0.20) dbRate += 0.75; 
+                        } else if (daysTenure >= 90 && hitRate >= 0.75) {
+                             dbRate += 0.50;
+                             if (lCx < 0.20) dbRate += 0.25; 
+                        }
+                    }
+                }
 
                 const savedData = JSON.parse(localStorage.getItem(memKey)) || { 
                     rate: dbRate, m: autoAgentHrs.m, t: autoAgentHrs.t, w: autoAgentHrs.w, th: autoAgentHrs.th, f: autoAgentHrs.f, sa: autoAgentHrs.sa, su: autoAgentHrs.su, manual: 0, paid: false 
@@ -2949,15 +3010,11 @@
           const weekEndMST = new Date(y, m-1, d, 23, 59, 59);
           weekEndMST.setDate(weekEndMST.getDate() + 6); 
 
-          // FIX: Look at 'occurred_at' instead of 'created_at'
-          const sorted = [...events].sort((a,b) => {
-              const dateA = new Date(a.occurred_at || a.created_at || 0);
-              const dateB = new Date(b.occurred_at || b.created_at || 0);
-              return dateA - dateB;
-          });
+          const sorted = [...events].sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
           const agentLogs = {};
           
           sorted.forEach(e => {
+              // FIX: Look at 'occurred_at' instead of 'created_at'
               const timestamp = e.occurred_at || e.created_at;
               if (!timestamp) return;
 
@@ -3096,13 +3153,14 @@
             "agent_name", "Appointment Coordinator Name", "Appointment Coordinator", "Setter", "Agent", "Agent Name"
           ], "Unknown")).trim() || "Unknown";
 
-          const status = this.pick(l, ["Status","STATUS"], "");
+          // FIX: Looks for lowercase "status" to match Supabase
+          const status = String(this.pick(l, ["status", "Status", "STATUS", "Lead_Status"], "")).toLowerCase();
           const k = `${week}||${agent}`;
 
           const agg = weekAgentMap.get(k) || { week, agent, qualified: 0, unqualified: 0 };
 
-          if (this.isQualified(status)) agg.qualified += 1;
-          else if (this.isCredited(status)) agg.unqualified += 1;
+          if (status.includes("confirm") || status.includes("approv")) agg.qualified += 1;
+          else if (status.includes("credit") || status.includes("reject")) agg.unqualified += 1;
 
           weekAgentMap.set(k, agg);
         }
