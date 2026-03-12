@@ -2507,11 +2507,35 @@
         this.renderTeam();
       },
 
+      // --- SMART NAME MATCHER ---
+      getOfficialAgentName(rawName) {
+          const agents = window.portal?.adminState?.agents || [];
+          let typed = String(rawName || "").toLowerCase().trim();
+          if (!typed || typed === "unknown") return "Unknown";
+
+          // 1. Check for Exact Match
+          let match = agents.find(a => String(a.agent_name || a.name || "").toLowerCase().trim() === typed);
+          
+          // 2. Check for Partial Match ("Jane Tobias" inside "Charo Jane Tobias")
+          if (!match) {
+              match = agents.find(a => {
+                  const official = String(a.agent_name || a.name || "").toLowerCase().trim();
+                  return official && (official.includes(typed) || typed.includes(official));
+              });
+          }
+
+          if (match) return String(match.agent_name || match.name || "").trim();
+          
+          // Fallback if not found
+          return typed.replace(/\b\w/g, char => char.toUpperCase());
+      },
+
       _computeAgentMetrics(name, leads, start, end) {
         const inRange = leads.filter(l => {
-          const a = this.pick(l, ["appointment_coordinator_name", "Appointment Coordinator Name", "agent_name", "Agent Name", "AGENT"], "");
+          const rawA = this.pick(l, ["appointment_coordinator_name", "Appointment Coordinator Name", "agent_name", "Agent Name", "AGENT"], "");
+          const a = this.getOfficialAgentName(rawA); // <-- USES SMART MATCHER
           const dt = this.getLeadDateObj(l);
-          return dt && dt >= start && dt <= end && String(a).trim().toLowerCase() === String(name).trim().toLowerCase();
+          return dt && dt >= start && dt <= end && a.toLowerCase() === String(name).trim().toLowerCase();
         });
 
         let q = 0, c = 0, r = 0, p = 0;
@@ -2524,17 +2548,9 @@
           else { p++; }
         });
 
-        return { 
-          total: inRange.length, 
-          qualified: q, 
-          credited: c, 
-          rejected: r, 
-          pending: p, 
-          cancelRate: (q + c > 0) ? Math.round((c / (q + c)) * 100) : 0, 
-          leads: inRange 
-        };
+        return { total: inRange.length, qualified: q, credited: c, rejected: r, pending: p, cancelRate: (q + c > 0) ? Math.round((c / (q + c)) * 100) : 0, leads: inRange };
       },
-
+      
       renderTeam() {
         const state = this.getState();
         const leads = Array.isArray(state?.leads) ? state.leads : [];
@@ -3020,17 +3036,24 @@
           const weekEndMST = new Date(y, m-1, d, 23, 59, 59);
           weekEndMST.setDate(weekEndMST.getDate() + 6); 
 
-          const sorted = [...events].sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+          const sorted = [...events].sort((a,b) => {
+              const dateA = new Date(a.occurred_at || a.created_at || 0);
+              const dateB = new Date(b.occurred_at || b.created_at || 0);
+              return dateA - dateB;
+          });
+          
           const agentLogs = {};
           
           sorted.forEach(e => {
-              // FIX: Look at 'occurred_at' instead of 'created_at'
               const timestamp = e.occurred_at || e.created_at;
               if (!timestamp) return;
 
               const mstDt = window.portal && window.portal.toMST ? window.portal.toMST(timestamp) : new Date(timestamp);
               if (mstDt >= weekStartMST && mstDt <= weekEndMST) {
-                  const ag = String(e.agent_name || "").toLowerCase();
+                  // USES SMART MATCHER to fix "Jane Tobias" -> "Charo Jane Tobias"
+                  const rawAg = String(e.agent_name || "");
+                  const ag = this.getOfficialAgentName(rawAg).toLowerCase();
+                  
                   if (!agentLogs[ag]) agentLogs[ag] = [];
                   agentLogs[ag].push({ ...e, mstDt });
               }
@@ -3054,14 +3077,9 @@
                       const action = String(l.action).trim().toLowerCase();
                       const time = l.mstDt.getTime();
 
-                      if (action === 'clock in' || action === 'resume') {
-                          lastIn = time;
-                      } 
+                      if (action === 'clock in' || action === 'resume') { lastIn = time; } 
                       else if (action === 'clock out' || action === 'break start') {
-                          if (lastIn) {
-                              totalMs += (time - lastIn);
-                              lastIn = null;
-                          }
+                          if (lastIn) { totalMs += (time - lastIn); lastIn = null; }
                       }
                   });
                   
@@ -3155,20 +3173,26 @@
         const weekAgentMap = new Map(); 
 
         for (const l of rows) {
-          const week = this.getLeadPayrollWeekStart(l);
-          if (!week) continue;
+          const dStr = this.pick(l, ["Date Submitted", "date_submitted", "DATE", "created_at"], "");
+          const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+          if (!dt || isNaN(dt.getTime())) continue;
+
+          let mstDt = window.portal && window.portal.toMST ? window.portal.toMST(dt) : dt; 
+          const day = mstDt.getDay(); 
+          const diff = (day === 6) ? 0 : day + 1; 
+          mstDt.setDate(mstDt.getDate() - diff);
+          const week = `${mstDt.getFullYear()}-${String(mstDt.getMonth()+1).padStart(2,"0")}-${String(mstDt.getDate()).padStart(2,"0")}`;
           weekSet.add(week);
 
-          // FIX: Added 'appointment_coordinator_name' for Supabase
-          let agent = String(this.pick(l, [
+          const rawAgent = String(this.pick(l, [
             "appointment_coordinator_name", "Appointment Coordinator Name", "agent_name", "Agent Name", "Setter", "Agent"
-          ], "Unknown")).trim() || "Unknown";
+          ], "Unknown")).trim();
 
-          // Format agent name so "aly taha" becomes "Aly Taha" to match your roster perfectly
-          agent = agent.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
+          // USES SMART MATCHER
+          const agent = this.getOfficialAgentName(rawAgent);
 
-          const status = String(this.pick(l, ["Status","STATUS", "status"], "")).toLowerCase();
-          const k = `${week}||${agent}`;
+          const status = String(this.pick(l, ["status", "Status", "STATUS", "Lead_Status"], "")).toLowerCase();
+          const k = `${week}||${agent.toLowerCase()}`;
 
           const agg = weekAgentMap.get(k) || { week, agent, qualified: 0, unqualified: 0 };
 
@@ -3183,14 +3207,20 @@
 
         for (const v of weekAgentMap.values()) {
           const arr = byWeek.get(v.week) || [];
-          arr.push(v);
+          // Group overlaps together safely
+          const existing = arr.find(x => x.agent.toLowerCase() === v.agent.toLowerCase());
+          if (existing) {
+              existing.qualified += v.qualified;
+              existing.unqualified += v.unqualified;
+          } else {
+              arr.push(v);
+          }
           byWeek.set(v.week, arr);
         }
 
         for (const [wk, arr] of byWeek.entries()) {
           arr.sort((a,b) => (b.qualified - a.qualified) || ((b.qualified+b.unqualified) - (a.qualified+a.unqualified)) || a.agent.localeCompare(b.agent));
         }
-
         return { weeks, byWeek };
       },
 
