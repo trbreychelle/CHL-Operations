@@ -2975,24 +2975,62 @@
       },
 
       async dailyAdd(code) {
-          if (!supaClient) return alert("Database connection missing.");
-          await supaClient.from('clients').update({ is_serving: true, daily_agents: "", daily_goal: 0 }).eq('code_name', code);
-          if (window.portal) window.portal.fetchAdminData(true);
+          // 1. Instant UI Update (No waiting!)
+          const client = this.clientHealthRaw.find(c => c.code === code);
+          if (client) {
+              client.isServing = true;
+              client.dailyAgents = "";
+              client.dailyGoal = 0;
+              this.renderDailyTab(); 
+          }
+
+          // 2. Background Sync using exact Row ID
+          if (!supaClient || !client || !client._raw.id) return;
+          const { error } = await supaClient
+              .from('clients')
+              .update({ is_serving: true, daily_agents: "", daily_goal: 0 })
+              .eq('id', client._raw.id);
+              
+          if (error) console.error("Database Update Error:", error);
       },
 
       async dailyRemove(code) {
-          if (!supaClient) return alert("Database connection missing.");
-          await supaClient.from('clients').update({ is_serving: false }).eq('code_name', code);
-          if (window.portal) window.portal.fetchAdminData(true);
+          // 1. Instant UI Update
+          const client = this.clientHealthRaw.find(c => c.code === code);
+          if (client) {
+              client.isServing = false;
+              this.renderDailyTab();
+          }
+
+          // 2. Background Sync using exact Row ID
+          if (!supaClient || !client || !client._raw.id) return;
+          const { error } = await supaClient
+              .from('clients')
+              .update({ is_serving: false })
+              .eq('id', client._raw.id);
+              
+          if (error) console.error("Database Update Error:", error);
       },
 
       async dailyUpdate(code, field, value) {
-          if (!supaClient) return alert("Database connection missing.");
+          const client = this.clientHealthRaw.find(c => c.code === code);
+          if (!client) return;
+
+          // 1. Instant UI Update in local memory
+          if (field === 'daily_goal') client.dailyGoal = Number(value) || 0;
+          if (field === 'daily_agents') client.dailyAgents = value;
+
+          // 2. Background Sync using exact Row ID
+          if (!supaClient || !client._raw.id) return;
           const payload = {};
           payload[field] = field === 'daily_goal' ? (Number(value) || 0) : value;
           
-          await supaClient.from('clients').update(payload).eq('code_name', code);
-          if (window.portal) window.portal.fetchAdminData(true);
+          const { error } = await supaClient
+              .from('clients')
+              .update(payload)
+              .eq('id', client._raw.id);
+              
+          if (error) console.error("Database Update Error:", error);
       },
       
       // --- PAYROLL MATH & LOGIC (STRICTLY MST TIMEZONE) ---
