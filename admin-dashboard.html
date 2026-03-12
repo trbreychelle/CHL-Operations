@@ -1360,7 +1360,10 @@
             purchaseDate: activePkg.purchase_date || "—",
             leadsToday: todayCount,
             leadsYesterday: yesterdayCount,
-            lastLead: lastLeadDate ? window.portal.formatDate(lastLeadDate) : "—"
+            lastLead: lastLeadDate ? window.portal.formatDate(lastLeadDate) : "—",
+            isServing: c.is_serving === true || c.is_serving === 'true',
+            dailyAgents: c.daily_agents || "",
+            dailyGoal: Number(c.daily_goal) || 0
           };
         });
       },
@@ -2862,8 +2865,7 @@
         });
         document.getElementById("daily-agent-status-list").innerHTML = statusHtml;
 
-        // 2. Render Client Board
-        const savedState = JSON.parse(localStorage.getItem('ch_daily_serving') || '{}');
+        // 2. Render Client Board (DATABASE SYNCED)
         const poolEl = document.getElementById("daily-client-pool");
         const serveEl = document.getElementById("daily-serving-board");
         const searchTerm = (document.getElementById("daily-pool-search")?.value || "").toLowerCase();
@@ -2893,10 +2895,10 @@
                 }
             });
 
-            if (savedState[c.code]) {
+            // NOW CHECKS SUPABASE INSTEAD OF LOCAL BROWSER MEMORY
+            if (c.isServing) {
                 // IT IS ON THE SERVING BOARD
-                const data = savedState[c.code];
-                const goal = Number(data.goal) || 0;
+                const goal = c.dailyGoal;
                 const goalMet = goal > 0 && todaysApproved >= goal;
 
                 serveHtml += `
@@ -2912,11 +2914,11 @@
                     <div class="flex-1 flex flex-col gap-3">
                         <div>
                             <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Assigned Agents</label>
-                            <textarea onchange="Admin.dailyUpdate('${c.code}', 'agents', this.value)" placeholder="• John&#10;• Mary" class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded focus:ring-2 focus:ring-blue-400 outline-none resize-none" rows="3">${data.agents || ''}</textarea>
+                            <textarea onchange="Admin.dailyUpdate('${c.code}', 'daily_agents', this.value)" placeholder="• John&#10;• Mary" class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded focus:ring-2 focus:ring-blue-400 outline-none resize-none" rows="3">${c.dailyAgents}</textarea>
                         </div>
                         <div>
                             <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Goal</label>
-                            <input type="number" onchange="Admin.dailyUpdate('${c.code}', 'goal', this.value)" value="${goal || ''}" placeholder="0" class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded focus:ring-2 focus:ring-blue-400 outline-none text-center font-bold">
+                            <input type="number" onchange="Admin.dailyUpdate('${c.code}', 'daily_goal', this.value)" value="${goal || ''}" placeholder="0" class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded focus:ring-2 focus:ring-blue-400 outline-none text-center font-bold">
                         </div>
                     </div>
 
@@ -2930,10 +2932,16 @@
                 </div>`;
             } else {
                 // IT IS IN THE POOL
-                // 1. Filter by Search
+                // 1. Filter out clients with 0 owed leads
+                if (c.owedRemaining <= 0) return;
+                
+                // 2. Only show Ongoing or Paused
+                if (c.packageStatus !== "ONGOING" && c.packageStatus !== "PAUSE") return;
+
+                // 3. Apply manual Search filter
                 if (searchTerm && !`${c.roofingCompany} ${c.code} ${c.cityState}`.toLowerCase().includes(searchTerm)) return;
                 
-                // 2. Filter by Package Status Dropdown
+                // 4. Filter by Package Status Dropdown
                 if (packageFilter !== "ALL" && c.packageStatus !== packageFilter) return;
 
                 let healthColor = "text-blue-600 bg-blue-50";
@@ -2966,28 +2974,27 @@
         poolEl.innerHTML = poolHtml;
       },
 
-      dailyAdd(code) {
-          const state = JSON.parse(localStorage.getItem('ch_daily_serving') || '{}');
-          state[code] = { agents: "", goal: "" };
-          localStorage.setItem('ch_daily_serving', JSON.stringify(state));
-          this.renderDailyTab();
+      async dailyAdd(code) {
+          if (!supaClient) return alert("Database connection missing.");
+          await supaClient.from('clients').update({ is_serving: true, daily_agents: "", daily_goal: 0 }).eq('code_name', code);
+          if (window.portal) window.portal.fetchAdminData(true);
       },
 
-      dailyRemove(code) {
-          const state = JSON.parse(localStorage.getItem('ch_daily_serving') || '{}');
-          delete state[code];
-          localStorage.setItem('ch_daily_serving', JSON.stringify(state));
-          this.renderDailyTab();
+      async dailyRemove(code) {
+          if (!supaClient) return alert("Database connection missing.");
+          await supaClient.from('clients').update({ is_serving: false }).eq('code_name', code);
+          if (window.portal) window.portal.fetchAdminData(true);
       },
 
-      dailyUpdate(code, field, value) {
-          const state = JSON.parse(localStorage.getItem('ch_daily_serving') || '{}');
-          if (state[code]) {
-              state[code][field] = value;
-              localStorage.setItem('ch_daily_serving', JSON.stringify(state));
-          }
-          this.renderDailyTab();
+      async dailyUpdate(code, field, value) {
+          if (!supaClient) return alert("Database connection missing.");
+          const payload = {};
+          payload[field] = field === 'daily_goal' ? (Number(value) || 0) : value;
+          
+          await supaClient.from('clients').update(payload).eq('code_name', code);
+          if (window.portal) window.portal.fetchAdminData(true);
       },
+      
       // --- PAYROLL MATH & LOGIC (STRICTLY MST TIMEZONE) ---
       switchPayrollTab(tab) {
           const ledgerBtn = document.getElementById("tab-btn-ledger");
