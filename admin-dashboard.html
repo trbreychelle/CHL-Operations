@@ -78,6 +78,9 @@
       <div>
         <div class="px-6 mb-2 text-[10px] font-bold uppercase text-gray-400 tracking-wider">Operations</div>
         <nav class="space-y-1">
+          <a href="#daily" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('daily', this)">
+            <i class="fa-solid fa-calendar-day w-5 text-center"></i> Daily Strategy
+          </a>
           <a href="#overview" class="nav-item active flex items-center px-6 py-3 text-sm" onclick="Admin.nav('overview', this)">
             <i class="fa-solid fa-satellite-dish w-5 text-center"></i> Overview
           </a>
@@ -406,6 +409,44 @@
           </div>
         </div>
       </div>
+      <div id="view-daily" class="view-section">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">Daily Strategy Board</h2>
+            <p class="text-sm text-gray-500 mt-1">Assign agents, set goals, and monitor real-time progress.</p>
+          </div>
+        </div>
+
+        <div class="flex flex-col xl:flex-row gap-6">
+          <div class="flex-1 flex flex-col gap-6">
+            
+            <div class="bg-blue-50/50 rounded-2xl border border-blue-100 shadow-sm p-5">
+              <h3 class="font-bold text-blue-900 mb-4 flex items-center gap-2"><i class="fa-solid fa-satellite-dish"></i> Clients Serving Today</h3>
+              <div id="daily-serving-board" class="space-y-3 min-h-[100px]">
+                <div class="text-sm text-blue-400 italic text-center py-4">Drag or add clients here from the pool below.</div>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <h3 class="font-bold text-gray-900 mb-4 flex items-center gap-2"><i class="fa-solid fa-users-viewfinder"></i> Active Client Pool</h3>
+              <div id="daily-client-pool" class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[500px] overflow-y-auto pr-2">
+                </div>
+            </div>
+
+          </div>
+
+          <div class="w-full xl:w-80 flex-shrink-0 flex flex-col gap-4">
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden sticky top-6">
+              <div class="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                <h3 class="font-bold text-gray-900 text-sm">Real-Time Roster</h3>
+                <span class="text-[10px] font-bold text-gray-500" id="daily-date-header">Today</span>
+              </div>
+              <div class="p-2 space-y-1 max-h-[700px] overflow-y-auto" id="daily-agent-status-list">
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
       
     <div id="view-sales" class="view-section">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
@@ -490,18 +531,6 @@
 
             <select id="leads-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
               <option value="all">All Status</option>
-            </select>
-
-            <select id="leads-filter-company" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[240px]">
-              <option value="all">All Roofing Company</option>
-            </select>
-
-            <select id="leads-filter-ac" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
-              <option value="all">All Appointment Coordinators</option>
-            </select>
-
-            <select id="leads-filter-homeowner" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
-              <option value="all">All Homeowners</option>
             </select>
 
             <div class="flex items-center gap-2">
@@ -1176,6 +1205,8 @@
         try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
         try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
         try { this.bindPayrollUI(); this.renderPayrollFinance(); } catch(e) {}
+        try { this.bindOverviewAnalyticsUI(); } catch(e) {} 
+        try { this.renderDailyTab(); } catch(e) {}
       },
       
       toMST(dateVal) {
@@ -1550,17 +1581,6 @@
 
       setupLeadFilters(leads) {
         const statusSel = document.getElementById("leads-filter-status");
-        const compSel = document.getElementById("leads-filter-company");
-        const acSel = document.getElementById("leads-filter-ac");
-        const hoSel = document.getElementById("leads-filter-homeowner");
-
-        const uniq = (arr) => [...new Set(arr.filter(x => String(x||"").trim() !== ""))].sort((a,b)=>String(a).localeCompare(String(b)));
-
-        const statuses = uniq(leads.map(l => this.getLeadField(l, ["Status","STATUS"], "")));
-        const companies = uniq(leads.map(l => this.getLeadField(l, ["Company Name","COMPANY NAME","Client","CLIENT","Roofing Company"], "")));
-        const acs = uniq(leads.map(l => this.getLeadField(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent","Agent Name"], "")));
-        const homeowners = uniq(leads.map(l => this.getLeadField(l, ["Homeowner Name(s)","Homeowner Name","Homeowner","HOMEOWNER NAME"], "")));
-
         if (statusSel) {
             statusSel.innerHTML = `
             <option value="all">All Status</option>
@@ -1570,8 +1590,6 @@
             <option value="REJECTED">REJECTED</option>
             `;
         }
-        if (compSel) compSel.innerHTML = `<option value="all">All Roofing Company</option>` + companies.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">`+s+`</option>`).join("");
-        if (acSel) acSel.innerHTML = `<option value="all">All Appointment Coordinators</option>` + acs.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">`+s+`</option>`).join("");
       },
 
       initLeadsColumnsUI() {
@@ -1605,33 +1623,16 @@
               if (!k) return;
               if (chk.checked) this._leadsVisibleCols.add(k);
               else this._leadsVisibleCols.delete(k);
-              this.applyLeadsFilters(); // re-render
+              this.applyLeadsFilters();
             });
           });
         };
 
-        toggle.addEventListener("click", (e) => {
-          e.preventDefault();
-          pop.classList.toggle("hidden");
-        });
+        toggle.addEventListener("click", (e) => { e.preventDefault(); pop.classList.toggle("hidden"); });
+        document.addEventListener("click", (e) => { if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) pop.classList.add("hidden"); });
 
-        document.addEventListener("click", (e) => {
-          if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
-            pop.classList.add("hidden");
-          }
-        });
-
-        if (allBtn) allBtn.addEventListener("click", () => {
-          this._leadsVisibleCols = new Set(this._leadsCols.map(c => c.key));
-          renderChecks();
-          this.applyLeadsFilters();
-        });
-
-        if (minBtn) minBtn.addEventListener("click", () => {
-          this._leadsVisibleCols = this.getLeadsDefaultVisibleCols();
-          renderChecks();
-          this.applyLeadsFilters();
-        });
+        if (allBtn) allBtn.addEventListener("click", () => { this._leadsVisibleCols = new Set(this._leadsCols.map(c => c.key)); renderChecks(); this.applyLeadsFilters(); });
+        if (minBtn) minBtn.addEventListener("click", () => { this._leadsVisibleCols = this.getLeadsDefaultVisibleCols(); renderChecks(); this.applyLeadsFilters(); });
 
         renderChecks();
       },
@@ -1642,10 +1643,6 @@
 
         const q = String(document.getElementById("leads-search")?.value || "").toLowerCase().trim();
         const stVal = document.getElementById("leads-filter-status")?.value || "all";
-        const compVal = document.getElementById("leads-filter-company")?.value || "all";
-        const acVal = document.getElementById("leads-filter-ac")?.value || "all";
-        const hoVal = document.getElementById("leads-filter-homeowner")?.value || "all";
-
         const sDate = document.getElementById("leads-date-start")?.value || "";
         const eDate = document.getElementById("leads-date-end")?.value || "";
 
@@ -1656,15 +1653,6 @@
 
         if (stVal !== "all") {
           filtered = filtered.filter(l => String(this.getLeadField(l, ["Status","STATUS"], "")).trim().toUpperCase() === stVal);
-        }
-        if (compVal !== "all") {
-          filtered = filtered.filter(l => String(this.getLeadField(l, ["Company Name","COMPANY NAME","Client","CLIENT","Roofing Company"], "")).trim() === compVal);
-        }
-        if (acVal !== "all") {
-          filtered = filtered.filter(l => String(this.getLeadField(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent","Agent Name"], "")).trim() === acVal);
-        }
-        if (hoVal !== "all") {
-          filtered = filtered.filter(l => String(this.getLeadField(l, ["Homeowner Name(s)","Homeowner Name","Homeowner","HOMEOWNER NAME"], "")).trim() === hoVal);
         }
 
         if (startDt || endDt) {
@@ -1677,19 +1665,11 @@
           });
         }
 
+        // BULLETPROOF SEARCH: Searches every single property of the lead
         if (q) {
           filtered = filtered.filter(l => {
-            const hay = [
-              this.getLeadField(l, ["Homeowner Name(s)","Homeowner Name","Homeowner"], ""),
-              this.getLeadField(l, ["Appointment Coordinator Name","Appointment Coordinator","Setter","Agent","Agent Name"], ""),
-              this.getLeadField(l, ["Company Name","COMPANY NAME","Client","CLIENT","Roofing Company"], ""),
-              this.getLeadField(l, ["Status","STATUS"], ""),
-              this.getLeadField(l, ["Lead ID","LEAD ID","lead_id","ID"], ""),
-              this.getLeadField(l, ["Email","EMAIL","Homeowner Email"], ""),
-              this.getLeadField(l, ["Phone","PHONE","Homeowner Phone Number","Phone Number"], ""),
-              this.getLeadField(l, ["Address","ADDRESS","Job Address"], ""),
-            ].join(" ").toLowerCase();
-            return hay.includes(q);
+            const allValuesString = Object.values(l).join(" ").toLowerCase();
+            return allValuesString.includes(q);
           });
         }
 
@@ -2776,6 +2756,195 @@
         `).join("");
       },
 
+      // --- OVERVIEW CUSTOM CALENDAR FIX ---
+      bindOverviewAnalyticsUI() {
+        const toggle = document.getElementById("custom-range-toggle");
+        const pop = document.getElementById("custom-range-popover");
+        const apply = document.getElementById("custom-apply");
+        const clear = document.getElementById("custom-clear");
+
+        if (toggle && pop && !toggle.dataset.bound) {
+          toggle.dataset.bound = "true";
+          toggle.addEventListener("click", (e) => { e.preventDefault(); pop.classList.toggle("hidden"); });
+          document.addEventListener("click", (e) => {
+            if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) pop.classList.add("hidden");
+          });
+          
+          if (apply) apply.addEventListener("click", () => {
+            const s = document.getElementById("custom-start")?.value;
+            const e = document.getElementById("custom-end")?.value;
+            if (!s || !e) return;
+            this._customRange.active = true;
+            this._customRange.start = s;
+            this._customRange.end = e;
+            this.setAnalyticsPeriod("custom", null);
+            this._setCustomActive("custom-range-toggle", true);
+            pop.classList.add("hidden");
+          });
+
+          if (clear) clear.addEventListener("click", () => {
+            document.getElementById("custom-start").value = "";
+            document.getElementById("custom-end").value = "";
+            this._customRange.active = false;
+            this.setAnalyticsPeriod("today", document.querySelector('.analytics-btn'));
+            this._setCustomActive("custom-range-toggle", false);
+            pop.classList.add("hidden");
+          });
+        }
+      },
+
+      // --- DAILY STRATEGY TAB LOGIC ---
+      renderDailyTab() {
+        const mstFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit' });
+        const todayStr = mstFormatter.format(new Date());
+        document.getElementById("daily-date-header").textContent = todayStr;
+
+        // 1. Render Agent Statuses
+        const events = Array.isArray(this.getState().timeEvents) ? this.getState().timeEvents : [];
+        const agents = Array.isArray(this.getState().agents) ? this.getState().agents : [];
+        const statusMap = new Map();
+
+        events.forEach(e => {
+            const timestamp = e.occurred_at || e.created_at;
+            if (!timestamp) return;
+            const eventDt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(timestamp) : new Date(timestamp);
+            if (!eventDt) return;
+            
+            const eventDayStr = mstFormatter.format(window.portal?.toMST ? window.portal.toMST(eventDt) : eventDt);
+            if (eventDayStr === todayStr) {
+                const rawAg = String(e.agent_name || "");
+                const ag = this.getOfficialAgentName(rawAg);
+                
+                const existing = statusMap.get(ag);
+                if (!existing || eventDt > existing.dt) {
+                    statusMap.set(ag, { dt: eventDt, action: String(e.action).trim().toLowerCase() });
+                }
+            }
+        });
+
+        const activeAgents = agents.filter(a => {
+            const st = String(a.employment_status || "").toLowerCase().trim();
+            const rl = String(a.role || "").toLowerCase().trim();
+            return st === "active" && rl !== "admin";
+        });
+
+        let statusHtml = "";
+        activeAgents.sort((a,b) => (a.agent_name || a.name || "").localeCompare(b.agent_name || b.name || "")).forEach(a => {
+            const name = String(a.agent_name || a.name || "").trim();
+            const latest = statusMap.get(name);
+            let badge = `<span class="text-[10px] font-extrabold text-gray-400 bg-gray-100 px-2 py-1 rounded">OFFLINE</span>`;
+            
+            if (latest) {
+                if (latest.action === 'clock in' || latest.action === 'resume') {
+                    badge = `<span class="text-[10px] font-extrabold text-emerald-700 bg-emerald-100 px-2 py-1 rounded flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> WORKING</span>`;
+                } else if (latest.action === 'break start') {
+                    badge = `<span class="text-[10px] font-extrabold text-yellow-700 bg-yellow-100 px-2 py-1 rounded">ON BREAK</span>`;
+                }
+            }
+            statusHtml += `<div class="flex justify-between items-center p-2 hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-100 transition-colors"><span class="text-xs font-bold text-gray-700">${name}</span> ${badge}</div>`;
+        });
+        document.getElementById("daily-agent-status-list").innerHTML = statusHtml;
+
+        // 2. Render Client Board
+        const savedState = JSON.parse(localStorage.getItem('ch_daily_serving') || '{}');
+        const poolEl = document.getElementById("daily-client-pool");
+        const serveEl = document.getElementById("daily-serving-board");
+        
+        let poolHtml = "";
+        let serveHtml = "";
+        
+        const activeClients = this.clientHealthRaw.filter(c => c.passbookStatus === "ACTIVE");
+
+        activeClients.forEach(c => {
+            // Count today's approved leads
+            const leadList = this._leadsIndexByCompany?.get(this.normalizeCompanyName(c.roofingCompany)) || [];
+            let todaysApproved = 0;
+            leadList.forEach(l => {
+                const dStr = l.date_submitted || l['Date Submitted'] || l.created_at;
+                const d = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+                if (d && !isNaN(d.getTime())) {
+                    const compStr = mstFormatter.format(window.portal?.toMST ? window.portal.toMST(d) : d);
+                    const st = String(l.status || "").toLowerCase();
+                    if (compStr === todayStr && (st.includes('approv') || st.includes('confirm'))) todaysApproved++;
+                }
+            });
+
+            if (savedState[c.code]) {
+                // IT IS ON THE SERVING BOARD
+                const data = savedState[c.code];
+                const goal = Number(data.goal) || 0;
+                const goalMet = goal > 0 && todaysApproved >= goal;
+
+                serveHtml += `
+                <div class="bg-white border ${goalMet ? 'border-emerald-300 shadow-emerald-100' : 'border-blue-200'} shadow-sm rounded-xl p-4 transition-all">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <h4 class="font-bold text-gray-900">${c.roofingCompany} <span class="text-xs text-gray-500 font-normal ml-1">(${c.code})</span></h4>
+                            <p class="text-[10px] text-gray-400 font-bold uppercase mt-0.5">${c.cityState}</p>
+                        </div>
+                        <button onclick="Admin.dailyRemove('${c.code}')" class="text-gray-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="col-span-2">
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Assigned Agents</label>
+                            <input type="text" onchange="Admin.dailyUpdate('${c.code}', 'agents', this.value)" value="${data.agents || ''}" placeholder="e.g. John, Mary..." class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded focus:ring-2 focus:ring-blue-400 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Goal</label>
+                            <input type="number" onchange="Admin.dailyUpdate('${c.code}', 'goal', this.value)" value="${goal || ''}" placeholder="0" class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded focus:ring-2 focus:ring-blue-400 outline-none text-center font-bold">
+                        </div>
+                    </div>
+
+                    <div class="mt-3 flex items-center justify-between pt-3 border-t border-gray-50">
+                        <div class="text-xs font-bold text-gray-600">Today's Approved: <span class="${todaysApproved > 0 ? 'text-blue-600' : 'text-gray-400'}">${todaysApproved}</span></div>
+                        ${goalMet ? `<div class="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-2 py-1 rounded animate-pulse">✅ GOAL MET</div>` : `<div class="text-[10px] font-bold text-gray-400">In Progress</div>`}
+                    </div>
+                </div>`;
+            } else {
+                // IT IS IN THE POOL
+                poolHtml += `
+                <div class="border border-gray-200 rounded-lg p-3 hover:border-gray-300 hover:shadow-sm transition-all flex justify-between items-center group bg-gray-50/30">
+                    <div>
+                        <h4 class="text-sm font-bold text-gray-800">${c.roofingCompany}</h4>
+                        <p class="text-[10px] text-gray-500">${c.code} • ${c.cityState}</p>
+                    </div>
+                    <button onclick="Admin.dailyAdd('${c.code}')" class="w-7 h-7 rounded bg-white border border-gray-200 text-gray-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors shadow-sm">
+                        <i class="fa-solid fa-plus text-xs"></i>
+                    </button>
+                </div>`;
+            }
+        });
+
+        if (!serveHtml) serveHtml = `<div class="text-sm text-blue-400 italic text-center py-4">Board is empty. Add clients below.</div>`;
+        if (!poolHtml) poolHtml = `<div class="text-sm text-gray-400 italic text-center py-4 col-span-2">No active clients available.</div>`;
+
+        serveEl.innerHTML = serveHtml;
+        poolEl.innerHTML = poolHtml;
+      },
+
+      dailyAdd(code) {
+          const state = JSON.parse(localStorage.getItem('ch_daily_serving') || '{}');
+          state[code] = { agents: "", goal: "" };
+          localStorage.setItem('ch_daily_serving', JSON.stringify(state));
+          this.renderDailyTab();
+      },
+
+      dailyRemove(code) {
+          const state = JSON.parse(localStorage.getItem('ch_daily_serving') || '{}');
+          delete state[code];
+          localStorage.setItem('ch_daily_serving', JSON.stringify(state));
+          this.renderDailyTab();
+      },
+
+      dailyUpdate(code, field, value) {
+          const state = JSON.parse(localStorage.getItem('ch_daily_serving') || '{}');
+          if (state[code]) {
+              state[code][field] = value;
+              localStorage.setItem('ch_daily_serving', JSON.stringify(state));
+          }
+          this.renderDailyTab();
+      },
       // --- PAYROLL MATH & LOGIC (STRICTLY MST TIMEZONE) ---
       switchPayrollTab(tab) {
           const ledgerBtn = document.getElementById("tab-btn-ledger");
