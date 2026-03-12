@@ -1291,10 +1291,9 @@ async function deleteLead(leadId) {
     try {
         fetch('https://automate.callhammerleads.com/webhook/delete-lead-sheet', {
             method: 'POST',
-            mode: 'no-cors', // <--- THIS IS THE MAGIC FIX
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ lead_id: leadId })
-        });
+        }).then(res => console.log("Google Sheets sync triggered:", res.status));
     } catch (e) { console.error("Sheet sync failed", e); }
 }
 
