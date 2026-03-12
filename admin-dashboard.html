@@ -422,13 +422,19 @@
             
             <div class="bg-blue-50/50 rounded-2xl border border-blue-100 shadow-sm p-5">
               <h3 class="font-bold text-blue-900 mb-4 flex items-center gap-2"><i class="fa-solid fa-satellite-dish"></i> Clients Serving Today</h3>
-              <div id="daily-serving-board" class="space-y-3 min-h-[100px]">
-                <div class="text-sm text-blue-400 italic text-center py-4">Drag or add clients here from the pool below.</div>
+              <div id="daily-serving-board" class="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[100px]">
+                <div class="text-sm text-blue-400 italic text-center py-4 col-span-full">Drag or add clients here from the pool below.</div>
               </div>
             </div>
 
             <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <h3 class="font-bold text-gray-900 mb-4 flex items-center gap-2"><i class="fa-solid fa-users-viewfinder"></i> Active Client Pool</h3>
+              <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+                  <h3 class="font-bold text-gray-900 flex items-center gap-2"><i class="fa-solid fa-users-viewfinder"></i> Active Client Pool</h3>
+                  <div class="relative">
+                      <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                      <input type="text" id="daily-pool-search" placeholder="Search active pool..." class="text-xs pl-8 pr-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none w-full sm:w-56" oninput="Admin.renderDailyTab()">
+                  </div>
+              </div>
               <div id="daily-client-pool" class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[500px] overflow-y-auto pr-2">
                 </div>
             </div>
@@ -529,8 +535,12 @@
               />
             </div>
 
-            <select id="leads-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
+           <select id="leads-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 bg-white min-w-[170px]">
               <option value="all">All Status</option>
+              <option value="APPROVED">APPROVED</option>
+              <option value="CREDITED">CREDITED</option>
+              <option value="PENDING REVIEW">PENDING REVIEW</option>
+              <option value="REJECTED">REJECTED</option>
             </select>
 
             <div class="flex items-center gap-2">
@@ -2849,11 +2859,18 @@
         const savedState = JSON.parse(localStorage.getItem('ch_daily_serving') || '{}');
         const poolEl = document.getElementById("daily-client-pool");
         const serveEl = document.getElementById("daily-serving-board");
+        const searchTerm = (document.getElementById("daily-pool-search")?.value || "").toLowerCase();
         
         let poolHtml = "";
         let serveHtml = "";
         
-        const activeClients = this.clientHealthRaw.filter(c => c.passbookStatus === "ACTIVE");
+        // FILTER THE POOL: Active Passbook, Owed > 0, ONGOING or PAUSE
+        const activeClients = this.clientHealthRaw.filter(c => {
+            if (c.passbookStatus !== "ACTIVE") return false;
+            if (c.owedRemaining <= 0) return false; 
+            if (c.packageStatus !== "ONGOING" && c.packageStatus !== "PAUSE") return false;
+            return true;
+        });
 
         activeClients.forEach(c => {
             // Count today's approved leads
@@ -2876,7 +2893,7 @@
                 const goalMet = goal > 0 && todaysApproved >= goal;
 
                 serveHtml += `
-                <div class="bg-white border ${goalMet ? 'border-emerald-300 shadow-emerald-100' : 'border-blue-200'} shadow-sm rounded-xl p-4 transition-all">
+                <div class="bg-white border ${goalMet ? 'border-emerald-400 shadow-emerald-100' : 'border-blue-200'} shadow-sm rounded-xl p-4 transition-all flex flex-col">
                     <div class="flex justify-between items-start mb-3">
                         <div>
                             <h4 class="font-bold text-gray-900">${c.roofingCompany} <span class="text-xs text-gray-500 font-normal ml-1">(${c.code})</span></h4>
@@ -2885,10 +2902,10 @@
                         <button onclick="Admin.dailyRemove('${c.code}')" class="text-gray-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                     
-                    <div class="grid grid-cols-3 gap-3">
-                        <div class="col-span-2">
+                    <div class="flex-1 flex flex-col gap-3">
+                        <div>
                             <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Assigned Agents</label>
-                            <input type="text" onchange="Admin.dailyUpdate('${c.code}', 'agents', this.value)" value="${data.agents || ''}" placeholder="e.g. John, Mary..." class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded focus:ring-2 focus:ring-blue-400 outline-none">
+                            <textarea onchange="Admin.dailyUpdate('${c.code}', 'agents', this.value)" placeholder="• John&#10;• Mary" class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded focus:ring-2 focus:ring-blue-400 outline-none resize-none" rows="3">${data.agents || ''}</textarea>
                         </div>
                         <div>
                             <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Goal</label>
@@ -2903,21 +2920,33 @@
                 </div>`;
             } else {
                 // IT IS IN THE POOL
+                // Apply search filter ONLY to the pool
+                if (searchTerm && !`${c.roofingCompany} ${c.code} ${c.cityState}`.toLowerCase().includes(searchTerm)) return;
+
+                let healthColor = "text-blue-600 bg-blue-50";
+                if (c.healthStatus === "CRITICAL") healthColor = "text-red-600 bg-red-50";
+                else if (c.healthStatus === "AT RISK") healthColor = "text-yellow-600 bg-yellow-50";
+                else if (c.healthStatus === "HEALTHY") healthColor = "text-emerald-600 bg-emerald-50";
+
                 poolHtml += `
                 <div class="border border-gray-200 rounded-lg p-3 hover:border-gray-300 hover:shadow-sm transition-all flex justify-between items-center group bg-gray-50/30">
                     <div>
                         <h4 class="text-sm font-bold text-gray-800">${c.roofingCompany}</h4>
-                        <p class="text-[10px] text-gray-500">${c.code} • ${c.cityState}</p>
+                        <p class="text-[10px] text-gray-500 mb-1.5">${c.code} • ${c.cityState}</p>
+                        <div class="flex gap-2">
+                            <span class="text-[9px] font-extrabold ${c.packageStatus === 'ONGOING' ? 'text-blue-600 bg-blue-100' : 'text-yellow-600 bg-yellow-100'} px-1.5 py-0.5 rounded">${c.packageStatus}</span>
+                            <span class="text-[9px] font-extrabold ${healthColor} px-1.5 py-0.5 rounded">${c.healthStatus}</span>
+                        </div>
                     </div>
-                    <button onclick="Admin.dailyAdd('${c.code}')" class="w-7 h-7 rounded bg-white border border-gray-200 text-gray-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors shadow-sm">
+                    <button onclick="Admin.dailyAdd('${c.code}')" class="w-7 h-7 flex-shrink-0 rounded bg-white border border-gray-200 text-gray-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors shadow-sm ml-2">
                         <i class="fa-solid fa-plus text-xs"></i>
                     </button>
                 </div>`;
             }
         });
 
-        if (!serveHtml) serveHtml = `<div class="text-sm text-blue-400 italic text-center py-4">Board is empty. Add clients below.</div>`;
-        if (!poolHtml) poolHtml = `<div class="text-sm text-gray-400 italic text-center py-4 col-span-2">No active clients available.</div>`;
+        if (!serveHtml) serveHtml = `<div class="text-sm text-blue-400 italic text-center py-4 col-span-full">Board is empty. Add clients below.</div>`;
+        if (!poolHtml) poolHtml = `<div class="text-sm text-gray-400 italic text-center py-4 col-span-full">No active clients match criteria.</div>`;
 
         serveEl.innerHTML = serveHtml;
         poolEl.innerHTML = poolHtml;
