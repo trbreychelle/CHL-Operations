@@ -422,7 +422,7 @@
             
             <div class="bg-blue-50/50 rounded-2xl border border-blue-100 shadow-sm p-5">
               <h3 class="font-bold text-blue-900 mb-4 flex items-center gap-2"><i class="fa-solid fa-satellite-dish"></i> Clients Serving Today</h3>
-              <div id="daily-serving-board" class="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[100px]">
+              <div id="daily-serving-board" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-h-[100px]">
                 <div class="text-sm text-blue-400 italic text-center py-4 col-span-full">Drag or add clients here from the pool below.</div>
               </div>
             </div>
@@ -430,16 +430,21 @@
             <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                   <h3 class="font-bold text-gray-900 flex items-center gap-2"><i class="fa-solid fa-users-viewfinder"></i> Active Client Pool</h3>
-                  <div class="relative">
-                      <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
-                      <input type="text" id="daily-pool-search" placeholder="Search active pool..." class="text-xs pl-8 pr-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none w-full sm:w-56" oninput="Admin.renderDailyTab()">
+                  <div class="flex items-center gap-2 w-full sm:w-auto">
+                      <select id="daily-pool-filter" class="text-xs px-2 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none font-bold text-gray-700" onchange="Admin.renderDailyTab()">
+                          <option value="ONGOING" selected>Ongoing</option>
+                          <option value="PAUSE">Pause</option>
+                          <option value="ALL">All Active</option>
+                      </select>
+                      <div class="relative flex-1 sm:flex-none">
+                          <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                          <input type="text" id="daily-pool-search" placeholder="Search pool..." class="text-xs pl-8 pr-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none w-full sm:w-48" oninput="Admin.renderDailyTab()">
+                      </div>
                   </div>
               </div>
               <div id="daily-client-pool" class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[500px] overflow-y-auto pr-2">
                 </div>
             </div>
-
-          </div>
 
           <div class="w-full xl:w-80 flex-shrink-0 flex flex-col gap-4">
             <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden sticky top-6">
@@ -2860,29 +2865,29 @@
         const poolEl = document.getElementById("daily-client-pool");
         const serveEl = document.getElementById("daily-serving-board");
         const searchTerm = (document.getElementById("daily-pool-search")?.value || "").toLowerCase();
+        const packageFilter = document.getElementById("daily-pool-filter")?.value || "ONGOING";
         
         let poolHtml = "";
         let serveHtml = "";
         
-        // FILTER THE POOL: Active Passbook, Owed > 0, ONGOING or PAUSE
-        const activeClients = this.clientHealthRaw.filter(c => {
-            if (c.passbookStatus !== "ACTIVE") return false;
-            if (c.owedRemaining <= 0) return false; 
-            if (c.packageStatus !== "ONGOING" && c.packageStatus !== "PAUSE") return false;
-            return true;
-        });
+        const activeClients = this.clientHealthRaw.filter(c => c.passbookStatus === "ACTIVE");
 
         activeClients.forEach(c => {
-            // Count today's approved leads
+            // Count today's approved and pending leads
             const leadList = this._leadsIndexByCompany?.get(this.normalizeCompanyName(c.roofingCompany)) || [];
             let todaysApproved = 0;
+            let todaysPending = 0;
+            
             leadList.forEach(l => {
                 const dStr = l.date_submitted || l['Date Submitted'] || l.created_at;
                 const d = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
                 if (d && !isNaN(d.getTime())) {
                     const compStr = mstFormatter.format(window.portal?.toMST ? window.portal.toMST(d) : d);
                     const st = String(l.status || "").toLowerCase();
-                    if (compStr === todayStr && (st.includes('approv') || st.includes('confirm'))) todaysApproved++;
+                    if (compStr === todayStr) {
+                        if (st.includes('approv') || st.includes('confirm')) todaysApproved++;
+                        else if (st.includes('pending')) todaysPending++;
+                    }
                 }
             });
 
@@ -2914,14 +2919,20 @@
                     </div>
 
                     <div class="mt-3 flex items-center justify-between pt-3 border-t border-gray-50">
-                        <div class="text-xs font-bold text-gray-600">Today's Approved: <span class="${todaysApproved > 0 ? 'text-blue-600' : 'text-gray-400'}">${todaysApproved}</span></div>
-                        ${goalMet ? `<div class="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-2 py-1 rounded animate-pulse">✅ GOAL MET</div>` : `<div class="text-[10px] font-bold text-gray-400">In Progress</div>`}
+                        <div class="text-[11px] font-bold text-yellow-600 w-1/3 text-left">Pending: ${todaysPending}</div>
+                        <div class="text-[11px] font-bold w-1/3 text-center ${todaysApproved > 0 ? 'text-emerald-600' : 'text-gray-400'}">Approved: ${todaysApproved}</div>
+                        <div class="w-1/3 text-right">
+                          ${goalMet ? `<span class="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-2 py-1 rounded animate-pulse">✅ MET</span>` : `<span class="text-[10px] font-bold text-gray-400">In Progress</span>`}
+                        </div>
                     </div>
                 </div>`;
             } else {
                 // IT IS IN THE POOL
-                // Apply search filter ONLY to the pool
+                // 1. Filter by Search
                 if (searchTerm && !`${c.roofingCompany} ${c.code} ${c.cityState}`.toLowerCase().includes(searchTerm)) return;
+                
+                // 2. Filter by Package Status Dropdown
+                if (packageFilter !== "ALL" && c.packageStatus !== packageFilter) return;
 
                 let healthColor = "text-blue-600 bg-blue-50";
                 if (c.healthStatus === "CRITICAL") healthColor = "text-red-600 bg-red-50";
@@ -2933,9 +2944,10 @@
                     <div>
                         <h4 class="text-sm font-bold text-gray-800">${c.roofingCompany}</h4>
                         <p class="text-[10px] text-gray-500 mb-1.5">${c.code} • ${c.cityState}</p>
-                        <div class="flex gap-2">
+                        <div class="flex gap-2 flex-wrap">
                             <span class="text-[9px] font-extrabold ${c.packageStatus === 'ONGOING' ? 'text-blue-600 bg-blue-100' : 'text-yellow-600 bg-yellow-100'} px-1.5 py-0.5 rounded">${c.packageStatus}</span>
                             <span class="text-[9px] font-extrabold ${healthColor} px-1.5 py-0.5 rounded">${c.healthStatus}</span>
+                            <span class="text-[9px] font-extrabold text-gray-600 bg-gray-200 px-1.5 py-0.5 rounded" title="Owed / Purchased">Owed: ${c.packageLabel}</span>
                         </div>
                     </div>
                     <button onclick="Admin.dailyAdd('${c.code}')" class="w-7 h-7 flex-shrink-0 rounded bg-white border border-gray-200 text-gray-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors shadow-sm ml-2">
