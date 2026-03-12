@@ -939,7 +939,7 @@
           </div>
 
           <div class="table-scroll overflow-auto" style="max-height: 500px;">
-            <table class="w-full text-left text-[11px] whitespace-nowrap">
+            <table class="w-full text-left text-sm whitespace-nowrap">
               <thead class="bg-white font-bold text-gray-400 uppercase border-b border-gray-100 sticky top-0 z-10 shadow-sm">
                 <tr>
                   <th class="p-3">Agent</th>
@@ -963,12 +963,12 @@
               <tbody id="payroll-ledger-body" class="divide-y divide-gray-50">
                 <tr><td colspan="16" class="p-6 text-center text-gray-400 italic text-sm">Loading payroll data...</td></tr>
               </tbody>
-              <tfoot class="bg-gray-100 font-bold text-gray-900 sticky bottom-0 z-10 border-t border-gray-200">
+              <tfoot class="bg-gray-100 font-bold text-gray-900 sticky bottom-0 z-10 border-t border-gray-200 text-sm">
                 <tr>
                     <td class="p-3" colspan="12">WEEKLY TOTALS</td>
-                    <td class="p-3 text-right text-purple-700" id="footer-auto-bonus">$0.00</td>
-                    <td class="p-3 text-center text-gray-700" id="footer-manual-bonus">$0.00</td>
-                    <td class="p-3 text-right text-emerald-700 text-base" id="footer-total-pay">$0.00</td>
+                    <td class="p-3 text-right text-purple-700 text-base" id="footer-auto-bonus">$0.00</td>
+                    <td class="p-3 text-center text-gray-700 text-base" id="footer-manual-bonus">$0.00</td>
+                    <td class="p-3 text-right text-emerald-700 text-xl" id="footer-total-pay">$0.00</td>
                     <td></td>
                 </tr>
               </tfoot>
@@ -2970,27 +2970,27 @@
                 const days = ['sa','su','m','t','w','th','f'];
                 const dayInputs = days.map(d => `
                     <td class="p-2 text-center">
-                        <input type="number" step="0.25" min="0" value="${Number(savedData[d]).toFixed(2)}" data-agent="${r.agent}" data-field="${d}" class="pay-input w-12 text-center font-bold border border-gray-300 rounded focus:ring-2 focus:ring-yellow-400 py-1 text-xs" onchange="Admin.recalcRow(this)">
+                        <input type="number" step="0.25" min="0" value="${Number(savedData[d]).toFixed(2)}" data-agent="${r.agent}" data-field="${d}" class="pay-input w-16 text-center font-bold border border-gray-300 rounded focus:ring-2 focus:ring-yellow-400 py-1.5 text-sm" onchange="Admin.recalcRow(this)">
                     </td>
                 `).join("");
 
                 return `
                 <tr class="hover:bg-gray-50 border-b border-gray-50" data-agent="${r.agent}">
-                  <td class="p-3 font-bold text-gray-900">${r.agent}</td>
+                  <td class="p-3 font-bold text-gray-900 text-sm">${r.agent}</td>
                   <td class="p-3 text-center font-mono">
-                     <input type="number" step="0.25" min="0" value="${baseRate.toFixed(2)}" data-agent="${r.agent}" data-field="rate" class="pay-input w-14 text-center font-bold border border-gray-300 rounded focus:ring-2 focus:ring-yellow-400 py-1 text-xs text-gray-600" onchange="Admin.recalcRow(this)">
+                     <input type="number" step="0.25" min="0" value="${baseRate.toFixed(2)}" data-agent="${r.agent}" data-field="rate" class="pay-input w-20 text-center font-bold border border-gray-300 rounded focus:ring-2 focus:ring-yellow-400 py-1.5 text-sm text-gray-600" onchange="Admin.recalcRow(this)">
                   </td>
                   ${dayInputs}
-                  <td class="p-3 text-center bg-gray-50 font-bold text-gray-800 row-total-hrs">${totalHrs.toFixed(2)}</td>
-                  <td class="p-3 text-center font-bold text-blue-500">${r.qualified}</td>
-                  <td class="p-3 text-center font-bold ${cancelRate < 25 ? 'text-emerald-500' : 'text-red-400'}">${cancelRate.toFixed(1)}%</td>
-                  <td class="p-3 text-right font-mono font-bold text-purple-600" data-bonus="${bonus}">$${bonus.toFixed(2)}</td>
+                  <td class="p-3 text-center bg-gray-50 font-bold text-gray-800 row-total-hrs text-sm">${totalHrs.toFixed(2)}</td>
+                  <td class="p-3 text-center font-bold text-blue-500 text-sm">${r.qualified}</td>
+                  <td class="p-3 text-center font-bold ${cancelRate < 25 ? 'text-emerald-500' : 'text-red-400'} text-sm">${cancelRate.toFixed(1)}%</td>
+                  <td class="p-3 text-right font-mono font-bold text-purple-600 text-sm" data-bonus="${bonus}">$${bonus.toFixed(2)}</td>
                   <td class="p-3 text-center">
-                     <input type="number" step="1" value="${savedData.manual}" data-agent="${r.agent}" data-field="manual" class="pay-input w-14 text-center font-bold border border-purple-200 bg-purple-50 rounded focus:ring-2 focus:ring-purple-400 py-1 text-xs" onchange="Admin.recalcRow(this)">
+                     <input type="number" step="1" value="${savedData.manual}" data-agent="${r.agent}" data-field="manual" class="pay-input w-20 text-center font-bold border border-purple-200 bg-purple-50 rounded focus:ring-2 focus:ring-purple-400 py-1.5 text-sm" onchange="Admin.recalcRow(this)">
                   </td>
-                  <td class="p-3 text-right font-extrabold text-emerald-600 font-mono text-sm row-total-pay">$${finalPay.toFixed(2)}</td>
+                  <td class="p-3 text-right font-extrabold text-emerald-600 font-mono text-base row-total-pay">$${finalPay.toFixed(2)}</td>
                   <td class="p-3 text-center">
-                     <button onclick="Admin.togglePaid(this, '${selectedWeek}', '${r.agent}')" class="px-2 py-1 rounded text-[10px] font-extrabold ${savedData.paid ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-500'}">
+                     <button onclick="Admin.togglePaid(this, '${selectedWeek}', '${r.agent}')" class="px-3 py-1.5 rounded text-xs font-extrabold ${savedData.paid ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-500'}">
                         ${savedData.paid ? 'PAID ✓' : 'PENDING'}
                      </button>
                   </td>
