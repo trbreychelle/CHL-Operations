@@ -2843,11 +2843,16 @@
         });
         
         activeAgents.forEach(a => {
-            const agName = String(a.agent_name || a.name || "").trim();
+            let agName = String(a.agent_name || a.name || "").trim();
+            agName = agName.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
+            
             if (agName && !weekRows.find(r => r.agent === agName)) {
                 weekRows.push({ week: selectedWeek, agent: agName, qualified: 0, unqualified: 0 });
             }
         });
+        
+        // Hide "Unknown" if it has 0 leads
+        weekRows = weekRows.filter(r => r.agent !== "Unknown" || (r.qualified > 0 || r.unqualified > 0));
 
         weekRows.sort((a,b) => a.agent.localeCompare(b.agent));
 
@@ -2914,32 +2919,37 @@
                 let dbRate = Number(String(dbAgent.effective_hourly_rate || dbAgent.base_rate || "5.00").replace(/[^0-9.]/g, '')) || 5.00;
 
                 // --- 3. TENURE RAISES (90 Days & 1 Year) ---
-                if (dbAgent.start_date) {
+                if (dbAgent.start_date && dbAgent.start_date !== "NULL") {
                     const startDt = new Date(dbAgent.start_date);
-                    const daysTenure = (weekEndDt - startDt) / (1000 * 60 * 60 * 24);
-                    
-                    if (daysTenure >= 90) {
-                        let lQ = 0, lU = 0, wksWorked = 0, wksHit8 = 0;
-                        for (let i = weekIndex; i < weeks.length; i++) {
-                            const wS = getAgentWeekStats(weeks[i], r.agent);
-                            const hrsWk = this._calculateHoursFromEvents(timeEvents, weeks[i]);
-                            const aHrs = hrsWk[r.agent.toLowerCase()] || {};
-                            const totHrs = (aHrs.m||0)+(aHrs.t||0)+(aHrs.w||0)+(aHrs.th||0)+(aHrs.f||0)+(aHrs.sa||0)+(aHrs.su||0);
-                            
-                            if (wS.qualified > 0 || wS.unqualified > 0 || totHrs > 0) { 
-                                wksWorked++; lQ += wS.qualified; lU += wS.unqualified;
-                                if (wS.qualified >= 8) wksHit8++;
+                    // Ensure the date is valid before doing math
+                    if (!isNaN(startDt.getTime())) {
+                        const daysTenure = (weekEndDt - startDt) / (1000 * 60 * 60 * 24);
+                        
+                        if (daysTenure >= 90) {
+                            let lQ = 0, lU = 0, wksWorked = 0, wksHit8 = 0;
+                            for (let i = weekIndex; i < weeks.length; i++) {
+                                const pastWk = byWeek.get(weeks[i]) || [];
+                                const wS = pastWk.find(x => x.agent === r.agent) || { qualified: 0, unqualified: 0 };
+                                
+                                const hrsWk = this._calculateHoursFromEvents(timeEvents, weeks[i]);
+                                const aHrs = hrsWk[r.agent.toLowerCase()] || {};
+                                const totHrs = (aHrs.m||0)+(aHrs.t||0)+(aHrs.w||0)+(aHrs.th||0)+(aHrs.f||0)+(aHrs.sa||0)+(aHrs.su||0);
+                                
+                                if (wS.qualified > 0 || wS.unqualified > 0 || totHrs > 0) { 
+                                    wksWorked++; lQ += wS.qualified; lU += wS.unqualified;
+                                    if (wS.qualified >= 8) wksHit8++;
+                                }
                             }
-                        }
-                        const lCx = (lQ + lU > 0) ? (lU / (lQ + lU)) : 0;
-                        const hitRate = wksWorked > 0 ? (wksHit8 / wksWorked) : 0;
+                            const lCx = (lQ + lU > 0) ? (lU / (lQ + lU)) : 0;
+                            const hitRate = wksWorked > 0 ? (wksHit8 / wksWorked) : 0;
 
-                        if (daysTenure >= 365) {
-                             dbRate += 0.75;
-                             if (lCx < 0.20) dbRate += 0.75; 
-                        } else if (daysTenure >= 90 && hitRate >= 0.75) {
-                             dbRate += 0.50;
-                             if (lCx < 0.20) dbRate += 0.25; 
+                            if (daysTenure >= 365) {
+                                 dbRate += 0.75;
+                                 if (lCx < 0.20) dbRate += 0.75; // Total 1.50 raise
+                            } else if (daysTenure >= 90 && hitRate >= 0.75) {
+                                 dbRate += 0.50;
+                                 if (lCx < 0.20) dbRate += 0.25; // Total 0.75 raise
+                            }
                         }
                     }
                 }
@@ -3149,12 +3159,15 @@
           if (!week) continue;
           weekSet.add(week);
 
-          const agent = String(this.pick(l, [
-            "agent_name", "Appointment Coordinator Name", "Appointment Coordinator", "Setter", "Agent", "Agent Name"
+          // FIX: Added 'appointment_coordinator_name' for Supabase
+          let agent = String(this.pick(l, [
+            "appointment_coordinator_name", "Appointment Coordinator Name", "agent_name", "Agent Name", "Setter", "Agent"
           ], "Unknown")).trim() || "Unknown";
 
-          // FIX: Looks for lowercase "status" to match Supabase
-          const status = String(this.pick(l, ["status", "Status", "STATUS", "Lead_Status"], "")).toLowerCase();
+          // Format agent name so "aly taha" becomes "Aly Taha" to match your roster perfectly
+          agent = agent.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
+
+          const status = String(this.pick(l, ["Status","STATUS", "status"], "")).toLowerCase();
           const k = `${week}||${agent}`;
 
           const agg = weekAgentMap.get(k) || { week, agent, qualified: 0, unqualified: 0 };
