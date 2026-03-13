@@ -16,34 +16,22 @@
     * { font-family: 'Inter', sans-serif; }
     body { background-color: #F9FAFB; color: #111827; }
 
-    /* TIGHTEN LEADS TRACKER COLUMNS (FINAL VERSION) */
+    /* TIGHTEN LEADS TRACKER COLUMNS (BULLETPROOF VERSION) */
     #view-leads table {
-        table-layout: fixed !important;
+        table-layout: auto !important;
         width: 100% !important;
     }
+    
     #view-leads th, #view-leads td {
+        max-width: 180px; /* Limits wide columns to prevent the scrollbar */
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        padding-left: 8px;
-        padding-right: 8px;
-    }
-    
-    /* Protect the Status Column from getting squished (2nd to last column) */
-    #view-leads th:nth-last-child(2),
-    #view-leads td:nth-last-child(2) {
-        width: 110px !important; 
-        text-align: center;
+        padding-left: 10px;
+        padding-right: 10px;
     }
 
-    /* Protect the Actions Column (Trash can) */
-    #view-leads th:last-child,
-    #view-leads td:last-child {
-        width: 60px !important;
-        text-align: center;
-    }
-
-    /* The Hover Effect to reveal full text on any column */
+    /* The Hover Effect to reveal full text */
     #view-leads td:hover {
         overflow: visible;
         white-space: normal;
