@@ -1096,11 +1096,19 @@ window.fetchSalesPipeline = function() {
     tbody.innerHTML = rows.map(r => {
         totalSalesValue += r.dealValueNum; // Add to total
 
+        // We put the PKG Colors back!
+        let pkgColor = "bg-gray-100 text-gray-700";
+        if (r.pkgStatus === 'ONGOING') pkgColor = "bg-blue-100 text-blue-800";
+        if (r.pkgStatus === 'COMPLETED') pkgColor = "bg-purple-100 text-purple-800";
+        if (r.pkgStatus === 'REFUNDED') pkgColor = "bg-orange-100 text-orange-800";
+        if (r.pkgStatus === 'PAUSE') pkgColor = "bg-yellow-100 text-yellow-800";
+
+        // New Deal Status Colors
         let dealColor = "bg-gray-100 text-gray-700";
         if (r.dealStatus === 'Paid') dealColor = "bg-emerald-100 text-emerald-800";
         if (r.dealStatus === 'Negotiating') dealColor = "bg-yellow-100 text-yellow-800";
         if (r.dealStatus === 'Refunded') dealColor = "bg-red-100 text-red-800";
-
+      
         return `
         <tr class="hover:bg-gray-50 border-b border-gray-50 transition-colors">
             <td class="p-4 text-sm text-gray-500">${r.purchaseDate}</td>
