@@ -2203,119 +2203,102 @@
         }).join('') || '<div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">No results</div>';
       },
 
-      openPassbookClient(codeName) { this._openPassbookModalShell(codeName); this._fetchAndRenderPassbookClient(codeName); },
+      openPassbookClient(codeName) { 
+        this._openPassbookModalShell(codeName); 
+        this._fetchAndRenderPassbookClient(codeName); 
+      },
+      
       _openPassbookModalShell(codeName) {
-        const modal = document.getElementById("passbook-modal"); document.getElementById("codeName").value = codeName;
+        const modal = document.getElementById("passbook-modal"); 
+        document.getElementById("codeName").value = codeName;
         document.getElementById("passbook-modal-sub").textContent = `Code: ${codeName}`;
-        document.getElementById("passbook-form-body").innerHTML = '<div class="p-4 text-sm text-gray-500 italic">Loading...</div>';
+        document.getElementById("passbook-form-body").innerHTML = '<div class="p-6 text-sm text-gray-500 italic flex items-center gap-2"><i class="fa-solid fa-spinner fa-spin"></i> Loading live from database...</div>';
         modal.classList.remove("hidden");
       },
-      closePassbookModal() { document.getElementById("passbook-modal").classList.add("hidden"); },
+      
+      closePassbookModal() { 
+        document.getElementById("passbook-modal").classList.add("hidden"); 
+      },
 
       async _fetchAndRenderPassbookClient(codeName) {
         try {
-          const base = window.portal.webhooks.passbookClientDetails;
-          // CACHE BUSTER FIX: Forces the browser to grab fresh data every single time
-          const url = base.includes("?") 
-              ? `${base}&codeName=${encodeURIComponent(codeName)}&cb=${Date.now()}` 
-              : `${base}?codeName=${encodeURIComponent(codeName)}&cb=${Date.now()}`;
+          if (!window.supaClient) throw new Error("Database connection missing");
           
-          const res = await fetch(url, { method: "GET", cache: "no-store" });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const json = await res.json();
-          this._renderPassbookForm(json);
+          // FETCH DIRECTLY FROM SUPABASE (No Cache Delays)
+          const { data, error } = await supaClient
+            .from('clients')
+            .select('*')
+            .eq('client_code', codeName)
+            .single();
+
+          if (error) throw error;
+          this._renderPassbookForm(data || {});
         } catch (err) {
-          document.getElementById("passbook-form-body").innerHTML = '<div class="p-4 text-red-700">Failed to load details.</div>';
+          console.error(err);
+          document.getElementById("passbook-form-body").innerHTML = '<div class="p-4 text-red-700 font-bold">Failed to load client from database.</div>';
         }
       },
 
-      _renderPassbookForm(data) {
-        const raw = data?.client ? data.client : (data || {});
-        const get = (...keys) => {
-          for (const k of keys) {
-            const v = raw?.[k];
-            if (v !== undefined && v !== null && String(v).trim() !== "") return String(v);
-          }
-          return "";
-        };
+      _renderPassbookForm(raw) {
+        const safeStr = (val) => String(val || "").replace(/"/g, "&quot;");
 
+        // Map inputs directly to your Supabase Column Names (snake_case)
         const fields = [
-          { label: "Code Name", key: "CODE NAME", keys: ["codeName","CODE NAME","Code Name"] },
-          { label: "Company Name", key: "COMPANY NAME", keys: ["companyName","COMPANY NAME","Company Name"] },
-          { label: "Phone", key: "PHONE", keys: ["phone","PHONE"] },
-          { label: "Contact Person", key: "CONTACT PERSON", keys: ["contactPerson","CONTACT PERSON"] },
-          { label: "Area", key: "AREA", keys: ["area","AREA"] },
-          { label: "Area Codes To Use", key: "AREA CODES TO USE", keys: ["areaCodesToUse","AREA CODES TO USE"] },
-          { label: "Email", key: "EMAIL", keys: ["email","EMAIL"] },
-          { label: "Website", key: "WEBSITE", keys: ["website","WEBSITE"] },
-          { label: "Status", key: "STATUS", keys: ["status","STATUS"] },
-          { label: "Company Address", key: "COMPANY ADDRESS", keys: ["companyAddress","COMPANY ADDRESS","address"] },
-          { label: "Sales Rep Count", key: "SALES REP COUNT", keys: ["salesRepCount","SALES REP COUNT"] },
-          { label: "Regions / Cities / Zip Codes", key: "REGIONS / CITIES / ZIP CODES", keys: ["regions","REGIONS / CITIES / ZIP CODES","REGIONS / CITIES / ZIP CODES "] },
-          { label: "Days of Operation", key: "DAYS OF OPERATION", keys: ["daysOfOperation","DAYS OF OPERATION"] },
-          { label: "Hours of Operation", key: "HOURS OF OPERATION", keys: ["hoursOfOperation","HOURS OF OPERATION"] },
-          { label: "Appointment Interval", key: "APPT INTERVAL", keys: ["appointmentInterval","APPT INTERVAL","APPOINTMENT INTERVAL"] },
-          { label: "Roof Types", key: "ROOF TYPES", keys: ["roofTypes","ROOF TYPES"] },
-          { label: "Leads Per Day Limit", key: "LEADS PER DAY LIMIT", keys: ["leadsPerDayLimit","LEADS PER DAY LIMIT"] },
-          { label: "Double Bookings", key: "DOUBLE BOOKINGS", keys: ["doubleBookings","DOUBLE BOOKINGS"] },
-          { label: "Additional Notes / Requests", key: "ADDITIONAL NOTES / REQUESTS", keys: ["additionalNotes","ADDITIONAL NOTES / REQUESTS","notes"] },
-          { label: "Last Updated", key: "LAST UPDATED", keys: ["lastUpdated","LAST UPDATED"] },
-          { label: "Updated By", key: "UPDATED BY", keys: ["updatedBy","UPDATED BY"] },
+          { label: "Code Name", key: "client_code" },
+          { label: "Company Name", key: "company_name" },
+          { label: "Phone", key: "phone" },
+          { label: "Contact Person", key: "contact_person" },
+          { label: "Area / City State", key: "area" },
+          { label: "Area Codes To Use", key: "area_codes_to_use" },
+          { label: "Email", key: "email" },
+          { label: "Website", key: "website" },
+          { label: "Status", key: "client_status" },
+          { label: "Company Address", key: "company_address" },
+          { label: "Sales Rep Count", key: "sales_rep_count" },
+          { label: "Regions / Cities / Zip Codes", key: "regions" },
+          { label: "Days of Operation", key: "days_of_operation" },
+          { label: "Hours of Operation", key: "hours_of_operation" },
+          { label: "Appointment Interval", key: "appointment_interval" },
+          { label: "Roof Types", key: "roof_types" },
+          { label: "Leads Per Day Limit", key: "leads_per_day_limit" },
+          { label: "Double Bookings", key: "double_bookings" },
+          { label: "Additional Notes / Requests", key: "additional_notes" }
         ];
 
-        const liveSheet = get("liveSheet","Live Sheet","LIVE SHEET");
-        const codeName = get("codeName","CODE NAME","Code Name") || "—";
-        const companyName = get("companyName","COMPANY NAME","Company Name","company_name") || "Unknown";
-        const cityState = get("cityState","CITY/STATE","City/State","Location") || "—";
+        const companyName = safeStr(raw.company_name) || "Unknown";
+        const codeName = safeStr(raw.client_code) || "—";
+        const cityState = safeStr(raw.area || raw.city_state) || "—";
 
         document.getElementById("passbook-modal-title").textContent = companyName;
         document.getElementById("passbook-modal-sub").textContent = `Code: ${codeName} • ${cityState}`;
         document.getElementById("codeName").value = codeName;
 
         let html = `
-          <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+          <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-4">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
               <div>
                 <div class="text-xl font-black text-gray-900">${companyName}</div>
                 <div class="text-sm text-gray-500 mt-1">${cityState}</div>
               </div>
-              <div class="flex items-center gap-2">
-                <span class="px-3 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-extrabold">${codeName}</span>
-                ${
-                  liveSheet
-                    ? `<a href="${liveSheet}" target="_blank" class="px-3 py-1 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">Open Live Sheet</a>`
-                    : `<span class="px-3 py-1 rounded-lg bg-gray-100 text-gray-500 text-xs font-extrabold">No Live Sheet</span>`
-                }
-              </div>
             </div>
           </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         `;
 
         for (const f of fields) {
-          const value = get(...f.keys);
-          const safe = value.replace(/"/g, "&quot;");
-
-          if (f.label === "Website" && value) {
-            html += `<div><label class="block text-[10px] font-bold text-gray-500 uppercase">${f.label}</label><a href="${safe}" target="_blank" class="text-sm text-blue-600 underline break-words">${safe}</a></div>`;
-            continue;
-          }
-
-          const isLong = ["Additional Notes / Requests", "Regions / Cities / Zip Codes"].includes(f.label);
-
+          const val = safeStr(raw[f.key]);
+          const isLong = ["additional_notes", "regions", "area_codes_to_use", "company_address"].includes(f.key);
+          
           html += `
             <div>
-              <label class="block text-[10px] font-bold text-gray-500 uppercase">${f.label}</label>
-              ${
-                isLong
-                  ? `<textarea class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm h-24" name="${f.key}">${safe}</textarea>`
-                  : `<input class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" name="${f.key}" value="${safe}">`
-              }
+              <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">${f.label}</label>
+              ${ isLong 
+                  ? `<textarea class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm h-24 focus:ring-2 focus:ring-blue-400 outline-none" name="${f.key}">${val}</textarea>` 
+                  : `<input class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none" name="${f.key}" value="${val}">` }
             </div>
           `;
         }
-
+        
         html += `</div>`;
         document.getElementById("passbook-form-body").innerHTML = html;
       },
