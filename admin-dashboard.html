@@ -16,28 +16,35 @@
     * { font-family: 'Inter', sans-serif; }
     body { background-color: #F9FAFB; color: #111827; }
 
-    /* TIGHTEN LEADS TRACKER COLUMNS & TRUNCATE NOTES (V2) */
+    /* TIGHTEN LEADS TRACKER COLUMNS (FINAL VERSION) */
     #view-leads table {
-        table-layout: auto !important; /* Let columns size themselves naturally */
+        table-layout: fixed !important;
         width: 100% !important;
     }
     #view-leads th, #view-leads td {
-        white-space: nowrap; /* Stop weird text wrapping on standard columns */
-        padding-left: 12px;
-        padding-right: 12px;
-    }
-    
-    /* Target exactly the Additional Notes column (3rd from the right) */
-    #view-leads td:nth-last-child(3) {
-        max-width: 350px; /* Gives it plenty of room before cutting off */
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        cursor: pointer;
+        padding-left: 8px;
+        padding-right: 8px;
     }
     
-    /* The Hover Effect specifically for Notes */
-    #view-leads td:nth-last-child(3):hover {
+    /* Protect the Status Column from getting squished (2nd to last column) */
+    #view-leads th:nth-last-child(2),
+    #view-leads td:nth-last-child(2) {
+        width: 110px !important; 
+        text-align: center;
+    }
+
+    /* Protect the Actions Column (Trash can) */
+    #view-leads th:last-child,
+    #view-leads td:last-child {
+        width: 60px !important;
+        text-align: center;
+    }
+
+    /* The Hover Effect to reveal full text on any column */
+    #view-leads td:hover {
         overflow: visible;
         white-space: normal;
         word-break: break-word;
