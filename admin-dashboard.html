@@ -2938,15 +2938,23 @@
             const goal = c.dailyGoal;
             const goalMet = goal > 0 && todaysApproved >= goal;
 
-            // NO BLINK, THICK GREEN BORDER. FIXED "X" BUTTON Z-INDEX SO IT IS CLICKABLE.
+            // FORCE FRONT: Absolute position + High Z-Index + Large Click Area
             serveHtml += `
-            <div class="rounded-xl p-4 transition-all flex flex-col ${goalMet ? 'bg-emerald-50 border-4 border-emerald-400 shadow-sm' : 'bg-white border border-blue-200 shadow-sm'}">
-                <div class="flex justify-between items-start mb-3">
-                    <div>
-                        <h4 class="font-bold text-gray-900">${c.roofingCompany} <span class="text-xs text-gray-500 font-normal ml-1">(${c.code})</span></h4>
-                        <p class="text-[10px] text-gray-400 font-bold uppercase mt-0.5">${c.cityState}</p>
-                    </div>
-                    <button onclick="Admin.dailyRemove('${c.code}')" class="relative z-50 text-gray-400 hover:text-red-500 p-2 -mr-2 -mt-2 cursor-pointer pointer-events-auto bg-white rounded-full"><i class="fa-solid fa-xmark"></i></button>
+            <div class="relative rounded-xl p-4 transition-all flex flex-col ${goalMet ? 'bg-emerald-50 border-4 border-emerald-400 shadow-sm' : 'bg-white border border-blue-200 shadow-sm'}">
+                
+                <div class="absolute top-0 right-0 p-2 z-[9999]">
+                  <button 
+                    onclick="event.stopPropagation(); Admin.dailyRemove('${c.code}')" 
+                    class="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-400 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all shadow-sm cursor-pointer"
+                    style="pointer-events: auto !important; position: relative;"
+                  >
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+                
+                <div class="mb-3 pr-8">
+                    <h4 class="font-bold text-gray-900">${c.roofingCompany} <span class="text-xs text-gray-500 font-normal ml-1">(${c.code})</span></h4>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase mt-0.5">${c.cityState}</p>
                 </div>
                 
                 <div class="flex-1 flex flex-col gap-3">
@@ -3028,19 +3036,23 @@
       },
 
       async dailyRemove(code) {
+          console.log("Removing client:", code);
+          // 1. INSTANT UI FEEDBACK (Make it disappear now)
           const client = this.clientHealthRaw.find(c => c.code === code);
           if (client) {
               client.isServing = false;
-              this.renderDailyTab();
+              this.renderDailyTab(); 
           }
 
-          if (!supaClient) return;
-          const { error } = await supaClient
-              .from('clients')
-              .update({ is_serving: false })
-              .eq('client_code', code); // <-- THIS FIXES THE X BUTTON
+          // 2. SILENT BACKGROUND UPDATE
+          if (typeof supaClient !== 'undefined' && supaClient) {
+              const { error } = await supaClient
+                  .from('clients')
+                  .update({ is_serving: false })
+                  .eq('client_code', code);
               
-          if (error) console.error("Database Update Error:", error);
+              if (error) console.error("Database sync failed, but UI updated:", error);
+          }
       },
 
       async dailyUpdate(code, field, value) {
