@@ -516,6 +516,7 @@
                   <th class="p-4">PKG Status</th>
                   <th class="p-4">Sold By</th>
                   <th class="p-4">Started</th>
+                  <th class="p-4">Deal Status</th>
                   <th class="p-4 text-center">Action</th>
                 </tr>
               </thead>
@@ -1039,14 +1040,21 @@
           <form id="add-sale-form" onsubmit="window.submitNewSale(event)" class="space-y-4">
             <input type="hidden" id="sale-package-id" value="">
             
-            <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Select Client</label>
-              <select id="sale-client-code" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
-                <option value="">-- Choose Client --</option>
-              </select>
+            <div class="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Roofing Company</label>
+                <input type="text" id="sale-company" list="client-suggestions" placeholder="Type to search or add new..." required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
+                <datalist id="client-suggestions"></datalist>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">POC (Contact Person)</label>
+                <input type="text" id="sale-poc" placeholder="e.g. John Doe" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
+              </div>
             </div>
             
-            <div class="grid grid-cols-2 gap-3">
+            <input type="hidden" id="sale-client-code" value="">
+            
+            <div class="grid grid-cols-2 gap-3 mb-3">
                 <div>
                   <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Purchased Leads</label>
                   <input type="number" id="sale-leads" placeholder="e.g. 10" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
@@ -1057,7 +1065,7 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-2 gap-3 mb-3">
                 <div>
                   <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Commission (Per Lead $)</label>
                   <input type="number" id="sale-commission" step="0.01" placeholder="e.g. 10" value="0" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
@@ -1073,7 +1081,7 @@
                 <input type="text" id="sale-transaction-id" placeholder="e.g. TXN-2026-001" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
             </div>
             
-           <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-3 gap-3">
                 <div>
                     <label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Deal Type</label>
                     <select id="sale-deal-type" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400 font-bold text-blue-700">
@@ -1082,11 +1090,10 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase">PKG STATUS</label>
-                    <select id="sale-package-status" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
-                        <option value="Active">Active</option>
-                        <option value="Pause">Pause</option>
-                        <option value="Completed">Completed</option>
+                    <label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Deal Status</label>
+                    <select id="sale-deal-status" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
+                        <option value="Paid">Paid</option>
+                        <option value="Negotiating">Negotiating</option>
                         <option value="Refunded">Refunded</option>
                     </select>
                 </div>
