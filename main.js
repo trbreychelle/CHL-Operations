@@ -895,7 +895,10 @@ async fetchAdminData(forceRefresh = false) {
     const fields = Array.from(root.querySelectorAll('#passbook-form-body input[name], #passbook-form-body textarea[name]'));
     for (const el of fields) {
       const name = el.getAttribute('name');
-      if (name) updates[name] = el.value;
+      // DO NOT try to update the client_code itself!
+      if (name && name !== 'client_code') { 
+          updates[name] = el.value;
+      }
     }
     
     return { codeName, updates };
