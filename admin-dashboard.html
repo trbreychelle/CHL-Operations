@@ -593,9 +593,9 @@
         </div>
 
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div class="table-scroll">
+          <div class="table-scroll max-h-[65vh] overflow-y-auto relative pb-4">
             <table class="table-min w-full text-left text-sm whitespace-nowrap">
-              <thead id="leads-table-head" class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100"></thead>
+              <thead id="leads-table-head" class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100 sticky top-0 z-20 shadow-sm"></thead>
               <tbody id="leads-table-body" class="divide-y divide-gray-50">
                 <tr><td class="p-6 text-center text-gray-400">Loading leads...</td></tr>
               </tbody>
@@ -1686,16 +1686,13 @@
         let filtered = [...leads];
 
         if (stVal !== "all") {
-          filtered = filtered.filter(l => String(this.getLeadField(l, ["Status","STATUS"], "")).trim().toUpperCase() === stVal);
-        }
-
-        if (startDt || endDt) {
           filtered = filtered.filter(l => {
-            const dt = this.getLeadDateObj(l);
-            if (!dt) return false;
-            if (startDt && dt < startDt) return false;
-            if (endDt && dt > endDt) return false;
-            return true;
+            const s = String(this.getLeadField(l, ["status", "Status", "STATUS", "Lead_Status"], "")).toUpperCase();
+            if (stVal === "APPROVED") return s.includes("APPROV") || s.includes("CONFIRM");
+            if (stVal === "REJECTED") return s.includes("REJECT");
+            if (stVal === "CREDITED") return s.includes("CREDIT");
+            if (stVal === "PENDING REVIEW") return s.includes("PENDING");
+            return s.includes(stVal);
           });
         }
 
@@ -2829,11 +2826,14 @@
 
       // --- DAILY STRATEGY TAB LOGIC ---
       renderDailyTab() {
+        // ANTI-GLITCH: Don't refresh the board if you are currently typing!
+        if (document.activeElement && document.activeElement.closest('#daily-serving-board')) return;
+
         const mstFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit' });
         const todayStr = mstFormatter.format(new Date());
-        document.getElementById("daily-date-header").textContent = todayStr;
+        const dateHeader = document.getElementById("daily-date-header");
+        if (dateHeader) dateHeader.textContent = todayStr;
 
-        // 1. Render Agent Statuses
         const events = Array.isArray(this.getState().timeEvents) ? this.getState().timeEvents : [];
         const agents = Array.isArray(this.getState().agents) ? this.getState().agents : [];
         const statusMap = new Map();
@@ -2848,7 +2848,6 @@
             if (eventDayStr === todayStr) {
                 const rawAg = String(e.agent_name || "");
                 const ag = this.getOfficialAgentName(rawAg);
-                
                 const existing = statusMap.get(ag);
                 if (!existing || eventDt > existing.dt) {
                     statusMap.set(ag, { dt: eventDt, action: String(e.action).trim().toLowerCase() });
@@ -2867,19 +2866,14 @@
             const name = String(a.agent_name || a.name || "").trim();
             const latest = statusMap.get(name);
             let badge = `<span class="text-[10px] font-extrabold text-gray-400 bg-gray-100 px-2 py-1 rounded">OFFLINE</span>`;
-            
             if (latest) {
-                if (latest.action === 'clock in' || latest.action === 'resume') {
-                    badge = `<span class="text-[10px] font-extrabold text-emerald-700 bg-emerald-100 px-2 py-1 rounded flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> WORKING</span>`;
-                } else if (latest.action === 'break start') {
-                    badge = `<span class="text-[10px] font-extrabold text-yellow-700 bg-yellow-100 px-2 py-1 rounded">ON BREAK</span>`;
-                }
+                if (latest.action === 'clock in' || latest.action === 'resume') badge = `<span class="text-[10px] font-extrabold text-emerald-700 bg-emerald-100 px-2 py-1 rounded flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> WORKING</span>`;
+                else if (latest.action === 'break start') badge = `<span class="text-[10px] font-extrabold text-yellow-700 bg-yellow-100 px-2 py-1 rounded">ON BREAK</span>`;
             }
             statusHtml += `<div class="flex justify-between items-center p-2 hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-100 transition-colors"><span class="text-xs font-bold text-gray-700">${name}</span> ${badge}</div>`;
         });
         document.getElementById("daily-agent-status-list").innerHTML = statusHtml;
 
-        // 2. Render Client Board (DATABASE SYNCED)
         const poolEl = document.getElementById("daily-client-pool");
         const serveEl = document.getElementById("daily-serving-board");
         const searchTerm = (document.getElementById("daily-pool-search")?.value || "").toLowerCase();
@@ -2888,10 +2882,11 @@
         let poolHtml = "";
         let serveHtml = "";
         
-        const activeClients = this.clientHealthRaw.filter(c => c.passbookStatus === "ACTIVE");
+        // ALPHABETICAL SORT FIX so they stop jumping around
+        let activeClients = this.clientHealthRaw.filter(c => c.passbookStatus === "ACTIVE");
+        activeClients.sort((a, b) => a.roofingCompany.localeCompare(b.roofingCompany));
 
         activeClients.forEach(c => {
-            // Count today's approved and pending leads
             const leadList = this._leadsIndexByCompany?.get(this.normalizeCompanyName(c.roofingCompany)) || [];
             let todaysApproved = 0;
             let todaysPending = 0;
@@ -2909,14 +2904,13 @@
                 }
             });
 
-            // NOW CHECKS SUPABASE INSTEAD OF LOCAL BROWSER MEMORY
             if (c.isServing) {
-                // IT IS ON THE SERVING BOARD
                 const goal = c.dailyGoal;
                 const goalMet = goal > 0 && todaysApproved >= goal;
 
+                // THICK BLINKING GREEN BORDER ADDED HERE
                 serveHtml += `
-                <div class="bg-white border ${goalMet ? 'border-emerald-400 shadow-emerald-100' : 'border-blue-200'} shadow-sm rounded-xl p-4 transition-all flex flex-col">
+                <div class="rounded-xl p-4 transition-all flex flex-col ${goalMet ? 'bg-emerald-50 border-4 border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.5)] animate-pulse' : 'bg-white border border-blue-200 shadow-sm'}">
                     <div class="flex justify-between items-start mb-3">
                         <div>
                             <h4 class="font-bold text-gray-900">${c.roofingCompany} <span class="text-xs text-gray-500 font-normal ml-1">(${c.code})</span></h4>
@@ -2940,22 +2934,14 @@
                         <div class="text-[11px] font-bold text-yellow-600 w-1/3 text-left">Pending: ${todaysPending}</div>
                         <div class="text-[11px] font-bold w-1/3 text-center ${todaysApproved > 0 ? 'text-emerald-600' : 'text-gray-400'}">Approved: ${todaysApproved}</div>
                         <div class="w-1/3 text-right">
-                          ${goalMet ? `<span class="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-2 py-1 rounded animate-pulse">✅ MET</span>` : `<span class="text-[10px] font-bold text-gray-400">In Progress</span>`}
+                          ${goalMet ? `<span class="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-2 py-1 rounded">✅ MET</span>` : `<span class="text-[10px] font-bold text-gray-400">In Progress</span>`}
                         </div>
                     </div>
                 </div>`;
             } else {
-                // IT IS IN THE POOL
-                // 1. Filter out clients with 0 owed leads
                 if (c.owedRemaining <= 0) return;
-                
-                // 2. Only show Ongoing or Paused
                 if (c.packageStatus !== "ONGOING" && c.packageStatus !== "PAUSE") return;
-
-                // 3. Apply manual Search filter
                 if (searchTerm && !`${c.roofingCompany} ${c.code} ${c.cityState}`.toLowerCase().includes(searchTerm)) return;
-                
-                // 4. Filter by Package Status Dropdown
                 if (packageFilter !== "ALL" && c.packageStatus !== packageFilter) return;
 
                 let healthColor = "text-blue-600 bg-blue-50";
@@ -2999,8 +2985,8 @@
           }
 
           // 2. Background Sync using exact Row ID
-          if (!supaClient || !client || !client._raw.id) return;
-          const { error } = await supaClient
+          if (!window.supaClient || !client || !client._raw.id) return;
+          const { error } = await window.supaClient
               .from('clients')
               .update({ is_serving: true, daily_agents: "", daily_goal: 0 })
               .eq('id', client._raw.id);
@@ -3009,16 +2995,14 @@
       },
 
       async dailyRemove(code) {
-          // 1. Instant UI Update
           const client = this.clientHealthRaw.find(c => c.code === code);
           if (client) {
               client.isServing = false;
               this.renderDailyTab();
           }
 
-          // 2. Background Sync using exact Row ID
-          if (!supaClient || !client || !client._raw.id) return;
-          const { error } = await supaClient
+          if (!window.supaClient || !client || !client._raw.id) return;
+          const { error } = await window.supaClient
               .from('clients')
               .update({ is_serving: false })
               .eq('id', client._raw.id);
@@ -3030,16 +3014,14 @@
           const client = this.clientHealthRaw.find(c => c.code === code);
           if (!client) return;
 
-          // 1. Instant UI Update in local memory
           if (field === 'daily_goal') client.dailyGoal = Number(value) || 0;
           if (field === 'daily_agents') client.dailyAgents = value;
 
-          // 2. Background Sync using exact Row ID
-          if (!supaClient || !client._raw.id) return;
+          if (!window.supaClient || !client._raw.id) return;
           const payload = {};
           payload[field] = field === 'daily_goal' ? (Number(value) || 0) : value;
           
-          const { error } = await supaClient
+          const { error } = await window.supaClient
               .from('clients')
               .update(payload)
               .eq('id', client._raw.id);
