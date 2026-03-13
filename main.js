@@ -1122,8 +1122,9 @@ window.fetchSalesPipeline = function() {
             <td class="p-4 text-sm text-gray-600">${r.soldBy}</td>
             <td class="p-4 text-sm text-gray-500 font-bold">${r.dateStarted}</td>
             <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold uppercase ${dealColor}">${r.dealStatus}</span></td>
-            <td class="p-4 text-center">
-                <button onclick="window.editDealModal('${r.id}')" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded shadow-sm">Edit</button>
+            <td class="p-4 text-center flex justify-center gap-1">
+                <button onclick="window.editDealModal('${r.id}')" class="px-3 py-1 bg-gray-100 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded shadow-sm transition-colors">Edit</button>
+                <button onclick="window.deleteDeal('${r.id}', '${r.company.replace(/'/g, "\\'")}')" class="px-3 py-1 bg-gray-100 hover:bg-red-100 text-red-700 text-xs font-bold rounded shadow-sm transition-colors">Delete</button>
             </td>
         </tr>`;
     }).join('');
@@ -1133,7 +1134,22 @@ window.fetchSalesPipeline = function() {
     if (kpiEl) kpiEl.textContent = totalSalesValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 }
 
-// Opens modal for a NEW deal
+// Opens confirm dialog to delete a deal
+window.deleteDeal = async function(pkgId, companyName) {
+    if (!supaClient) return alert("Database connection missing.");
+    
+    const confirmed = confirm(`Are you sure you want to permanently delete the deal for ${companyName}? This cannot be undone.`);
+    if (!confirmed) return;
+
+    const { error } = await supaClient.from('packages').delete().eq('id', pkgId);
+    
+    if (error) {
+        console.error("Delete Deal Error:", error);
+        alert("Failed to delete deal.");
+    } else {
+        window.portal.fetchAdminData(true); // Refresh dashboard instantly
+    }
+}
 window.openAddDealModal = function() {
     document.getElementById('add-sale-form').reset();
     document.getElementById('sale-package-id').value = ""; 
@@ -1175,28 +1191,54 @@ window.editDealModal = function(pkgId) {
 }
 
 window.populateSalesClientDropdown = function() {
-    const datalist = document.getElementById('client-suggestions');
-    if (!datalist) return;
+    const companyInput = document.getElementById('sale-company');
+    const suggestionBox = document.getElementById('custom-client-suggestions');
+    if (!companyInput || !suggestionBox) return;
+
     const clients = window.portal?.adminState?.clients || [];
     
-    let html = "";
-    clients.sort((a,b) => (a.company_name || "").localeCompare(b.company_name || "")).forEach(c => {
-        if (c.company_name) {
-            html += `<option value="${c.company_name}">`;
+    // 1. Hide dropdown when clicking outside of it
+    document.addEventListener('click', (e) => {
+        if (e.target !== companyInput && e.target !== suggestionBox) {
+            suggestionBox.classList.add('hidden');
         }
     });
-    datalist.innerHTML = html;
 
-    // Auto-fill POC and Code when they select a known company
-    const companyInput = document.getElementById('sale-company');
+    // 2. Filter and build the list as you type
     companyInput.addEventListener('input', (e) => {
         const val = e.target.value.toLowerCase().trim();
-        const match = clients.find(c => String(c.company_name || "").toLowerCase().trim() === val);
-        if (match) {
-            document.getElementById('sale-poc').value = match.contact_person || "";
-            document.getElementById('sale-client-code').value = match.client_code || match.code_name || "";
-            document.getElementById('sale-deal-type').value = "Renewal";
+        suggestionBox.innerHTML = ''; // Clear old suggestions
+        
+        if (!val) {
+            suggestionBox.classList.add('hidden');
+            document.getElementById('sale-client-code').value = "";
+            document.getElementById('sale-deal-type').value = "New Client";
+            document.getElementById('sale-poc').value = "";
+            return;
+        }
+
+        const matches = clients.filter(c => String(c.company_name || "").toLowerCase().includes(val));
+        
+        if (matches.length > 0) {
+            suggestionBox.classList.remove('hidden');
+            matches.forEach(match => {
+                const div = document.createElement('div');
+                div.className = "px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm font-bold text-gray-700 border-b border-gray-50 last:border-0";
+                div.textContent = match.company_name;
+                
+                // 3. What happens when you click a suggestion
+                div.onclick = () => {
+                    companyInput.value = match.company_name;
+                    document.getElementById('sale-poc').value = match.contact_person || "";
+                    document.getElementById('sale-client-code').value = match.client_code || match.code_name || "";
+                    document.getElementById('sale-deal-type').value = "Renewal";
+                    suggestionBox.classList.add('hidden');
+                };
+                suggestionBox.appendChild(div);
+            });
         } else {
+            // If no match, treat as a New Client
+            suggestionBox.classList.add('hidden');
             document.getElementById('sale-client-code').value = "";
             document.getElementById('sale-deal-type').value = "New Client";
         }
