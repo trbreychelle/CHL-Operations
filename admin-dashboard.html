@@ -16,6 +16,18 @@
     * { font-family: 'Inter', sans-serif; }
     body { background-color: #F9FAFB; color: #111827; }
 
+    /* NUCLEAR FIX: FORCE CLICKS TO REACH BUTTONS */
+    #daily-serving-board > div {
+        pointer-events: none !important; /* Makes the card 'invisible' to the mouse */
+    }
+    #daily-serving-board button, 
+    #daily-serving-board textarea, 
+    #daily-serving-board input {
+        pointer-events: auto !important; /* Re-enables ONLY the interactive parts */
+        position: relative;
+        z-index: 99999;
+    }
+
     /* TIGHTEN LEADS TRACKER COLUMNS (BULLETPROOF VERSION) */
     #view-leads table {
         table-layout: auto !important;
@@ -3031,42 +3043,32 @@
       },
 
       async dailyRemove(code) {
-          console.log("Removing client:", code);
-          // 1. INSTANT UI FEEDBACK (Make it disappear now)
-          const client = this.clientHealthRaw.find(c => c.code === code);
-          if (client) {
-              client.isServing = false;
+          console.log("Nuclear Removal Triggered for:", code);
+          try {
+              // 1. FORCE THE UI TO UPDATE IMMEDIATELY
+              // We manually find and switch the isServing flag in our local data
+              this.clientHealthRaw = this.clientHealthRaw.map(c => {
+                  if (c.code === code) return { ...c, isServing: false };
+                  return c;
+              });
+              
+              // Refresh the screen instantly
               this.renderDailyTab(); 
+
+              // 2. SEND TO DATABASE IN THE BACKGROUND
+              if (typeof supaClient !== 'undefined' && supaClient) {
+                  const { error } = await supaClient
+                      .from('clients')
+                      .update({ is_serving: false })
+                      .eq('client_code', code);
+                  
+                  if (error) console.error("DB Sync failed, but card is hidden:", error);
+              }
+          } catch (err) {
+              console.error("Nuclear Removal Error:", err);
+              // If all else fails, just reload to clear the board
+              location.reload(); 
           }
-
-          // 2. SILENT BACKGROUND UPDATE
-          if (typeof supaClient !== 'undefined' && supaClient) {
-              const { error } = await supaClient
-                  .from('clients')
-                  .update({ is_serving: false })
-                  .eq('client_code', code);
-              
-              if (error) console.error("Database sync failed, but UI updated:", error);
-          }
-      },
-
-      async dailyUpdate(code, field, value) {
-          const client = this.clientHealthRaw.find(c => c.code === code);
-          if (!client) return;
-
-          if (field === 'daily_goal') client.dailyGoal = Number(value) || 0;
-          if (field === 'daily_agents') client.dailyAgents = value;
-
-          if (!supaClient) return;
-          const payload = {};
-          payload[field] = field === 'daily_goal' ? (Number(value) || 0) : value;
-          
-          const { error } = await supaClient
-              .from('clients')
-              .update(payload)
-              .eq('client_code', code); // <-- THIS FIXES THE TYPING
-              
-          if (error) console.error("Database Update Error:", error);
       },
       
       // --- PAYROLL MATH & LOGIC (STRICTLY MST TIMEZONE) ---
