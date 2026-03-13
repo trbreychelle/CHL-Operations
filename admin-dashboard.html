@@ -2911,6 +2911,9 @@
         let servingClients = allActiveClients.filter(c => c.isServing);
         let poolClients = allActiveClients.filter(c => !c.isServing);
 
+        // Sort serving clients by when they were added so new ones drop to the BOTTOM
+        servingClients.sort((a, b) => (a.addedToBoardAt || 0) - (b.addedToBoardAt || 0));
+
         // Only sort the pool alphabetically
         poolClients.sort((a, b) => a.roofingCompany.localeCompare(b.roofingCompany));
 
@@ -2935,7 +2938,7 @@
             const goal = c.dailyGoal;
             const goalMet = goal > 0 && todaysApproved >= goal;
 
-            // NO BLINK, JUST THICK GREEN BORDER. FIXED X BUTTON CLICKABILITY.
+            // NO BLINK, THICK GREEN BORDER. FIXED "X" BUTTON Z-INDEX SO IT IS CLICKABLE.
             serveHtml += `
             <div class="rounded-xl p-4 transition-all flex flex-col ${goalMet ? 'bg-emerald-50 border-4 border-emerald-400 shadow-sm' : 'bg-white border border-blue-200 shadow-sm'}">
                 <div class="flex justify-between items-start mb-3">
@@ -2943,15 +2946,15 @@
                         <h4 class="font-bold text-gray-900">${c.roofingCompany} <span class="text-xs text-gray-500 font-normal ml-1">(${c.code})</span></h4>
                         <p class="text-[10px] text-gray-400 font-bold uppercase mt-0.5">${c.cityState}</p>
                     </div>
-                    <button onclick="Admin.dailyRemove('${c.code}')" class="relative z-20 text-gray-400 hover:text-red-500 p-1 cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+                    <button onclick="Admin.dailyRemove('${c.code}')" class="relative z-50 text-gray-400 hover:text-red-500 p-2 -mr-2 -mt-2 cursor-pointer pointer-events-auto bg-white rounded-full"><i class="fa-solid fa-xmark"></i></button>
                 </div>
                 
                 <div class="flex-1 flex flex-col gap-3">
-                    <div>
+                    <div class="relative z-10">
                         <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Assigned Agents</label>
                         <textarea onchange="Admin.dailyUpdate('${c.code}', 'daily_agents', this.value)" placeholder="• John&#10;• Mary" class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded focus:ring-2 focus:ring-blue-400 outline-none resize-none" rows="3">${c.dailyAgents}</textarea>
                     </div>
-                    <div>
+                    <div class="relative z-10">
                         <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Goal</label>
                         <input type="number" onchange="Admin.dailyUpdate('${c.code}', 'daily_goal', this.value)" value="${goal || ''}" placeholder="0" class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded focus:ring-2 focus:ring-blue-400 outline-none text-center font-bold">
                     </div>
@@ -2990,7 +2993,7 @@
                         <span class="text-[9px] font-extrabold text-gray-600 bg-gray-200 px-1.5 py-0.5 rounded" title="Owed / Purchased">Owed: ${c.packageLabel}</span>
                     </div>
                 </div>
-                <button onclick="Admin.dailyAdd('${c.code}')" class="relative z-20 w-7 h-7 flex-shrink-0 rounded bg-white border border-gray-200 text-gray-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors shadow-sm ml-2 cursor-pointer">
+                <button onclick="Admin.dailyAdd('${c.code}')" class="relative z-50 w-7 h-7 flex-shrink-0 rounded bg-white border border-gray-200 text-gray-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors shadow-sm ml-2 cursor-pointer pointer-events-auto">
                     <i class="fa-solid fa-plus text-xs"></i>
                 </button>
             </div>`;
@@ -3004,16 +3007,17 @@
       },
 
       async dailyAdd(code) {
-          // 1. Instant UI Update (No waiting!)
+          // 1. Instant UI Update
           const client = this.clientHealthRaw.find(c => c.code === code);
           if (client) {
               client.isServing = true;
+              client.addedToBoardAt = Date.now(); // <-- This stamps the time so it goes to the bottom!
               client.dailyAgents = "";
               client.dailyGoal = 0;
               this.renderDailyTab(); 
           }
 
-          // 2. Background Sync using exact Row ID
+          // 2. Background Sync
           if (!supaClient || !client || !client._raw.id) return;
           const { error } = await supaClient
               .from('clients')
@@ -3050,7 +3054,7 @@
           const payload = {};
           payload[field] = field === 'daily_goal' ? (Number(value) || 0) : value;
           
-          const { error } = await window.supaClient
+          const { error } = await supaClient
               .from('clients')
               .update(payload)
               .eq('id', client._raw.id);
