@@ -2222,19 +2222,28 @@
 
       async _fetchAndRenderPassbookClient(codeName) {
         try {
-          if (!window.supaClient) throw new Error("Database connection missing");
+          // 1. Fix the connection check
+          if (typeof supaClient === 'undefined' || !supaClient) throw new Error("Database connection missing");
           
-          // FETCH DIRECTLY FROM SUPABASE (No Cache Delays)
+          // 2. Fetch safely using limit(1) instead of single()
           const { data, error } = await supaClient
             .from('clients')
             .select('*')
             .eq('client_code', codeName)
-            .single();
+            .limit(1);
 
           if (error) throw error;
-          this._renderPassbookForm(data || {});
+          
+          // 3. Handle if client isn't found gracefully
+          if (!data || data.length === 0) {
+             document.getElementById("passbook-form-body").innerHTML = `<div class="p-4 text-yellow-600 font-bold">Client not found in database. Code: ${codeName}</div>`;
+             return;
+          }
+          
+          this._renderPassbookForm(data[0]);
+          
         } catch (err) {
-          console.error(err);
+          console.error("Fetch Client Error:", err);
           document.getElementById("passbook-form-body").innerHTML = '<div class="p-4 text-red-700 font-bold">Failed to load client from database.</div>';
         }
       },
