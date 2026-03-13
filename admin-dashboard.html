@@ -3011,18 +3011,18 @@
           const client = this.clientHealthRaw.find(c => c.code === code);
           if (client) {
               client.isServing = true;
-              client.addedToBoardAt = Date.now(); // <-- This stamps the time so it goes to the bottom!
+              client.addedToBoardAt = Date.now();
               client.dailyAgents = "";
               client.dailyGoal = 0;
               this.renderDailyTab(); 
           }
 
-          // 2. Background Sync
-          if (!supaClient || !client || !client._raw.id) return;
+          // 2. Background Sync using client_code instead of broken ID
+          if (!supaClient) return;
           const { error } = await supaClient
               .from('clients')
               .update({ is_serving: true, daily_agents: "", daily_goal: 0 })
-              .eq('id', client._raw.id);
+              .eq('client_code', code); // <-- THIS FIXES THE GLITCH
               
           if (error) console.error("Database Update Error:", error);
       },
@@ -3034,11 +3034,11 @@
               this.renderDailyTab();
           }
 
-          if (!supaClient || !client || !client._raw.id) return;
+          if (!supaClient) return;
           const { error } = await supaClient
               .from('clients')
               .update({ is_serving: false })
-              .eq('id', client._raw.id);
+              .eq('client_code', code); // <-- THIS FIXES THE X BUTTON
               
           if (error) console.error("Database Update Error:", error);
       },
@@ -3050,14 +3050,14 @@
           if (field === 'daily_goal') client.dailyGoal = Number(value) || 0;
           if (field === 'daily_agents') client.dailyAgents = value;
 
-          if (!supaClient || !client._raw.id) return;
+          if (!supaClient) return;
           const payload = {};
           payload[field] = field === 'daily_goal' ? (Number(value) || 0) : value;
           
           const { error } = await supaClient
               .from('clients')
               .update(payload)
-              .eq('id', client._raw.id);
+              .eq('client_code', code); // <-- THIS FIXES THE TYPING
               
           if (error) console.error("Database Update Error:", error);
       },
