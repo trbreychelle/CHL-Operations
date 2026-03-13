@@ -1073,9 +1073,16 @@
                 <input type="text" id="sale-transaction-id" placeholder="e.g. TXN-2026-001" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
             </div>
             
-            <div class="grid grid-cols-2 gap-3">
+           <div class="grid grid-cols-3 gap-3">
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">PKG STATUS</label>
+                    <label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Deal Type</label>
+                    <select id="sale-deal-type" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400 font-bold text-blue-700">
+                        <option value="New Client">New Client</option>
+                        <option value="Renewal">Renewal</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase">PKG STATUS</label>
                     <select id="sale-package-status" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
                         <option value="Active">Active</option>
                         <option value="Pause">Pause</option>
@@ -1084,7 +1091,7 @@
                     </select>
                 </div>
                 <div>
-                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Sale Category</label>
+                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sale Category</label>
                   <select id="sale-category" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
                     <option value="Sales Team">Sales Team</option>
                     <option value="CHL">CHL (Admin)</option>
