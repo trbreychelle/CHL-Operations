@@ -1067,10 +1067,10 @@
             <input type="hidden" id="sale-package-id" value="">
             
             <div class="grid grid-cols-2 gap-3 mb-3">
-              <div>
+              <div class="relative">
                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Roofing Company</label>
-                <input type="text" id="sale-company" list="client-suggestions" placeholder="Type to search or add new..." required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
-                <datalist id="client-suggestions"></datalist>
+                <input type="text" id="sale-company" autocomplete="off" placeholder="Type to search or add new..." required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
+                <div id="custom-client-suggestions" class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-xl hidden max-h-48 overflow-y-auto mt-1 top-full left-0"></div>
               </div>
               <div>
                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">POC (Contact Person)</label>
