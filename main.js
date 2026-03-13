@@ -887,6 +887,31 @@ async fetchAdminData(forceRefresh = false) {
   }
 
   async submitPassbookClientUpdate(payload) {
+    // 1. Dual-Write to Supabase for instant Dashboard Sync
+    if (typeof supaClient !== 'undefined' && supaClient) {
+        try {
+            const updates = payload.updates || {};
+            const supaPayload = {
+                company_name: updates['COMPANY NAME'],
+                contact_person: updates['CONTACT PERSON'],
+                area: updates['AREA'],
+                phone: updates['PHONE'],
+                email: updates['EMAIL'],
+                website: updates['WEBSITE'],
+                client_status: updates['STATUS']
+            };
+            // Remove empty/undefined fields so we don't overwrite with blanks
+            Object.keys(supaPayload).forEach(k => supaPayload[k] === undefined && delete supaPayload[k]);
+
+            if (Object.keys(supaPayload).length > 0) {
+                await supaClient.from('clients')
+                    .update(supaPayload)
+                    .eq('client_code', payload.codeName);
+            }
+        } catch(e) { console.error("Supa write failed:", e); }
+    }
+
+    // 2. Send to Google Sheets via Webhook
     const res = await fetch(this.webhooks.passbookClientUpdate, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -898,8 +923,12 @@ async fetchAdminData(forceRefresh = false) {
       throw new Error(`Passbook update failed (HTTP ${res.status}). ${txt}`);
     }
 
-    const out = await res.json().catch(async () => ({ raw: await res.text().catch(() => '') }));
-    return out;
+    // 3. Force main dashboard tables to refresh instantly
+    if (typeof this.fetchAdminData === 'function') {
+        this.fetchAdminData(true);
+    }
+
+    return await res.json().catch(async () => ({ raw: await res.text().catch(() => '') }));
   }
 
   async refreshPassbookClientDetails(codeName) {
@@ -908,10 +937,12 @@ async fetchAdminData(forceRefresh = false) {
 
     const u = new URL(baseUrl);
     u.searchParams.set('codeName', codeName);
+    u.searchParams.set('cb', Date.now()); // <-- CACHE BUSTER FIX
 
     const res = await fetch(u.toString(), {
       method: 'GET',
-      headers: { 'Accept': 'application/json' }
+      headers: { 'Accept': 'application/json' },
+      cache: 'no-store' // <-- CACHE BUSTER FIX
     });
 
     if (!res.ok) {
