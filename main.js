@@ -1127,6 +1127,7 @@ window.fetchSalesPipeline = function() {
 window.openAddDealModal = function() {
     document.getElementById('add-sale-form').reset();
     document.getElementById('sale-package-id').value = ""; // Clear ID
+    document.getElementById('sale-deal-type').value = "New Client";
     document.getElementById('sale-modal-title').innerText = "Log New Deal";
     document.getElementById('save-sale-btn').innerText = "Save Deal";
     window.populateSalesClientDropdown();
@@ -1154,6 +1155,7 @@ window.editDealModal = function(pkgId) {
     document.getElementById('sale-transaction-id').value = pkg.external_package_id || "";
     document.getElementById('sale-package-status').value = pkg.status === "Active" ? "Active" : pkg.status;
     document.getElementById('sale-category').value = pkg.sales_category || "Sales Team";
+    document.getElementById('sale-deal-type').value = pkg.deal_type || "New Client";
 
     document.getElementById('sale-modal-title').innerText = "Edit Deal Details";
     document.getElementById('save-sale-btn').innerText = "Update Deal";
@@ -1189,7 +1191,8 @@ window.submitNewSale = async function(e) {
         purchase_date: document.getElementById('sale-date').value,
         external_package_id: document.getElementById('sale-transaction-id').value,
         status: document.getElementById('sale-package-status').value,
-        sales_category: document.getElementById('sale-category').value
+        sales_category: document.getElementById('sale-category').value,
+        deal_type: document.getElementById('sale-deal-type').value
     };
 
     const btn = document.getElementById('save-sale-btn');
