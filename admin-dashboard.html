@@ -16,7 +16,7 @@
     * { font-family: 'Inter', sans-serif; }
     body { background-color: #F9FAFB; color: #111827; }
 
-    /* TIGHTEN LEADS TRACKER COLUMNS & TRUNCATE NOTES */
+    /* TIGHTEN LEADS TRACKER COLUMNS & TRUNCATE NOTES (UPDATED) */
     #view-leads table {
         table-layout: fixed !important;
         width: 100% !important;
@@ -28,9 +28,10 @@
         padding-left: 12px;
         padding-right: 12px;
     }
-    /* Force the Additional Notes column to be a specific width and show full text on hover */
-    #view-leads td.notes-column, #view-leads td:nth-child(8) { 
-        max-width: 200px; 
+    /* REVIEWED BY COLUMN REMOVED. Let Notes naturally expand into space. Keep truncation. */
+    #view-leads td.notes-column, #view-leads th.notes-column {
+        width: auto !important; /* Allow Notes to expand */
+        min-width: 150px;
     }
     #view-leads td:hover {
         overflow: visible;
@@ -953,7 +954,6 @@
                       <th class="p-3">Insurance Company</th>
                       <th class="p-3">Additional Notes</th>
                       <th class="p-3">Status</th>
-                      <th class="p-3">Reviewed By</th>
                     </tr>
                   </thead>
                   <tbody id="agent-leads-body" class="divide-y divide-gray-50">
@@ -1625,7 +1625,6 @@
           { key: "insurance_company", label: "Insurance Company", keys: ["Insurance Company", "insurance_company"] },
           { key: "additional_notes", label: "Additional Notes", keys: ["Additional Notes", "additional_notes"] },
           { key: "status", label: "Status", keys: ["Status", "status"] },
-          { key: "reviewed_by", label: "Reviewed By", keys: ["Reviewed By", "reviewed_by"] },
         ];
       },
 
@@ -2808,7 +2807,6 @@
             <td class="p-3">${this.getLeadField(l, ["insurance_company", "Insurance Company"])}</td>
             <td class="p-3">${this.getLeadField(l, ["additional_notes", "Additional Notes"])}</td>
             <td class="p-3">${this.statusBadge(this.getLeadField(l, ["status", "Status", "STATUS"]))}</td>
-            <td class="p-3">${this.getLeadField(l, ["reviewed_by", "Reviewed By"])}</td>
           </tr>
         `).join("");
       },
