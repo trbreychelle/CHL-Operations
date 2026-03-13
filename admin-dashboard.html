@@ -2215,8 +2215,12 @@
       async _fetchAndRenderPassbookClient(codeName) {
         try {
           const base = window.portal.webhooks.passbookClientDetails;
-          const url = base.includes("?") ? `${base}&codeName=${encodeURIComponent(codeName)}` : `${base}?codeName=${encodeURIComponent(codeName)}`;
-          const res = await fetch(url, { method: "GET" });
+          // CACHE BUSTER FIX: Forces the browser to grab fresh data every single time
+          const url = base.includes("?") 
+              ? `${base}&codeName=${encodeURIComponent(codeName)}&cb=${Date.now()}` 
+              : `${base}?codeName=${encodeURIComponent(codeName)}&cb=${Date.now()}`;
+          
+          const res = await fetch(url, { method: "GET", cache: "no-store" });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const json = await res.json();
           this._renderPassbookForm(json);
