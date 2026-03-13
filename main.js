@@ -902,7 +902,8 @@ async fetchAdminData(forceRefresh = false) {
   }
 
   async submitPassbookClientUpdate(payload) {
-    if (!window.supaClient) throw new Error("Database connection missing.");
+    // FIXED: Checking the global supaClient variable properly
+    if (typeof supaClient === 'undefined' || !supaClient) throw new Error("Database connection missing.");
     
     // WRITE DIRECTLY TO SUPABASE
     const { error } = await supaClient
@@ -916,7 +917,7 @@ async fetchAdminData(forceRefresh = false) {
         if (error.code === 'PGRST204' || error.message.includes('column')) {
             throw new Error("One of the form fields is missing a matching column in your Supabase table!");
         }
-        throw error;
+        throw new Error(error.message || "Failed to update client in database.");
     }
 
     // Instantly sync the background dashboard tables
