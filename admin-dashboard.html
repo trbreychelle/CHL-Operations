@@ -3018,8 +3018,9 @@
               this.renderDailyTab(); 
           }
 
-          if (typeof supaClient !== 'undefined' && supaClient) {
-              await supaClient.from('clients').update({ is_serving: true, daily_agents: "", daily_goal: 0 }).eq('client_code', code); 
+          // Use exact Row ID so it never misses
+          if (typeof supaClient !== 'undefined' && supaClient && client && client._raw.id) {
+              await supaClient.from('clients').update({ is_serving: true, daily_agents: "", daily_goal: 0 }).eq('id', client._raw.id); 
           }
       },
 
@@ -3034,12 +3035,12 @@
           const client = this.clientHealthRaw.find(c => c.code === code);
           if (client) client.isServing = false;
           
-          this.renderDailyTab(); // Puts the client back into the bottom pool
+          this.renderDailyTab(); 
 
-          // 3. SILENT DATABASE UPDATE
-          if (typeof supaClient !== 'undefined' && supaClient) {
+          // 3. TARGET EXACT ROW ID IN DATABASE
+          if (typeof supaClient !== 'undefined' && supaClient && client && client._raw.id) {
               try {
-                  await supaClient.from('clients').update({ is_serving: false }).eq('client_code', code);
+                  await supaClient.from('clients').update({ is_serving: false }).eq('id', client._raw.id);
               } catch (e) { console.error("DB Sync Failed:", e); }
           }
       },
@@ -3051,10 +3052,11 @@
           if (field === 'daily_goal') client.dailyGoal = Number(value) || 0;
           if (field === 'daily_agents') client.dailyAgents = value;
 
-          if (typeof supaClient !== 'undefined' && supaClient) {
+          // Target exact Row ID for typing and goals
+          if (typeof supaClient !== 'undefined' && supaClient && client._raw.id) {
               const payload = {};
               payload[field] = field === 'daily_goal' ? (Number(value) || 0) : value;
-              await supaClient.from('clients').update(payload).eq('client_code', code); 
+              await supaClient.from('clients').update(payload).eq('id', client._raw.id); 
           }
       },
       
