@@ -16,31 +16,36 @@
     * { font-family: 'Inter', sans-serif; }
     body { background-color: #F9FAFB; color: #111827; }
 
-    /* TIGHTEN LEADS TRACKER COLUMNS & TRUNCATE NOTES (UPDATED) */
+    /* TIGHTEN LEADS TRACKER COLUMNS & TRUNCATE NOTES (V2) */
     #view-leads table {
-        table-layout: fixed !important;
+        table-layout: auto !important; /* Let columns size themselves naturally */
         width: 100% !important;
     }
     #view-leads th, #view-leads td {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        white-space: nowrap; /* Stop weird text wrapping on standard columns */
         padding-left: 12px;
         padding-right: 12px;
     }
-    /* REVIEWED BY COLUMN REMOVED. Let Notes naturally expand into space. Keep truncation. */
-    #view-leads td.notes-column, #view-leads th.notes-column {
-        width: auto !important; /* Allow Notes to expand */
-        min-width: 150px;
+    
+    /* Target exactly the Additional Notes column (3rd from the right) */
+    #view-leads td:nth-last-child(3) {
+        max-width: 350px; /* Gives it plenty of room before cutting off */
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        cursor: pointer;
     }
-    #view-leads td:hover {
+    
+    /* The Hover Effect specifically for Notes */
+    #view-leads td:nth-last-child(3):hover {
         overflow: visible;
         white-space: normal;
         word-break: break-word;
         background-color: #f8fafc;
         position: relative;
-        z-index: 10;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        z-index: 50;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        border-radius: 6px;
     }
     
     .sidebar { background: linear-gradient(180deg, #374151 0%, #111827 100%); transition: all 0.3s; }
