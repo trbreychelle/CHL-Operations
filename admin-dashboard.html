@@ -16,6 +16,32 @@
     * { font-family: 'Inter', sans-serif; }
     body { background-color: #F9FAFB; color: #111827; }
 
+    /* TIGHTEN LEADS TRACKER COLUMNS & TRUNCATE NOTES */
+    #view-leads table {
+        table-layout: fixed !important;
+        width: 100% !important;
+    }
+    #view-leads th, #view-leads td {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+    /* Force the Additional Notes column to be a specific width and show full text on hover */
+    #view-leads td.notes-column, #view-leads td:nth-child(8) { 
+        max-width: 200px; 
+    }
+    #view-leads td:hover {
+        overflow: visible;
+        white-space: normal;
+        word-break: break-word;
+        background-color: #f8fafc;
+        position: relative;
+        z-index: 10;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    
     .sidebar { background: linear-gradient(180deg, #374151 0%, #111827 100%); transition: all 0.3s; }
     .nav-item { transition: all 0.2s; border-left: 4px solid transparent; cursor: pointer; color: #D1D5DB; }
     .nav-item:hover { background: rgba(251, 191, 36, 0.1); color: #FBBF24; }
@@ -2882,14 +2908,18 @@
         let poolHtml = "";
         let serveHtml = "";
         
-        // ALPHABETICAL SORT FIX so they stop jumping around
-        let activeClients = this.clientHealthRaw.filter(c => c.passbookStatus === "ACTIVE");
-        activeClients.sort((a, b) => a.roofingCompany.localeCompare(b.roofingCompany));
+        // SEPARATE SORTING: Pool stays alphabetical, Serving stacks at the bottom
+        let allActiveClients = this.clientHealthRaw.filter(c => c.passbookStatus === "ACTIVE");
+        let servingClients = allActiveClients.filter(c => c.isServing);
+        let poolClients = allActiveClients.filter(c => !c.isServing);
 
-        activeClients.forEach(c => {
+        // Only sort the pool alphabetically
+        poolClients.sort((a, b) => a.roofingCompany.localeCompare(b.roofingCompany));
+
+        // 1. RENDER SERVING BOARD
+        servingClients.forEach(c => {
             const leadList = this._leadsIndexByCompany?.get(this.normalizeCompanyName(c.roofingCompany)) || [];
-            let todaysApproved = 0;
-            let todaysPending = 0;
+            let todaysApproved = 0, todaysPending = 0;
             
             leadList.forEach(l => {
                 const dStr = l.date_submitted || l['Date Submitted'] || l.created_at;
@@ -2904,67 +2934,68 @@
                 }
             });
 
-            if (c.isServing) {
-                const goal = c.dailyGoal;
-                const goalMet = goal > 0 && todaysApproved >= goal;
+            const goal = c.dailyGoal;
+            const goalMet = goal > 0 && todaysApproved >= goal;
 
-                // THICK BLINKING GREEN BORDER ADDED HERE
-                serveHtml += `
-                <div class="rounded-xl p-4 transition-all flex flex-col ${goalMet ? 'bg-emerald-50 border-4 border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.5)] animate-pulse' : 'bg-white border border-blue-200 shadow-sm'}">
-                    <div class="flex justify-between items-start mb-3">
-                        <div>
-                            <h4 class="font-bold text-gray-900">${c.roofingCompany} <span class="text-xs text-gray-500 font-normal ml-1">(${c.code})</span></h4>
-                            <p class="text-[10px] text-gray-400 font-bold uppercase mt-0.5">${c.cityState}</p>
-                        </div>
-                        <button onclick="Admin.dailyRemove('${c.code}')" class="text-gray-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
-                    </div>
-                    
-                    <div class="flex-1 flex flex-col gap-3">
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Assigned Agents</label>
-                            <textarea onchange="Admin.dailyUpdate('${c.code}', 'daily_agents', this.value)" placeholder="• John&#10;• Mary" class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded focus:ring-2 focus:ring-blue-400 outline-none resize-none" rows="3">${c.dailyAgents}</textarea>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Goal</label>
-                            <input type="number" onchange="Admin.dailyUpdate('${c.code}', 'daily_goal', this.value)" value="${goal || ''}" placeholder="0" class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded focus:ring-2 focus:ring-blue-400 outline-none text-center font-bold">
-                        </div>
-                    </div>
-
-                    <div class="mt-3 flex items-center justify-between pt-3 border-t border-gray-50">
-                        <div class="text-[11px] font-bold text-yellow-600 w-1/3 text-left">Pending: ${todaysPending}</div>
-                        <div class="text-[11px] font-bold w-1/3 text-center ${todaysApproved > 0 ? 'text-emerald-600' : 'text-gray-400'}">Approved: ${todaysApproved}</div>
-                        <div class="w-1/3 text-right">
-                          ${goalMet ? `<span class="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-2 py-1 rounded">✅ MET</span>` : `<span class="text-[10px] font-bold text-gray-400">In Progress</span>`}
-                        </div>
-                    </div>
-                </div>`;
-            } else {
-                if (c.owedRemaining <= 0) return;
-                if (c.packageStatus !== "ONGOING" && c.packageStatus !== "PAUSE") return;
-                if (searchTerm && !`${c.roofingCompany} ${c.code} ${c.cityState}`.toLowerCase().includes(searchTerm)) return;
-                if (packageFilter !== "ALL" && c.packageStatus !== packageFilter) return;
-
-                let healthColor = "text-blue-600 bg-blue-50";
-                if (c.healthStatus === "CRITICAL") healthColor = "text-red-600 bg-red-50";
-                else if (c.healthStatus === "AT RISK") healthColor = "text-yellow-600 bg-yellow-50";
-                else if (c.healthStatus === "HEALTHY") healthColor = "text-emerald-600 bg-emerald-50";
-
-                poolHtml += `
-                <div class="border border-gray-200 rounded-lg p-3 hover:border-gray-300 hover:shadow-sm transition-all flex justify-between items-center group bg-gray-50/30">
+            // NO BLINK, JUST THICK GREEN BORDER. FIXED X BUTTON CLICKABILITY.
+            serveHtml += `
+            <div class="rounded-xl p-4 transition-all flex flex-col ${goalMet ? 'bg-emerald-50 border-4 border-emerald-400 shadow-sm' : 'bg-white border border-blue-200 shadow-sm'}">
+                <div class="flex justify-between items-start mb-3">
                     <div>
-                        <h4 class="text-sm font-bold text-gray-800">${c.roofingCompany}</h4>
-                        <p class="text-[10px] text-gray-500 mb-1.5">${c.code} • ${c.cityState}</p>
-                        <div class="flex gap-2 flex-wrap">
-                            <span class="text-[9px] font-extrabold ${c.packageStatus === 'ONGOING' ? 'text-blue-600 bg-blue-100' : 'text-yellow-600 bg-yellow-100'} px-1.5 py-0.5 rounded">${c.packageStatus}</span>
-                            <span class="text-[9px] font-extrabold ${healthColor} px-1.5 py-0.5 rounded">${c.healthStatus}</span>
-                            <span class="text-[9px] font-extrabold text-gray-600 bg-gray-200 px-1.5 py-0.5 rounded" title="Owed / Purchased">Owed: ${c.packageLabel}</span>
-                        </div>
+                        <h4 class="font-bold text-gray-900">${c.roofingCompany} <span class="text-xs text-gray-500 font-normal ml-1">(${c.code})</span></h4>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase mt-0.5">${c.cityState}</p>
                     </div>
-                    <button onclick="Admin.dailyAdd('${c.code}')" class="w-7 h-7 flex-shrink-0 rounded bg-white border border-gray-200 text-gray-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors shadow-sm ml-2">
-                        <i class="fa-solid fa-plus text-xs"></i>
-                    </button>
-                </div>`;
-            }
+                    <button onclick="Admin.dailyRemove('${c.code}')" class="relative z-20 text-gray-400 hover:text-red-500 p-1 cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                
+                <div class="flex-1 flex flex-col gap-3">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Assigned Agents</label>
+                        <textarea onchange="Admin.dailyUpdate('${c.code}', 'daily_agents', this.value)" placeholder="• John&#10;• Mary" class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded focus:ring-2 focus:ring-blue-400 outline-none resize-none" rows="3">${c.dailyAgents}</textarea>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Goal</label>
+                        <input type="number" onchange="Admin.dailyUpdate('${c.code}', 'daily_goal', this.value)" value="${goal || ''}" placeholder="0" class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded focus:ring-2 focus:ring-blue-400 outline-none text-center font-bold">
+                    </div>
+                </div>
+
+                <div class="mt-3 flex items-center justify-between pt-3 border-t border-gray-50">
+                    <div class="text-[11px] font-bold text-yellow-600 w-1/3 text-left">Pending: ${todaysPending}</div>
+                    <div class="text-[11px] font-bold w-1/3 text-center ${todaysApproved > 0 ? 'text-emerald-600' : 'text-gray-400'}">Approved: ${todaysApproved}</div>
+                    <div class="w-1/3 text-right">
+                      ${goalMet ? `<span class="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-2 py-1 rounded">✅ MET</span>` : `<span class="text-[10px] font-bold text-gray-400">In Progress</span>`}
+                    </div>
+                </div>
+            </div>`;
+        });
+
+        // 2. RENDER POOL BOARD
+        poolClients.forEach(c => {
+            if (c.owedRemaining <= 0) return;
+            if (c.packageStatus !== "ONGOING" && c.packageStatus !== "PAUSE") return;
+            if (searchTerm && !`${c.roofingCompany} ${c.code} ${c.cityState}`.toLowerCase().includes(searchTerm)) return;
+            if (packageFilter !== "ALL" && c.packageStatus !== packageFilter) return;
+
+            let healthColor = "text-blue-600 bg-blue-50";
+            if (c.healthStatus === "CRITICAL") healthColor = "text-red-600 bg-red-50";
+            else if (c.healthStatus === "AT RISK") healthColor = "text-yellow-600 bg-yellow-50";
+            else if (c.healthStatus === "HEALTHY") healthColor = "text-emerald-600 bg-emerald-50";
+
+            poolHtml += `
+            <div class="border border-gray-200 rounded-lg p-3 hover:border-gray-300 hover:shadow-sm transition-all flex justify-between items-center group bg-gray-50/30">
+                <div>
+                    <h4 class="text-sm font-bold text-gray-800">${c.roofingCompany}</h4>
+                    <p class="text-[10px] text-gray-500 mb-1.5">${c.code} • ${c.cityState}</p>
+                    <div class="flex gap-2 flex-wrap">
+                        <span class="text-[9px] font-extrabold ${c.packageStatus === 'ONGOING' ? 'text-blue-600 bg-blue-100' : 'text-yellow-600 bg-yellow-100'} px-1.5 py-0.5 rounded">${c.packageStatus}</span>
+                        <span class="text-[9px] font-extrabold ${healthColor} px-1.5 py-0.5 rounded">${c.healthStatus}</span>
+                        <span class="text-[9px] font-extrabold text-gray-600 bg-gray-200 px-1.5 py-0.5 rounded" title="Owed / Purchased">Owed: ${c.packageLabel}</span>
+                    </div>
+                </div>
+                <button onclick="Admin.dailyAdd('${c.code}')" class="relative z-20 w-7 h-7 flex-shrink-0 rounded bg-white border border-gray-200 text-gray-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors shadow-sm ml-2 cursor-pointer">
+                    <i class="fa-solid fa-plus text-xs"></i>
+                </button>
+            </div>`;
         });
 
         if (!serveHtml) serveHtml = `<div class="text-sm text-blue-400 italic text-center py-4 col-span-full">Board is empty. Add clients below.</div>`;
@@ -2985,8 +3016,8 @@
           }
 
           // 2. Background Sync using exact Row ID
-          if (!window.supaClient || !client || !client._raw.id) return;
-          const { error } = await window.supaClient
+          if (!supaClient || !client || !client._raw.id) return;
+          const { error } = await supaClient
               .from('clients')
               .update({ is_serving: true, daily_agents: "", daily_goal: 0 })
               .eq('id', client._raw.id);
@@ -3001,8 +3032,8 @@
               this.renderDailyTab();
           }
 
-          if (!window.supaClient || !client || !client._raw.id) return;
-          const { error } = await window.supaClient
+          if (!supaClient || !client || !client._raw.id) return;
+          const { error } = await supaClient
               .from('clients')
               .update({ is_serving: false })
               .eq('id', client._raw.id);
@@ -3017,7 +3048,7 @@
           if (field === 'daily_goal') client.dailyGoal = Number(value) || 0;
           if (field === 'daily_agents') client.dailyAgents = value;
 
-          if (!window.supaClient || !client._raw.id) return;
+          if (!supaClient || !client._raw.id) return;
           const payload = {};
           payload[field] = field === 'daily_goal' ? (Number(value) || 0) : value;
           
