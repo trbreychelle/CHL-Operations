@@ -1072,6 +1072,7 @@ window.fetchSalesPipeline = function() {
             dealValue: valFormatted,
             totalComm: commFormatted,
             pkgStatus: pStatus,
+            dealStatus: pkg.deal_status || "—", // <--- NEW LINE
             soldBy: pkg.sales_category || "CHL", 
             dateStarted: window.portal.formatDate(pkg.package_start_date) || "—",
             searchStr: `${code} ${client.company_name} ${pkg.external_package_id}`.toLowerCase()
@@ -1095,11 +1096,10 @@ window.fetchSalesPipeline = function() {
     tbody.innerHTML = rows.map(r => {
         totalSalesValue += r.dealValueNum; // Add to total
 
-        let pkgColor = "bg-gray-100 text-gray-700";
-        if (r.pkgStatus === 'ONGOING') pkgColor = "bg-blue-100 text-blue-800";
-        if (r.pkgStatus === 'COMPLETED') pkgColor = "bg-purple-100 text-purple-800";
-        if (r.pkgStatus === 'REFUNDED') pkgColor = "bg-orange-100 text-orange-800";
-        if (r.pkgStatus === 'PAUSE') pkgColor = "bg-yellow-100 text-yellow-800";
+        let dealColor = "bg-gray-100 text-gray-700";
+        if (r.dealStatus === 'Paid') dealColor = "bg-emerald-100 text-emerald-800";
+        if (r.dealStatus === 'Negotiating') dealColor = "bg-yellow-100 text-yellow-800";
+        if (r.dealStatus === 'Refunded') dealColor = "bg-red-100 text-red-800";
 
         return `
         <tr class="hover:bg-gray-50 border-b border-gray-50 transition-colors">
@@ -1113,6 +1113,7 @@ window.fetchSalesPipeline = function() {
             <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold uppercase ${pkgColor}">${r.pkgStatus}</span></td>
             <td class="p-4 text-sm text-gray-600">${r.soldBy}</td>
             <td class="p-4 text-sm text-gray-500 font-bold">${r.dateStarted}</td>
+            <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold uppercase ${dealColor}">${r.dealStatus}</span></td>
             <td class="p-4 text-center">
                 <button onclick="window.editDealModal('${r.id}')" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded shadow-sm">Edit</button>
             </td>
@@ -1127,7 +1128,8 @@ window.fetchSalesPipeline = function() {
 // Opens modal for a NEW deal
 window.openAddDealModal = function() {
     document.getElementById('add-sale-form').reset();
-    document.getElementById('sale-package-id').value = ""; // Clear ID
+    document.getElementById('sale-package-id').value = ""; 
+    document.getElementById('sale-client-code').value = ""; 
     document.getElementById('sale-deal-type').value = "New Client";
     document.getElementById('sale-modal-title').innerText = "Log New Deal";
     document.getElementById('save-sale-btn').innerText = "Save Deal";
@@ -1135,28 +1137,29 @@ window.openAddDealModal = function() {
     document.getElementById('add-sale-modal').classList.remove('hidden');
 }
 
-// Opens modal to EDIT an existing deal
 window.editDealModal = function(pkgId) {
     const pkg = window.portal.adminState.packages.find(p => p.id == pkgId);
     if (!pkg) return;
 
     window.populateSalesClientDropdown();
+    const clients = window.portal?.adminState?.clients || [];
+    const client = clients.find(c => c.client_code === pkg.client_code || c.code_name === pkg.client_code) || {};
 
     document.getElementById('sale-package-id').value = pkg.id;
     document.getElementById('sale-client-code').value = pkg.client_code || "";
+    document.getElementById('sale-company').value = client.company_name || "";
+    document.getElementById('sale-poc').value = client.contact_person || "";
+    
     document.getElementById('sale-leads').value = pkg.purchased_leads || "";
     document.getElementById('sale-value').value = String(pkg.amount || "").replace(/[^0-9.-]+/g,"");
     document.getElementById('sale-commission').value = pkg.commission_per_lead || 0;
     
-    // Format date for date input
-    if (pkg.purchase_date) {
-        document.getElementById('sale-date').value = new Date(pkg.purchase_date).toISOString().split('T')[0];
-    }
+    if (pkg.purchase_date) document.getElementById('sale-date').value = new Date(pkg.purchase_date).toISOString().split('T')[0];
 
     document.getElementById('sale-transaction-id').value = pkg.external_package_id || "";
-    document.getElementById('sale-package-status').value = pkg.status === "Active" ? "Active" : pkg.status;
-    document.getElementById('sale-category').value = pkg.sales_category || "Sales Team";
+    document.getElementById('sale-deal-status').value = pkg.deal_status || "Paid";
     document.getElementById('sale-deal-type').value = pkg.deal_type || "New Client";
+    document.getElementById('sale-category').value = pkg.sales_category || "Sales Team";
 
     document.getElementById('sale-modal-title').innerText = "Edit Deal Details";
     document.getElementById('save-sale-btn').innerText = "Update Deal";
@@ -1164,25 +1167,68 @@ window.editDealModal = function(pkgId) {
 }
 
 window.populateSalesClientDropdown = function() {
-    const select = document.getElementById('sale-client-code');
-    if (!select) return;
+    const datalist = document.getElementById('client-suggestions');
+    if (!datalist) return;
     const clients = window.portal?.adminState?.clients || [];
     
-    let html = `<option value="">-- Choose Client --</option>`;
+    let html = "";
     clients.sort((a,b) => (a.company_name || "").localeCompare(b.company_name || "")).forEach(c => {
-        html += `<option value="${c.code_name || c.client_code}">${c.company_name || c.roofing_company} (${c.code_name || c.client_code})</option>`;
+        if (c.company_name) {
+            html += `<option value="${c.company_name}">`;
+        }
     });
-    select.innerHTML = html;
+    datalist.innerHTML = html;
+
+    // Auto-fill POC and Code when they select a known company
+    const companyInput = document.getElementById('sale-company');
+    companyInput.addEventListener('input', (e) => {
+        const val = e.target.value.toLowerCase().trim();
+        const match = clients.find(c => String(c.company_name || "").toLowerCase().trim() === val);
+        if (match) {
+            document.getElementById('sale-poc').value = match.contact_person || "";
+            document.getElementById('sale-client-code').value = match.client_code || match.code_name || "";
+            document.getElementById('sale-deal-type').value = "Renewal";
+        } else {
+            document.getElementById('sale-client-code').value = "";
+            document.getElementById('sale-deal-type').value = "New Client";
+        }
+    });
 }
 
 window.submitNewSale = async function(e) {
     e.preventDefault();
     if (!supaClient) return alert("Database connection missing.");
 
-    const pkgId = document.getElementById('sale-package-id').value; // Exists if Editing
-    const clientCode = document.getElementById('sale-client-code').value;
-    
-    if (!clientCode) return alert("Please select a client from the dropdown.");
+    const btn = document.getElementById('save-sale-btn');
+    btn.innerText = "Saving...";
+    btn.disabled = true;
+
+    const pkgId = document.getElementById('sale-package-id').value;
+    let clientCode = document.getElementById('sale-client-code').value;
+    const companyName = document.getElementById('sale-company').value.trim();
+    const poc = document.getElementById('sale-poc').value.trim();
+
+    if (!companyName) {
+        alert("Roofing Company name is required.");
+        btn.innerText = "Save Deal"; btn.disabled = false; return;
+    }
+
+    // IF NEW CLIENT: Auto-create in the Passbook database first
+    if (!clientCode) {
+        clientCode = "NEW-" + Math.floor(Date.now() / 1000); // Generate a unique ID
+        const newClientPayload = {
+            client_code: clientCode,
+            company_name: companyName,
+            contact_person: poc,
+            client_status: "Active"
+        };
+        const { error: cErr } = await supaClient.from('clients').insert([newClientPayload]);
+        if (cErr) {
+            console.error("Auto-Client Creation Error:", cErr);
+            alert("Failed to auto-create client profile.");
+            btn.innerText = "Save Deal"; btn.disabled = false; return;
+        }
+    }
 
     const payload = {
         client_code: clientCode,
@@ -1191,21 +1237,17 @@ window.submitNewSale = async function(e) {
         commission_per_lead: parseFloat(document.getElementById('sale-commission').value) || 0,
         purchase_date: document.getElementById('sale-date').value,
         external_package_id: document.getElementById('sale-transaction-id').value,
-        status: document.getElementById('sale-package-status').value,
-        sales_category: document.getElementById('sale-category').value,
-        deal_type: document.getElementById('sale-deal-type').value
+        status: "Active", // Default background package status to Active
+        deal_status: document.getElementById('sale-deal-status').value,
+        deal_type: document.getElementById('sale-deal-type').value,
+        sales_category: document.getElementById('sale-category').value
     };
-
-    const btn = document.getElementById('save-sale-btn');
-    btn.innerText = "Saving...";
 
     let error;
     if (pkgId) {
-        // UPDATE existing
         const res = await supaClient.from('packages').update(payload).eq('id', pkgId);
         error = res.error;
     } else {
-        // INSERT new
         const res = await supaClient.from('packages').insert([payload]);
         error = res.error;
     }
@@ -1215,9 +1257,11 @@ window.submitNewSale = async function(e) {
         alert("Failed to save deal.");
     } else {
         document.getElementById('add-sale-modal').classList.add('hidden');
-        window.portal.fetchAdminData(true); // Refresh whole dashboard!
+        window.portal.fetchAdminData(true); 
     }
+    
     btn.innerText = pkgId ? "Update Deal" : "Save Deal";
+    btn.disabled = false;
 }
 // ==========================================
 // GLOBAL EVENT LISTENERS
