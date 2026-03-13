@@ -886,110 +886,52 @@ async fetchAdminData(forceRefresh = false) {
     if (form) form.addEventListener('submit', handler);
   }
 
+  collectPassbookUpdatePayloadFromForm(rootEl) {
+    const root = rootEl || document;
+    const codeName = (root.querySelector('#codeName')?.value || '').trim();
+    const updates = {};
+    
+    // Grab all inputs mapped directly to Supabase column names
+    const fields = Array.from(root.querySelectorAll('#passbook-form-body input[name], #passbook-form-body textarea[name]'));
+    for (const el of fields) {
+      const name = el.getAttribute('name');
+      if (name) updates[name] = el.value;
+    }
+    
+    return { codeName, updates };
+  }
+
   async submitPassbookClientUpdate(payload) {
-    // 1. Dual-Write to Supabase for instant Dashboard Sync
-    if (typeof supaClient !== 'undefined' && supaClient) {
-        try {
-            const updates = payload.updates || {};
-            const supaPayload = {
-                company_name: updates['COMPANY NAME'],
-                contact_person: updates['CONTACT PERSON'],
-                area: updates['AREA'],
-                phone: updates['PHONE'],
-                email: updates['EMAIL'],
-                website: updates['WEBSITE'],
-                client_status: updates['STATUS']
-            };
-            // Remove empty/undefined fields so we don't overwrite with blanks
-            Object.keys(supaPayload).forEach(k => supaPayload[k] === undefined && delete supaPayload[k]);
+    if (!window.supaClient) throw new Error("Database connection missing.");
+    
+    // WRITE DIRECTLY TO SUPABASE
+    const { error } = await supaClient
+        .from('clients')
+        .update(payload.updates)
+        .eq('client_code', payload.codeName);
 
-            if (Object.keys(supaPayload).length > 0) {
-                await supaClient.from('clients')
-                    .update(supaPayload)
-                    .eq('client_code', payload.codeName);
-            }
-        } catch(e) { console.error("Supa write failed:", e); }
+    if (error) {
+        console.error("Supabase Update Error:", error);
+        // Friendly error if they try to save data to a column that doesn't exist in Supabase yet
+        if (error.code === 'PGRST204' || error.message.includes('column')) {
+            throw new Error("One of the form fields is missing a matching column in your Supabase table!");
+        }
+        throw error;
     }
 
-    // 2. Send to Google Sheets via Webhook
-    const res = await fetch(this.webhooks.passbookClientUpdate, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const txt = await res.text().catch(() => '');
-      throw new Error(`Passbook update failed (HTTP ${res.status}). ${txt}`);
-    }
-
-    // 3. Force main dashboard tables to refresh instantly
+    // Instantly sync the background dashboard tables
     if (typeof this.fetchAdminData === 'function') {
         this.fetchAdminData(true);
     }
-
-    return await res.json().catch(async () => ({ raw: await res.text().catch(() => '') }));
+    
+    return { success: true };
   }
 
   async refreshPassbookClientDetails(codeName) {
-    const baseUrl = this.webhooks.passbookClientDetails;
-    if (!baseUrl) return;
-
-    const u = new URL(baseUrl);
-    u.searchParams.set('codeName', codeName);
-    u.searchParams.set('cb', Date.now()); // <-- CACHE BUSTER FIX
-
-    const res = await fetch(u.toString(), {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' },
-      cache: 'no-store' // <-- CACHE BUSTER FIX
-    });
-
-    if (!res.ok) {
-      console.warn(`Passbook details refresh failed (HTTP ${res.status}).`);
-      return;
+    // Because we use Supabase now, we can just call the read function again to instantly show the new data!
+    if (window.Admin && typeof window.Admin._fetchAndRenderPassbookClient === 'function') {
+        await window.Admin._fetchAndRenderPassbookClient(codeName);
     }
-
-    const data = await res.json().catch(() => null);
-    try { window.dispatchEvent(new CustomEvent('passbook:client-updated', { detail: { codeName, data } })); } catch (e) {}
-    return data;
-  }
-
-  collectPassbookUpdatePayloadFromForm(rootEl) {
-    const root = rootEl || document;
-
-    const codeFromData = (root.querySelector('[data-code-name]')?.getAttribute('data-code-name') || '').trim();
-    const codeFromInput =
-      (root.querySelector('input[name="codeName"]')?.value || '').trim() ||
-      (root.querySelector('input[name="CODE NAME"]')?.value || '').trim() ||
-      (root.querySelector('#codeName')?.value || '').trim() ||
-      (root.querySelector('#CODE_NAME')?.value || '').trim();
-
-    const codeName = codeFromInput || codeFromData;
-    const updates = {};
-
-    const explicit = Array.from(root.querySelectorAll('[data-passbook-field]'));
-    for (const el of explicit) {
-      const key = (el.getAttribute('data-passbook-field') || '').trim();
-      if (!key) continue;
-      const val = (el.value ?? '').toString();
-      updates[key] = val;
-    }
-
-    if (explicit.length === 0) {
-      const fields = Array.from(root.querySelectorAll('input[name], select[name], textarea[name]'));
-      for (const el of fields) {
-        const name = (el.getAttribute('name') || '').trim();
-        if (!name) continue;
-        if (/password|email|login/i.test(name)) continue;
-        const val = (el.value ?? '').toString();
-        updates[name] = val;
-      }
-    }
-
-    updates['LAST UPDATED'] = new Date().toISOString();
-    updates['UPDATED BY'] = 'Passbook';
-    return { codeName, updates };
   }
 
   startAdminAutoRefresh() {
