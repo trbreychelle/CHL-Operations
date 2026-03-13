@@ -1016,7 +1016,8 @@ async function fetchSalesClients(status = 'Active') {
 async function toggleShareWithSales(codeName, checkboxElement) {
     if (!supaClient) { checkboxElement.checked = !checkboxElement.checked; return; }
     const isShared = checkboxElement.checked;
-    const { error } = await supaClient.from('clients').update({ shared_with_sales: isShared }).eq('code_name', codeName); 
+    // FIX: Match the actual Supabase column name 'client_code'
+    const { error } = await supaClient.from('clients').update({ shared_with_sales: isShared }).eq('client_code', codeName); 
     if (error) {
         alert('Database error. Check the console.');
         checkboxElement.checked = !isShared; 
@@ -1355,7 +1356,7 @@ async function submitNewClient(e) {
     btn.disabled = true;
 
     const payload = {
-        code_name: document.getElementById('new-client-code').value,
+        client_code: document.getElementById('new-client-code').value,
         company_name: document.getElementById('new-client-name').value,
         client_status: document.getElementById('new-client-status').value
     };
