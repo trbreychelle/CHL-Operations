@@ -3105,255 +3105,311 @@
           }
       },
       
-      // --- PAYROLL MATH & LOGIC (STRICTLY MST TIMEZONE) ---
+      // --- CEO PAYROLL & FINANCE ENGINE ---
       switchPayrollTab(tab) {
-          const ledgerBtn = document.getElementById("tab-btn-ledger");
-          const historyBtn = document.getElementById("tab-btn-history");
-          const ledgerView = document.getElementById("payroll-ledger-view");
-          const historyView = document.getElementById("payroll-history-view");
-
-          if (tab === 'ledger') {
-              ledgerBtn.className = "px-4 py-2 font-bold text-sm border-b-2 border-yellow-500 text-gray-900";
-              historyBtn.className = "px-4 py-2 font-bold text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-900";
-              ledgerView.classList.remove("hidden");
-              historyView.classList.add("hidden");
-          } else {
-              historyBtn.className = "px-4 py-2 font-bold text-sm border-b-2 border-yellow-500 text-gray-900";
-              ledgerBtn.className = "px-4 py-2 font-bold text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-900";
-              historyView.classList.remove("hidden");
-              ledgerView.classList.add("hidden");
-          }
+          const tabs = ['summary', 'ledger', 'history'];
+          tabs.forEach(t => {
+              const btn = document.getElementById(`tab-btn-${t}`);
+              const view = document.getElementById(`payroll-${t}-view`);
+              if (t === tab) {
+                  btn.className = "pb-3 font-black text-sm border-b-4 border-blue-600 text-blue-700 transition-colors";
+                  view.classList.remove("hidden");
+              } else {
+                  btn.className = "pb-3 font-bold text-sm border-b-4 border-transparent text-gray-400 hover:text-gray-700 transition-colors";
+                  view.classList.add("hidden");
+              }
+          });
+          if (tab === 'history') this.renderPayrollCharts();
       },
 
-      renderPayrollFinance() {
-        const state = this.getState();
-        const leads = Array.isArray(state.leads) ? state.leads : [];
-        const timeEvents = Array.isArray(state.timeEvents) ? state.timeEvents : [];
-        const agents = Array.isArray(state.agents) ? state.agents : [];
-        
-        const { weeks, byWeek } = this.computePayrollFromLeads(leads);
-        
-        if (weeks.length === 0 || weeks[0] === "") {
-            const today = new Date();
-            const day = today.getDay(); 
-            const diff = (day === 6) ? 0 : day + 1; 
-            today.setDate(today.getDate() - diff);
-            weeks[0] = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`; 
-        }
-        
-        const weekSelect = document.getElementById("payroll-week-select");
-        if (weekSelect && weeks.length > 0) {
-            if (weekSelect.options.length === 0 || weekSelect.options[0].value === "latest" || weekSelect.options[0].value === "") {
-                weekSelect.innerHTML = weeks.filter(w => w).map(w => `<option value="${w}">${this.getPayrollWeekRangeLabel(w)}</option>`).join("");
-            }
-        }
+      calculateTieredBonus(qualified, cancelRate) {
+          const isHigh = cancelRate < 25;
+          let bonus = 0;
 
-        const selectedWeek = weekSelect ? weekSelect.value : weeks[0];
-        if (!selectedWeek) return;
+          if (qualified >= 6) bonus += 50; 
+          // 7th is $0
+          if (qualified >= 8) bonus += (isHigh ? 50 : 30);
+          
+          if (qualified >= 9) {
+              const tier1Qty = Math.min(qualified, 12) - 8;
+              bonus += tier1Qty * (isHigh ? 17 : 15);
+          }
+          if (qualified >= 13) {
+              const tier2Qty = qualified - 12;
+              bonus += tier2Qty * (isHigh ? 27 : 25);
+          }
+          return bonus;
+      },
 
-        const periodLabel = document.getElementById("payroll-ledger-period");
-        if (periodLabel) periodLabel.textContent = this.getPayrollWeekRangeLabel(selectedWeek);
+      async renderPayrollFinance() {
+          const state = this.getState();
+          const leads = Array.isArray(state.leads) ? state.leads : [];
+          const timeEvents = Array.isArray(state.timeEvents) ? state.timeEvents : [];
+          const agents = Array.isArray(state.agents) ? state.agents : [];
+          
+          const { weeks, byWeek } = this.computePayrollFromLeads(leads);
+          if (weeks.length === 0 || weeks[0] === "") return;
+          
+          const weekSelect = document.getElementById("payroll-week-select");
+          if (weekSelect && (weekSelect.options.length === 0 || weekSelect.options[0].value === "latest")) {
+              weekSelect.innerHTML = weeks.filter(w => w).map(w => `<option value="${w}">${this.getPayrollWeekRangeLabel(w)}</option>`).join("");
+          }
 
-        const notesEl = document.getElementById("payroll-notes");
-        if (notesEl && !notesEl.oninput) {
-            notesEl.value = localStorage.getItem(`payroll_notes_${selectedWeek}`) || "";
-            notesEl.oninput = (e) => localStorage.setItem(`payroll_notes_${selectedWeek}`, e.target.value);
-        }
+          const selectedWeek = weekSelect ? weekSelect.value : weeks[0];
+          if (!selectedWeek) return;
 
-        const weekStartDt = new Date(selectedWeek + "T00:00:00");
-        const weekEndDt = new Date(weekStartDt);
-        weekEndDt.setDate(weekEndDt.getDate() + 6);
-        weekEndDt.setHours(23, 59, 59, 999);
+          document.getElementById("payroll-ledger-period").textContent = this.getPayrollWeekRangeLabel(selectedWeek);
 
-        // INJECT DATES INTO TABLE HEADERS
-        const dayNames = ['sat', 'sun', 'mon', 'tue', 'wed', 'thu', 'fri'];
-        dayNames.forEach((dName, i) => {
-            const el = document.getElementById(`head-date-${dName}`);
-            if (el) {
-                const dayDt = new Date(weekStartDt);
-                dayDt.setDate(dayDt.getDate() + i);
-                el.textContent = `${dayDt.getMonth() + 1}/${dayDt.getDate()}`;
-            }
-        });
+          // 1. FETCH LIVE MULTIPLAYER DATA FROM SUPABASE
+          let ledgerData = [];
+          if (window.supaClient) {
+              const { data } = await supaClient.from('payroll_ledger').select('*').eq('week_id', selectedWeek);
+              ledgerData = data || [];
+          }
+          this._currentLedgerData = ledgerData;
 
-        const autoHours = this._calculateHoursFromEvents(timeEvents, selectedWeek);
+          // 2. LOAD NOTES BUBBLES
+          this.loadPayrollNotes(selectedWeek);
 
-        let weekRows = byWeek.get(selectedWeek) || [];
-        
-        const activeAgents = agents.filter(a => {
-            if (!a) return false;
-            const status = String(a.employment_status || a.Status || "").toLowerCase().trim();
-            const role = String(a.role || a.Role || "").toLowerCase().trim();
-            return status === "active" && role !== "admin";
-        });
-        
-        activeAgents.forEach(a => {
-            let agName = String(a.agent_name || a.name || "").trim();
-            agName = agName.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
-            
-            if (agName && !weekRows.find(r => r.agent === agName)) {
-                weekRows.push({ week: selectedWeek, agent: agName, qualified: 0, unqualified: 0 });
-            }
-        });
-        
-        // Hide "Unknown" if it has 0 leads
-        weekRows = weekRows.filter(r => r.agent !== "Unknown" || (r.qualified > 0 || r.unqualified > 0));
+          // Inject Dates into Ledger Header
+          const weekStartDt = new Date(selectedWeek + "T00:00:00");
+          const dayNames = ['sat', 'sun', 'mon', 'tue', 'wed', 'thu', 'fri'];
+          dayNames.forEach((dName, i) => {
+              const el = document.getElementById(`head-date-${dName}`);
+              if (el) {
+                  const dayDt = new Date(weekStartDt);
+                  dayDt.setDate(dayDt.getDate() + i);
+                  el.textContent = `${dayDt.getMonth() + 1}/${dayDt.getDate()}`;
+              }
+          });
 
-        weekRows.sort((a,b) => a.agent.localeCompare(b.agent));
+          const autoHours = this._calculateHoursFromEvents(timeEvents, selectedWeek);
+          const activeAgents = agents.filter(a => String(a.employment_status || a.Status || "").toLowerCase() === "active" && String(a.role || "").toLowerCase() !== "admin");
+          
+          let notificationsHTML = "";
+          let grandTotalPayout = 0;
+          let summaryHtml = "";
+          let ledgerHtml = "";
+          
+          this._chartData = { labels: [], payouts: [] }; // Prepare chart data
 
-        let notificationsHTML = "";
-        let totalAutoBonus = 0, totalManualBonus = 0, grandTotalPay = 0;
-        
-        const getAgentWeekStats = (weekStr, agentName) => {
-            const r = byWeek.get(weekStr) || [];
-            return r.find(x => x.agent === agentName) || { qualified: 0, unqualified: 0 };
-        };
+          activeAgents.sort((a,b) => (a.agent_name || a.name || "").localeCompare(b.agent_name || b.name || "")).forEach(a => {
+              const agName = this.getOfficialAgentName(a.agent_name || a.name);
+              if (agName === "Unknown") return;
 
-        const tbody = document.getElementById("payroll-ledger-body");
-        
-        if (!weekRows || weekRows.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="16" class="p-6 text-center text-gray-400 italic text-sm">No active agents found for payroll.</td></tr>`;
-        } else {
-            tbody.innerHTML = weekRows.map(r => {
-                const cancelRate = (r.qualified + r.unqualified > 0) ? (r.unqualified / (r.qualified + r.unqualified)) * 100 : 0;
-                let bonus = this.calculateTieredBonus(r.qualified, cancelRate);
+              // Lead Stats
+              const r = (byWeek.get(selectedWeek) || []).find(x => x.agent === agName) || { qualified: 0, unqualified: 0 };
+              const cancelRate = (r.qualified + r.unqualified > 0) ? (r.unqualified / (r.qualified + r.unqualified)) * 100 : 0;
+              let autoBonus = this.calculateTieredBonus(r.qualified, cancelRate);
 
-                // --- 1. CONSISTENCY INCENTIVE ($100 for 4 weeks of 8+) ---
-                let consistencyBonus = 0;
-                const weekIndex = weeks.indexOf(selectedWeek);
-                if (weekIndex >= 0 && weekIndex + 3 < weeks.length) {
-                    let hitStreak = true;
-                    for(let i=0; i<4; i++) {
-                        const pastStats = getAgentWeekStats(weeks[weekIndex + i], r.agent);
-                        if (pastStats.qualified < 8) hitStreak = false;
-                    }
-                    if (hitStreak) consistencyBonus = 100;
-                }
-                bonus += consistencyBonus;
+              // Consistency & Raffle Checks
+              let consistencyBonus = 0;
+              const weekIndex = weeks.indexOf(selectedWeek);
+              if (weekIndex >= 0 && weekIndex + 3 < weeks.length) {
+                  let hitStreak = true;
+                  for(let i=0; i<4; i++) {
+                      const past = (byWeek.get(weeks[weekIndex + i]) || []).find(x => x.agent === agName) || { qualified: 0 };
+                      if (past.qualified < 8) hitStreak = false;
+                  }
+                  if (hitStreak) consistencyBonus = 100;
+              }
+              autoBonus += consistencyBonus;
 
-                // --- 2. MONTHLY RAFFLE TRACKER ---
-                let raffleMsg = "";
-                if (r.qualified >= 9) {
-                    const monthPrefix = selectedWeek.substring(0, 7);
-                    let mQ = 0, mU = 0;
-                    weeks.forEach(wk => {
-                        if (wk.startsWith(monthPrefix)) {
-                            const mStats = getAgentWeekStats(wk, r.agent);
-                            mQ += mStats.qualified; mU += mStats.unqualified;
-                        }
-                    });
-                    const mCx = (mQ + mU > 0) ? (mU / (mQ + mU)) * 100 : 0;
-                    if (mCx < 20) raffleMsg = `<span class="text-blue-700 ml-2">🎟️ Earned Raffle Ticket! (Mo CX: ${mCx.toFixed(1)}%)</span>`;
-                    else raffleMsg = `<span class="text-red-500 ml-2">❌ Raffle Void (Mo CX: ${mCx.toFixed(1)}%)</span>`;
-                }
+              let raffleMsg = "";
+              if (r.qualified >= 9) {
+                  const monthPrefix = selectedWeek.substring(0, 7);
+                  let mQ = 0, mU = 0;
+                  weeks.forEach(wk => {
+                      if (wk.startsWith(monthPrefix)) {
+                          const mStats = (byWeek.get(wk) || []).find(x => x.agent === agName) || { qualified: 0, unqualified: 0 };
+                          mQ += mStats.qualified; mU += mStats.unqualified;
+                      }
+                  });
+                  const mCx = (mQ + mU > 0) ? (mU / (mQ + mU)) * 100 : 0;
+                  if (mCx < 20) raffleMsg = `<span class="text-white bg-red-500 px-2 py-0.5 rounded text-[10px] uppercase font-black tracking-widest ml-2 shadow-sm"><i class="fa-solid fa-ticket"></i> Raffle Earned (Mo CX: ${mCx.toFixed(1)}%)</span>`;
+                  else raffleMsg = `<span class="text-gray-400 ml-2">❌ Raffle Void (Mo CX: ${mCx.toFixed(1)}%)</span>`;
+              }
 
-                // Alerts Push
-                let alerts = [];
-                if (consistencyBonus > 0) alerts.push("🔥 $100 Consistency Bonus!");
-                if (raffleMsg) alerts.push(raffleMsg);
-                if (alerts.length > 0) {
-                    notificationsHTML += `<div class="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-800 font-bold">${r.agent}: ${alerts.join(' | ')}</div>`;
-                }
+              let alerts = [];
+              if (consistencyBonus > 0) alerts.push("🔥 $100 Consistency Bonus!");
+              if (raffleMsg) alerts.push(raffleMsg);
+              if (alerts.length > 0) notificationsHTML += `<div class="p-3 bg-white border border-gray-100 rounded-xl text-xs text-gray-800 font-bold shadow-sm">${agName}: ${alerts.join(' ')}</div>`;
 
-                const memKey = `pay_${selectedWeek}_${r.agent.replace(/\s/g,'_')}`;
-                const autoAgentHrs = autoHours[r.agent.toLowerCase()] || { m:0,t:0,w:0,th:0,f:0,sa:0,su:0 };
-                
-                const dbAgent = agents.find(a => a && String(a.agent_name || "").toLowerCase() === r.agent.toLowerCase()) || {};
-                
-                // FIX $NaN: Strips out the '$' from base_rate
-                let dbRate = Number(String(dbAgent.effective_hourly_rate || dbAgent.base_rate || "5.00").replace(/[^0-9.]/g, '')) || 5.00;
+              // Sync with Supabase Ledger
+              const dbRecord = ledgerData.find(x => x.agent_name === agName) || {};
+              const sHours = dbRecord.hours_json || {};
+              
+              let dbRate = Number(String(a.effective_hourly_rate || a.base_rate || "5.00").replace(/[^0-9.]/g, ''));
+              const baseRate = Number(dbRecord.rate) || dbRate;
+              const manualSpiff = Number(dbRecord.manual_spiff) || 0;
+              const isPaid = dbRecord.is_paid || false;
 
-                // --- 3. TENURE RAISES (90 Days & 1 Year) ---
-                if (dbAgent.start_date && dbAgent.start_date !== "NULL") {
-                    const startDt = new Date(dbAgent.start_date);
-                    // Ensure the date is valid before doing math
-                    if (!isNaN(startDt.getTime())) {
-                        const daysTenure = (weekEndDt - startDt) / (1000 * 60 * 60 * 24);
-                        
-                        if (daysTenure >= 90) {
-                            let lQ = 0, lU = 0, wksWorked = 0, wksHit8 = 0;
-                            for (let i = weekIndex; i < weeks.length; i++) {
-                                const pastWk = byWeek.get(weeks[i]) || [];
-                                const wS = pastWk.find(x => x.agent === r.agent) || { qualified: 0, unqualified: 0 };
-                                
-                                const hrsWk = this._calculateHoursFromEvents(timeEvents, weeks[i]);
-                                const aHrs = hrsWk[r.agent.toLowerCase()] || {};
-                                const totHrs = (aHrs.m||0)+(aHrs.t||0)+(aHrs.w||0)+(aHrs.th||0)+(aHrs.f||0)+(aHrs.sa||0)+(aHrs.su||0);
-                                
-                                if (wS.qualified > 0 || wS.unqualified > 0 || totHrs > 0) { 
-                                    wksWorked++; lQ += wS.qualified; lU += wS.unqualified;
-                                    if (wS.qualified >= 8) wksHit8++;
-                                }
-                            }
-                            const lCx = (lQ + lU > 0) ? (lU / (lQ + lU)) : 0;
-                            const hitRate = wksWorked > 0 ? (wksHit8 / wksWorked) : 0;
+              // Fallback to auto-calculated hours if DB is empty
+              const aHrs = autoHours[agName.toLowerCase()] || { m:0,t:0,w:0,th:0,f:0,sa:0,su:0 };
+              const days = ['sa','su','m','t','w','th','f'];
+              let finalHours = {};
+              let totalHrs = 0;
+              days.forEach(d => {
+                  finalHours[d] = sHours[d] !== undefined ? Number(sHours[d]) : Number(aHrs[d] || 0);
+                  totalHrs += finalHours[d];
+              });
 
-                            if (daysTenure >= 365) {
-                                 dbRate += 0.75;
-                                 if (lCx < 0.20) dbRate += 0.75; // Total 1.50 raise
-                            } else if (daysTenure >= 90 && hitRate >= 0.75) {
-                                 dbRate += 0.50;
-                                 if (lCx < 0.20) dbRate += 0.25; // Total 0.75 raise
-                            }
-                        }
-                    }
-                }
+              const basePay = totalHrs * baseRate;
+              const totalBonus = autoBonus + manualSpiff;
+              const finalPay = basePay + totalBonus;
+              
+              grandTotalPayout += finalPay;
+              
+              if (finalPay > 0) {
+                  this._chartData.labels.push(agName);
+                  this._chartData.payouts.push(finalPay);
+              }
 
-                const savedData = JSON.parse(localStorage.getItem(memKey)) || { 
-                    rate: dbRate, m: autoAgentHrs.m, t: autoAgentHrs.t, w: autoAgentHrs.w, th: autoAgentHrs.th, f: autoAgentHrs.f, sa: autoAgentHrs.sa, su: autoAgentHrs.su, manual: 0, paid: false 
-                };
+              // SUMMARY ROW
+              summaryHtml += `
+                <tr class="hover:bg-blue-50/30 transition-colors group">
+                  <td class="p-4 font-black text-gray-900">${agName}</td>
+                  <td class="p-4 text-center text-gray-500 font-bold">${a.country || '—'}</td>
+                  <td class="p-4 text-center font-bold text-gray-700">${totalHrs.toFixed(2)}</td>
+                  <td class="p-4 text-right font-black text-purple-600">$${totalBonus.toFixed(2)}</td>
+                  <td class="p-4 text-right font-black text-emerald-500 text-lg group-hover:scale-105 transition-transform">$${finalPay.toFixed(2)}</td>
+                  <td class="p-4 text-center">
+                    <span class="px-3 py-1 rounded text-[10px] font-extrabold uppercase ${isPaid ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-yellow-100 text-yellow-800 border border-yellow-200'}">
+                      ${isPaid ? 'PAID ✓' : 'PENDING'}
+                    </span>
+                  </td>
+                </tr>`;
 
-                const baseRate = Number(savedData.rate) || dbRate;
-                const totalHrs = Number(savedData.m)+Number(savedData.t)+Number(savedData.w)+Number(savedData.th)+Number(savedData.f)+Number(savedData.sa)+Number(savedData.su);
-                const basePay = totalHrs * baseRate;
-                const finalPay = basePay + bonus + Number(savedData.manual);
+              // LEDGER ROW
+              const dayInputs = days.map(d => `
+                  <td class="p-2 text-center">
+                      <input type="number" step="0.25" min="0" value="${finalHours[d].toFixed(2)}" onchange="Admin.updatePayrollLedger('${agName}', '${d}', this.value)" class="w-16 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-700">
+                  </td>
+              `).join("");
 
-                totalAutoBonus += bonus;
-                totalManualBonus += Number(savedData.manual);
-                grandTotalPay += finalPay;
-
-                const days = ['sa','su','m','t','w','th','f'];
-                const dayInputs = days.map(d => `
-                    <td class="p-2 text-center">
-                        <input type="number" step="0.25" min="0" value="${Number(savedData[d]).toFixed(2)}" data-agent="${r.agent}" data-field="${d}" class="pay-input w-16 text-center font-bold border border-gray-300 rounded focus:ring-2 focus:ring-yellow-400 py-1.5 text-sm" onchange="Admin.recalcRow(this)">
-                    </td>
-                `).join("");
-
-                return `
-                <tr class="hover:bg-gray-50 border-b border-gray-50" data-agent="${r.agent}">
-                  <td class="p-3 font-bold text-gray-900 text-sm">${r.agent}</td>
-                  <td class="p-3 text-center font-mono">
-                     <input type="number" step="0.25" min="0" value="${baseRate.toFixed(2)}" data-agent="${r.agent}" data-field="rate" class="pay-input w-20 text-center font-bold border border-gray-300 rounded focus:ring-2 focus:ring-yellow-400 py-1.5 text-sm text-gray-600" onchange="Admin.recalcRow(this)">
+              ledgerHtml += `
+                <tr class="hover:bg-gray-50 border-b border-gray-50" id="row-${agName.replace(/\s/g,'-')}">
+                  <td class="p-3 font-black text-gray-900 text-sm">${agName}</td>
+                  <td class="p-3 text-center">
+                     <input type="number" step="0.25" min="0" value="${baseRate.toFixed(2)}" onchange="Admin.updatePayrollLedger('${agName}', 'rate', this.value)" class="w-20 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-500 bg-gray-50">
                   </td>
                   ${dayInputs}
-                  <td class="p-3 text-center bg-gray-50 font-bold text-gray-800 row-total-hrs text-sm">${totalHrs.toFixed(2)}</td>
+                  <td class="p-3 text-center bg-blue-50 font-black text-blue-800 text-sm" id="tot-hrs-${agName.replace(/\s/g,'-')}">${totalHrs.toFixed(2)}</td>
                   <td class="p-3 text-center font-bold text-blue-500 text-sm">${r.qualified}</td>
                   <td class="p-3 text-center font-bold ${cancelRate < 25 ? 'text-emerald-500' : 'text-red-400'} text-sm">${cancelRate.toFixed(1)}%</td>
-                  <td class="p-3 text-right font-mono font-bold text-purple-600 text-sm" data-bonus="${bonus}">$${bonus.toFixed(2)}</td>
+                  <td class="p-3 text-right font-black text-purple-600 text-sm">$${autoBonus.toFixed(2)}</td>
                   <td class="p-3 text-center">
-                     <input type="number" step="1" value="${savedData.manual}" data-agent="${r.agent}" data-field="manual" class="pay-input w-20 text-center font-bold border border-purple-200 bg-purple-50 rounded focus:ring-2 focus:ring-purple-400 py-1.5 text-sm" onchange="Admin.recalcRow(this)">
+                     <input type="number" step="1" value="${manualSpiff}" onchange="Admin.updatePayrollLedger('${agName}', 'manual_spiff', this.value)" class="w-20 text-center font-bold border border-purple-200 bg-purple-50 text-purple-700 rounded focus:ring-2 focus:ring-purple-500 py-1.5 text-sm">
                   </td>
-                  <td class="p-3 text-right font-extrabold text-emerald-600 font-mono text-base row-total-pay">$${finalPay.toFixed(2)}</td>
+                  <td class="p-3 text-right font-black text-emerald-500 text-lg" id="tot-pay-${agName.replace(/\s/g,'-')}">$${finalPay.toFixed(2)}</td>
                   <td class="p-3 text-center">
-                     <button onclick="Admin.togglePaid(this, '${selectedWeek}', '${r.agent}')" class="px-3 py-1.5 rounded text-xs font-extrabold ${savedData.paid ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-500'}">
-                        ${savedData.paid ? 'PAID ✓' : 'PENDING'}
+                     <button onclick="Admin.updatePayrollLedger('${agName}', 'is_paid', ${!isPaid})" class="px-3 py-1.5 rounded-lg text-xs font-black tracking-wide uppercase transition-all shadow-sm ${isPaid ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}">
+                        ${isPaid ? 'PAID ✓' : 'MARK PAID'}
                      </button>
                   </td>
-                </tr>
-                `;
-            }).join("");
-        }
+                </tr>`;
+          });
 
-        const notifEl = document.getElementById("payroll-notifications");
-        if (notifEl) notifEl.innerHTML = notificationsHTML || `<div class="p-3 bg-gray-50 border border-gray-100 rounded-lg text-xs text-gray-500 italic">No alerts this week.</div>`;
-        const fAuto = document.getElementById("footer-auto-bonus");
-        if(fAuto) fAuto.textContent = "$" + totalAutoBonus.toFixed(2);
-        const fMan = document.getElementById("footer-manual-bonus");
-        if (fMan) fMan.textContent = "$" + totalManualBonus.toFixed(2);
-        const fTot = document.getElementById("footer-total-pay");
-        if (fTot) fTot.textContent = "$" + grandTotalPay.toFixed(2);
+          document.getElementById("ceo-total-payout").textContent = grandTotalPayout.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+          document.getElementById("payroll-notifications").innerHTML = notificationsHTML || `<div class="p-4 bg-gray-50 rounded-xl text-sm text-gray-400 italic text-center h-full flex items-center justify-center">No performance alerts this week.</div>`;
+          document.getElementById("payroll-summary-body").innerHTML = summaryHtml || `<tr><td colspan="6" class="p-8 text-center text-gray-400 italic">No agents active.</td></tr>`;
+          document.getElementById("payroll-ledger-body").innerHTML = ledgerHtml || `<tr><td colspan="16" class="p-8 text-center text-gray-400 italic">No agents active.</td></tr>`;
 
-        this.bindExportCSV(selectedWeek, weekRows, autoHours);
+          // If currently on history tab, re-render chart
+          if (!document.getElementById("payroll-history-view").classList.contains("hidden")) this.renderPayrollCharts();
+      },
+
+      // --- MULTIPLAYER DATABASE SYNC ---
+      async updatePayrollLedger(agentName, field, value) {
+          if (!window.supaClient) return alert("Database connection missing!");
+          const week = document.getElementById("payroll-week-select").value;
+          
+          // Get existing row if any
+          const existing = this._currentLedgerData.find(x => x.agent_name === agentName);
+          let payload = { week_id: week, agent_name: agentName };
+
+          if (field === 'rate') payload.rate = Number(value);
+          else if (field === 'manual_spiff') payload.manual_spiff = Number(value);
+          else if (field === 'is_paid') payload.is_paid = value; // Boolean toggle
+          else {
+              // It's a day of the week, update JSON
+              let hours = existing ? (existing.hours_json || {}) : {};
+              hours[field] = Number(value);
+              payload.hours_json = hours;
+          }
+
+          if (existing && existing.id) {
+              await supaClient.from('payroll_ledger').update(payload).eq('id', existing.id);
+          } else {
+              await supaClient.from('payroll_ledger').insert([payload]);
+          }
+          
+          // Instantly refresh logic without losing focus
+          this.renderPayrollFinance();
+      },
+
+      // --- EXEC NOTES ENGINE ---
+      async loadPayrollNotes(week) {
+          const container = document.getElementById('payroll-notes-container');
+          if (!window.supaClient) return container.innerHTML = '<p class="text-xs text-red-500 p-4">DB Offline</p>';
+          
+          const { data } = await supaClient.from('payroll_notes').select('*').eq('week_id', week).order('created_at', { ascending: true });
+          
+          if (!data || data.length === 0) {
+              container.innerHTML = '<div class="text-xs text-gray-400 italic text-center mt-6">No exec notes for this period.</div>';
+              return;
+          }
+
+          container.innerHTML = data.map(n => `
+              <div class="bg-white border border-blue-100 shadow-sm p-3 rounded-xl relative group flex gap-3 items-start">
+                  <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="fa-solid fa-user-tie text-[10px]"></i></div>
+                  <p class="text-xs text-gray-700 leading-relaxed pr-6 pt-1">${String(n.note_text).replace(/</g, "&lt;")}</p>
+                  <button onclick="Admin.deletePayrollNote('${n.id}')" class="absolute top-2 right-2 w-6 h-6 rounded-full hover:bg-red-50 text-gray-300 hover:text-red-500 hidden group-hover:flex items-center justify-center transition-colors"><i class="fa-solid fa-trash text-[10px]"></i></button>
+              </div>
+          `).join('');
+          container.scrollTop = container.scrollHeight; // Scroll to bottom
+      },
+
+      async addPayrollNote() {
+          const input = document.getElementById('payroll-new-note');
+          const text = input.value.trim();
+          const week = document.getElementById("payroll-week-select").value;
+          if (!text || !window.supaClient) return;
+
+          input.value = "";
+          await supaClient.from('payroll_notes').insert([{ week_id: week, note_text: text }]);
+          this.loadPayrollNotes(week);
+      },
+
+      async deletePayrollNote(id) {
+          if (!window.supaClient) return;
+          await supaClient.from('payroll_notes').delete().eq('id', id);
+          const week = document.getElementById("payroll-week-select").value;
+          this.loadPayrollNotes(week);
+      },
+
+      // --- CEO CHARTS ---
+      renderPayrollCharts() {
+          if (!this._chartData || this._chartData.labels.length === 0) return;
+          
+          const sorted = this._chartData.labels.map((l, i) => ({ label: l, val: this._chartData.payouts[i] })).sort((a,b) => b.val - a.val);
+          const topLabels = sorted.slice(0, 7).map(x => x.label);
+          const topVals = sorted.slice(0, 7).map(x => x.val);
+
+          const createChart = (id, type, labels, data, color) => {
+              const ctx = document.getElementById(id);
+              if (!ctx) return;
+              if (this[`_chart_${id}`]) this[`_chart_${id}`].destroy();
+              this[`_chart_${id}`] = new Chart(ctx, {
+                  type: type,
+                  data: { labels, datasets: [{ data, backgroundColor: color, borderRadius: 6 }] },
+                  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => '$'+v } } } }
+              });
+          };
+
+          // Simulate an expense trend based on top earners for the visual
+          createChart('payroll-expense-chart', 'line', topLabels, topVals, '#10B981');
+          createChart('payroll-earners-chart', 'bar', topLabels, topVals, '#3B82F6');
       },
 
       _calculateHoursFromEvents(events, weekStartStr) {
@@ -3365,24 +3421,15 @@
           const weekEndMST = new Date(y, m-1, d, 23, 59, 59);
           weekEndMST.setDate(weekEndMST.getDate() + 6); 
 
-          const sorted = [...events].sort((a,b) => {
-              const dateA = new Date(a.occurred_at || a.created_at || 0);
-              const dateB = new Date(b.occurred_at || b.created_at || 0);
-              return dateA - dateB;
-          });
-          
+          const sorted = [...events].sort((a,b) => new Date(a.occurred_at || a.created_at || 0) - new Date(b.occurred_at || b.created_at || 0));
           const agentLogs = {};
           
           sorted.forEach(e => {
               const timestamp = e.occurred_at || e.created_at;
               if (!timestamp) return;
-
-              const mstDt = window.portal && window.portal.toMST ? window.portal.toMST(timestamp) : new Date(timestamp);
+              const mstDt = window.portal?.toMST ? window.portal.toMST(timestamp) : new Date(timestamp);
               if (mstDt >= weekStartMST && mstDt <= weekEndMST) {
-                  // USES SMART MATCHER to fix "Jane Tobias" -> "Charo Jane Tobias"
-                  const rawAg = String(e.agent_name || "");
-                  const ag = this.getOfficialAgentName(rawAg).toLowerCase();
-                  
+                  const ag = this.getOfficialAgentName(e.agent_name || "").toLowerCase();
                   if (!agentLogs[ag]) agentLogs[ag] = [];
                   agentLogs[ag].push({ ...e, mstDt });
               }
@@ -3391,7 +3438,6 @@
           for (const [ag, logs] of Object.entries(agentLogs)) {
               hrs[ag] = { m:0, t:0, w:0, th:0, f:0, sa:0, su:0 };
               const byDay = {};
-              
               logs.forEach(l => {
                   const dStr = `${l.mstDt.getFullYear()}-${String(l.mstDt.getMonth()+1).padStart(2,'0')}-${String(l.mstDt.getDate()).padStart(2,'0')}`;
                   if (!byDay[dStr]) byDay[dStr] = [];
@@ -3399,91 +3445,21 @@
               });
 
               for (const [dateStr, dayLogs] of Object.entries(byDay)) {
-                  let totalMs = 0;
-                  let lastIn = null;
-
+                  let totalMs = 0; let lastIn = null;
                   dayLogs.forEach(l => {
                       const action = String(l.action).trim().toLowerCase();
                       const time = l.mstDt.getTime();
-
                       if (action === 'clock in' || action === 'resume') { lastIn = time; } 
                       else if (action === 'clock out' || action === 'break start') {
                           if (lastIn) { totalMs += (time - lastIn); lastIn = null; }
                       }
                   });
-                  
-                  let hours = totalMs / (1000 * 60 * 60);
                   const dayIdx = new Date(dateStr + "T12:00:00").getDay();
                   const dayMap = [ 'su', 'm', 't', 'w', 'th', 'f', 'sa' ];
-                  hrs[ag][dayMap[dayIdx]] = Math.max(0, hours);
+                  hrs[ag][dayMap[dayIdx]] = Math.max(0, totalMs / (1000 * 60 * 60));
               }
           }
           return hrs;
-      },
-      
-      calculateTieredBonus(qualified, cancelRate) {
-          const isHigh = cancelRate < 25;
-          let bonus = 0;
-
-          if (qualified >= 6 && qualified <= 7) bonus += 50; 
-          if (qualified >= 8) bonus += (isHigh ? 50 : 30);
-          
-          if (qualified >= 9) {
-              const qty = Math.min(qualified, 12) - 8;
-              bonus += qty * (isHigh ? 17 : 15);
-          }
-          if (qualified >= 13) {
-              const qty = qualified - 12;
-              bonus += qty * (isHigh ? 27 : 25);
-          }
-          return bonus;
-      },
-
-      recalcRow(inputEl) {
-          const tr = inputEl.closest('tr');
-          const agent = tr.getAttribute('data-agent');
-          const selectedWeek = document.getElementById("payroll-week-select").value;
-          
-          const memKey = `pay_${selectedWeek}_${agent.replace(/\s/g,'_')}`;
-          let savedData = JSON.parse(localStorage.getItem(memKey)) || { rate:5, m:0,t:0,w:0,th:0,f:0,sa:0,su:0, manual:0, paid: false };
-          
-          const field = inputEl.getAttribute('data-field');
-          savedData[field] = Number(inputEl.value) || 0;
-          localStorage.setItem(memKey, JSON.stringify(savedData));
-
-          const totalHrs = Number(savedData.m)+Number(savedData.t)+Number(savedData.w)+Number(savedData.th)+Number(savedData.f)+Number(savedData.sa)+Number(savedData.su);
-          tr.querySelector('.row-total-hrs').textContent = totalHrs.toFixed(2);
-
-          const autoBonus = Number(tr.querySelector('[data-bonus]').getAttribute('data-bonus'));
-          const finalPay = (totalHrs * Number(savedData.rate)) + autoBonus + Number(savedData.manual);
-          
-          tr.querySelector('.row-total-pay').textContent = "$" + finalPay.toFixed(2);
-          document.getElementById("btn-save-payroll").classList.remove("hidden");
-      },
-
-      togglePaid(btn, week, agent) {
-          const memKey = `pay_${week}_${agent.replace(/\s/g,'_')}`;
-          let savedData = JSON.parse(localStorage.getItem(memKey)) || { rate:5, m:0,t:0,w:0,th:0,f:0,sa:0,su:0, manual:0, paid: false };
-          
-          savedData.paid = !savedData.paid;
-          localStorage.setItem(memKey, JSON.stringify(savedData));
-
-          if (savedData.paid) {
-              btn.className = "px-2 py-1 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800";
-              btn.textContent = "PAID ✓";
-          } else {
-              btn.className = "px-2 py-1 rounded text-[10px] font-extrabold bg-gray-100 text-gray-500";
-              btn.textContent = "PENDING";
-          }
-      },
-
-      saveAllPayrollChanges() {
-          const btn = document.getElementById("btn-save-payroll");
-          btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Saving...`;
-          setTimeout(() => {
-              btn.innerHTML = `<i class="fa-solid fa-check mr-2"></i> Saved!`;
-              setTimeout(() => btn.classList.add("hidden"), 2000);
-          }, 800);
       },
 
       getLeadPayrollWeekStart(l) {
@@ -3513,18 +3489,12 @@
           const week = `${mstDt.getFullYear()}-${String(mstDt.getMonth()+1).padStart(2,"0")}-${String(mstDt.getDate()).padStart(2,"0")}`;
           weekSet.add(week);
 
-          const rawAgent = String(this.pick(l, [
-            "appointment_coordinator_name", "Appointment Coordinator Name", "agent_name", "Agent Name", "Setter", "Agent"
-          ], "Unknown")).trim();
-
-          // USES SMART MATCHER
+          const rawAgent = String(this.pick(l, ["appointment_coordinator_name", "Appointment Coordinator Name", "agent_name", "Agent Name"], "Unknown")).trim();
           const agent = this.getOfficialAgentName(rawAgent);
-
-          const status = String(this.pick(l, ["status", "Status", "STATUS", "Lead_Status"], "")).toLowerCase();
+          const status = String(this.pick(l, ["status", "Status", "STATUS"], "")).toLowerCase();
           const k = `${week}||${agent.toLowerCase()}`;
 
           const agg = weekAgentMap.get(k) || { week, agent, qualified: 0, unqualified: 0 };
-
           if (status.includes("confirm") || status.includes("approv")) agg.qualified += 1;
           else if (status.includes("credit") || status.includes("reject")) agg.unqualified += 1;
 
@@ -3536,19 +3506,10 @@
 
         for (const v of weekAgentMap.values()) {
           const arr = byWeek.get(v.week) || [];
-          // Group overlaps together safely
           const existing = arr.find(x => x.agent.toLowerCase() === v.agent.toLowerCase());
-          if (existing) {
-              existing.qualified += v.qualified;
-              existing.unqualified += v.unqualified;
-          } else {
-              arr.push(v);
-          }
+          if (existing) { existing.qualified += v.qualified; existing.unqualified += v.unqualified; } 
+          else { arr.push(v); }
           byWeek.set(v.week, arr);
-        }
-
-        for (const [wk, arr] of byWeek.entries()) {
-          arr.sort((a,b) => (b.qualified - a.qualified) || ((b.qualified+b.unqualified) - (a.qualified+a.unqualified)) || a.agent.localeCompare(b.agent));
         }
         return { weeks, byWeek };
       },
@@ -3557,10 +3518,7 @@
         if (!weekStartStr) return "—";
         const start = new Date(weekStartStr + "T00:00:00");
         if (isNaN(start.getTime())) return weekStartStr;
-
-        const end = new Date(start);
-        end.setDate(end.getDate() + 6);
-
+        const end = new Date(start); end.setDate(end.getDate() + 6);
         return `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
       },
 
@@ -3569,7 +3527,13 @@
         this._payrollBound = true;
         const sel = document.getElementById("payroll-week-select");
         if (sel) sel.addEventListener("change", () => this.renderPayrollFinance());
-      },
+
+        // Bind Enter key for new notes
+        const noteInput = document.getElementById('payroll-new-note');
+        if (noteInput) noteInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.addPayrollNote();
+        });
+      }
       nav(viewId, linkEl) {
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.getElementById('view-' + viewId).classList.add('active');
