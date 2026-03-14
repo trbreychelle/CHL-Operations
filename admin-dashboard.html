@@ -967,92 +967,141 @@
       </div>
 
       <div id="view-payroll" class="view-section">
-        <div class="flex justify-between items-end mb-4">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
           <div>
-            <h2 class="text-2xl font-bold text-gray-900">Payroll & Finance</h2>
-            <p class="text-sm text-gray-500 mt-1">Automated timesheets, tiered base rates, and performance bonuses.</p>
+            <h2 class="text-3xl font-black text-gray-900 tracking-tight">Payroll & Finance</h2>
+            <p class="text-sm text-gray-500 mt-1">Executive overview, payout approvals, and automated tier tracking.</p>
           </div>
-          <div class="flex gap-2">
-            <select id="payroll-week-select" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-bold text-blue-700 shadow-sm focus:ring-2 focus:ring-yellow-400">
-              <option value="latest" selected>Loading Weeks...</option>
-            </select>
-            <button id="payroll-export" class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800 shadow-sm">
-              <i class="fa-solid fa-file-export mr-2"></i> Export CSV
-            </button>
-          </div>
-        </div>
+          
+          <div class="flex flex-col items-end gap-2">
+            <div class="bg-gray-900 px-6 py-3 rounded-xl shadow-lg border border-gray-700 text-right">
+              <p class="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Total Payout (Selected Range)</p>
+              <p class="text-2xl font-black text-emerald-400" id="ceo-total-payout">$0.00</p>
+            </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-          <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-            <h3 class="font-bold text-gray-900 text-sm mb-3 flex items-center gap-2"><i class="fa-solid fa-bell text-yellow-500"></i> Performance Alerts (This Week)</h3>
-            <div id="payroll-notifications" class="space-y-2 max-h-32 overflow-y-auto pr-2">
-              <div class="p-3 bg-gray-50 border border-gray-100 rounded-lg text-xs text-gray-500 italic">Calculating performance metrics...</div>
+            <div class="flex gap-2 items-center">
+              <div class="relative">
+                <button id="payroll-custom-toggle" class="px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm font-bold text-gray-700 hover:bg-gray-50 shadow-sm flex items-center gap-2">
+                  <i class="fa-regular fa-calendar"></i> Custom Range
+                </button>
+                <div id="payroll-custom-popover" class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-2xl p-4 z-50">
+                  <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-3">Custom Timeframe</div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Start</label>
+                      <input id="payroll-custom-start" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none"/>
+                    </div>
+                    <div>
+                      <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">End</label>
+                      <input id="payroll-custom-end" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none"/>
+                    </div>
+                  </div>
+                  <div class="flex justify-end gap-2 mt-4 border-t border-gray-100 pt-3">
+                    <button id="payroll-custom-clear" class="px-3 py-2 rounded-lg text-xs font-bold text-gray-500 hover:bg-gray-100">Clear</button>
+                    <button id="payroll-custom-apply" class="px-4 py-2 rounded-lg bg-gray-900 text-white text-xs font-bold shadow-md hover:bg-gray-800">Apply</button>
+                  </div>
+                </div>
+              </div>
+              <select id="payroll-week-select" class="px-4 py-2 border border-gray-200 rounded-lg text-sm bg-white font-bold text-blue-700 shadow-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <option value="latest" selected>Loading Weeks...</option>
+              </select>
+              <button id="payroll-export" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold shadow-md shadow-emerald-500/20 hover:bg-emerald-700 transition-colors">
+                <i class="fa-solid fa-file-csv mr-2"></i> Export
+              </button>
             </div>
           </div>
-          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col">
-            <h3 class="font-bold text-gray-900 text-sm mb-2 flex items-center gap-2"><i class="fa-solid fa-thumbtack text-blue-500"></i> Manual Spiffs & Notes</h3>
-            <textarea id="payroll-notes" class="flex-1 w-full bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs focus:outline-none focus:ring-2 focus:ring-yellow-400" placeholder="Type reminders here (e.g., 'Give John extra $50 for Saturday coverage'). Saves automatically."></textarea>
-          </div>
         </div>
 
-        <div class="flex gap-4 mb-4 border-b border-gray-200">
-            <button id="tab-btn-ledger" class="px-4 py-2 font-bold text-sm border-b-2 border-yellow-500 text-gray-900" onclick="Admin.switchPayrollTab('ledger')">Current Ledger</button>
-            <button id="tab-btn-history" class="px-4 py-2 font-bold text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-900" onclick="Admin.switchPayrollTab('history')">Payroll History</button>
-        </div>
-
-        <div id="payroll-ledger-view" class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col mb-8">
-          <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-            <div class="flex items-center gap-3">
-                <h3 class="font-bold text-gray-900">Weekly Ledger</h3>
-                <span class="px-2 py-1 rounded text-xs font-bold bg-blue-100 text-blue-700" id="payroll-ledger-period">Select a week</span>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          
+          <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col overflow-hidden">
+            <div class="bg-gray-50/80 px-5 py-3 border-b border-gray-100 flex justify-between items-center">
+              <h3 class="font-black text-gray-900 text-sm flex items-center gap-2 uppercase tracking-wide"><i class="fa-solid fa-bolt text-yellow-500"></i> Performance Alerts</h3>
             </div>
-            <button onclick="Admin.saveAllPayrollChanges()" id="btn-save-payroll" class="hidden px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-sm">
-              <i class="fa-solid fa-floppy-disk mr-2"></i> Save Changes
-            </button>
+            <div id="payroll-notifications" class="p-5 space-y-3 max-h-[220px] overflow-y-auto bg-white">
+              <div class="p-4 bg-gray-50 rounded-xl text-sm text-gray-500 italic flex items-center justify-center h-full">Calculating performance metrics...</div>
+            </div>
           </div>
 
-          <div class="table-scroll overflow-auto" style="max-height: 500px;">
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col overflow-hidden h-[265px]">
+            <div class="bg-gray-50/80 px-5 py-3 border-b border-gray-100">
+              <h3 class="font-black text-gray-900 text-sm flex items-center gap-2 uppercase tracking-wide"><i class="fa-regular fa-comments text-blue-500"></i> Exec Notes</h3>
+            </div>
+            <div id="payroll-notes-container" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
+              </div>
+            <div class="p-3 bg-white border-t border-gray-100 flex gap-2">
+              <input type="text" id="payroll-new-note" placeholder="Add a note..." class="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <button onclick="Admin.addPayrollNote()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold shadow hover:bg-blue-700"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-6 mb-6 border-b border-gray-200 px-2">
+            <button id="tab-btn-summary" class="pb-3 font-black text-sm border-b-4 border-blue-600 text-blue-700 transition-colors" onclick="Admin.switchPayrollTab('summary')">Summary Report</button>
+            <button id="tab-btn-ledger" class="pb-3 font-bold text-sm border-b-4 border-transparent text-gray-400 hover:text-gray-700 transition-colors" onclick="Admin.switchPayrollTab('ledger')">Timesheet Ledger</button>
+            <button id="tab-btn-history" class="pb-3 font-bold text-sm border-b-4 border-transparent text-gray-400 hover:text-gray-700 transition-colors" onclick="Admin.switchPayrollTab('history')">Charts & History</button>
+        </div>
+
+        <div id="payroll-summary-view" class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-8">
+          <div class="table-scroll max-h-[600px] overflow-auto">
             <table class="w-full text-left text-sm whitespace-nowrap">
-              <thead class="bg-white font-bold text-gray-400 uppercase border-b border-gray-100 sticky top-0 z-10 shadow-sm">
+              <thead class="bg-gray-50/80 font-black text-gray-500 uppercase tracking-wider text-[10px] border-b border-gray-200 sticky top-0 z-20">
                 <tr>
-                  <th class="p-3">Agent</th>
-                  <th class="p-3 text-center" title="Editable Base Rate">Rate/Hr</th>
-                 <th class="p-3 text-center leading-tight">Sat<br><span id="head-date-sat" class="text-[9px] font-normal text-gray-400"></span></th>
-                  <th class="p-3 text-center leading-tight">Sun<br><span id="head-date-sun" class="text-[9px] font-normal text-gray-400"></span></th>
-                  <th class="p-3 text-center leading-tight">Mon<br><span id="head-date-mon" class="text-[9px] font-normal text-gray-400"></span></th>
-                  <th class="p-3 text-center leading-tight">Tue<br><span id="head-date-tue" class="text-[9px] font-normal text-gray-400"></span></th>
-                  <th class="p-3 text-center leading-tight">Wed<br><span id="head-date-wed" class="text-[9px] font-normal text-gray-400"></span></th>
-                  <th class="p-3 text-center leading-tight">Thu<br><span id="head-date-thu" class="text-[9px] font-normal text-gray-400"></span></th>
-                  <th class="p-3 text-center leading-tight">Fri<br><span id="head-date-fri" class="text-[9px] font-normal text-gray-400"></span></th>
-                  <th class="p-3 text-center bg-gray-50 text-gray-700">Total Hrs</th>
-                  <th class="p-3 text-center text-blue-500">Qual</th>
-                  <th class="p-3 text-center text-red-400">CX %</th>
-                  <th class="p-3 text-right text-purple-600" title="Calculated Tiered Bonus">Auto Bonus</th>
-                  <th class="p-3 text-center" title="Manual additions (Spiffs)">Manual $</th>
-                  <th class="p-3 text-right text-emerald-600 text-sm">Total Pay</th>
-                  <th class="p-3 text-center">Status</th>
+                  <th class="p-4">Agent Name</th>
+                  <th class="p-4 text-center">Country</th>
+                  <th class="p-4 text-center">Total Hrs</th>
+                  <th class="p-4 text-right">Total Bonus (Auto + Spiff)</th>
+                  <th class="p-4 text-right text-emerald-600">Total Payout</th>
+                  <th class="p-4 text-center">Status</th>
                 </tr>
               </thead>
-              <tbody id="payroll-ledger-body" class="divide-y divide-gray-50">
-                <tr><td colspan="16" class="p-6 text-center text-gray-400 italic text-sm">Loading payroll data...</td></tr>
+              <tbody id="payroll-summary-body" class="divide-y divide-gray-100">
+                <tr><td colspan="6" class="p-8 text-center text-gray-400 italic">Processing summary...</td></tr>
               </tbody>
-              <tfoot class="bg-gray-100 font-bold text-gray-900 sticky bottom-0 z-10 border-t border-gray-200 text-sm">
-                <tr>
-                    <td class="p-3" colspan="12">WEEKLY TOTALS</td>
-                    <td class="p-3 text-right text-purple-700 text-base" id="footer-auto-bonus">$0.00</td>
-                    <td class="p-3 text-center text-gray-700 text-base" id="footer-manual-bonus">$0.00</td>
-                    <td class="p-3 text-right text-emerald-700 text-xl" id="footer-total-pay">$0.00</td>
-                    <td></td>
-                </tr>
-              </tfoot>
             </table>
           </div>
         </div>
 
-        <div id="payroll-history-view" class="hidden bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center mb-8">
-            <i class="fa-solid fa-clock-rotate-left text-4xl text-gray-300 mb-3"></i>
-            <h3 class="text-lg font-bold text-gray-900">Payroll History Archive</h3>
-            <p class="text-sm text-gray-500 max-w-md mx-auto mt-2">Saved payroll runs will appear here. Currently, historical records are maintained inside your exported CSV files.</p>
+        <div id="payroll-ledger-view" class="hidden bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-8">
+          <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+            <span class="px-3 py-1 rounded-lg text-xs font-black bg-blue-100 text-blue-800 tracking-wide uppercase" id="payroll-ledger-period">Select a week</span>
+          </div>
+          <div class="table-scroll overflow-auto" style="max-height: 600px;">
+            <table class="w-full text-left text-sm whitespace-nowrap">
+              <thead class="bg-white font-bold text-gray-400 uppercase text-[10px] tracking-wider border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+                <tr>
+                  <th class="p-3">Agent</th>
+                  <th class="p-3 text-center">Rate/Hr</th>
+                  <th class="p-3 text-center">Sat<br><span id="head-date-sat" class="text-[9px] font-normal text-gray-400"></span></th>
+                  <th class="p-3 text-center">Sun<br><span id="head-date-sun" class="text-[9px] font-normal text-gray-400"></span></th>
+                  <th class="p-3 text-center">Mon<br><span id="head-date-mon" class="text-[9px] font-normal text-gray-400"></span></th>
+                  <th class="p-3 text-center">Tue<br><span id="head-date-tue" class="text-[9px] font-normal text-gray-400"></span></th>
+                  <th class="p-3 text-center">Wed<br><span id="head-date-wed" class="text-[9px] font-normal text-gray-400"></span></th>
+                  <th class="p-3 text-center">Thu<br><span id="head-date-thu" class="text-[9px] font-normal text-gray-400"></span></th>
+                  <th class="p-3 text-center">Fri<br><span id="head-date-fri" class="text-[9px] font-normal text-gray-400"></span></th>
+                  <th class="p-3 text-center bg-blue-50 text-blue-800">Total Hrs</th>
+                  <th class="p-3 text-center text-blue-500">Qual</th>
+                  <th class="p-3 text-center text-red-400">CX %</th>
+                  <th class="p-3 text-right text-purple-600">Auto Bonus</th>
+                  <th class="p-3 text-center">Manual $</th>
+                  <th class="p-3 text-right text-emerald-600">Total Pay</th>
+                </tr>
+              </thead>
+              <tbody id="payroll-ledger-body" class="divide-y divide-gray-50">
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="payroll-history-view" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+           <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <h3 class="font-black text-gray-900 text-sm uppercase tracking-wide mb-4">Total Payout Trend</h3>
+              <canvas id="payroll-expense-chart" height="250"></canvas>
+           </div>
+           <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <h3 class="font-black text-gray-900 text-sm uppercase tracking-wide mb-4">Top Earners (This Period)</h3>
+              <canvas id="payroll-earners-chart" height="250"></canvas>
+           </div>
         </div>
       </div>
 
