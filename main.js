@@ -888,42 +888,53 @@ async fetchAdminData(forceRefresh = false) {
 
   collectPassbookUpdatePayloadFromForm(rootEl) {
     const root = rootEl || document;
-    const codeName = (root.querySelector('#codeName')?.value || '').trim();
+    // We grab the ORIGINAL code from the hidden input before it was changed
+    const originalCodeName = (root.querySelector('#codeName')?.value || '').trim();
     const updates = {};
     
-    // Grab all inputs mapped directly to Supabase column names
     const fields = Array.from(root.querySelectorAll('#passbook-form-body input[name], #passbook-form-body textarea[name]'));
     for (const el of fields) {
       const name = el.getAttribute('name');
-      // DO NOT try to update the client_code itself!
-      if (name && name !== 'client_code') { 
+      // I removed the safety lock. It will now capture the NEW client_code!
+      if (name) { 
           updates[name] = el.value;
       }
     }
     
-    return { codeName, updates };
+    return { originalCodeName, updates };
   }
 
   async submitPassbookClientUpdate(payload) {
-    // FIXED: Checking the global supaClient variable properly
-    if (typeof supaClient === 'undefined' || !supaClient) throw new Error("Database connection missing.");
+    if (!window.supaClient) throw new Error("Database connection missing.");
     
-    // WRITE DIRECTLY TO SUPABASE
+    const newClientCode = payload.updates['client_code'];
+    const originalCode = payload.originalCodeName;
+
+    // 1. UPDATE THE CLIENT PROFILE
     const { error } = await supaClient
         .from('clients')
         .update(payload.updates)
-        .eq('client_code', payload.codeName);
+        .eq('client_code', originalCode);
 
     if (error) {
         console.error("Supabase Update Error:", error);
-        // Friendly error if they try to save data to a column that doesn't exist in Supabase yet
         if (error.code === 'PGRST204' || error.message.includes('column')) {
             throw new Error("One of the form fields is missing a matching column in your Supabase table!");
         }
         throw new Error(error.message || "Failed to update client in database.");
     }
 
-    // Instantly sync the background dashboard tables
+    // 2. SMART LINK: IF THE CODE CHANGED, UPDATE THE SALES PIPELINE TOO!
+    if (newClientCode && newClientCode !== originalCode) {
+        const { error: pkgErr } = await supaClient
+            .from('packages')
+            .update({ client_code: newClientCode })
+            .eq('client_code', originalCode);
+            
+        if (pkgErr) console.error("Failed to update related sales packages:", pkgErr);
+    }
+
+    // 3. Instantly sync the background dashboard tables
     if (typeof this.fetchAdminData === 'function') {
         this.fetchAdminData(true);
     }
