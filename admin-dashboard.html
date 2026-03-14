@@ -3533,7 +3533,8 @@
         if (noteInput) noteInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.addPayrollNote();
         });
-      }
+      },
+      
       nav(viewId, linkEl) {
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.getElementById('view-' + viewId).classList.add('active');
