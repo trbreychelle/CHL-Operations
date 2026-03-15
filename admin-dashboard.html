@@ -1095,7 +1095,11 @@
           </div>
         </div>
 
-        <div id="payroll-history-view" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div id="payroll-history-view" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+           <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col">
+              <h3 class="font-black text-gray-900 text-sm uppercase tracking-wide mb-4">Revenue vs Payout</h3>
+              <div class="flex-1 relative min-h-[250px]"><canvas id="payroll-roi-chart"></canvas></div>
+           </div>
            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col">
               <h3 class="font-black text-gray-900 text-sm uppercase tracking-wide mb-4">Total Payout Trend</h3>
               <div class="flex-1 relative min-h-[250px]"><canvas id="payroll-expense-chart"></canvas></div>
@@ -3156,10 +3160,19 @@
               weekSelect.innerHTML = weeks.filter(w => w).map(w => `<option value="${w}">${this.getPayrollWeekRangeLabel(w)}</option>`).join("");
           }
 
-          const selectedWeek = weekSelect ? weekSelect.value : weeks[0];
+          let selectedWeek = weekSelect ? weekSelect.value : weeks[0];
           if (!selectedWeek) return;
 
-          document.getElementById("payroll-ledger-period").textContent = this.getPayrollWeekRangeLabel(selectedWeek);
+          // --- CUSTOM RANGE LOGIC ---
+          let customStart, customEnd;
+          if (this._payrollCustomRange?.active) {
+              selectedWeek = "CUSTOM_RANGE";
+              customStart = new Date(this._payrollCustomRange.start + "T00:00:00");
+              customEnd = new Date(this._payrollCustomRange.end + "T23:59:59");
+              document.getElementById("payroll-ledger-period").textContent = `CUSTOM: ${customStart.toLocaleDateString()} → ${customEnd.toLocaleDateString()}`;
+          } else {
+              document.getElementById("payroll-ledger-period").textContent = this.getPayrollWeekRangeLabel(selectedWeek);
+          }
 
           // 1. FETCH LIVE MULTIPLAYER DATA FROM SUPABASE
           let ledgerData = [];
@@ -3169,8 +3182,9 @@
           }
           this._currentLedgerData = ledgerData;
 
-          // 2. LOAD NOTES BUBBLES
-          this.loadPayrollNotes(selectedWeek);
+          // 2. LOAD NOTES BUBBLES (Always force dropdown week, never Custom Range)
+          const weekForNotes = weekSelect ? weekSelect.value : weeks[0];
+          this.loadPayrollNotes(weekForNotes);
 
           // Inject Dates into Ledger Header
           const weekStartDt = new Date(selectedWeek + "T00:00:00");
@@ -3178,30 +3192,40 @@
           dayNames.forEach((dName, i) => {
               const el = document.getElementById(`head-date-${dName}`);
               if (el) {
-                  const dayDt = new Date(weekStartDt);
-                  dayDt.setDate(dayDt.getDate() + i);
-                  el.textContent = `${dayDt.getMonth() + 1}/${dayDt.getDate()}`;
+                  if (selectedWeek === "CUSTOM_RANGE") el.textContent = "—";
+                  else {
+                      const dayDt = new Date(weekStartDt);
+                      dayDt.setDate(dayDt.getDate() + i);
+                      el.textContent = `${dayDt.getMonth() + 1}/${dayDt.getDate()}`;
+                  }
               }
           });
 
-          const autoHours = this._calculateHoursFromEvents(timeEvents, selectedWeek);
+          const autoHours = this._calculateHoursFromEvents(timeEvents, selectedWeek, customStart, customEnd);
           
-          // --- SMART AGENT FILTER (Includes Offboarded agents if they worked this week) ---
           const relevantAgents = agents.filter(a => {
               const role = String(a.role || "").toLowerCase();
-              if (role === "admin") return false; // Never show admins
+              if (role === "admin") return false; 
               
               const st = String(a.employment_status || a.Status || "").toLowerCase();
-              if (st === "active") return true; // Always show active agents
+              if (st === "active") return true; 
               
               const agName = this.getOfficialAgentName(a.agent_name || a.name).toLowerCase();
               
-              // Check if they logged hours this week
               const hasHours = autoHours[agName] && Object.values(autoHours[agName]).some(h => h > 0);
-              // Check if they got leads this week
-              const r = (byWeek.get(selectedWeek) || []).find(x => x.agent.toLowerCase() === agName);
-              const hasLeads = r && (r.qualified > 0 || r.unqualified > 0);
-              // Check if a manager manually edited their ledger this week
+              
+              let hasLeads = false;
+              if (selectedWeek === "CUSTOM_RANGE") {
+                  hasLeads = leads.some(l => {
+                      const lDt = this.getLeadDateObj(l);
+                      const lAg = this.getOfficialAgentName(l.appointment_coordinator_name || l.agent_name).toLowerCase();
+                      return lDt >= customStart && lDt <= customEnd && lAg === agName;
+                  });
+              } else {
+                  const r = (byWeek.get(selectedWeek) || []).find(x => x.agent.toLowerCase() === agName);
+                  hasLeads = r && (r.qualified > 0 || r.unqualified > 0);
+              }
+              
               const hasLedger = ledgerData.some(x => x.agent_name.toLowerCase() === agName);
 
               return hasHours || hasLeads || hasLedger;
@@ -3209,51 +3233,67 @@
           
           let notificationsHTML = "";
           let grandTotalPayout = 0;
+          let grandTotalRevenue = 0;
           let summaryHtml = "";
           let ledgerHtml = "";
-          this._chartData = { labels: [], payouts: [] };
+          this._chartData = { labels: [], payouts: [], revenue: [] };
 
-          // --- COMPILE DATA FIRST SO WE CAN GROUP BY COUNTRY ---
           let processedAgents = [];
 
           relevantAgents.forEach(a => {
               const agName = this.getOfficialAgentName(a.agent_name || a.name);
               if (agName === "Unknown") return;
 
-              // Lead Stats
-              const r = (byWeek.get(selectedWeek) || []).find(x => x.agent === agName) || { qualified: 0, unqualified: 0 };
-              const cancelRate = (r.qualified + r.unqualified > 0) ? (r.unqualified / (r.qualified + r.unqualified)) * 100 : 0;
-              let autoBonus = this.calculateTieredBonus(r.qualified, cancelRate);
-
-              // Consistency Check
-              let consistencyBonus = 0;
-              const weekIndex = weeks.indexOf(selectedWeek);
-              if (weekIndex >= 0 && weekIndex + 3 < weeks.length) {
-                  let hitStreak = true;
-                  for(let i=0; i<4; i++) {
-                      const past = (byWeek.get(weeks[weekIndex + i]) || []).find(x => x.agent === agName) || { qualified: 0 };
-                      if (past.qualified < 8) hitStreak = false;
-                  }
-                  if (hitStreak) consistencyBonus = 100;
-              }
-              autoBonus += consistencyBonus;
-
-              // Beautiful Raffle Badge Design
-              let raffleMsg = "";
-              if (r.qualified >= 9) {
-                  const monthPrefix = selectedWeek.substring(0, 7);
-                  let mQ = 0, mU = 0;
-                  weeks.forEach(wk => {
-                      if (wk.startsWith(monthPrefix)) {
-                          const mStats = (byWeek.get(wk) || []).find(x => x.agent === agName) || { qualified: 0, unqualified: 0 };
-                          mQ += mStats.qualified; mU += mStats.unqualified;
+              let qCount = 0, uCount = 0;
+              
+              if (selectedWeek === "CUSTOM_RANGE") {
+                  leads.forEach(l => {
+                      const lDt = this.getLeadDateObj(l);
+                      const lAg = this.getOfficialAgentName(l.appointment_coordinator_name || l.agent_name);
+                      if (lDt && lDt >= customStart && lDt <= customEnd && lAg === agName) {
+                          const st = String(l.status || "").toLowerCase();
+                          if (st.includes('approv') || st.includes('confirm')) qCount++;
+                          else if (st.includes('credit') || st.includes('reject')) uCount++;
                       }
                   });
-                  const mCx = (mQ + mU > 0) ? (mU / (mQ + mU)) * 100 : 0;
-                  if (mCx < 20) {
-                      raffleMsg = `<span class="inline-flex items-center gap-1 bg-gradient-to-r from-amber-100 to-yellow-200 text-yellow-800 border border-yellow-300 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ml-2 shadow-sm"><i class="fa-solid fa-ticket text-yellow-600"></i> Raffle Earned (CX: ${mCx.toFixed(1)}%)</span>`;
-                  } else {
-                      raffleMsg = `<span class="text-gray-400 text-[10px] uppercase font-bold ml-2">❌ Raffle Void (CX: ${mCx.toFixed(1)}%)</span>`;
+              } else {
+                  const r = (byWeek.get(selectedWeek) || []).find(x => x.agent === agName) || { qualified: 0, unqualified: 0 };
+                  qCount = r.qualified; uCount = r.unqualified;
+              }
+
+              const cancelRate = (qCount + uCount > 0) ? (uCount / (qCount + uCount)) * 100 : 0;
+              let autoBonus = this.calculateTieredBonus(qCount, cancelRate);
+
+              let consistencyBonus = 0;
+              let raffleMsg = "";
+
+              if (selectedWeek !== "CUSTOM_RANGE") {
+                  const weekIndex = weeks.indexOf(selectedWeek);
+                  if (weekIndex >= 0 && weekIndex + 3 < weeks.length) {
+                      let hitStreak = true;
+                      for(let i=0; i<4; i++) {
+                          const past = (byWeek.get(weeks[weekIndex + i]) || []).find(x => x.agent === agName) || { qualified: 0 };
+                          if (past.qualified < 8) hitStreak = false;
+                      }
+                      if (hitStreak) consistencyBonus = 100;
+                  }
+                  autoBonus += consistencyBonus;
+
+                  if (qCount >= 9) {
+                      const monthPrefix = selectedWeek.substring(0, 7);
+                      let mQ = 0, mU = 0;
+                      weeks.forEach(wk => {
+                          if (wk.startsWith(monthPrefix)) {
+                              const mStats = (byWeek.get(wk) || []).find(x => x.agent === agName) || { qualified: 0, unqualified: 0 };
+                              mQ += mStats.qualified; mU += mStats.unqualified;
+                          }
+                      });
+                      const mCx = (mQ + mU > 0) ? (mU / (mQ + mU)) * 100 : 0;
+                      if (mCx < 20) {
+                          raffleMsg = `<span class="inline-flex items-center gap-1 bg-gradient-to-r from-amber-100 to-yellow-200 text-yellow-800 border border-yellow-300 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ml-2 shadow-sm"><i class="fa-solid fa-ticket text-yellow-600"></i> Raffle Earned (CX: ${mCx.toFixed(1)}%)</span>`;
+                      } else {
+                          raffleMsg = `<span class="text-gray-400 text-[10px] uppercase font-bold ml-2">❌ Raffle Void (CX: ${mCx.toFixed(1)}%)</span>`;
+                      }
                   }
               }
 
@@ -3261,20 +3301,17 @@
               if (consistencyBonus > 0) alerts.push("🔥 $100 Consistency Bonus!");
               if (raffleMsg) alerts.push(raffleMsg);
               if (alerts.length > 0) {
-                  // Subtle, pleasing alert bubbles
                   notificationsHTML += `<div class="p-3 bg-white border border-gray-100 rounded-xl text-xs text-gray-800 font-bold shadow-sm flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-500"></span> ${agName}: ${alerts.join(' ')}</div>`;
               }
 
-              // Sync with Supabase Ledger
               const dbRecord = ledgerData.find(x => x.agent_name === agName) || {};
               const sHours = dbRecord.hours_json || {};
               
               let dbRate = Number(String(a.effective_hourly_rate || a.base_rate || "5.00").replace(/[^0-9.]/g, ''));
               const baseRate = Number(dbRecord.rate) || dbRate;
               const manualSpiff = Number(dbRecord.manual_spiff) || 0;
-              const isPaid = dbRecord.is_paid || false;
+              const isPaid = (dbRecord.is_paid === true || String(dbRecord.is_paid) === 'true'); // STRICT BOOLEAN
 
-              // Fallback to auto-calculated hours if DB is empty
               const aHrs = autoHours[agName.toLowerCase()] || { m:0,t:0,w:0,th:0,f:0,sa:0,su:0 };
               const days = ['sa','su','m','t','w','th','f'];
               let finalHours = {};
@@ -3287,39 +3324,40 @@
               const basePay = totalHrs * baseRate;
               const totalBonus = autoBonus + manualSpiff;
               const finalPay = basePay + totalBonus;
+              const revenue = qCount * 125; 
               
               grandTotalPayout += finalPay;
-              if (finalPay > 0) {
+              grandTotalRevenue += revenue;
+              
+              if (finalPay > 0 || revenue > 0) {
                   this._chartData.labels.push(agName);
                   this._chartData.payouts.push(finalPay);
+                  this._chartData.revenue.push(revenue);
               }
 
               processedAgents.push({
-                  agName,
-                  country: (a.country || "Unassigned").toUpperCase(),
+                  agName, country: (a.country || "Unassigned").toUpperCase(),
                   baseRate, totalHrs, totalBonus, finalPay, isPaid,
-                  qualified: r.qualified, cancelRate, autoBonus, manualSpiff,
+                  qualified: qCount, cancelRate, autoBonus, manualSpiff,
                   finalHours, days
               });
           });
 
-          // --- SORT BY COUNTRY, THEN AGENT NAME ---
           processedAgents.sort((a, b) => {
               if (a.country === b.country) return a.agName.localeCompare(b.agName);
               return a.country.localeCompare(b.country);
           });
 
-          // --- BUILD THE HTML WITH COUNTRY GROUPING ---
-          let currentCountry = "";
+          // BIND EXPORT
+          this.bindExportCSV(selectedWeek, processedAgents);
 
+          let currentCountry = "";
           processedAgents.forEach(data => {
-              // Check if we need to inject a Country Sub-Header
               if (data.country !== currentCountry) {
                   currentCountry = data.country;
                   summaryHtml += `<tr><td colspan="7" class="bg-gray-100/50 p-2 px-4 text-xs font-black text-gray-500 uppercase tracking-widest border-y border-gray-200"><i class="fa-solid fa-earth-americas mr-2 text-gray-400"></i> ${currentCountry}</td></tr>`;
               }
 
-              // 1. SUMMARY ROW (Mark Paid Button Moved Here)
               summaryHtml += `
                 <tr class="hover:bg-blue-50/30 transition-colors group">
                   <td class="p-4 font-black text-gray-900">${data.agName}</td>
@@ -3335,10 +3373,9 @@
                   </td>
                 </tr>`;
 
-              // 2. LEDGER ROW (Status Badge Only)
               const dayInputs = data.days.map(d => `
                   <td class="p-2 text-center">
-                      <input type="number" step="0.25" min="0" value="${data.finalHours[d].toFixed(2)}" onchange="Admin.updatePayrollLedger('${data.agName}', '${d}', this.value)" class="w-16 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-700">
+                      <input type="number" step="0.25" min="0" value="${data.finalHours[d].toFixed(2)}" onchange="Admin.updatePayrollLedger('${data.agName}', '${d}', this.value)" class="w-16 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-700" ${selectedWeek === "CUSTOM_RANGE" ? "disabled" : ""}>
                   </td>
               `).join("");
 
@@ -3365,6 +3402,9 @@
                 </tr>`;
           });
 
+          this._chartData.totalRevenue = grandTotalRevenue;
+          this._chartData.totalPayout = grandTotalPayout;
+
           document.getElementById("ceo-total-payout").textContent = grandTotalPayout.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
           document.getElementById("payroll-notifications").innerHTML = notificationsHTML || `<div class="p-4 bg-gray-50 rounded-xl text-sm text-gray-400 italic text-center h-full flex items-center justify-center">No performance alerts this week.</div>`;
           document.getElementById("payroll-summary-body").innerHTML = summaryHtml || `<tr><td colspan="7" class="p-8 text-center text-gray-400 italic">No agents active.</td></tr>`;
@@ -3373,18 +3413,17 @@
           if (!document.getElementById("payroll-history-view").classList.contains("hidden")) this.renderPayrollCharts();
       },
 
-      // --- MULTIPLAYER DATABASE SYNC ---
       async updatePayrollLedger(agentName, field, value) {
           if (typeof supaClient === 'undefined' || !supaClient) return alert("Database connection missing!");
-          const week = document.getElementById("payroll-week-select").value;
+          let week = document.getElementById("payroll-week-select").value;
+          if (this._payrollCustomRange?.active) week = "CUSTOM_RANGE";
           
           const existing = this._currentLedgerData.find(x => x.agent_name === agentName);
           let payload = { week_id: week, agent_name: agentName };
 
           if (field === 'rate') payload.rate = Number(value);
           else if (field === 'manual_spiff') payload.manual_spiff = Number(value);
-          // FIXED: Forces JavaScript to read the toggle as a strict True/False boolean
-          else if (field === 'is_paid') payload.is_paid = (value === true || String(value) === 'true'); 
+          else if (field === 'is_paid') payload.is_paid = (value === true || String(value) === 'true'); // STRICT BOOLEAN FIX
           else {
               let hours = existing ? (existing.hours_json || {}) : {};
               hours[field] = Number(value);
@@ -3392,21 +3431,22 @@
           }
 
           if (existing && existing.id) {
-              await supaClient.from('payroll_ledger').update(payload).eq('id', existing.id);
+              const { error } = await supaClient.from('payroll_ledger').update(payload).eq('id', existing.id);
+              if(error) console.error("Mark Paid Error:", error);
           } else {
               await supaClient.from('payroll_ledger').insert([payload]);
           }
           
-          this.renderPayrollFinance(); // Instant refresh
+          this.renderPayrollFinance(); 
       },
 
-      // --- EXEC NOTES ENGINE ---
       async loadPayrollNotes(week) {
           const container = document.getElementById('payroll-notes-container');
           if (typeof supaClient === 'undefined' || !supaClient) return container.innerHTML = '<p class="text-xs text-red-500 p-4">DB Offline</p>';
           
-          const { data } = await supaClient.from('payroll_notes').select('*').eq('week_id', week).order('created_at', { ascending: true });
-          
+          const { data, error } = await supaClient.from('payroll_notes').select('*').eq('week_id', week).order('created_at', { ascending: true });
+          if (error) console.error("Notes Load Error:", error);
+
           if (!data || data.length === 0) {
               container.innerHTML = '<div class="text-xs text-gray-400 italic text-center mt-6">No exec notes for this period.</div>';
               return;
@@ -3425,10 +3465,13 @@
       async addPayrollNote() {
           const input = document.getElementById('payroll-new-note');
           const text = input.value.trim();
-          const week = document.getElementById("payroll-week-select").value;
-          if (!text || typeof supaClient === 'undefined' || !supaClient) return;
+          
+          // ALWAYS FORCE NOTES TO USE THE DROPDOWN WEEK (Fixes Custom Range Bug)
+          const weekSelect = document.getElementById("payroll-week-select");
+          const week = weekSelect ? weekSelect.value : "";
+          
+          if (!text || !week || typeof supaClient === 'undefined' || !supaClient) return;
 
-          // Added a saving indicator
           input.value = "Saving...";
           input.disabled = true;
 
@@ -3437,7 +3480,6 @@
           input.value = "";
           input.disabled = false;
 
-          // FIXED: Added an alert to tell us if Supabase blocks the save again
           if (error) {
               console.error("Notes Error:", error);
               alert("Failed to save note. Please ensure RLS is disabled on the payroll_notes table!");
@@ -3449,11 +3491,10 @@
       async deletePayrollNote(id) {
           if (typeof supaClient === 'undefined' || !supaClient) return;
           await supaClient.from('payroll_notes').delete().eq('id', id);
-          const week = document.getElementById("payroll-week-select").value;
-          this.loadPayrollNotes(week);
+          const weekSelect = document.getElementById("payroll-week-select");
+          this.loadPayrollNotes(weekSelect ? weekSelect.value : "");
       },
 
-      // --- CEO CHARTS ---
       renderPayrollCharts() {
           if (!this._chartData || this._chartData.labels.length === 0) return;
           
@@ -3461,29 +3502,40 @@
           const topLabels = sorted.slice(0, 7).map(x => x.label);
           const topVals = sorted.slice(0, 7).map(x => x.val);
 
-          const createChart = (id, type, labels, data, color) => {
+          const createChart = (id, type, labels, data, color, isDoughnut = false) => {
               const ctx = document.getElementById(id);
               if (!ctx) return;
               if (this[`_chart_${id}`]) this[`_chart_${id}`].destroy();
+              
+              const options = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: isDoughnut } } };
+              if (!isDoughnut) options.scales = { y: { beginAtZero: true, ticks: { callback: v => '$'+v } } };
+
               this[`_chart_${id}`] = new Chart(ctx, {
                   type: type,
-                  data: { labels, datasets: [{ data, backgroundColor: color, borderRadius: 6 }] },
-                  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => '$'+v } } } }
+                  data: { labels, datasets: [{ data, backgroundColor: color, borderRadius: isDoughnut ? 0 : 6 }] },
+                  options: options
               });
           };
 
-          createChart('payroll-expense-chart', 'line', topLabels, topVals, '#10B981');
-          createChart('payroll-earners-chart', 'bar', topLabels, topVals, '#3B82F6');
+          // REVENUE VS PAYOUT CHART
+          createChart('payroll-roi-chart', 'doughnut', ['Gross Revenue ($)', 'Payroll Expense ($)'], [this._chartData.totalRevenue, this._chartData.totalPayout], ['#10B981', '#EF4444'], true);
+          createChart('payroll-expense-chart', 'line', topLabels, topVals, '#3B82F6');
+          createChart('payroll-earners-chart', 'bar', topLabels, topVals, '#6366F1');
       },
 
-      _calculateHoursFromEvents(events, weekStartStr) {
+      _calculateHoursFromEvents(events, weekStartStr, customStart, customEnd) {
           const hrs = {};
           if (!events || !Array.isArray(events)) return hrs;
 
-          const [y, m, d] = weekStartStr.split('-');
-          const weekStartMST = new Date(y, m-1, d, 0, 0, 0);
-          const weekEndMST = new Date(y, m-1, d, 23, 59, 59);
-          weekEndMST.setDate(weekEndMST.getDate() + 6); 
+          let weekStartMST, weekEndMST;
+          if (customStart && customEnd) {
+              weekStartMST = customStart; weekEndMST = customEnd;
+          } else {
+              const [y, m, d] = weekStartStr.split('-');
+              weekStartMST = new Date(y, m-1, d, 0, 0, 0);
+              weekEndMST = new Date(y, m-1, d, 23, 59, 59);
+              weekEndMST.setDate(weekEndMST.getDate() + 6); 
+          }
 
           const sorted = [...events].sort((a,b) => new Date(a.occurred_at || a.created_at || 0) - new Date(b.occurred_at || b.created_at || 0));
           const agentLogs = {};
@@ -3586,21 +3638,45 @@
         return `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
       },
 
+      bindExportCSV(week, processedAgents) {
+          const btn = document.getElementById("payroll-export");
+          if (!btn) return;
+          
+          const newBtn = btn.cloneNode(true);
+          btn.parentNode.replaceChild(newBtn, btn);
+
+          newBtn.addEventListener("click", () => {
+              let csv = "Agent Name,Country,Total Hrs,Qualified Leads,Total Bonus,Total Payout,Status\n";
+              processedAgents.forEach(a => {
+                  csv += `"${a.agName}","${a.country}",${a.totalHrs.toFixed(2)},${a.qualified},${a.totalBonus.toFixed(2)},${a.finalPay.toFixed(2)},${a.isPaid ? 'PAID' : 'PENDING'}\n`;
+              });
+              const blob = new Blob([csv], { type: 'text/csv' });
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `CHL_Payroll_${week}.csv`;
+              a.click();
+          });
+      },
+
       bindPayrollUI() {
         if (this._payrollBound) return;
         this._payrollBound = true;
         const sel = document.getElementById("payroll-week-select");
-        if (sel) sel.addEventListener("change", () => this.renderPayrollFinance());
+        if (sel) sel.addEventListener("change", () => {
+            this._payrollCustomRange = { active: false }; 
+            this.renderPayrollFinance();
+        });
 
-        // Bind Enter key for new notes
         const noteInput = document.getElementById('payroll-new-note');
         if (noteInput) noteInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.addPayrollNote();
         });
 
-        // FIXED: Added the missing click listeners for the Custom Range popover!
+        // FIXED: Apply Button logic added!
         const toggle = document.getElementById("payroll-custom-toggle");
         const pop = document.getElementById("payroll-custom-popover");
+        const applyBtn = document.getElementById("payroll-custom-apply");
         const clearBtn = document.getElementById("payroll-custom-clear");
         
         if (toggle && pop) {
@@ -3614,10 +3690,28 @@
                 }
             });
         }
+        
+        if (applyBtn) {
+            applyBtn.addEventListener("click", (e) => {
+                e.preventDefault();
+                const start = document.getElementById("payroll-custom-start").value;
+                const end = document.getElementById("payroll-custom-end").value;
+                if (!start || !end) return;
+
+                this._payrollCustomRange = { active: true, start: start, end: end };
+                pop.classList.add("hidden");
+                this.renderPayrollFinance();
+            });
+        }
+
         if (clearBtn) {
             clearBtn.addEventListener("click", (e) => { 
                 e.preventDefault();
+                document.getElementById("payroll-custom-start").value = "";
+                document.getElementById("payroll-custom-end").value = "";
+                this._payrollCustomRange = { active: false };
                 pop.classList.add("hidden"); 
+                this.renderPayrollFinance();
             });
         }
       },
@@ -3636,6 +3730,52 @@
 
     window.adminDashboard = AdminDashboard;
     window.Admin = AdminDashboard;
+
+    window.openAddDealModal = function(e) {
+          if(e) e.preventDefault(); 
+          document.getElementById('add-sale-form').reset();
+          document.getElementById('sale-package-id').value = ""; 
+          document.getElementById('sale-client-code').value = ""; 
+          document.getElementById('sale-deal-type').value = "New Client";
+          document.getElementById('sale-modal-title').innerText = "Log New Deal";
+          document.getElementById('save-sale-btn').innerText = "Save Deal";
+          if(window.populateSalesClientDropdown) window.populateSalesClientDropdown();
+          document.getElementById('add-sale-modal').classList.remove('hidden');
+      };
+
+      window.submitNewClient = async function(e) {
+          e.preventDefault();
+          if (typeof supaClient === 'undefined' || !supaClient) return;
+
+          const btn = document.getElementById('save-client-btn');
+          btn.innerText = "Saving...";
+          btn.disabled = true;
+
+          const payload = {
+              client_code: document.getElementById('new-client-code').value,
+              company_name: document.getElementById('new-client-name').value,
+              client_status: document.getElementById('new-client-status').value
+          };
+
+          const { error } = await supaClient.from('clients').insert([payload]);
+
+          if (error) {
+              console.error("Add Client Error:", error);
+              alert("Failed to add new client.");
+          } else {
+              document.getElementById('add-client-modal').classList.add('hidden');
+              document.getElementById('add-client-form').reset();
+              
+              if (window.portal && typeof window.portal.fetchAdminData === 'function') {
+                  window.portal.fetchAdminData(true);
+              }
+              if (typeof fetchAdminClients === 'function') fetchAdminClients('All'); 
+          }
+
+          btn.innerText = "Add Client";
+          btn.disabled = false;
+      };
+    
   </script>
 
   <script src="main.js"></script>
