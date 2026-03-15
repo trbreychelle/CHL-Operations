@@ -1050,13 +1050,14 @@
                   <th class="p-4">Agent Name</th>
                   <th class="p-4 text-center">Country</th>
                   <th class="p-4 text-center">Total Hrs</th>
-                  <th class="p-4 text-right">Total Bonus (Auto + Spiff)</th>
+                  <th class="p-4 text-center text-blue-600">Qualified Leads</th>
+                  <th class="p-4 text-right">Total Bonus</th>
                   <th class="p-4 text-right text-emerald-600">Total Payout</th>
                   <th class="p-4 text-center">Status</th>
                 </tr>
               </thead>
               <tbody id="payroll-summary-body" class="divide-y divide-gray-100">
-                <tr><td colspan="6" class="p-8 text-center text-gray-400 italic">Processing summary...</td></tr>
+                <tr><td colspan="7" class="p-8 text-center text-gray-400 italic">Processing summary...</td></tr>
               </tbody>
             </table>
           </div>
@@ -1085,6 +1086,7 @@
                   <th class="p-3 text-right text-purple-600">Auto Bonus</th>
                   <th class="p-3 text-center">Manual $</th>
                   <th class="p-3 text-right text-emerald-600">Total Pay</th>
+                  <th class="p-3 text-center">Status</th>
                 </tr>
               </thead>
               <tbody id="payroll-ledger-body" class="divide-y divide-gray-50">
@@ -1094,16 +1096,15 @@
         </div>
 
         <div id="payroll-history-view" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-           <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+           <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col">
               <h3 class="font-black text-gray-900 text-sm uppercase tracking-wide mb-4">Total Payout Trend</h3>
-              <canvas id="payroll-expense-chart" height="250"></canvas>
+              <div class="flex-1 relative min-h-[250px]"><canvas id="payroll-expense-chart"></canvas></div>
            </div>
-           <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+           <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col">
               <h3 class="font-black text-gray-900 text-sm uppercase tracking-wide mb-4">Top Earners (This Period)</h3>
-              <canvas id="payroll-earners-chart" height="250"></canvas>
+              <div class="flex-1 relative min-h-[250px]"><canvas id="payroll-earners-chart"></canvas></div>
            </div>
         </div>
-      </div>
 
       <div id="add-sale-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center">
         <div class="absolute inset-0 bg-black/40" onclick="document.getElementById('add-sale-modal').classList.add('hidden')"></div>
@@ -3162,7 +3163,7 @@
 
           // 1. FETCH LIVE MULTIPLAYER DATA FROM SUPABASE
           let ledgerData = [];
-          if (window.supaClient) {
+          if (typeof supaClient !== 'undefined' && supaClient) {
               const { data } = await supaClient.from('payroll_ledger').select('*').eq('week_id', selectedWeek);
               ledgerData = data || [];
           }
@@ -3184,16 +3185,38 @@
           });
 
           const autoHours = this._calculateHoursFromEvents(timeEvents, selectedWeek);
-          const activeAgents = agents.filter(a => String(a.employment_status || a.Status || "").toLowerCase() === "active" && String(a.role || "").toLowerCase() !== "admin");
+          
+          // --- SMART AGENT FILTER (Includes Offboarded agents if they worked this week) ---
+          const relevantAgents = agents.filter(a => {
+              const role = String(a.role || "").toLowerCase();
+              if (role === "admin") return false; // Never show admins
+              
+              const st = String(a.employment_status || a.Status || "").toLowerCase();
+              if (st === "active") return true; // Always show active agents
+              
+              const agName = this.getOfficialAgentName(a.agent_name || a.name).toLowerCase();
+              
+              // Check if they logged hours this week
+              const hasHours = autoHours[agName] && Object.values(autoHours[agName]).some(h => h > 0);
+              // Check if they got leads this week
+              const r = (byWeek.get(selectedWeek) || []).find(x => x.agent.toLowerCase() === agName);
+              const hasLeads = r && (r.qualified > 0 || r.unqualified > 0);
+              // Check if a manager manually edited their ledger this week
+              const hasLedger = ledgerData.some(x => x.agent_name.toLowerCase() === agName);
+
+              return hasHours || hasLeads || hasLedger;
+          });
           
           let notificationsHTML = "";
           let grandTotalPayout = 0;
           let summaryHtml = "";
           let ledgerHtml = "";
-          
-          this._chartData = { labels: [], payouts: [] }; // Prepare chart data
+          this._chartData = { labels: [], payouts: [] };
 
-          activeAgents.sort((a,b) => (a.agent_name || a.name || "").localeCompare(b.agent_name || b.name || "")).forEach(a => {
+          // --- COMPILE DATA FIRST SO WE CAN GROUP BY COUNTRY ---
+          let processedAgents = [];
+
+          relevantAgents.forEach(a => {
               const agName = this.getOfficialAgentName(a.agent_name || a.name);
               if (agName === "Unknown") return;
 
@@ -3202,7 +3225,7 @@
               const cancelRate = (r.qualified + r.unqualified > 0) ? (r.unqualified / (r.qualified + r.unqualified)) * 100 : 0;
               let autoBonus = this.calculateTieredBonus(r.qualified, cancelRate);
 
-              // Consistency & Raffle Checks
+              // Consistency Check
               let consistencyBonus = 0;
               const weekIndex = weeks.indexOf(selectedWeek);
               if (weekIndex >= 0 && weekIndex + 3 < weeks.length) {
@@ -3215,6 +3238,7 @@
               }
               autoBonus += consistencyBonus;
 
+              // Beautiful Raffle Badge Design
               let raffleMsg = "";
               if (r.qualified >= 9) {
                   const monthPrefix = selectedWeek.substring(0, 7);
@@ -3226,14 +3250,20 @@
                       }
                   });
                   const mCx = (mQ + mU > 0) ? (mU / (mQ + mU)) * 100 : 0;
-                  if (mCx < 20) raffleMsg = `<span class="text-white bg-red-500 px-2 py-0.5 rounded text-[10px] uppercase font-black tracking-widest ml-2 shadow-sm"><i class="fa-solid fa-ticket"></i> Raffle Earned (Mo CX: ${mCx.toFixed(1)}%)</span>`;
-                  else raffleMsg = `<span class="text-gray-400 ml-2">❌ Raffle Void (Mo CX: ${mCx.toFixed(1)}%)</span>`;
+                  if (mCx < 20) {
+                      raffleMsg = `<span class="inline-flex items-center gap-1 bg-gradient-to-r from-amber-100 to-yellow-200 text-yellow-800 border border-yellow-300 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ml-2 shadow-sm"><i class="fa-solid fa-ticket text-yellow-600"></i> Raffle Earned (CX: ${mCx.toFixed(1)}%)</span>`;
+                  } else {
+                      raffleMsg = `<span class="text-gray-400 text-[10px] uppercase font-bold ml-2">❌ Raffle Void (CX: ${mCx.toFixed(1)}%)</span>`;
+                  }
               }
 
               let alerts = [];
               if (consistencyBonus > 0) alerts.push("🔥 $100 Consistency Bonus!");
               if (raffleMsg) alerts.push(raffleMsg);
-              if (alerts.length > 0) notificationsHTML += `<div class="p-3 bg-white border border-gray-100 rounded-xl text-xs text-gray-800 font-bold shadow-sm">${agName}: ${alerts.join(' ')}</div>`;
+              if (alerts.length > 0) {
+                  // Subtle, pleasing alert bubbles
+                  notificationsHTML += `<div class="p-3 bg-white border border-gray-100 rounded-xl text-xs text-gray-800 font-bold shadow-sm flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-500"></span> ${agName}: ${alerts.join(' ')}</div>`;
+              }
 
               // Sync with Supabase Ledger
               const dbRecord = ledgerData.find(x => x.agent_name === agName) || {};
@@ -3259,80 +3289,102 @@
               const finalPay = basePay + totalBonus;
               
               grandTotalPayout += finalPay;
-              
               if (finalPay > 0) {
                   this._chartData.labels.push(agName);
                   this._chartData.payouts.push(finalPay);
               }
 
-              // SUMMARY ROW
+              processedAgents.push({
+                  agName,
+                  country: (a.country || "Unassigned").toUpperCase(),
+                  baseRate, totalHrs, totalBonus, finalPay, isPaid,
+                  qualified: r.qualified, cancelRate, autoBonus, manualSpiff,
+                  finalHours, days
+              });
+          });
+
+          // --- SORT BY COUNTRY, THEN AGENT NAME ---
+          processedAgents.sort((a, b) => {
+              if (a.country === b.country) return a.agName.localeCompare(b.agName);
+              return a.country.localeCompare(b.country);
+          });
+
+          // --- BUILD THE HTML WITH COUNTRY GROUPING ---
+          let currentCountry = "";
+
+          processedAgents.forEach(data => {
+              // Check if we need to inject a Country Sub-Header
+              if (data.country !== currentCountry) {
+                  currentCountry = data.country;
+                  summaryHtml += `<tr><td colspan="7" class="bg-gray-100/50 p-2 px-4 text-xs font-black text-gray-500 uppercase tracking-widest border-y border-gray-200"><i class="fa-solid fa-earth-americas mr-2 text-gray-400"></i> ${currentCountry}</td></tr>`;
+              }
+
+              // 1. SUMMARY ROW (Mark Paid Button Moved Here)
               summaryHtml += `
                 <tr class="hover:bg-blue-50/30 transition-colors group">
-                  <td class="p-4 font-black text-gray-900">${agName}</td>
-                  <td class="p-4 text-center text-gray-500 font-bold">${a.country || '—'}</td>
-                  <td class="p-4 text-center font-bold text-gray-700">${totalHrs.toFixed(2)}</td>
-                  <td class="p-4 text-right font-black text-purple-600">$${totalBonus.toFixed(2)}</td>
-                  <td class="p-4 text-right font-black text-emerald-500 text-lg group-hover:scale-105 transition-transform">$${finalPay.toFixed(2)}</td>
+                  <td class="p-4 font-black text-gray-900">${data.agName}</td>
+                  <td class="p-4 text-center text-gray-500 font-bold">${data.country}</td>
+                  <td class="p-4 text-center font-bold text-gray-700">${data.totalHrs.toFixed(2)}</td>
+                  <td class="p-4 text-center font-black text-blue-600">${data.qualified}</td>
+                  <td class="p-4 text-right font-black text-purple-600">$${data.totalBonus.toFixed(2)}</td>
+                  <td class="p-4 text-right font-black text-emerald-500 text-lg group-hover:scale-105 transition-transform">$${data.finalPay.toFixed(2)}</td>
                   <td class="p-4 text-center">
-                    <span class="px-3 py-1 rounded text-[10px] font-extrabold uppercase ${isPaid ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-yellow-100 text-yellow-800 border border-yellow-200'}">
-                      ${isPaid ? 'PAID ✓' : 'PENDING'}
-                    </span>
+                    <button onclick="Admin.updatePayrollLedger('${data.agName}', 'is_paid', ${!data.isPaid})" class="px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wide uppercase transition-all shadow-sm ${data.isPaid ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}">
+                        ${data.isPaid ? 'PAID ✓' : 'MARK PAID'}
+                    </button>
                   </td>
                 </tr>`;
 
-              // LEDGER ROW
-              const dayInputs = days.map(d => `
+              // 2. LEDGER ROW (Status Badge Only)
+              const dayInputs = data.days.map(d => `
                   <td class="p-2 text-center">
-                      <input type="number" step="0.25" min="0" value="${finalHours[d].toFixed(2)}" onchange="Admin.updatePayrollLedger('${agName}', '${d}', this.value)" class="w-16 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-700">
+                      <input type="number" step="0.25" min="0" value="${data.finalHours[d].toFixed(2)}" onchange="Admin.updatePayrollLedger('${data.agName}', '${d}', this.value)" class="w-16 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-700">
                   </td>
               `).join("");
 
               ledgerHtml += `
-                <tr class="hover:bg-gray-50 border-b border-gray-50" id="row-${agName.replace(/\s/g,'-')}">
-                  <td class="p-3 font-black text-gray-900 text-sm">${agName}</td>
+                <tr class="hover:bg-gray-50 border-b border-gray-50" id="row-${data.agName.replace(/\s/g,'-')}">
+                  <td class="p-3 font-black text-gray-900 text-sm">${data.agName}</td>
                   <td class="p-3 text-center">
-                     <input type="number" step="0.25" min="0" value="${baseRate.toFixed(2)}" onchange="Admin.updatePayrollLedger('${agName}', 'rate', this.value)" class="w-20 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-500 bg-gray-50">
+                     <input type="number" step="0.25" min="0" value="${data.baseRate.toFixed(2)}" onchange="Admin.updatePayrollLedger('${data.agName}', 'rate', this.value)" class="w-20 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-500 bg-gray-50">
                   </td>
                   ${dayInputs}
-                  <td class="p-3 text-center bg-blue-50 font-black text-blue-800 text-sm" id="tot-hrs-${agName.replace(/\s/g,'-')}">${totalHrs.toFixed(2)}</td>
-                  <td class="p-3 text-center font-bold text-blue-500 text-sm">${r.qualified}</td>
-                  <td class="p-3 text-center font-bold ${cancelRate < 25 ? 'text-emerald-500' : 'text-red-400'} text-sm">${cancelRate.toFixed(1)}%</td>
-                  <td class="p-3 text-right font-black text-purple-600 text-sm">$${autoBonus.toFixed(2)}</td>
+                  <td class="p-3 text-center bg-blue-50 font-black text-blue-800 text-sm">${data.totalHrs.toFixed(2)}</td>
+                  <td class="p-3 text-center font-bold text-blue-500 text-sm">${data.qualified}</td>
+                  <td class="p-3 text-center font-bold ${data.cancelRate < 25 ? 'text-emerald-500' : 'text-red-400'} text-sm">${data.cancelRate.toFixed(1)}%</td>
+                  <td class="p-3 text-right font-black text-purple-600 text-sm">$${data.autoBonus.toFixed(2)}</td>
                   <td class="p-3 text-center">
-                     <input type="number" step="1" value="${manualSpiff}" onchange="Admin.updatePayrollLedger('${agName}', 'manual_spiff', this.value)" class="w-20 text-center font-bold border border-purple-200 bg-purple-50 text-purple-700 rounded focus:ring-2 focus:ring-purple-500 py-1.5 text-sm">
+                     <input type="number" step="1" value="${data.manualSpiff}" onchange="Admin.updatePayrollLedger('${data.agName}', 'manual_spiff', this.value)" class="w-20 text-center font-bold border border-purple-200 bg-purple-50 text-purple-700 rounded focus:ring-2 focus:ring-purple-500 py-1.5 text-sm">
                   </td>
-                  <td class="p-3 text-right font-black text-emerald-500 text-lg" id="tot-pay-${agName.replace(/\s/g,'-')}">$${finalPay.toFixed(2)}</td>
+                  <td class="p-3 text-right font-black text-emerald-500 text-lg">$${data.finalPay.toFixed(2)}</td>
                   <td class="p-3 text-center">
-                     <button onclick="Admin.updatePayrollLedger('${agName}', 'is_paid', ${!isPaid})" class="px-3 py-1.5 rounded-lg text-xs font-black tracking-wide uppercase transition-all shadow-sm ${isPaid ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}">
-                        ${isPaid ? 'PAID ✓' : 'MARK PAID'}
-                     </button>
+                     <span class="px-2 py-1 rounded text-[10px] font-extrabold uppercase tracking-wide ${data.isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'}">
+                        ${data.isPaid ? 'PAID ✓' : 'PENDING'}
+                     </span>
                   </td>
                 </tr>`;
           });
 
           document.getElementById("ceo-total-payout").textContent = grandTotalPayout.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
           document.getElementById("payroll-notifications").innerHTML = notificationsHTML || `<div class="p-4 bg-gray-50 rounded-xl text-sm text-gray-400 italic text-center h-full flex items-center justify-center">No performance alerts this week.</div>`;
-          document.getElementById("payroll-summary-body").innerHTML = summaryHtml || `<tr><td colspan="6" class="p-8 text-center text-gray-400 italic">No agents active.</td></tr>`;
+          document.getElementById("payroll-summary-body").innerHTML = summaryHtml || `<tr><td colspan="7" class="p-8 text-center text-gray-400 italic">No agents active.</td></tr>`;
           document.getElementById("payroll-ledger-body").innerHTML = ledgerHtml || `<tr><td colspan="16" class="p-8 text-center text-gray-400 italic">No agents active.</td></tr>`;
 
-          // If currently on history tab, re-render chart
           if (!document.getElementById("payroll-history-view").classList.contains("hidden")) this.renderPayrollCharts();
       },
 
       // --- MULTIPLAYER DATABASE SYNC ---
       async updatePayrollLedger(agentName, field, value) {
-          if (!window.supaClient) return alert("Database connection missing!");
+          if (typeof supaClient === 'undefined' || !supaClient) return alert("Database connection missing!");
           const week = document.getElementById("payroll-week-select").value;
           
-          // Get existing row if any
           const existing = this._currentLedgerData.find(x => x.agent_name === agentName);
           let payload = { week_id: week, agent_name: agentName };
 
           if (field === 'rate') payload.rate = Number(value);
           else if (field === 'manual_spiff') payload.manual_spiff = Number(value);
-          else if (field === 'is_paid') payload.is_paid = value; // Boolean toggle
+          else if (field === 'is_paid') payload.is_paid = value; 
           else {
-              // It's a day of the week, update JSON
               let hours = existing ? (existing.hours_json || {}) : {};
               hours[field] = Number(value);
               payload.hours_json = hours;
@@ -3344,14 +3396,13 @@
               await supaClient.from('payroll_ledger').insert([payload]);
           }
           
-          // Instantly refresh logic without losing focus
-          this.renderPayrollFinance();
+          this.renderPayrollFinance(); // Instant refresh
       },
 
       // --- EXEC NOTES ENGINE ---
       async loadPayrollNotes(week) {
           const container = document.getElementById('payroll-notes-container');
-          if (!window.supaClient) return container.innerHTML = '<p class="text-xs text-red-500 p-4">DB Offline</p>';
+          if (typeof supaClient === 'undefined' || !supaClient) return container.innerHTML = '<p class="text-xs text-red-500 p-4">DB Offline</p>';
           
           const { data } = await supaClient.from('payroll_notes').select('*').eq('week_id', week).order('created_at', { ascending: true });
           
@@ -3367,14 +3418,14 @@
                   <button onclick="Admin.deletePayrollNote('${n.id}')" class="absolute top-2 right-2 w-6 h-6 rounded-full hover:bg-red-50 text-gray-300 hover:text-red-500 hidden group-hover:flex items-center justify-center transition-colors"><i class="fa-solid fa-trash text-[10px]"></i></button>
               </div>
           `).join('');
-          container.scrollTop = container.scrollHeight; // Scroll to bottom
+          container.scrollTop = container.scrollHeight; 
       },
 
       async addPayrollNote() {
           const input = document.getElementById('payroll-new-note');
           const text = input.value.trim();
           const week = document.getElementById("payroll-week-select").value;
-          if (!text || !window.supaClient) return;
+          if (!text || typeof supaClient === 'undefined' || !supaClient) return;
 
           input.value = "";
           await supaClient.from('payroll_notes').insert([{ week_id: week, note_text: text }]);
@@ -3382,7 +3433,7 @@
       },
 
       async deletePayrollNote(id) {
-          if (!window.supaClient) return;
+          if (typeof supaClient === 'undefined' || !supaClient) return;
           await supaClient.from('payroll_notes').delete().eq('id', id);
           const week = document.getElementById("payroll-week-select").value;
           this.loadPayrollNotes(week);
@@ -3407,7 +3458,6 @@
               });
           };
 
-          // Simulate an expense trend based on top earners for the visual
           createChart('payroll-expense-chart', 'line', topLabels, topVals, '#10B981');
           createChart('payroll-earners-chart', 'bar', topLabels, topVals, '#3B82F6');
       },
