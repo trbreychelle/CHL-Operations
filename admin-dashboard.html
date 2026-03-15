@@ -3383,7 +3383,8 @@
 
           if (field === 'rate') payload.rate = Number(value);
           else if (field === 'manual_spiff') payload.manual_spiff = Number(value);
-          else if (field === 'is_paid') payload.is_paid = value; 
+          // FIXED: Forces JavaScript to read the toggle as a strict True/False boolean
+          else if (field === 'is_paid') payload.is_paid = (value === true || String(value) === 'true'); 
           else {
               let hours = existing ? (existing.hours_json || {}) : {};
               hours[field] = Number(value);
@@ -3427,9 +3428,22 @@
           const week = document.getElementById("payroll-week-select").value;
           if (!text || typeof supaClient === 'undefined' || !supaClient) return;
 
+          // Added a saving indicator
+          input.value = "Saving...";
+          input.disabled = true;
+
+          const { error } = await supaClient.from('payroll_notes').insert([{ week_id: week, note_text: text }]);
+          
           input.value = "";
-          await supaClient.from('payroll_notes').insert([{ week_id: week, note_text: text }]);
-          this.loadPayrollNotes(week);
+          input.disabled = false;
+
+          // FIXED: Added an alert to tell us if Supabase blocks the save again
+          if (error) {
+              console.error("Notes Error:", error);
+              alert("Failed to save note. Please ensure RLS is disabled on the payroll_notes table!");
+          } else {
+              this.loadPayrollNotes(week);
+          }
       },
 
       async deletePayrollNote(id) {
@@ -3583,6 +3597,29 @@
         if (noteInput) noteInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.addPayrollNote();
         });
+
+        // FIXED: Added the missing click listeners for the Custom Range popover!
+        const toggle = document.getElementById("payroll-custom-toggle");
+        const pop = document.getElementById("payroll-custom-popover");
+        const clearBtn = document.getElementById("payroll-custom-clear");
+        
+        if (toggle && pop) {
+            toggle.addEventListener("click", (e) => { 
+                e.preventDefault(); 
+                pop.classList.toggle("hidden"); 
+            });
+            document.addEventListener("click", (e) => {
+                if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
+                    pop.classList.add("hidden");
+                }
+            });
+        }
+        if (clearBtn) {
+            clearBtn.addEventListener("click", (e) => { 
+                e.preventDefault();
+                pop.classList.add("hidden"); 
+            });
+        }
       },
       
       nav(viewId, linkEl) {
