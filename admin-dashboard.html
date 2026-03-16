@@ -1571,14 +1571,82 @@
 
       renderSalesTab() {
         const state = this.getState();
-        const packages = Array.isArray(state.packages) ? state.packages : [];
+        const packages = Array.isArray(state.packages) ? [...state.packages] : [];
+        const leads = Array.isArray(state.leads) ? state.leads : [];
         const clients = Array.isArray(state.clients) ? state.clients : [];
 
-        // Note: Waterfall stats were injected into `packages` during the Health Monitor calculation!
-        
+        // --- 1. THE SALES MINI-WATERFALL ENGINE ---
+        // Group leads by normalized Company Name
+        const leadsByCompany = new Map();
+        leads.forEach(l => {
+            const comp = this.normalizeCompanyName(l.company_name || l['Company Name'] || l.roofing_company || l.Client);
+            if (comp) {
+                if (!leadsByCompany.has(comp)) leadsByCompany.set(comp, []);
+                leadsByCompany.get(comp).push(l);
+            }
+        });
+
+        // Group packages by Client Code
+        const pkgsByCode = new Map();
+        packages.forEach(p => {
+            const code = String(p.client_code || "").trim().toLowerCase();
+            if (!pkgsByCode.has(code)) pkgsByCode.set(code, []);
+            pkgsByCode.get(code).push(p);
+        });
+
+        // Process the Waterfall for exact First Lead Dates
+        pkgsByCode.forEach((clientPkgs, code) => {
+            const clientObj = clients.find(c => String(c.client_code || c.code_name || "").toLowerCase() === code);
+            const companyName = clientObj ? this.normalizeCompanyName(clientObj.company_name || clientObj.roofing_company) : "";
+
+            let clientLeads = [];
+            if (companyName && leadsByCompany.has(companyName)) {
+                clientLeads = [...leadsByCompany.get(companyName)];
+            }
+            
+            // Sort leads oldest to newest
+            clientLeads.sort((a,b) => {
+                const dA = window.portal?.parseDateSafe ? window.portal.parseDateSafe(a.date_submitted || a.created_at) : new Date(a.date_submitted || a.created_at);
+                const dB = window.portal?.parseDateSafe ? window.portal.parseDateSafe(b.date_submitted || b.created_at) : new Date(b.date_submitted || b.created_at);
+                return (dA || 0) - (dB || 0);
+            });
+
+            // Sort packages oldest to newest
+            clientPkgs.sort((a,b) => new Date(a.purchase_date || 0) - new Date(b.purchase_date || 0));
+
+            clientPkgs.forEach(pkg => {
+                let qCount = 0;
+                let firstLeadDate = null;
+                let purchased = Number(pkg.purchased_leads) || 0;
+                
+                // Safely parse the package purchase date
+                let pDate = window.portal?.parseDateSafe ? window.portal.parseDateSafe(pkg.purchase_date) : new Date(pkg.purchase_date);
+                if (!pDate || isNaN(pDate.getTime())) pDate = new Date(0);
+
+                while (clientLeads.length > 0 && qCount < purchased) {
+                    let l = clientLeads[0];
+                    let lDate = window.portal?.parseDateSafe ? window.portal.parseDateSafe(l.date_submitted || l.created_at) : new Date(l.date_submitted || l.created_at);
+                    
+                    if (!lDate || isNaN(lDate.getTime())) { clientLeads.shift(); continue; }
+                    
+                    // Skip older leads that happened before they bought this package
+                    if (lDate < pDate) { clientLeads.shift(); continue; } 
+
+                    clientLeads.shift(); // Consume the lead
+
+                    const st = String(l.status || l.STATUS || l.Lead_Status || "").toUpperCase();
+                    if (st.includes('APPROV') || st.includes('CONFIRM')) qCount++;
+
+                    if (!firstLeadDate) firstLeadDate = lDate;
+                }
+                pkg._safeFirstLead = firstLeadDate;
+            });
+        });
+        // --- END WATERFALL ---
+
         let filtered = [...packages];
 
-        // 1. DATE FILTERING
+        // DATE FILTERING
         const { start, end, label } = this.getRangeFor(this.salesPeriod, []);
         if (this.salesPeriod !== 'all-time') {
              filtered = filtered.filter(p => {
@@ -1591,7 +1659,7 @@
         const lbl = document.getElementById("sales-range-label");
         if (lbl) lbl.textContent = this.salesPeriod === "custom" ? `Showing Custom: ${start.toLocaleDateString()} → ${end.toLocaleDateString()}` : `Showing: ${label}`;
 
-        // 2. TEXT & DROPDOWN FILTERING
+        // TEXT & DROPDOWN FILTERING
         const q = String(document.getElementById("admin-sales-search")?.value || "").toLowerCase().trim();
         const catFilter = document.getElementById("admin-sales-category-filter")?.value || "All";
         const pkgFilter = document.getElementById("admin-sales-package-filter")?.value || "all";
@@ -1601,7 +1669,7 @@
         if (pkgFilter !== "all") {
             filtered = filtered.filter(p => {
                  let s = String(p.status || "").toLowerCase();
-                 if (s === 'active') s = 'ongoing'; // Normalize
+                 if (s === 'active') s = 'ongoing'; 
                  let target = pkgFilter.toLowerCase();
                  if (target === 'active') target = 'ongoing';
                  return s.includes(target);
@@ -1610,8 +1678,8 @@
 
         let totalSales = 0;
         let totalCommissions = 0;
-
         let html = "";
+
         filtered.sort((a,b) => new Date(b.purchase_date || 0) - new Date(a.purchase_date || 0)).forEach(p => {
             const code = String(p.client_code || "—").trim();
             const clientMatch = clients.find(c => String(c.client_code || c.code_name) === code) || {};
@@ -1620,7 +1688,7 @@
             if (q && !`${company} ${code} ${p.transaction_id || ''}`.toLowerCase().includes(q)) return;
 
             const dealVal = Number(p.deal_value) || 0;
-            const commVal = Number(p.commission_per_lead) || 0; // This is now total commission
+            const commVal = Number(p.commission_per_lead) || 0; 
             
             totalSales += dealVal;
             totalCommissions += commVal;
@@ -1637,8 +1705,11 @@
             if (ds === 'NEGOTIATING') dealBadge = "bg-yellow-100 text-yellow-800";
             if (ds === 'REFUNDED') dealBadge = "bg-red-100 text-red-800";
 
-            // Grab the "Started" date from the Waterfall engine
-            const startedStr = p._waterfallStats?.firstLead ? window.portal.formatDate(p._waterfallStats.firstLead) : "—";
+            // Safely Format the First Lead Date
+            let startedStr = "—";
+            if (p._safeFirstLead) {
+                startedStr = `${p._safeFirstLead.getMonth() + 1}/${p._safeFirstLead.getDate()}/${p._safeFirstLead.getFullYear()}`;
+            }
 
             html += `
               <tr class="hover:bg-gray-50 border-b border-gray-50">
