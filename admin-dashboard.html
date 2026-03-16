@@ -1576,10 +1576,11 @@
         const clients = Array.isArray(state.clients) ? state.clients : [];
 
         // --- 1. THE SALES MINI-WATERFALL ENGINE ---
-        // Group leads by normalized Company Name
+        // Group leads by normalized Company Name using our safe picker
         const leadsByCompany = new Map();
         leads.forEach(l => {
-            const comp = this.normalizeCompanyName(l.company_name || l['Company Name'] || l.roofing_company || l.Client);
+            const rawComp = this.getLeadField(l, ["Company Name", "company_name", "roofing_company", "Client"]);
+            const comp = this.normalizeCompanyName(rawComp);
             if (comp) {
                 if (!leadsByCompany.has(comp)) leadsByCompany.set(comp, []);
                 leadsByCompany.get(comp).push(l);
@@ -1597,17 +1598,20 @@
         // Process the Waterfall for exact First Lead Dates
         pkgsByCode.forEach((clientPkgs, code) => {
             const clientObj = clients.find(c => String(c.client_code || c.code_name || "").toLowerCase() === code);
-            const companyName = clientObj ? this.normalizeCompanyName(clientObj.company_name || clientObj.roofing_company) : "";
+            const rawClientComp = clientObj ? (clientObj.company_name || clientObj.roofing_company) : "";
+            const companyName = this.normalizeCompanyName(rawClientComp);
 
             let clientLeads = [];
             if (companyName && leadsByCompany.has(companyName)) {
                 clientLeads = [...leadsByCompany.get(companyName)];
             }
             
-            // Sort leads oldest to newest
+            // Sort leads oldest to newest using the safe date picker
             clientLeads.sort((a,b) => {
-                const dA = window.portal?.parseDateSafe ? window.portal.parseDateSafe(a.date_submitted || a.created_at) : new Date(a.date_submitted || a.created_at);
-                const dB = window.portal?.parseDateSafe ? window.portal.parseDateSafe(b.date_submitted || b.created_at) : new Date(b.date_submitted || b.created_at);
+                const dStrA = this.getLeadField(a, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
+                const dStrB = this.getLeadField(b, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
+                const dA = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStrA) : new Date(dStrA);
+                const dB = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStrB) : new Date(dStrB);
                 return (dA || 0) - (dB || 0);
             });
 
@@ -1619,13 +1623,13 @@
                 let firstLeadDate = null;
                 let purchased = Number(pkg.purchased_leads) || 0;
                 
-                // Safely parse the package purchase date
-                let pDate = window.portal?.parseDateSafe ? window.portal.parseDateSafe(pkg.purchase_date) : new Date(pkg.purchase_date);
-                if (!pDate || isNaN(pDate.getTime())) pDate = new Date(0);
+                // Safely parse the package purchase date (Force T00:00:00 so it aligns to midnight local time)
+                let pDate = pkg.purchase_date ? new Date(pkg.purchase_date + "T00:00:00") : new Date(0);
 
                 while (clientLeads.length > 0 && qCount < purchased) {
                     let l = clientLeads[0];
-                    let lDate = window.portal?.parseDateSafe ? window.portal.parseDateSafe(l.date_submitted || l.created_at) : new Date(l.date_submitted || l.created_at);
+                    const dStr = this.getLeadField(l, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
+                    let lDate = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
                     
                     if (!lDate || isNaN(lDate.getTime())) { clientLeads.shift(); continue; }
                     
@@ -1634,9 +1638,10 @@
 
                     clientLeads.shift(); // Consume the lead
 
-                    const st = String(l.status || l.STATUS || l.Lead_Status || "").toUpperCase();
+                    const st = String(this.getLeadField(l, ["status", "Status", "STATUS", "Lead_Status"])).toUpperCase();
                     if (st.includes('APPROV') || st.includes('CONFIRM')) qCount++;
 
+                    // Log the first lead date!
                     if (!firstLeadDate) firstLeadDate = lDate;
                 }
                 pkg._safeFirstLead = firstLeadDate;
@@ -1708,6 +1713,7 @@
             // Safely Format the First Lead Date
             let startedStr = "—";
             if (p._safeFirstLead) {
+                // Formatting date to MM/DD/YYYY securely
                 startedStr = `${p._safeFirstLead.getMonth() + 1}/${p._safeFirstLead.getDate()}/${p._safeFirstLead.getFullYear()}`;
             }
 
