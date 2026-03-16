@@ -895,20 +895,20 @@ async fetchAdminData(forceRefresh = false) {
     const fields = Array.from(root.querySelectorAll('#passbook-form-body input[name], #passbook-form-body textarea[name]'));
     for (const el of fields) {
       const name = el.getAttribute('name');
-      // I removed the safety lock. It will now capture the NEW client_code!
       if (name) { 
           updates[name] = el.value;
       }
     }
     
-    return { originalCodeName, updates };
+    // FIXED: We return BOTH names so it passes the hidden validation check!
+    return { codeName: originalCodeName, originalCodeName, updates };
   }
 
   async submitPassbookClientUpdate(payload) {
-    if (!window.supaClient) throw new Error("Database connection missing.");
+    if (typeof supaClient === 'undefined' || !supaClient) throw new Error("Database connection missing.");
     
     const newClientCode = payload.updates['client_code'];
-    const originalCode = payload.originalCodeName;
+    const originalCode = payload.originalCodeName || payload.codeName;
 
     // 1. UPDATE THE CLIENT PROFILE
     const { error } = await supaClient
@@ -935,8 +935,11 @@ async fetchAdminData(forceRefresh = false) {
     }
 
     // 3. Instantly sync the background dashboard tables
-    if (typeof this.fetchAdminData === 'function') {
-        this.fetchAdminData(true);
+    if (window.portal && typeof window.portal.fetchAdminData === 'function') {
+        window.portal.fetchAdminData(true);
+    }
+    if (typeof fetchAdminClients === 'function') {
+        fetchAdminClients('All'); 
     }
     
     return { success: true };
