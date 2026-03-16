@@ -1960,9 +1960,14 @@
       },
 
       pick(obj, keys, fallback = "") {
+        if (!obj) return fallback;
+        const objKeys = Object.keys(obj);
         for (const k of keys) {
-          const v = obj?.[k];
-          if (v !== undefined && v !== null && String(v).trim() !== "") return v;
+          const lowerK = String(k).toLowerCase();
+          const found = objKeys.find(ok => String(ok).toLowerCase() === lowerK);
+          if (found && obj[found] !== undefined && obj[found] !== null && String(obj[found]).trim() !== "") {
+            return obj[found];
+          }
         }
         return fallback;
       },
@@ -3276,7 +3281,9 @@
 
         // 1. RENDER SERVING BOARD
         servingClients.forEach(c => {
-            const leadList = this._leadsIndexByCompany?.get(this.normalizeCompanyName(c.roofingCompany)) || [];
+            // FIX: Use the raw company name from the database, bypassing the HTML badge!
+            const rawCompany = c._raw.company_name || c._raw.roofing_company || c.roofingCompany.split('<')[0];
+            const leadList = this._leadsIndexByCompany?.get(this.normalizeCompanyName(rawCompany)) || [];
             let todaysApproved = 0, todaysPending = 0;
             
             leadList.forEach(l => {
