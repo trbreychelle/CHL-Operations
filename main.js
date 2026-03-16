@@ -73,8 +73,8 @@ class CallHammerPortal {
   routeByRole(roleRaw) {
     const role = String(roleRaw || '').toLowerCase();
     if (role === 'admin') return 'admin-dashboard.html';
-    // FIXED: Properly sends Team Leaders to the Sales Dashboard
-    if (role === 'team_leader' || role === 'team leader' || role === 'tl') return 'salesdashboard.html';
+    // FIXED: Now safely routes 'sales' AND 'team leader' to the Sales Dashboard
+    if (role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') return 'salesdashboard.html';
     return 'agent-dashboard.html';
   }
 
@@ -267,10 +267,11 @@ class CallHammerPortal {
     const onSales = path.includes('sales');
 
     if (role === 'admin' && !onAdmin) window.location.href = 'admin-dashboard.html';
-    else if ((role === 'team_leader' || role === 'team leader' || role === 'tl') && !onSales) window.location.href = 'salesdashboard.html';
+    // FIXED: Enforces the security wall so Sales users cannot manually type the Admin URL
+    else if ((role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') && !onSales) window.location.href = 'salesdashboard.html';
     else if (role === 'agent' && !onAgent) window.location.href = 'agent-dashboard.html';
   }
-
+  
   // ------------------------
   // Session / Events (safe)
   // ------------------------
