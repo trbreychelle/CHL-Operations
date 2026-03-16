@@ -492,9 +492,13 @@
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
           <div>
             <h2 class="text-2xl font-bold text-gray-900">Master Sales Pipeline</h2>
-            <p class="text-sm text-gray-500 mt-1">Track all active deals and closed won revenue across the company.</p>
+            <p class="text-sm text-gray-500 mt-1">Track all active deals, total commissions, and renewal performance.</p>
           </div>
           <div class="flex gap-3 items-end">
+            <div class="bg-white px-5 py-2 rounded-xl border border-gray-100 shadow-sm text-right">
+              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TOTAL COMMISSIONS</p>
+              <p class="text-xl font-bold text-purple-600" id="sales-commissions-kpi">$0.00</p>
+            </div>
             <div class="bg-white px-5 py-2 rounded-xl border border-gray-100 shadow-sm text-right">
               <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TOTAL SALES</p>
               <p class="text-xl font-bold text-emerald-600" id="sales-total-kpi">$0.00</p>
@@ -506,6 +510,43 @@
         </div>
 
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+          <div class="flex flex-col md:flex-row gap-3 justify-between items-center mb-4 border-b border-gray-50 pb-4">
+              <div class="flex items-center gap-2 flex-wrap">
+                <div class="flex bg-gray-100 p-1 rounded-lg flex-wrap gap-1">
+                  <button onclick="Admin.setSalesPeriod('today', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Today</button>
+                  <button onclick="Admin.setSalesPeriod('this-week', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
+                  <button onclick="Admin.setSalesPeriod('previous-week', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Previous Week</button>
+                  <button onclick="Admin.setSalesPeriod('4-weeks', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">4 Weeks</button>
+                  <button onclick="Admin.setSalesPeriod('all-time', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">All-Time</button>
+                </div>
+
+                <div class="relative">
+                  <button id="sales-custom-toggle" class="px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                    <i class="fa-regular fa-calendar"></i> Custom
+                  </button>
+
+                  <div id="sales-custom-popover" class="hidden absolute left-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                    <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">Custom Timeframe</div>
+                    <div class="grid grid-cols-2 gap-2">
+                      <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+                        <input id="sales-custom-start" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
+                      </div>
+                      <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+                        <input id="sales-custom-end" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
+                      </div>
+                    </div>
+                    <div class="flex justify-end gap-2 mt-3">
+                      <button id="sales-custom-clear" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">Clear</button>
+                      <button id="sales-custom-apply" class="px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">Apply</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="text-xs font-bold text-gray-400" id="sales-range-label">Showing: All-Time</div>
+          </div>
+
           <div class="flex flex-col md:flex-row gap-3">
             <div class="flex-1 relative">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
@@ -542,13 +583,13 @@
                   <th class="p-4 text-purple-600">Total Comm.</th>
                   <th class="p-4">PKG Status</th>
                   <th class="p-4">Sold By</th>
-                  <th class="p-4">Started</th>
+                  <th class="p-4 text-blue-600">Started (First Lead)</th>
                   <th class="p-4">Deal Status</th>
                   <th class="p-4 text-center">Action</th>
                 </tr>
               </thead>
               <tbody id="admin-sales-table-body" class="divide-y divide-gray-50">
-                <tr><td colspan="11" class="p-6 text-center text-gray-400 italic">Loading master pipeline...</td></tr>
+                <tr><td colspan="12" class="p-6 text-center text-gray-400 italic">Loading master pipeline...</td></tr>
               </tbody>
             </table>
           </div>
@@ -1147,8 +1188,8 @@
 
           <div class="grid grid-cols-2 gap-3 mb-3">
               <div>
-                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Commission (Per Lead $)</label>
-                <input type="number" id="sale-commission" step="0.01" placeholder="e.g. 10" value="0" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Total Commission ($)</label>
+                <input type="number" id="sale-commission" step="0.01" placeholder="e.g. 500" value="0" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
               </div>
               <div>
                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Purchase Date</label>
@@ -1336,129 +1377,292 @@
       },
 
       normalizeClientHealthRows(clients, packages) {
-        // --- BULLETPROOF MST DATE FORMATTER ---
-        const mstFormatter = new Intl.DateTimeFormat('en-CA', { 
-            timeZone: 'America/Denver', 
-            year: 'numeric', month: '2-digit', day: '2-digit' 
-        });
-
+        const mstFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit' });
         const now = new Date();
-        const todayStr = mstFormatter.format(now); // Strict YYYY-MM-DD
-        
-        const yesterday = new Date(now);
-        yesterday.setDate(yesterday.getDate() - 1);
+        const todayStr = mstFormatter.format(now); 
+        const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
         const yesterdayStr = mstFormatter.format(yesterday);
 
-        return clients.map(c => {
+        let finalRows = [];
+
+        clients.forEach(c => {
           const code = String(c.code_name || c.client_code || "").trim();
           const company = String(c.company_name || c.roofing_company || "—").trim();
           const clientName = String(c.contact_person || c.client_name || "—").trim();
           const cityState = String(c.area || c.city_state || "—").trim();
-          
-          const clientPkgs = packages.filter(p => String(p.client_code || "").trim().toLowerCase() === code.toLowerCase());
-          const activePkg = clientPkgs.find(p => String(p.status || "").trim().toUpperCase() === 'ACTIVE') || clientPkgs[0] || {};
-
-          // --- LEAD MATH SECTION ---
-          // Use the exact same normalizer so the keys match perfectly!
           const compKey = this.normalizeCompanyName(company);
-          const leadList = this._leadsIndexByCompany?.get(compKey) || [];
           
-          let qualified = 0, credited = 0, todayCount = 0, yesterdayCount = 0;
-          let lastLeadDate = null;
+          // Sort packages oldest to newest for the Waterfall
+          const clientPkgs = packages.filter(p => String(p.client_code || "").trim().toLowerCase() === code.toLowerCase())
+                                     .sort((a,b) => new Date(a.purchase_date || 0) - new Date(b.purchase_date || 0));
+          
+          if (clientPkgs.length === 0) return; // Skip if they have literally no packages
 
-          leadList.forEach(l => {
-              const dStr = l.date_submitted || l['Date Submitted'] || l.created_at;
-              const d = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
-              
-              if (d && !isNaN(d.getTime())) {
-                  if (!lastLeadDate || d > lastLeadDate) lastLeadDate = d;
+          // Get ALL leads for this client, sorted chronologically oldest to newest
+          let leadList = [...(this._leadsIndexByCompany?.get(compKey) || [])];
+          leadList.sort((a,b) => {
+              const dA = window.portal?.parseDateSafe ? window.portal.parseDateSafe(a.date_submitted || a.created_at) : new Date(a.date_submitted || a.created_at);
+              const dB = window.portal?.parseDateSafe ? window.portal.parseDateSafe(b.date_submitted || b.created_at) : new Date(b.date_submitted || b.created_at);
+              return (dA || 0) - (dB || 0);
+          });
 
-                  // DATE PROTECTION: Prevent strings from shifting timezones
-                  let compareStr;
-                  const rawStr = String(dStr).trim();
+          // WATERFALL ALLOCATION LOOP
+          clientPkgs.forEach((pkg, pkgIndex) => {
+              let qCount = 0, cCount = 0, todayCount = 0, yesterdayCount = 0;
+              let firstLeadDate = null, lastLeadDate = null;
+              let purchased = Number(pkg.purchased_leads) || 0;
+              const pDate = pkg.purchase_date ? new Date(pkg.purchase_date + "T00:00:00") : new Date(0);
+
+              // Consume leads until this package is fulfilled
+              while(leadList.length > 0 && qCount < purchased) {
+                  let l = leadList[0];
+                  let lDate = window.portal?.parseDateSafe ? window.portal.parseDateSafe(l.date_submitted || l['Date Submitted'] || l.created_at) : new Date(l.date_submitted || l.created_at);
                   
-                  if (rawStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                      compareStr = rawStr.substring(0, 10); // Use YYYY-MM-DD exactly as-is
-                  } else if (rawStr.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+                  if (!lDate || isNaN(lDate.getTime())) { leadList.shift(); continue; }
+
+                  // Only count leads that happened ON OR AFTER the package purchase date
+                  if (lDate < pDate) { leadList.shift(); continue; }
+
+                  // IT COUNTS!
+                  leadList.shift(); // Remove it from the queue so the next package doesn't get it
+                  
+                  const st = String(l.status || l.STATUS || l.Lead_Status || "").toUpperCase();
+                  if (st.includes('APPROV') || st.includes('CONFIRM')) qCount++;
+                  else if (st.includes('CREDIT') || st.includes('REJECT')) cCount++;
+
+                  if (!firstLeadDate) firstLeadDate = lDate;
+                  lastLeadDate = lDate;
+
+                  let compareStr;
+                  const rawStr = String(l.date_submitted || l['Date Submitted'] || l.created_at).trim();
+                  if (rawStr.match(/^\d{4}-\d{2}-\d{2}$/)) compareStr = rawStr.substring(0, 10);
+                  else if (rawStr.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
                       const [mm, dd, yyyy] = rawStr.split('/');
-                      compareStr = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`; // Convert MM/DD/YYYY exactly as-is
-                  } else {
-                      compareStr = mstFormatter.format(d); // Apply MST to full timestamps
-                  }
+                      compareStr = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+                  } else compareStr = mstFormatter.format(lDate);
 
                   if (compareStr === todayStr) todayCount++;
                   if (compareStr === yesterdayStr) yesterdayCount++;
-
-                  const st = String(l.status || l.STATUS || l.Lead_Status || "").toUpperCase();
-                  if (st.includes('APPROV') || st.includes('CONFIRM')) {
-                      qualified++;
-                  } else if (st.includes('CREDIT') || st.includes('REJECT')) {
-                      credited++;
-                  }
               }
+
+              // Save waterfall stats to the package object for the Sales Pipeline to use!
+              pkg._waterfallStats = { 
+                  qualified: qCount, credited: cCount, 
+                  firstLead: firstLeadDate, lastLead: lastLeadDate 
+              };
+
+              let owed = Math.max(purchased - qCount, 0);
+              let pkgStatus = String(pkg.status || "").toUpperCase().trim();
+              if (pkgStatus === 'ACTIVE') pkgStatus = 'ONGOING';
+
+              // Smart Status override
+              if (pkgStatus !== 'PAUSE' && pkgStatus !== 'REFUNDED') {
+                  if (owed > 0) pkgStatus = 'ONGOING';
+                  else if (purchased > 0 && owed === 0) pkgStatus = 'COMPLETED';
+                  else pkgStatus = 'COMPLETED';
+              }
+
+              // Only show ONGOING, PAUSED, or highly recent COMPLETED packages in health monitor to prevent clutter
+              if (pkgStatus === 'COMPLETED' && pkgIndex < clientPkgs.length - 1) return; 
+
+              let healthStatus = String(c.client_status || c.status || "INACTIVE").toUpperCase().trim(); 
+              const nowMs = Date.now();
+              const hoursSinceLastLead = lastLeadDate ? (nowMs - lastLeadDate.getTime()) / (1000 * 60 * 60) : 9999;
+
+              if (!lastLeadDate) healthStatus = "NOT STARTED"; 
+              else if (todayCount >= 1 && yesterdayCount >= 1) healthStatus = "HEALTHY";    
+              else if (hoursSinceLastLead > 48) healthStatus = "CRITICAL";   
+              else healthStatus = "AT RISK";    
+
+              const isRenewal = pkgIndex > 0;
+
+              finalRows.push({
+                  _raw: c,
+                  _pkgId: pkg.id,
+                  code: code,
+                  passbookStatus: String(c.client_status || c.status || "INACTIVE").toUpperCase().trim(),
+                  healthStatus: healthStatus,
+                  // VISUAL RENEWAL TAG!
+                  roofingCompany: company + (isRenewal ? ' <span class="text-[9px] font-black text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded ml-2">RENEWAL</span>' : ''),
+                  searchName: company + (isRenewal ? ' renewal' : ''),
+                  cityState: cityState,
+                  clientName: clientName,
+                  packageStatus: pkgStatus,
+                  packageLabel: `${owed} / ${purchased}`,
+                  owedRemaining: owed,
+                  qualifiedCount: qCount,
+                  creditedCount: cCount,
+                  purchaseDate: pkg.purchase_date || "—",
+                  leadsToday: todayCount,
+                  leadsYesterday: yesterdayCount,
+                  lastLead: lastLeadDate ? window.portal.formatDate(lastLeadDate) : "—",
+                  isServing: c.is_serving === true || c.is_serving === 'true',
+                  dailyAgents: c.daily_agents || "",
+                  dailyGoal: Number(c.daily_goal) || 0
+              });
           });
-
-          const purchased = Number(activePkg.purchased_leads) || 0;
-          const owed = Math.max(purchased - qualified, 0);
-          const rawStat = c.client_status || c.status || "INACTIVE";
-          
-          // --- SMART PACKAGE STATUS OVERRIDE ---
-          let pkgStatus = String(activePkg.status || "").toUpperCase().trim();
-          if (pkgStatus === 'ACTIVE') pkgStatus = 'ONGOING';
-
-          // As long as it is not manually Paused or Refunded, force the status based on Owed Leads
-          if (pkgStatus !== 'PAUSE' && pkgStatus !== 'REFUNDED') {
-              if (owed > 0) {
-                  pkgStatus = 'ONGOING';   // Force ONGOING because we still owe them leads
-              } else if (purchased > 0 && owed === 0) {
-                  pkgStatus = 'COMPLETED'; // Auto-complete when fulfilled
-              } else {
-                  pkgStatus = 'COMPLETED'; // Fallback for 0/0 empty packages
-              }
-          }
-          
-          let healthStatus = String(rawStat).toUpperCase().trim(); 
-          // --- LIVE HEALTH CALCULATION ---
-          // Use the lastLeadDate we found during the math loop
-          const nowMs = Date.now();
-          const hoursSinceLastLead = lastLeadDate ? (nowMs - lastLeadDate.getTime()) / (1000 * 60 * 60) : 9999;
-
-          if (!lastLeadDate) {
-              // BLUE: Never received a lead since purchase
-              healthStatus = "NOT STARTED"; 
-          } else if (todayCount >= 1 && yesterdayCount >= 1) {
-              // GREEN: Active today AND yesterday
-              healthStatus = "HEALTHY";    
-          } else if (hoursSinceLastLead > 48) {
-              // RED: No leads in over 48 hours
-              healthStatus = "CRITICAL";   
-          } else {
-              // YELLOW: Recent lead, but missing the "Healthy" streak
-              healthStatus = "AT RISK";    
-          }
-
-          return {
-            _raw: c,
-            code: code,
-            passbookStatus: String(rawStat).toUpperCase().trim(),
-            healthStatus: healthStatus,
-            roofingCompany: company,
-            cityState: cityState,
-            clientName: clientName,
-            packageStatus: pkgStatus,
-            packageLabel: `${owed} / ${purchased}`,
-            owedRemaining: owed,
-            qualifiedCount: qualified,
-            creditedCount: credited,
-            purchaseDate: activePkg.purchase_date || "—",
-            leadsToday: todayCount,
-            leadsYesterday: yesterdayCount,
-            lastLead: lastLeadDate ? window.portal.formatDate(lastLeadDate) : "—",
-            isServing: c.is_serving === true || c.is_serving === 'true',
-            dailyAgents: c.daily_agents || "",
-            dailyGoal: Number(c.daily_goal) || 0
-          };
         });
+        return finalRows;
+      },
+
+      // --- NEW SALES PIPELINE ENGINE ---
+      salesPeriod: 'all-time',
+      _salesCustomRange: { active: false, start: null, end: null },
+      _salesBound: false,
+
+      setSalesPeriod(period, btnElement) {
+        this.salesPeriod = period;
+        if (period !== "custom") {
+          this._salesCustomRange.active = false;
+          this._setCustomActive("sales-custom-toggle", false);
+          this._setActiveButton(".sales-btn", btnElement);
+        } else {
+          this._setActiveButton(".sales-btn", null);
+          this._setCustomActive("sales-custom-toggle", true);
+        }
+        this.renderSalesTab();
+      },
+
+      bindSalesUI() {
+        if (this._salesBound) return;
+        this._salesBound = true;
+
+        const search = document.getElementById("admin-sales-search");
+        const catSel = document.getElementById("admin-sales-category-filter");
+        const pkgSel = document.getElementById("admin-sales-package-filter");
+
+        if (search) search.addEventListener("input", () => this.renderSalesTab());
+        if (catSel) catSel.addEventListener("change", () => this.renderSalesTab());
+        if (pkgSel) pkgSel.addEventListener("change", () => this.renderSalesTab());
+
+        const toggle = document.getElementById("sales-custom-toggle");
+        const pop = document.getElementById("sales-custom-popover");
+        const apply = document.getElementById("sales-custom-apply");
+        const clear = document.getElementById("sales-custom-clear");
+
+        if (toggle && pop) {
+          toggle.addEventListener("click", (e) => { e.preventDefault(); pop.classList.toggle("hidden"); });
+          document.addEventListener("click", (e) => {
+            if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) pop.classList.add("hidden");
+          });
+        }
+
+        if (apply) {
+          apply.addEventListener("click", () => {
+            const s = document.getElementById("sales-custom-start")?.value;
+            const e = document.getElementById("sales-custom-end")?.value;
+            if (!s || !e) return;
+            this._salesCustomRange = { active: true, start: s, end: e };
+            this.setSalesPeriod("custom", null);
+            pop?.classList.add("hidden");
+          });
+        }
+
+        if (clear) {
+          clear.addEventListener("click", () => {
+            document.getElementById("sales-custom-start").value = "";
+            document.getElementById("sales-custom-end").value = "";
+            this._salesCustomRange.active = false;
+            this.setSalesPeriod("all-time", document.querySelector('.sales-btn:last-child'));
+            pop?.classList.add("hidden");
+          });
+        }
+      },
+
+      renderSalesTab() {
+        const state = this.getState();
+        const packages = Array.isArray(state.packages) ? state.packages : [];
+        const clients = Array.isArray(state.clients) ? state.clients : [];
+
+        // Note: Waterfall stats were injected into `packages` during the Health Monitor calculation!
+        
+        let filtered = [...packages];
+
+        // 1. DATE FILTERING
+        const { start, end, label } = this.getRangeFor(this.salesPeriod, []);
+        if (this.salesPeriod !== 'all-time') {
+             filtered = filtered.filter(p => {
+                 if (!p.purchase_date) return false;
+                 const pDate = new Date(p.purchase_date + "T12:00:00");
+                 return pDate >= start && pDate <= end;
+             });
+        }
+        
+        const lbl = document.getElementById("sales-range-label");
+        if (lbl) lbl.textContent = this.salesPeriod === "custom" ? `Showing Custom: ${start.toLocaleDateString()} → ${end.toLocaleDateString()}` : `Showing: ${label}`;
+
+        // 2. TEXT & DROPDOWN FILTERING
+        const q = String(document.getElementById("admin-sales-search")?.value || "").toLowerCase().trim();
+        const catFilter = document.getElementById("admin-sales-category-filter")?.value || "All";
+        const pkgFilter = document.getElementById("admin-sales-package-filter")?.value || "all";
+
+        if (catFilter !== "All") filtered = filtered.filter(p => String(p.sale_category || "").toLowerCase() === catFilter.toLowerCase());
+        
+        if (pkgFilter !== "all") {
+            filtered = filtered.filter(p => {
+                 let s = String(p.status || "").toLowerCase();
+                 if (s === 'active') s = 'ongoing'; // Normalize
+                 let target = pkgFilter.toLowerCase();
+                 if (target === 'active') target = 'ongoing';
+                 return s.includes(target);
+            });
+        }
+
+        let totalSales = 0;
+        let totalCommissions = 0;
+
+        let html = "";
+        filtered.sort((a,b) => new Date(b.purchase_date || 0) - new Date(a.purchase_date || 0)).forEach(p => {
+            const code = String(p.client_code || "—").trim();
+            const clientMatch = clients.find(c => String(c.client_code || c.code_name) === code) || {};
+            const company = clientMatch.company_name || clientMatch.roofing_company || "Unknown Client";
+            
+            if (q && !`${company} ${code} ${p.transaction_id || ''}`.toLowerCase().includes(q)) return;
+
+            const dealVal = Number(p.deal_value) || 0;
+            const commVal = Number(p.commission_per_lead) || 0; // This is now total commission
+            
+            totalSales += dealVal;
+            totalCommissions += commVal;
+
+            let stBadge = "bg-gray-100 text-gray-700";
+            const st = String(p.status || "").toUpperCase();
+            if (st === 'ACTIVE') stBadge = "bg-emerald-100 text-emerald-800";
+            if (st === 'PAUSE') stBadge = "bg-yellow-100 text-yellow-800";
+            if (st === 'COMPLETED') stBadge = "bg-blue-100 text-blue-800";
+
+            let dealBadge = "bg-gray-100 text-gray-700";
+            const ds = String(p.deal_status || "").toUpperCase();
+            if (ds === 'PAID') dealBadge = "bg-emerald-100 text-emerald-800";
+            if (ds === 'NEGOTIATING') dealBadge = "bg-yellow-100 text-yellow-800";
+            if (ds === 'REFUNDED') dealBadge = "bg-red-100 text-red-800";
+
+            // Grab the "Started" date from the Waterfall engine
+            const startedStr = p._waterfallStats?.firstLead ? window.portal.formatDate(p._waterfallStats.firstLead) : "—";
+
+            html += `
+              <tr class="hover:bg-gray-50 border-b border-gray-50">
+                <td class="p-4 font-bold text-gray-700">${p.purchase_date || "—"}</td>
+                <td class="p-4 text-xs font-mono text-gray-400">${p.transaction_id || "—"}</td>
+                <td class="p-4 font-black text-gray-900">${company} <span class="text-[10px] text-gray-400 font-normal ml-1">(${code})</span></td>
+                <td class="p-4 text-gray-600">${p.poc || clientMatch.contact_person || "—"}</td>
+                <td class="p-4 text-center font-bold">${p.purchased_leads || 0}</td>
+                <td class="p-4 text-emerald-600 font-black">$${dealVal.toLocaleString()}</td>
+                <td class="p-4 text-purple-600 font-black">$${commVal.toLocaleString()}</td>
+                <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${stBadge}">${st || 'UNKNOWN'}</span></td>
+                <td class="p-4 text-gray-600 font-bold">${p.sold_by || "—"}</td>
+                <td class="p-4 text-blue-600 font-bold">${startedStr}</td>
+                <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${dealBadge}">${ds || 'UNKNOWN'}</span></td>
+                <td class="p-4 text-center">
+                    <button class="text-gray-300 hover:text-red-500 transition-colors" title="Delete Deal"><i class="fa-solid fa-trash-can"></i></button>
+                </td>
+              </tr>
+            `;
+        });
+
+        document.getElementById("sales-total-kpi").textContent = totalSales.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        document.getElementById("sales-commissions-kpi").textContent = totalCommissions.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        document.getElementById("admin-sales-table-body").innerHTML = html || `<tr><td colspan="12" class="p-8 text-center text-gray-400 italic">No deals found for this range.</td></tr>`;
       },
 
       setupFilters(rows) {
