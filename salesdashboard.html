@@ -1614,9 +1614,12 @@
 
       openPassbookClient(codeName) { 
           const modal = document.getElementById("passbook-modal"); 
-          document.getElementById("codeName").value = codeName;
+          
+          // Updates the title and loading state
           document.getElementById("passbook-modal-sub").textContent = `Code: ${codeName}`;
           document.getElementById("passbook-form-body").innerHTML = '<div class="p-4 text-sm text-gray-500 italic"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Loading live from database...</div>';
+          
+          // Opens the modal securely
           modal.classList.remove("hidden");
           this._fetchAndRenderPassbookClient(codeName);
       },
