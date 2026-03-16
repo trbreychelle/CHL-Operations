@@ -1465,61 +1465,88 @@
         const statusPop = document.getElementById("health-status-popover");
         const statusBtn = document.getElementById("health-status-btn");
         
-        if (statusPop && statusBtn && !this._firstLoadDone) {
+        // BUG FIX 1: Wrap ALL event listeners in the First Load check so they never duplicate
+        if (!this._firstLoadDone) {
             this._firstLoadDone = true;
-            // Health Statuses ONLY
-            const statuses = ["CRITICAL", "AT RISK", "HEALTHY", "NOT STARTED"];
-            statusPop.innerHTML = statuses.map(s => {
-                return `<label class="flex items-center text-sm cursor-pointer p-2 hover:bg-gray-50 rounded"><input type="checkbox" value="${s}" class="health-st-chk mr-2" checked> ${s}</label>`;
-            }).join("");
+            
+            // Health Statuses Popover
+            if (statusPop && statusBtn) {
+                const statuses = ["CRITICAL", "AT RISK", "HEALTHY", "NOT STARTED"];
+                statusPop.innerHTML = statuses.map(s => {
+                    return `<label class="flex items-center text-sm cursor-pointer p-2 hover:bg-gray-50 rounded"><input type="checkbox" value="${s}" class="health-st-chk mr-2" checked> ${s}</label>`;
+                }).join("");
 
-            const updateLabel = () => {
-                const count = statusPop.querySelectorAll('.health-st-chk:checked').length;
-                document.getElementById("health-status-label").textContent = `Health: ${count} selected`;
-            };
-            updateLabel();
+                const updateLabel = () => {
+                    const count = statusPop.querySelectorAll('.health-st-chk:checked').length;
+                    document.getElementById("health-status-label").textContent = `Health: ${count} selected`;
+                };
+                updateLabel();
 
-            statusPop.querySelectorAll('.health-st-chk').forEach(chk => chk.addEventListener('change', () => { updateLabel(); this.applyClientHealthFilters(); }));
-            statusBtn.addEventListener("click", (e) => { e.preventDefault(); statusPop.classList.toggle("hidden"); });
+                statusPop.querySelectorAll('.health-st-chk').forEach(chk => chk.addEventListener('change', () => { updateLabel(); this.applyClientHealthFilters(); }));
+                statusBtn.addEventListener("click", (e) => { e.preventDefault(); statusPop.classList.toggle("hidden"); });
+            }
+
+            // Package Filter
+            document.getElementById("health-filter-package")?.addEventListener("change", () => this.applyClientHealthFilters());
+            
+            // BUG FIX 2: The Debouncer! (Waits 300ms after you stop typing to execute the search)
+            const searchInput = document.getElementById("health-search");
+            if (searchInput) {
+                searchInput.addEventListener("input", () => {
+                    clearTimeout(this._healthSearchTimer);
+                    this._healthSearchTimer = setTimeout(() => {
+                        this.applyClientHealthFilters();
+                    }, 300);
+                });
+            }
+
+            // Clear Button
+            document.getElementById("health-clear")?.addEventListener("click", () => {
+                const s = document.getElementById("health-search");
+                if (s) s.value = "";
+                const pkgSel = document.getElementById("health-filter-package");
+                if (pkgSel) pkgSel.value = "ONGOING";
+                const locSel = document.getElementById("health-filter-location");
+                if (locSel) locSel.value = "all";
+                
+                document.querySelectorAll('.health-st-chk').forEach(chk => {
+                    chk.checked = true;
+                });
+                
+                const updateLabel = () => {
+                    const count = statusPop.querySelectorAll('.health-st-chk:checked').length;
+                    document.getElementById("health-status-label").textContent = `Health: ${count} selected`;
+                };
+                if(updateLabel) updateLabel();
+
+                this.applyClientHealthFilters();
+            });
+            
+            // Sorting Columns
+            document.querySelectorAll("th.sortable").forEach(th => {
+                th.addEventListener("click", () => {
+                  const key = th.getAttribute("data-sort");
+                  this.toggleSort(key);
+                  this.applyClientHealthFilters();
+                });
+            });
         }
 
-        document.getElementById("health-filter-package")?.addEventListener("change", () => this.applyClientHealthFilters());
-        document.getElementById("health-search")?.addEventListener("input", () => this.applyClientHealthFilters());
-
+        // Location Filter (Needs to update if new locations are added, but safely checks for existing listener)
         const locSel = document.getElementById("health-filter-location");
         if (locSel) {
+           const currentVal = locSel.value; // Remember what they have selected
            const uniq = (arr) => [...new Set(arr.filter(x => String(x||"").trim() !== ""))].sort();
            const locs = uniq(rows.map(r => r.cityState));
+           
            locSel.innerHTML = `<option value="all">All Locations</option>` + locs.map(l => `<option value="${l}">${l}</option>`).join("");
-           locSel.addEventListener("change", () => this.applyClientHealthFilters());
+           locSel.value = locs.includes(currentVal) ? currentVal : "all"; // Restore selection
+           
+           if (!locSel.dataset.bound) {
+               locSel.dataset.bound = "true";
+               locSel.addEventListener("change", () => this.applyClientHealthFilters());
+           }
         }
-
-        document.getElementById("health-clear")?.addEventListener("click", () => {
-            const s = document.getElementById("health-search");
-            if (s) s.value = "";
-            const pkgSel = document.getElementById("health-filter-package");
-            if (pkgSel) pkgSel.value = "ONGOING";
-            if (locSel) locSel.value = "all";
-            
-            document.querySelectorAll('.health-st-chk').forEach(chk => {
-                chk.checked = true;
-            });
-            const updateLabel = () => {
-                const count = statusPop.querySelectorAll('.health-st-chk:checked').length;
-                document.getElementById("health-status-label").textContent = `Health: ${count} selected`;
-            };
-            if(updateLabel) updateLabel();
-
-            this.applyClientHealthFilters();
-        });
-        
-        document.querySelectorAll("th.sortable").forEach(th => {
-            th.addEventListener("click", () => {
-              const key = th.getAttribute("data-sort");
-              this.toggleSort(key);
-              this.applyClientHealthFilters();
-            });
-        });
       },
 
       applyClientHealthFilters() {
