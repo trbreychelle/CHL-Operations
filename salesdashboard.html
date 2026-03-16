@@ -65,10 +65,6 @@
     @media (max-width: 1024px) { .controls-wrap > * { min-width: 160px; } }
     .table-scroll { overflow-x: auto; }
     .table-min { min-width: 1100px; }
-
-    /* CRITICAL SALES UI OVERRIDES */
-    /* This physically hides the "Share with Sales" toggle from the sales team */
-    .sales-share-toggle { display: none !important; }
   </style>
 </head>
 
@@ -171,20 +167,21 @@
               <thead class="bg-white sticky top-0 z-10 shadow-sm">
                 <tr>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase w-10">Status</th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase">Code</th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase">Roofing Company</th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase">City/State</th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Package (Owed/Purchased)</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="code">Code <span class="sort-icon" id="sort-code">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="roofingCompany">Roofing Company <span class="sort-icon" id="sort-roofingCompany">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="cityState">City/State <span class="sort-icon" id="sort-cityState">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center sortable" data-sort="packageRatio">Package (Owed) <span class="sort-icon" id="sort-packageRatio">↕</span></th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Qualified</th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Credited</th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Leads Today</th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Leads Yesterday</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center text-red-500">Cancel Rate</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center sortable" data-sort="leadsToday">Leads Today <span class="sort-icon" id="sort-leadsToday">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center sortable" data-sort="leadsYesterday">Leads Yesterday <span class="sort-icon" id="sort-leadsYesterday">↕</span></th>
                   <th class="p-4 text-xs font-bold text-gray-400 uppercase">Package Status</th>
-                  <th class="p-4 text-xs font-bold text-gray-400 uppercase">Client Name</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="clientName">Client Name <span class="sort-icon" id="sort-clientName">↕</span></th>
                 </tr>
               </thead>
               <tbody id="client-health-body" class="text-sm divide-y divide-gray-50">
-                <tr><td colspan="11" class="p-6 text-center text-gray-400 italic">Loading clients...</td></tr>
+                <tr><td colspan="12" class="p-6 text-center text-gray-400 italic">Loading clients...</td></tr>
               </tbody>
             </table>
           </div>
@@ -198,6 +195,8 @@
             <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
               <button onclick="Admin.setAnalyticsPeriod('today', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
               <button onclick="Admin.setAnalyticsPeriod('this-week', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
+              <button onclick="Admin.setAnalyticsPeriod('previous-week', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Previous Week</button>
+              <button onclick="Admin.setAnalyticsPeriod('4-weeks', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">4 Weeks</button>
               <button onclick="Admin.setAnalyticsPeriod('all-time', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
             </div>
           </div>
@@ -207,6 +206,7 @@
               <div class="kpi-tile">
                 <div class="kpi-label">Total Leads</div>
                 <div class="kpi-value" id="kpi-total">0</div>
+                <div class="kpi-sub" id="kpi-range">—</div>
               </div>
               <div class="kpi-tile">
                 <div class="kpi-label">QC Rejected</div>
@@ -241,45 +241,105 @@
       <div id="view-sales" class="view-section">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
           <div>
-            <h2 class="text-2xl font-bold text-gray-900">Sales Pipeline</h2>
-            <p class="text-sm text-gray-500 mt-1">Track your active deals and closed won revenue.</p>
+            <h2 class="text-2xl font-bold text-gray-900">Master Sales Pipeline</h2>
+            <p class="text-sm text-gray-500 mt-1">Track all active deals, total commissions, and renewal performance.</p>
           </div>
-          <button class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-extrabold hover:bg-emerald-700 shadow-lg shadow-emerald-600/20" onclick="alert('Add Sale Modal Coming Soon!')">
-            <i class="fas fa-plus mr-2"></i> Add Deal
-          </button>
+          <div class="flex gap-3 items-end">
+            <div class="bg-white px-5 py-2 rounded-xl border border-gray-100 shadow-sm text-right">
+              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TOTAL COMMISSIONS</p>
+              <p class="text-xl font-bold text-purple-600" id="sales-commissions-kpi">$0.00</p>
+            </div>
+            <div class="bg-white px-5 py-2 rounded-xl border border-gray-100 shadow-sm text-right">
+              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TOTAL SALES</p>
+              <p class="text-xl font-bold text-emerald-600" id="sales-total-kpi">$0.00</p>
+            </div>
+            <button class="px-4 py-3 rounded-lg bg-emerald-600 text-white text-sm font-extrabold hover:bg-emerald-700 shadow-lg shadow-emerald-600/20" onclick="window.openAddDealModal()">
+              <i class="fas fa-plus mr-2"></i> Add Deal
+            </button>
+          </div>
         </div>
 
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+          <div class="flex flex-col md:flex-row gap-3 justify-between items-center mb-4 border-b border-gray-50 pb-4">
+              <div class="flex items-center gap-2 flex-wrap">
+                <div class="flex bg-gray-100 p-1 rounded-lg flex-wrap gap-1">
+                  <button onclick="Admin.setSalesPeriod('today', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Today</button>
+                  <button onclick="Admin.setSalesPeriod('this-week', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
+                  <button onclick="Admin.setSalesPeriod('previous-week', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Previous Week</button>
+                  <button onclick="Admin.setSalesPeriod('4-weeks', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">4 Weeks</button>
+                  <button onclick="Admin.setSalesPeriod('all-time', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">All-Time</button>
+                </div>
+
+                <div class="relative">
+                  <button id="sales-custom-toggle" class="px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                    <i class="fa-regular fa-calendar"></i> Custom
+                  </button>
+
+                  <div id="sales-custom-popover" class="hidden absolute left-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                    <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">Custom Timeframe</div>
+                    <div class="grid grid-cols-2 gap-2">
+                      <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+                        <input id="sales-custom-start" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
+                      </div>
+                      <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+                        <input id="sales-custom-end" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
+                      </div>
+                    </div>
+                    <div class="flex justify-end gap-2 mt-3">
+                      <button id="sales-custom-clear" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">Clear</button>
+                      <button id="sales-custom-apply" class="px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">Apply</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="text-xs font-bold text-gray-400" id="sales-range-label">Showing: All-Time</div>
+          </div>
+
           <div class="flex flex-col md:flex-row gap-3">
             <div class="flex-1 relative">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
-              <input type="text" id="sales-search" placeholder="Search deal, client name, package..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+              <input type="text" id="admin-sales-search" placeholder="Search deal, client name, package..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
             </div>
-            <select id="sales-status-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]">
-              <option value="all">All Statuses</option>
-              <option value="Prospecting">Prospecting</option>
-              <option value="Negotiating">Negotiating</option>
-              <option value="Closed Won">Closed Won</option>
-              <option value="Closed Lost">Closed Lost</option>
+            
+            <select id="admin-sales-category-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[170px] text-blue-700">
+              <option value="All">View: ALL Sales</option>
+              <option value="CHL">View: CHL Only</option>
+              <option value="Sales Team">View: Sales Team</option>
+            </select>
+
+            <select id="admin-sales-package-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[170px] text-gray-700">
+              <option value="all">All Package Statuses</option>
+              <option value="Active">Active / Ongoing</option>
+              <option value="Pause">Pause</option>
+              <option value="Completed">Completed</option>
+              <option value="Refunded">Refunded</option>
             </select>
           </div>
         </div>
 
-        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-8">
           <div class="table-scroll">
             <table class="w-full text-left text-sm whitespace-nowrap">
               <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
                 <tr>
-                  <th class="p-4">Date</th>
-                  <th class="p-4">Client Name</th>
-                  <th class="p-4">Package</th>
-                  <th class="p-4">Deal Value</th>
-                  <th class="p-4">Status</th>
+                  <th class="p-4">Purchased Date</th>
+                  <th class="p-4">TXN #</th>
+                  <th class="p-4">Roofing Company</th>
+                  <th class="p-4">POC</th>
+                  <th class="p-4">Total Leads</th>
+                  <th class="p-4 text-emerald-600">Deal Value</th>
+                  <th class="p-4 text-purple-600">Total Comm.</th>
+                  <th class="p-4">PKG Status</th>
                   <th class="p-4">Sold By</th>
+                  <th class="p-4 text-blue-600">Started (First Lead)</th>
+                  <th class="p-4">Deal Status</th>
+                  <th class="p-4 text-center">Action</th>
                 </tr>
               </thead>
-              <tbody id="sales-table-body" class="divide-y divide-gray-50">
-                <tr><td colspan="6" class="p-6 text-center text-gray-400 italic">Loading pipeline...</td></tr>
+              <tbody id="admin-sales-table-body" class="divide-y divide-gray-50">
+                <tr><td colspan="12" class="p-6 text-center text-gray-400 italic">Loading master pipeline...</td></tr>
               </tbody>
             </table>
           </div>
@@ -287,17 +347,7 @@
       </div>
 
       <div id="view-clients" class="view-section">
-        <h2 class="text-2xl font-bold text-gray-900 mb-6">Passbook Clients</h2>
-        
-        <div class="client-filter-container" style="margin-bottom: 20px;">
-            <label for="salesClientStatusFilter"><strong>Filter Clients: </strong></label>
-            <select id="salesClientStatusFilter" onchange="fetchSalesClients(this.value)" style="padding: 5px; border-radius: 4px;">
-                <option value="Active" selected>Active</option> 
-                <option value="Pause">Pause</option>
-                <option value="Blacklisted">Blacklisted</option>
-                <option value="All">All</option>
-            </select>
-        </div>
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">Sales Clients</h2>
         
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
           <div class="flex flex-col lg:flex-row gap-3 lg:items-end">
@@ -314,7 +364,7 @@
             </div>
             <button id="passbook-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">Clear</button>
           </div>
-          <div class="mt-3 text-xs text-gray-500">Showing <span class="font-bold" id="passbook-count">0</span> clients</div>
+          <div class="mt-3 text-xs text-gray-500">Showing <span class="font-bold" id="passbook-count">0</span> shared clients</div>
         </div>
 
         <div id="passbook-list-wrap" class="hidden bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-6">
@@ -326,7 +376,8 @@
                   <th class="p-4">Roofing Company</th>
                   <th class="p-4">City/State</th>
                   <th class="p-4">Client Name</th>
-                  <th class="p-4 text-right">Open</th>
+                  <th class="p-4 text-center">Status</th>
+                  <th class="p-4 text-right">Details</th>
                 </tr>
               </thead>
               <tbody id="passbook-list-body" class="divide-y divide-gray-50"></tbody>
@@ -335,7 +386,7 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="client-cards-container">
-          <div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">Loading assigned clients...</div>
+          <div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">Loading shared clients...</div>
         </div>
 
         <div id="passbook-modal" class="hidden fixed inset-0 z-50">
@@ -348,13 +399,12 @@
               </div>
               <button class="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50" onclick="Admin.closePassbookModal()"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <form id="passbookClientForm" class="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
-              <input type="hidden" id="codeName" name="codeName" value="">
+            <div class="p-5 max-h-[80vh] overflow-y-auto">
               <div id="passbook-form-body"><div class="p-4 rounded-xl border border-gray-100 bg-gray-50/40 text-sm text-gray-500 italic">Loading client details...</div></div>
-              <div class="flex items-center justify-end gap-2 pt-4 border-t border-gray-100">
-                <button type="button" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50" onclick="Admin.closePassbookModal()">Close</button>
+              <div class="flex items-center justify-end gap-2 pt-4 border-t border-gray-100 mt-4">
+                <button type="button" class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800" onclick="Admin.closePassbookModal()">Close</button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       </div>
@@ -369,7 +419,6 @@
               <input id="leads-search" type="text" placeholder="Search homeowner, roofing company, status, lead ID..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
             </div>
             <select id="leads-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]"><option value="all">All Status</option></select>
-            <select id="leads-filter-company" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[240px]"><option value="all">All Roofing Company</option></select>
             <div class="flex items-center gap-2">
               <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label><input id="leads-date-start" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/></div>
               <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label><input id="leads-date-end" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/></div>
@@ -391,9 +440,9 @@
         </div>
 
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div class="table-scroll">
+          <div class="table-scroll max-h-[65vh] overflow-y-auto relative pb-4">
             <table class="table-min w-full text-left text-sm whitespace-nowrap">
-              <thead id="leads-table-head" class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100"></thead>
+              <thead id="leads-table-head" class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100 sticky top-0 z-20 shadow-sm"></thead>
               <tbody id="leads-table-body" class="divide-y divide-gray-50"><tr><td class="p-6 text-center text-gray-400">Loading leads...</td></tr></tbody>
             </table>
           </div>
@@ -402,53 +451,74 @@
       
       <div id="add-sale-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center">
         <div class="absolute inset-0 bg-black/40" onclick="document.getElementById('add-sale-modal').classList.add('hidden')"></div>
-        <div class="relative bg-white rounded-2xl shadow-xl w-[90%] max-w-md p-6">
+        <div class="relative bg-white rounded-2xl shadow-xl w-[90%] max-w-md p-6 max-h-[90vh] overflow-y-auto">
           <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-3">
-            <h3 class="font-bold text-xl text-gray-900">Log New Deal</h3>
+            <h3 class="font-bold text-xl text-gray-900" id="sale-modal-title">Log New Deal</h3>
             <button onclick="document.getElementById('add-sale-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-900"><i class="fa-solid fa-xmark"></i></button>
           </div>
-          <form id="add-sale-form" onsubmit="submitNewSale(event)" class="space-y-4">
-            <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Client Name / Roofing Co.</label>
-              <input type="text" id="sale-client-name" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
+          <form id="add-sale-form" onsubmit="window.submitNewSale(event)" class="space-y-4">
+            <input type="hidden" id="sale-package-id" value="">
+            <div class="grid grid-cols-2 gap-3 mb-3">
+              <div class="relative">
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Roofing Company</label>
+                <input type="text" id="sale-company" autocomplete="off" placeholder="Type to search or add new..." required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
+                <div id="custom-client-suggestions" class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-xl hidden max-h-48 overflow-y-auto mt-1 top-full left-0"></div>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">POC (Contact Person)</label>
+                <input type="text" id="sale-poc" placeholder="e.g. John Doe" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
+              </div>
             </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Package Sold</label>
-              <input type="text" id="sale-package" placeholder="e.g. 10 Leads / $2111" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
+            <input type="hidden" id="sale-client-code" value="">
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Purchased Leads</label>
+                  <input type="number" id="sale-leads" placeholder="e.g. 10" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Deal Value ($)</label>
+                  <input type="number" id="sale-value" step="0.01" placeholder="e.g. 2111" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+                </div>
             </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Deal Value ($)</label>
-              <input type="number" id="sale-value" step="0.01" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
-            </div>
-            <div id="sale-category-container">
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Sale Category</label>
-              <select id="sale-category" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
-                <option value="Sales Team">Sales Team</option>
-                <option value="CHL">CHL (Admin)</option>
-              </select>
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Total Commission ($)</label>
+                  <input type="number" id="sale-commission" step="0.01" placeholder="e.g. 500" value="0" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Purchase Date</label>
+                  <input type="date" id="sale-date" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+                </div>
             </div>
             <div class="mb-4">
-                <label class="block text-xs font-bold text-gray-500 mb-1">TRANSACTION NUMBER</label>
-                <input type="text" id="sale-transaction-id" placeholder="e.g. TXN-2026-001" class="w-full border rounded p-2 text-sm outline-none focus:border-blue-500">
+                <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">TRANSACTION NUMBER</label>
+                <input type="text" id="sale-transaction-id" placeholder="e.g. TXN-2026-001" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
             </div>
-            <div class="mb-4">
-                <label class="block text-xs font-bold text-gray-500 mb-1">PACKAGE STATUS</label>
-                <select id="sale-package-status" class="w-full border rounded p-2 text-sm outline-none focus:border-blue-500">
-                    <option value="Active">Active</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Refunded">Refunded</option>
-                </select>
+            <div class="grid grid-cols-3 gap-3">
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Deal Type</label>
+                    <select id="sale-deal-type" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400 font-bold text-blue-700">
+                        <option value="New Client">New Client</option>
+                        <option value="Renewal">Renewal</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Deal Status</label>
+                    <select id="sale-deal-status" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
+                        <option value="Paid">Paid</option>
+                        <option value="Negotiating">Negotiating</option>
+                        <option value="Refunded">Refunded</option>
+                    </select>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sale Category</label>
+                  <select id="sale-category" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
+                    <option value="Sales Team">Sales Team</option>
+                    <option value="CHL">CHL (Admin)</option>
+                  </select>
+                </div>
             </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Status</label>
-              <select id="sale-status" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
-                <option value="Prospecting">Prospecting</option>
-                <option value="Negotiating">Negotiating</option>
-                <option value="Closed Won" selected>Closed Won</option>
-                <option value="Closed Lost">Closed Lost</option>
-              </select>
-            </div>
-            <button type="submit" id="save-sale-btn" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg mt-2">Save Deal</button>
+            <button type="submit" id="save-sale-btn" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg mt-2 shadow-lg">Save Deal</button>
           </form>
         </div>
       </div>
@@ -457,12 +527,12 @@
   </main>
 
   <script>
-    // Include the exact identical AdminDashboard logic here so it can process tables
-    // It doesn't matter if we don't have the Team/Payroll HTML elements anymore; the script gracefully skips them
     const AdminDashboard = {
-      perfPeriod: 'today',
       analyticsPeriod: 'today',
+      salesPeriod: 'all-time',
       _customRange: { active: false, start: null, end: null },
+      _salesCustomRange: { active: false, start: null, end: null },
+      _salesBound: false,
       clientHealthRaw: [],
       clientHealthView: [],
       sortState: { key: null, dir: 'asc' },
@@ -473,23 +543,39 @@
       _passbookView: "cards",
       _passbookFiltersBound: false,
       _owedKpiBound: false,
+      _leadsIndexByCompany: null,
+      _analyticsChart: null,
+      _firstLoadDone: false,
 
-      getState() { return (window.portal && window.portal.adminState) ? window.portal.adminState : null; },
+      getState() { return window.portal?.adminState || {}; },
 
       refreshDashboard() {
         const state = this.getState();
         if (!state) return;
 
-        const clients = Array.isArray(state.clients) ? state.clients : [];
-        const leads   = Array.isArray(state.leads) ? state.leads : [];
+        const clients = state.clients || [];
+        const leads = state.leads || [];
+        const packages = state.packages || [];
+
+        // Build Lead Index for Waterfall
+        this._leadsIndexByCompany = new Map();
+        leads.forEach(l => {
+            const rawComp = this.getLeadField(l, ["Company Name", "company_name", "roofing_company", "Client"]);
+            const comp = this.normalizeCompanyName(rawComp);
+            if (!comp) return;
+            const arr = this._leadsIndexByCompany.get(comp) || [];
+            arr.push(l);
+            this._leadsIndexByCompany.set(comp, arr);
+        });
 
         try {
-          this.clientHealthRaw = this.normalizeClientHealthRows(clients);
+          this.clientHealthRaw = this.normalizeClientHealthRows(clients, packages);
           this.setupFilters(this.clientHealthRaw);
           this.applyClientHealthFilters();
-        } catch(e) {}
+        } catch(e) { console.error(e); }
 
-        try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
+        try { this.bindOverviewAnalyticsUI(); this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
+        try { this.bindSalesUI(); this.renderSalesTab(); } catch(e) {}
         
         try {
           this.setupPassbookFilters(clients);
@@ -518,6 +604,13 @@
         }
       },
 
+      _setCustomActive(toggleId, isActive) {
+        const t = document.getElementById(toggleId);
+        if (!t) return;
+        t.classList.toggle("ring-2", isActive);
+        t.classList.toggle("ring-yellow-400", isActive);
+      },
+
       pick(obj, keys, fallback = "") {
         for (const k of keys) {
           const v = obj?.[k];
@@ -528,116 +621,389 @@
 
       getLeadField(l, keys, fallback="—") { return this.pick(l, keys, fallback); },
 
-      getLeadsColumns() {
-        return [
-          { key: "date_submitted", label: "Date Submitted", keys: ["Date Submitted"] },
-          { key: "lead_id", label: "LEAD ID", keys: ["LEAD ID"] },
-          { key: "roofing_company", label: "Roofing Company", keys: ["Company Name"] },
-          { key: "appointment_coordinator", label: "Appointment Coordinator Name", keys: ["Appointment Coordinator Name"] },
-          { key: "homeowner_name", label: "Homeowner Name(s)", keys: ["Homeowner Name(s)"] },
-          { key: "homeowner_email", label: "Email of Homeowner", keys: ["Email of Homeowner"] },
-          { key: "homeowner_phone", label: "Homeowner Phone Number(s)", keys: ["Homeowner Phone Number(s)"] },
-          { key: "appointment_datetime", label: "Appointment Date /Time", keys: ["Appointment Date /Time"] },
-          { key: "address", label: "Address", keys: ["Address"] },
-          { key: "age_of_roof", label: "Age of Roof", keys: ["Age of Roof"] },
-          { key: "insurance_company", label: "Insurance Company", keys: ["Insurance Company"] },
-          { key: "additional_notes", label: "Additional Notes", keys: ["Additional Notes"] },
-          { key: "status", label: "Status", keys: ["Status"] },
-          { key: "reviewed_by", label: "Reviewed By", keys: ["Reviewed By"] },
-        ];
-      },
-
-      getLeadsDefaultVisibleCols() { return new Set(["date_submitted","homeowner_name","appointment_coordinator","roofing_company","status"]); },
-
+      // --- DATE & MATH HELPERS ---
       getLeadDateObj(l) {
-        const dStr = this.getLeadField(l, ["Date Submitted"], "");
+        const dStr = this.getLeadField(l, ["Date Submitted", "date_submitted", "DATE", "created_at"], "");
         const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
         return (dt && !isNaN(dt.getTime())) ? dt : null;
       },
 
-      setupLeadFilters(leads) {
-        const statusSel = document.getElementById("leads-filter-status");
-        if(statusSel){
-          const uniq = (arr) => [...new Set(arr.filter(x => String(x||"").trim() !== ""))].sort((a,b)=>String(a).localeCompare(String(b)));
-          const statuses = uniq(leads.map(l => this.getLeadField(l, ["Status","STATUS"], "")));
-          statusSel.innerHTML = `<option value="all">All Status</option>` + statuses.map(s => `<option value="${String(s).replace(/"/g,"&quot;")}">${s}</option>`).join("");
+      getRangeFor(period, leads) {
+        const now = new Date();
+        const startOfDay = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+        const endOfDay   = (d) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
+
+        const getPayrollWeekRangeLocal = (d) => {
+          const x = new Date(d);
+          const day = x.getDay(); 
+          const diffToSat = (day - 6);
+          const start = new Date(x);
+          start.setDate(start.getDate() - diffToSat);
+          start.setHours(0,0,0,0);
+          const end = new Date(start);
+          end.setDate(end.getDate() + 6); 
+          end.setHours(23,59,59,999);
+          return { start, end };
+        };
+
+        const payrollThis = window.portal?.getPayrollWeekRange ? window.portal.getPayrollWeekRange() : null;
+        const payrollPrev = window.portal?.getPreviousPayrollWeekRange ? window.portal.getPreviousPayrollWeekRange() : null;
+        const localThis = getPayrollWeekRangeLocal(now);
+        const thisWeekStart = (payrollThis?.start && !isNaN(new Date(payrollThis.start).getTime())) ? new Date(payrollThis.start) : localThis.start;
+        const thisWeekEnd = (payrollThis?.end && !isNaN(new Date(payrollThis.end).getTime())) ? new Date(payrollThis.end) : localThis.end;
+
+        const localPrevStart = new Date(thisWeekStart);
+        localPrevStart.setDate(localPrevStart.getDate() - 7);
+        const localPrev = getPayrollWeekRangeLocal(localPrevStart);
+        const prevWeekStart = (payrollPrev?.start && !isNaN(new Date(payrollPrev.start).getTime())) ? new Date(payrollPrev.start) : localPrev.start;
+        const prevWeekEndFinal = (payrollPrev?.end && !isNaN(new Date(payrollPrev.end).getTime())) ? new Date(payrollPrev.end) : localPrev.end;
+
+        if (period === "custom") {
+           let r = this._customRange.active ? this._customRange : this._salesCustomRange;
+           return { start: startOfDay(new Date(r.start + "T00:00:00")), end: endOfDay(new Date(r.end + "T23:59:59")), grain: "day", label: "Custom Range" };
         }
+        
+        if (period === "all-time") {
+          const dates = (leads || []).map(l => this.getLeadDateObj(l)).filter(d => d && !isNaN(d.getTime())).sort((a,b) => a - b);
+          if (!dates.length) return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "All-Time" };
+          const start = startOfDay(dates[0]);
+          const end   = endOfDay(dates[dates.length - 1]);
+          return { start, end, grain: "week", label: "All-Time" };
+        }
+
+        if (period === "today") return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "Today" };
+        if (period === "this-week") return { start: startOfDay(thisWeekStart), end: endOfDay(thisWeekEnd), grain: "day", label: "This Week" };
+        if (period === "previous-week") return { start: startOfDay(prevWeekStart), end: endOfDay(prevWeekEndFinal), grain: "day", label: "Previous Week" };
+        if (period === "4-weeks") {
+          const end = endOfDay(thisWeekEnd); const start = new Date(end); start.setDate(start.getDate() - 27); start.setHours(0,0,0,0);
+          return { start, end, grain: "week", label: "Last 4 Weeks" };
+        }
+        return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "Today" };
       },
 
-      initLeadsColumnsUI() {
-        if (this._leadsCols) return;
-        this._leadsCols = this.getLeadsColumns();
-        this._leadsVisibleCols = this.getLeadsDefaultVisibleCols();
-        const box = document.getElementById("leads-columns-box");
-        if(box){
-          box.innerHTML = this._leadsCols.map(col => {
-            const checked = this._leadsVisibleCols.has(col.key);
-            return `<label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" data-colkey="${col.key}" ${checked ? "checked" : ""} /><span>${col.label}</span></label>`;
-          }).join("");
-          box.querySelectorAll('input[type="checkbox"][data-colkey]').forEach(chk => {
-            chk.addEventListener("change", () => {
-              const k = chk.getAttribute("data-colkey");
-              if (chk.checked) this._leadsVisibleCols.add(k); else this._leadsVisibleCols.delete(k);
-              this.applyLeadsFilters(); 
-            });
+      _fmtDateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; },
+      _fmtWeekKey(d) {
+        const x = new Date(d);
+        const day = x.getDay(); 
+        const diffToSat = (day - 6);
+        x.setDate(x.getDate() - diffToSat);
+        x.setHours(0,0,0,0);
+        return this._fmtDateKey(x);
+      },
+
+      _buildBuckets(start, end, grain) {
+        const buckets = []; let cursor = new Date(start); cursor.setHours(0,0,0,0);
+        if (grain === "day") { while (cursor <= end) { buckets.push(this._fmtDateKey(cursor)); cursor.setDate(cursor.getDate() + 1); } return buckets; }
+        if (grain === "week") { let wkCursor = new Date(this._fmtWeekKey(cursor) + "T00:00:00"); while (wkCursor <= end) { buckets.push(this._fmtDateKey(wkCursor)); wkCursor.setDate(wkCursor.getDate() + 7); } return buckets; }
+        return buckets;
+      },
+
+      _bucketKeyFor(dt, grain) {
+        if (grain === "day") return this._fmtDateKey(dt);
+        if (grain === "week") return this._fmtDateKey(new Date(this._fmtWeekKey(dt) + "T00:00:00"));
+        return this._fmtDateKey(dt);
+      },
+
+      isQualified(st) { const s = String(st || "").toLowerCase(); return s.includes("confirm") || s.includes("approve"); },
+      isRejected(st) { const s = String(st || "").toLowerCase(); return s.includes("reject"); },
+      isCredited(st) { const s = String(st || "").toLowerCase(); return s.includes("credit"); },
+
+      // --- OVERVIEW ANALYTICS ---
+      setAnalyticsPeriod(period, btnElement) {
+        this.analyticsPeriod = period;
+        if (period !== "custom") { this._customRange.active = false; }
+        this._setActiveButton('.analytics-btn', btnElement);
+        this.updateAnalytics(period);
+      },
+
+      bindOverviewAnalyticsUI() {
+        const toggle = document.getElementById("custom-range-toggle");
+        const pop = document.getElementById("custom-range-popover");
+        const apply = document.getElementById("custom-apply");
+        const clear = document.getElementById("custom-clear");
+
+        if (toggle && pop && !toggle.dataset.bound) {
+          toggle.dataset.bound = "true";
+          toggle.addEventListener("click", (e) => { e.preventDefault(); pop.classList.toggle("hidden"); });
+          document.addEventListener("click", (e) => {
+            if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) pop.classList.add("hidden");
+          });
+          
+          if (apply) apply.addEventListener("click", () => {
+            const s = document.getElementById("custom-start")?.value;
+            const e = document.getElementById("custom-end")?.value;
+            if (!s || !e) return;
+            this._customRange.active = true;
+            this._customRange.start = s;
+            this._customRange.end = e;
+            this.setAnalyticsPeriod("custom", null);
+            this._setCustomActive("custom-range-toggle", true);
+            pop.classList.add("hidden");
+          });
+
+          if (clear) clear.addEventListener("click", () => {
+            document.getElementById("custom-start").value = "";
+            document.getElementById("custom-end").value = "";
+            this._customRange.active = false;
+            this.setAnalyticsPeriod("today", document.querySelector('.analytics-btn'));
+            this._setCustomActive("custom-range-toggle", false);
+            pop.classList.add("hidden");
           });
         }
       },
 
-      applyLeadsFilters() {
+      _renderAnalyticsChart(labels, series) {
+        const ctx = document.getElementById("team-analytics-chart");
+        if (!ctx) return;
+        if (this._analyticsChart) { this._analyticsChart.destroy(); }
+        this._analyticsChart = new Chart(ctx, {
+          type: "bar",
+          data: { labels, datasets: [
+            { label: "Qualified",   data: series.qualified, stack: "stack", backgroundColor: "#3B82F6" }, 
+            { label: "QC Rejected", data: series.rejected,  stack: "stack", backgroundColor: "#EF4444" }, 
+            { label: "Credited",    data: series.credited,  stack: "stack", backgroundColor: "#A855F7" }, 
+            { label: "Pending",     data: series.pending,   stack: "stack", backgroundColor: "#FACC15" }, 
+          ]},
+          options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
+        });
+      },
+
+      updateAnalytics(period) {
         const state = this.getState();
-        const leads = (state && Array.isArray(state.leads)) ? state.leads : [];
-        const q = String(document.getElementById("leads-search")?.value || "").toLowerCase().trim();
-        const stVal = document.getElementById("leads-filter-status")?.value || "all";
-        let filtered = [...leads];
+        const leads = (state && state.leads) ? state.leads : [];
+        const { start, end, grain, label } = this.getRangeFor(period, leads);
 
-        if (stVal !== "all") { filtered = filtered.filter(l => String(this.getLeadField(l, ["Status","STATUS"], "")).trim() === stVal); }
+        const rangeEl = document.getElementById("kpi-range");
+        if (rangeEl) rangeEl.textContent = `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
+
+        let total = 0, qualified = 0, rejected = 0, credited = 0, pending = 0;
+        const buckets = this._buildBuckets(start, end, grain);
+        const seriesMap = new Map();
+        buckets.forEach(b => seriesMap.set(b, { qualified: 0, rejected: 0, credited: 0, pending: 0 }));
+
+        leads.forEach(l => {
+          const dt = this.getLeadDateObj(l);
+          if (!dt || dt < start || dt > end) return;
+
+          const st = this.pick(l, ["Status", "STATUS", "status", "Lead_Status"], "");
+          total++;
+
+          const bk = this._bucketKeyFor(dt, grain);
+          const bRow = seriesMap.get(bk);
+
+          if (this.isQualified(st)) { qualified++; if (bRow) bRow.qualified++; }
+          else if (this.isRejected(st)) { rejected++; if (bRow) bRow.rejected++; }
+          else if (this.isCredited(st)) { credited++; if (bRow) bRow.credited++; }
+          else { pending++; if (bRow) bRow.pending++; }
+        });
+
+        const kpiTotal = document.getElementById("kpi-total"); if(kpiTotal) kpiTotal.textContent = total;
+        const kpiQual = document.getElementById("kpi-qualified"); if(kpiQual) kpiQual.textContent = qualified;
+        const kpiRej = document.getElementById("kpi-qc-rejected"); if(kpiRej) kpiRej.textContent = rejected;
+        const kpiCred = document.getElementById("kpi-credited"); if(kpiCred) kpiCred.textContent = credited;
+        const kpiPend = document.getElementById("kpi-pending"); if(kpiPend) kpiPend.textContent = pending;
+        const kpiCanc = document.getElementById("kpi-cancel"); if(kpiCanc) kpiCanc.textContent = `${(qualified + credited > 0) ? Math.round((credited / (qualified + credited)) * 100) : 0}%`;
+
+        this._renderAnalyticsChart(buckets, {
+          qualified: buckets.map(b => seriesMap.get(b).qualified),
+          rejected: buckets.map(b => seriesMap.get(b).rejected),
+          credited: buckets.map(b => seriesMap.get(b).credited),
+          pending: buckets.map(b => seriesMap.get(b).pending),
+        });
+      },
+
+      // --- WATERFALL & HEALTH MONITOR ---
+      normalizeCompanyName(name) {
+        return String(name || "").toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+      },
+
+      normalizeClientHealthRows(clients, packages) {
+        const mstFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit' });
+        const now = new Date();
+        const todayStr = mstFormatter.format(now); 
+        const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = mstFormatter.format(yesterday);
+
+        let finalRows = [];
+
+        clients.forEach(c => {
+          const code = String(c.code_name || c.client_code || "").trim();
+          const company = String(c.company_name || c.roofing_company || "—").trim();
+          const clientName = String(c.contact_person || c.client_name || "—").trim();
+          const cityState = String(c.area || c.city_state || "—").trim();
+          const compKey = this.normalizeCompanyName(company);
+          
+          const clientPkgs = packages.filter(p => String(p.client_code || "").trim().toLowerCase() === code.toLowerCase())
+                                     .sort((a,b) => new Date(a.purchase_date || 0) - new Date(b.purchase_date || 0));
+          
+          if (clientPkgs.length === 0) return; 
+
+          let leadList = [...(this._leadsIndexByCompany?.get(compKey) || [])];
+          leadList.sort((a,b) => {
+              const dStrA = this.getLeadField(a, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
+              const dStrB = this.getLeadField(b, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
+              const dA = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStrA) : new Date(dStrA);
+              const dB = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStrB) : new Date(dStrB);
+              return (dA || 0) - (dB || 0);
+          });
+
+          clientPkgs.forEach((pkg, pkgIndex) => {
+              let qCount = 0, cCount = 0, todayCount = 0, yesterdayCount = 0;
+              let firstLeadDate = null, lastLeadDate = null;
+              let purchased = Number(pkg.purchased_leads) || 0;
+              const pDate = pkg.purchase_date ? new Date(pkg.purchase_date + "T00:00:00") : new Date(0);
+
+              while(leadList.length > 0 && qCount < purchased) {
+                  let l = leadList[0];
+                  const dStr = this.getLeadField(l, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
+                  let lDate = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+                  
+                  if (!lDate || isNaN(lDate.getTime())) { leadList.shift(); continue; }
+                  if (lDate < pDate) { leadList.shift(); continue; }
+
+                  leadList.shift(); 
+                  
+                  const st = String(l.status || l.STATUS || l.Lead_Status || "").toUpperCase();
+                  if (st.includes('APPROV') || st.includes('CONFIRM')) qCount++;
+                  else if (st.includes('CREDIT') || st.includes('REJECT')) cCount++;
+
+                  if (!firstLeadDate) firstLeadDate = lDate;
+                  lastLeadDate = lDate;
+
+                  let compareStr;
+                  if (dStr.match(/^\d{4}-\d{2}-\d{2}$/)) compareStr = dStr.substring(0, 10);
+                  else if (dStr.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+                      const [mm, dd, yyyy] = dStr.split('/');
+                      compareStr = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+                  } else compareStr = mstFormatter.format(lDate);
+
+                  if (compareStr === todayStr) todayCount++;
+                  if (compareStr === yesterdayStr) yesterdayCount++;
+              }
+
+              pkg._waterfallStats = { qualified: qCount, credited: cCount, firstLead: firstLeadDate, lastLead: lastLeadDate };
+
+              let owed = Math.max(purchased - qCount, 0);
+              let pkgStatus = String(pkg.status || "").toUpperCase().trim();
+              if (pkgStatus === 'ACTIVE') pkgStatus = 'ONGOING';
+
+              if (pkgStatus !== 'PAUSE' && pkgStatus !== 'REFUNDED') {
+                  if (owed > 0) pkgStatus = 'ONGOING';
+                  else if (purchased > 0 && owed === 0) pkgStatus = 'COMPLETED';
+                  else pkgStatus = 'COMPLETED';
+              }
+
+              if (pkgStatus === 'COMPLETED' && pkgIndex < clientPkgs.length - 1) return; 
+
+              let healthStatus = String(c.client_status || c.status || "INACTIVE").toUpperCase().trim(); 
+              const nowMs = Date.now();
+              const hoursSinceLastLead = lastLeadDate ? (nowMs - lastLeadDate.getTime()) / (1000 * 60 * 60) : 9999;
+
+              if (!lastLeadDate) healthStatus = "NOT STARTED"; 
+              else if (todayCount >= 1 && yesterdayCount >= 1) healthStatus = "HEALTHY";    
+              else if (hoursSinceLastLead > 48) healthStatus = "CRITICAL";   
+              else healthStatus = "AT RISK";    
+
+              const isRenewal = pkgIndex > 0;
+
+              finalRows.push({
+                  _raw: c,
+                  _pkgId: pkg.id,
+                  code: code,
+                  passbookStatus: String(c.client_status || c.status || "INACTIVE").toUpperCase().trim(),
+                  healthStatus: healthStatus,
+                  roofingCompany: company + (isRenewal ? ' <span class="text-[9px] font-black text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded ml-2">RENEWAL</span>' : ''),
+                  searchName: company + (isRenewal ? ' renewal' : ''),
+                  cityState: cityState,
+                  clientName: clientName,
+                  packageStatus: pkgStatus,
+                  packageLabel: `${owed} / ${purchased}`,
+                  owedRemaining: owed,
+                  qualifiedCount: qCount,
+                  creditedCount: cCount,
+                  purchaseDate: pkg.purchase_date || "—",
+                  leadsToday: todayCount,
+                  leadsYesterday: yesterdayCount,
+                  lastLead: lastLeadDate ? window.portal.formatDate(lastLeadDate) : "—"
+              });
+          });
+        });
+        return finalRows;
+      },
+
+      setupFilters(rows) {
+        if (!this._firstLoadDone) {
+            this._firstLoadDone = true;
+            
+            const statusPop = document.getElementById("health-filter-status");
+            if (statusPop) {
+                const statuses = ["CRITICAL", "AT RISK", "HEALTHY", "NOT STARTED"];
+                statusPop.innerHTML = `<option value="all">All Health Status</option>` + statuses.map(s => `<option value="${s}">${s}</option>`).join("");
+                statusPop.addEventListener("change", () => this.applyClientHealthFilters());
+            }
+
+            document.getElementById("health-filter-package")?.addEventListener("change", () => this.applyClientHealthFilters());
+            
+            const searchInput = document.getElementById("health-search");
+            if (searchInput) {
+                searchInput.addEventListener("input", () => {
+                    clearTimeout(this._healthSearchTimer);
+                    this._healthSearchTimer = setTimeout(() => { this.applyClientHealthFilters(); }, 300);
+                });
+            }
+
+            document.getElementById("health-clear")?.addEventListener("click", () => {
+                const s = document.getElementById("health-search"); if (s) s.value = "";
+                const pkgSel = document.getElementById("health-filter-package"); if (pkgSel) pkgSel.value = "all";
+                const hSel = document.getElementById("health-filter-status"); if (hSel) hSel.value = "all";
+                this.applyClientHealthFilters();
+            });
+            
+            document.querySelectorAll("th.sortable").forEach(th => {
+                th.addEventListener("click", () => {
+                  const key = th.getAttribute("data-sort");
+                  this.toggleSort(key);
+                  this.applyClientHealthFilters();
+                });
+            });
+        }
+      },
+
+      applyClientHealthFilters() {
+        const q = String(document.getElementById("health-search")?.value || "").toLowerCase().trim();
+        const pkgFilter = document.getElementById("health-filter-package")?.value || "all";
+        const healthFilter = document.getElementById("health-filter-status")?.value || "all";
+
+        let filtered = [...this.clientHealthRaw];
+
+        filtered = filtered.filter(r => r.passbookStatus === 'ACTIVE');
+
+        if (pkgFilter !== "all") {
+            filtered = filtered.filter(r => {
+                if (pkgFilter === "ONGOING") return r.packageStatus === "ONGOING" || r.owedRemaining > 0;
+                return r.packageStatus === pkgFilter;
+            });
+        }
+
+        if (healthFilter !== "all") {
+            filtered = filtered.filter(r => r.healthStatus === healthFilter);
+        }
+
         if (q) {
-          filtered = filtered.filter(l => {
-            const hay = [this.getLeadField(l, ["Homeowner Name(s)"], ""), this.getLeadField(l, ["Company Name"], ""), this.getLeadField(l, ["Status"], "")].join(" ").toLowerCase();
-            return hay.includes(q);
+          filtered = filtered.filter(r => `${r.code} ${r.searchName} ${r.clientName}`.toLowerCase().includes(q));
+        }
+
+        const { key, dir } = this.sortState;
+        if (key) {
+          filtered.sort((a,b) => {
+            const A = a[key]; const B = b[key];
+            if (typeof A === "number" && typeof B === "number") return dir === "asc" ? A - B : B - A;
+            return dir === "asc" ? String(A).localeCompare(String(B)) : String(B).localeCompare(String(A));
           });
         }
 
-        if (this._leadsSort?.key === "date_submitted") {
-          const dir = this._leadsSort.dir === "asc" ? 1 : -1;
-          filtered.sort((a, b) => {
-            const da = this.getLeadDateObj(a);
-            const db = this.getLeadDateObj(b);
-            if (!da && !db) return 0; if (!da) return 1; if (!db) return -1;
-            return (da.getTime() - db.getTime()) * dir;
-          });
-        }
-
-        const countEl = document.getElementById("leads-count");
-        if (countEl) countEl.textContent = filtered.length;
-        this.renderLeads(filtered);
-      },
-
-      bindLeadsMasterEvents() {
-        if (this._leadsFiltersBound) return;
-        this._leadsFiltersBound = true;
-        const search = document.getElementById("leads-search");
-        const status = document.getElementById("leads-filter-status");
-        if(search) search.addEventListener("input", () => this.applyLeadsFilters());
-        if(status) status.addEventListener("change", () => this.applyLeadsFilters());
-      },
-
-      normalizeClientStatus(v) {
-        const s = String(v || "").trim().toUpperCase();
-        if (s.includes("CRITICAL")) return "CRITICAL";
-        if (s.includes("YELLOW") || s.includes("RISK") || s.includes("AT RISK")) return "AT RISK";
-        if (s.includes("GREEN") || s.includes("HEALTHY")) return "HEALTHY";
-        if (s.includes("NOT STARTED") || s.includes("BLUE")) return "NOT STARTED";
-        return s || "UNKNOWN";
-      },
-
-      normalizePackageStatus(v) {
-        const s = String(v || "").trim().toUpperCase();
-        if (s.startsWith("PAUS")) return "PAUSE";
-        if (s.includes("REFUND")) return "REFUNDED";
-        if (s.includes("ACTIVE")) return "ACTIVE";
-        return s || "—";
+        this.clientHealthView = filtered;
+        this.renderClientHealthTable(filtered);
       },
 
       statusDotClass(clientStatus) {
@@ -647,70 +1013,45 @@
         return "st-new";
       },
 
-      extractRoofingCompany(c) { return this.pick(c, ["roofing_company","Roofing Company","Company Name"], "—"); },
-      extractCityState(c) { return this.pick(c, ["city_state","City, State","Location"], "—"); },
-      extractClientName(c) { return this.pick(c, ["client_name","Client Name"], "—"); },
-      extractCode(c) { return this.pick(c, ["code_name","Code Name","CODE","Client Code"], "N/A"); },
-
-      normalizeClientHealthRows(clients) {
-        return (clients || []).map(c => {
-          const clientStatus = this.normalizeClientStatus(this.pick(c, ["status","Client Status"], "UNKNOWN"));
-          const roofingCompany = this.extractRoofingCompany(c);
-          const code = this.extractCode(c);
-          const cityState = this.extractCityState(c);
-          const clientName = this.extractClientName(c);
-          const leadsToday = Number(this.pick(c, ["leads_today"], 0)) || 0;
-          const leadsYesterday = Number(this.pick(c, ["leads_yesterday"], 0)) || 0;
-          const purchased = Number(this.pick(c, ["purchased_leads"], 0)) || 0;
-          const packageStatus = this.normalizePackageStatus(this.pick(c, ["package_status"], "—"));
-          
-          return {
-            _raw: c, status: clientStatus, code, roofingCompany, cityState, clientName,
-            packageStatus, qualifiedCount: 0, creditedCount: 0, leadsToday, leadsYesterday,
-            owedRemaining: 0, purchasedLeads: purchased, packageLabel: `0 / ${purchased}`
-          };
-        });
-      },
-
-      setupFilters(rows) {
-        const statusSel = document.getElementById("health-filter-status");
-        if(statusSel) {
-          const alwaysStatuses = ["CRITICAL", "AT RISK", "HEALTHY", "NOT STARTED"];
-          statusSel.innerHTML = `<option value="all">All Status</option>` + alwaysStatuses.map(s => `<option value="${s}">${s}</option>`).join("");
-        }
-      },
-
-      applyClientHealthFilters() {
-        const q = String(document.getElementById("health-search")?.value || "").toLowerCase().trim();
-        const status = document.getElementById("health-filter-status")?.value || "all";
-        let filtered = [...this.clientHealthRaw];
-        if (status !== "all") filtered = filtered.filter(r => r.status === status);
-        if (q) filtered = filtered.filter(r => `${r.code} ${r.roofingCompany} ${r.clientName}`.toLowerCase().includes(q));
-        this.renderClientHealthTable(filtered);
+      toggleSort(key) {
+        if (this.sortState.key === key) { this.sortState.dir = this.sortState.dir === "asc" ? "desc" : "asc"; } 
+        else { this.sortState.key = key; this.sortState.dir = "asc"; }
+        document.querySelectorAll(".sort-icon").forEach(i => i.textContent = "↕");
+        const icon = document.getElementById(`sort-${key}`);
+        if (icon) icon.textContent = this.sortState.dir === "asc" ? "↑" : "↓";
       },
 
       renderClientHealthTable(rows) {
         const tbody = document.getElementById("client-health-body");
-        if(!tbody) return;
         if (!rows.length) {
-          tbody.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-gray-400 italic">No results found.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="12" class="p-6 text-center text-gray-400 italic">No Active clients matching filters.</td></tr>`;
           return;
         }
-        tbody.innerHTML = rows.map(r => `
-          <tr class="hover:bg-gray-50">
-            <td class="p-4"><div class="status-container"><span class="status-dot ${this.statusDotClass(r.status)}"></span></div></td>
-            <td class="p-4 text-gray-700 font-semibold">${r.code}</td>
-            <td class="p-4 font-bold text-gray-900">${r.roofingCompany}</td>
-            <td class="p-4 text-gray-600">${r.cityState}</td>
-            <td class="p-4 text-center text-gray-900 font-bold">${r.packageLabel}</td>
-            <td class="p-4 text-center text-blue-500 font-bold">${r.qualifiedCount}</td>
-            <td class="p-4 text-center text-purple-500 font-bold">${r.creditedCount}</td>
-            <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsToday}</td>
-            <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsYesterday}</td>
-            <td class="p-4 text-gray-500">${r.packageStatus}</td>
-            <td class="p-4 text-gray-700">${r.clientName}</td>
-          </tr>
-        `).join("");
+
+        tbody.innerHTML = rows.map(r => {
+          let pkgColor = "bg-gray-100 text-gray-700";
+          if (r.packageStatus === 'ONGOING') pkgColor = "bg-blue-100 text-blue-800";
+          if (r.packageStatus === 'COMPLETED') pkgColor = "bg-purple-100 text-purple-800";
+          if (r.packageStatus === 'REFUNDED') pkgColor = "bg-orange-100 text-orange-800";
+          if (r.packageStatus === 'PAUSE') pkgColor = "bg-yellow-100 text-yellow-800";
+
+          return `
+            <tr class="hover:bg-gray-50">
+              <td class="p-4"><div class="status-container"><span class="status-dot ${this.statusDotClass(r.healthStatus)}"></span><span class="tooltip-text"><b>${r.healthStatus}</b></span></div></td>
+              <td class="p-4 text-gray-700 font-semibold">${r.code}</td>
+              <td class="p-4 font-bold text-gray-900">${r.roofingCompany}</td>
+              <td class="p-4 text-gray-600">${r.cityState}</td>
+              <td class="p-4 text-center text-gray-900 font-bold">${r.packageLabel}</td>
+              <td class="p-4 text-center text-blue-500 font-bold">${r.qualifiedCount}</td>
+              <td class="p-4 text-center text-purple-500 font-bold">${r.creditedCount}</td>
+              <td class="p-4 text-center text-red-500 font-bold">${(r.qualifiedCount+r.creditedCount > 0) ? Math.round((r.creditedCount/(r.qualifiedCount+r.creditedCount))*100) : 0}%</td>
+              <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsToday}</td>
+              <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsYesterday}</td>
+              <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${pkgColor}">${r.packageStatus}</span></td>
+              <td class="p-4 text-gray-700">${r.clientName}</td>
+            </tr>
+          `;
+        }).join("");
       },
 
       computeTotalOwedLeads(packageStatus = "all") {
@@ -736,6 +1077,373 @@
         const total = this.computeTotalOwedLeads(val);
         const el = document.getElementById("pulse-owed");
         if (el) el.textContent = total;
+        const sub = document.getElementById("pulse-owed-sub");
+        if (sub) sub.textContent = (val === "all") ? "All package statuses" : `${val} packages`;
+      },
+
+      // --- SALES PIPELINE ENGINE ---
+      setSalesPeriod(period, btnElement) {
+        this.salesPeriod = period;
+        if (period !== "custom") {
+          this._salesCustomRange.active = false;
+          this._setCustomActive("sales-custom-toggle", false);
+          this._setActiveButton(".sales-btn", btnElement);
+        } else {
+          this._setActiveButton(".sales-btn", null);
+          this._setCustomActive("sales-custom-toggle", true);
+        }
+        this.renderSalesTab();
+      },
+
+      bindSalesUI() {
+        if (this._salesBound) return;
+        this._salesBound = true;
+
+        const search = document.getElementById("admin-sales-search");
+        const catSel = document.getElementById("admin-sales-category-filter");
+        const pkgSel = document.getElementById("admin-sales-package-filter");
+
+        if (search) search.addEventListener("input", () => this.renderSalesTab());
+        if (catSel) catSel.addEventListener("change", () => this.renderSalesTab());
+        if (pkgSel) pkgSel.addEventListener("change", () => this.renderSalesTab());
+
+        const toggle = document.getElementById("sales-custom-toggle");
+        const pop = document.getElementById("sales-custom-popover");
+        const apply = document.getElementById("sales-custom-apply");
+        const clear = document.getElementById("sales-custom-clear");
+
+        if (toggle && pop) {
+          toggle.addEventListener("click", (e) => { e.preventDefault(); pop.classList.toggle("hidden"); });
+          document.addEventListener("click", (e) => {
+            if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) pop.classList.add("hidden");
+          });
+        }
+
+        if (apply) {
+          apply.addEventListener("click", () => {
+            const s = document.getElementById("sales-custom-start")?.value;
+            const e = document.getElementById("sales-custom-end")?.value;
+            if (!s || !e) return;
+            this._salesCustomRange = { active: true, start: s, end: e };
+            this.setSalesPeriod("custom", null);
+            pop?.classList.add("hidden");
+          });
+        }
+
+        if (clear) {
+          clear.addEventListener("click", () => {
+            document.getElementById("sales-custom-start").value = "";
+            document.getElementById("sales-custom-end").value = "";
+            this._salesCustomRange.active = false;
+            this.setSalesPeriod("all-time", document.querySelector('.sales-btn:last-child'));
+            pop?.classList.add("hidden");
+          });
+        }
+      },
+
+      renderSalesTab() {
+        const state = this.getState();
+        const packages = Array.isArray(state.packages) ? [...state.packages] : [];
+        const leads = Array.isArray(state.leads) ? state.leads : [];
+        const clients = Array.isArray(state.clients) ? state.clients : [];
+
+        // Waterfall
+        const leadsByCompany = new Map();
+        leads.forEach(l => {
+            const rawComp = this.getLeadField(l, ["Company Name", "company_name", "roofing_company", "Client"]);
+            const comp = this.normalizeCompanyName(rawComp);
+            if (comp) {
+                if (!leadsByCompany.has(comp)) leadsByCompany.set(comp, []);
+                leadsByCompany.get(comp).push(l);
+            }
+        });
+
+        const pkgsByCode = new Map();
+        packages.forEach(p => {
+            const code = String(p.client_code || "").trim().toLowerCase();
+            if (!pkgsByCode.has(code)) pkgsByCode.set(code, []);
+            pkgsByCode.get(code).push(p);
+        });
+
+        pkgsByCode.forEach((clientPkgs, code) => {
+            const clientObj = clients.find(c => String(c.client_code || c.code_name || "").toLowerCase() === code);
+            const rawClientComp = clientObj ? (clientObj.company_name || clientObj.roofing_company) : "";
+            const companyName = this.normalizeCompanyName(rawClientComp);
+
+            let clientLeads = [];
+            if (companyName && leadsByCompany.has(companyName)) {
+                clientLeads = [...leadsByCompany.get(companyName)];
+            }
+            
+            clientLeads.sort((a,b) => {
+                const dStrA = this.getLeadField(a, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
+                const dStrB = this.getLeadField(b, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
+                const dA = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStrA) : new Date(dStrA);
+                const dB = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStrB) : new Date(dStrB);
+                return (dA || 0) - (dB || 0);
+            });
+
+            clientPkgs.sort((a,b) => new Date(a.purchase_date || 0) - new Date(b.purchase_date || 0));
+
+            clientPkgs.forEach(pkg => {
+                let qCount = 0;
+                let firstLeadDate = null;
+                let purchased = Number(pkg.purchased_leads) || 0;
+                
+                let pDate = pkg.purchase_date ? new Date(pkg.purchase_date + "T00:00:00") : new Date(0);
+
+                while (clientLeads.length > 0 && qCount < purchased) {
+                    let l = clientLeads[0];
+                    const dStr = this.getLeadField(l, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
+                    let lDate = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+                    
+                    if (!lDate || isNaN(lDate.getTime())) { clientLeads.shift(); continue; }
+                    if (lDate < pDate) { clientLeads.shift(); continue; } 
+
+                    clientLeads.shift(); 
+
+                    const st = String(this.getLeadField(l, ["status", "Status", "STATUS", "Lead_Status"])).toUpperCase();
+                    if (st.includes('APPROV') || st.includes('CONFIRM')) qCount++;
+
+                    if (!firstLeadDate) firstLeadDate = lDate;
+                }
+                pkg._safeFirstLead = firstLeadDate;
+            });
+        });
+
+        let filtered = [...packages];
+
+        const { start, end, label } = this.getRangeFor(this.salesPeriod, []);
+        if (this.salesPeriod !== 'all-time') {
+             filtered = filtered.filter(p => {
+                 if (!p.purchase_date) return false;
+                 const pDate = new Date(p.purchase_date + "T12:00:00");
+                 return pDate >= start && pDate <= end;
+             });
+        }
+        
+        const lbl = document.getElementById("sales-range-label");
+        if (lbl) lbl.textContent = this.salesPeriod === "custom" ? `Showing Custom: ${start.toLocaleDateString()} → ${end.toLocaleDateString()}` : `Showing: ${label}`;
+
+        const q = String(document.getElementById("admin-sales-search")?.value || "").toLowerCase().trim();
+        const catFilter = document.getElementById("admin-sales-category-filter")?.value || "All";
+        const pkgFilter = document.getElementById("admin-sales-package-filter")?.value || "all";
+
+        if (catFilter !== "All") filtered = filtered.filter(p => String(p.sale_category || "").toLowerCase() === catFilter.toLowerCase());
+        
+        if (pkgFilter !== "all") {
+            filtered = filtered.filter(p => {
+                 let s = String(p.status || "").toLowerCase();
+                 if (s === 'active') s = 'ongoing'; 
+                 let target = pkgFilter.toLowerCase();
+                 if (target === 'active') target = 'ongoing';
+                 return s.includes(target);
+            });
+        }
+
+        let totalSales = 0;
+        let totalCommissions = 0;
+        let html = "";
+
+        filtered.sort((a,b) => new Date(b.purchase_date || 0) - new Date(a.purchase_date || 0)).forEach(p => {
+            const code = String(p.client_code || "—").trim();
+            const clientMatch = clients.find(c => String(c.client_code || c.code_name) === code) || {};
+            const company = clientMatch.company_name || clientMatch.roofing_company || "Unknown Client";
+            
+            if (q && !`${company} ${code} ${p.transaction_id || ''}`.toLowerCase().includes(q)) return;
+
+            const dealVal = Number(p.deal_value) || 0;
+            const commVal = Number(p.commission_per_lead) || 0; 
+            
+            totalSales += dealVal;
+            totalCommissions += commVal;
+
+            let stBadge = "bg-gray-100 text-gray-700";
+            const st = String(p.status || "").toUpperCase();
+            if (st === 'ACTIVE') stBadge = "bg-emerald-100 text-emerald-800";
+            if (st === 'PAUSE') stBadge = "bg-yellow-100 text-yellow-800";
+            if (st === 'COMPLETED') stBadge = "bg-blue-100 text-blue-800";
+
+            let dealBadge = "bg-gray-100 text-gray-700";
+            const ds = String(p.deal_status || "").toUpperCase();
+            if (ds === 'PAID') dealBadge = "bg-emerald-100 text-emerald-800";
+            if (ds === 'NEGOTIATING') dealBadge = "bg-yellow-100 text-yellow-800";
+            if (ds === 'REFUNDED') dealBadge = "bg-red-100 text-red-800";
+
+            let startedStr = "—";
+            if (p._safeFirstLead) {
+                startedStr = `${p._safeFirstLead.getMonth() + 1}/${p._safeFirstLead.getDate()}/${p._safeFirstLead.getFullYear()}`;
+            }
+
+            html += `
+              <tr class="hover:bg-gray-50 border-b border-gray-50">
+                <td class="p-4 font-bold text-gray-700">${p.purchase_date || "—"}</td>
+                <td class="p-4 text-xs font-mono text-gray-400">${p.transaction_id || "—"}</td>
+                <td class="p-4 font-black text-gray-900">${company} <span class="text-[10px] text-gray-400 font-normal ml-1">(${code})</span></td>
+                <td class="p-4 text-gray-600">${p.poc || clientMatch.contact_person || "—"}</td>
+                <td class="p-4 text-center font-bold">${p.purchased_leads || 0}</td>
+                <td class="p-4 text-emerald-600 font-black">$${dealVal.toLocaleString()}</td>
+                <td class="p-4 text-purple-600 font-black">$${commVal.toLocaleString()}</td>
+                <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${stBadge}">${st || 'UNKNOWN'}</span></td>
+                <td class="p-4 text-gray-600 font-bold">${p.sold_by || "—"}</td>
+                <td class="p-4 text-blue-600 font-bold">${startedStr}</td>
+                <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${dealBadge}">${ds || 'UNKNOWN'}</span></td>
+                <td class="p-4 text-center">
+                    <button onclick="Admin.deleteSale('${p.id}')" class="text-gray-300 hover:text-red-500 transition-colors" title="Delete Deal"><i class="fa-solid fa-trash-can"></i></button>
+                </td>
+              </tr>
+            `;
+        });
+
+        document.getElementById("sales-total-kpi").textContent = totalSales.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        document.getElementById("sales-commissions-kpi").textContent = totalCommissions.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        document.getElementById("admin-sales-table-body").innerHTML = html || `<tr><td colspan="12" class="p-8 text-center text-gray-400 italic">No deals found for this range.</td></tr>`;
+      },
+
+      async deleteSale(id) {
+          if (!confirm("Are you sure you want to delete this deal?")) return;
+          if (typeof supaClient === 'undefined' || !supaClient) return;
+          await supaClient.from('packages').delete().eq('id', id);
+          if (window.portal && window.portal.fetchAdminData) window.portal.fetchAdminData(true);
+      },
+
+
+      // --- LEADS TRACKER (READ ONLY) ---
+      getLeadsColumns() {
+        return [
+          { key: "date_submitted", label: "Date Submitted", keys: ["Date Submitted", "date_submitted", "DATE", "created_at"] },
+          { key: "lead_id", label: "LEAD ID", keys: ["LEAD ID", "lead_id"] },
+          { key: "roofing_company", label: "Roofing Company", keys: ["Company Name", "company_name", "roofing_company"] },
+          { key: "appointment_coordinator", label: "Appointment Coordinator Name", keys: ["Appointment Coordinator Name", "appointment_coordinator_name", "agent_name"] },
+          { key: "homeowner_name", label: "Homeowner Name(s)", keys: ["Homeowner Name(s)", "homeowner_names"] },
+          { key: "homeowner_email", label: "Email of Homeowner", keys: ["Email of Homeowner", "email_of_homeowner", "email"] },
+          { key: "homeowner_phone", label: "Homeowner Phone Number(s)", keys: ["Homeowner Phone Number(s)", "homeowner_phone_numbers", "phone"] },
+          { key: "appointment_datetime", label: "Appointment Date /Time", keys: ["Appointment Date /Time", "appointment_date_time"] },
+          { key: "address", label: "Address", keys: ["Address", "address"] },
+          { key: "age_of_roof", label: "Age of Roof", keys: ["Age of Roof", "age_of_roof"] },
+          { key: "insurance_company", label: "Insurance Company", keys: ["Insurance Company", "insurance_company"] },
+          { key: "additional_notes", label: "Additional Notes", keys: ["Additional Notes", "additional_notes"] },
+          { key: "status", label: "Status", keys: ["Status", "status", "STATUS"] },
+        ];
+      },
+
+      getLeadsDefaultVisibleCols() { return new Set(["date_submitted","homeowner_name","appointment_coordinator","roofing_company","status"]); },
+
+      setupLeadFilters(leads) {
+        const statusSel = document.getElementById("leads-filter-status");
+        if(statusSel){
+          statusSel.innerHTML = `
+            <option value="all">All Status</option>
+            <option value="APPROVED">APPROVED</option>
+            <option value="CREDITED">CREDITED</option>
+            <option value="PENDING REVIEW">PENDING REVIEW</option>
+            <option value="REJECTED">REJECTED</option>
+          `;
+        }
+      },
+
+      initLeadsColumnsUI() {
+        if (this._leadsCols) return;
+        this._leadsCols = this.getLeadsColumns();
+        this._leadsVisibleCols = this.getLeadsDefaultVisibleCols();
+        const box = document.getElementById("leads-columns-box");
+        if(box){
+          box.innerHTML = this._leadsCols.map(col => {
+            const checked = this._leadsVisibleCols.has(col.key);
+            return `<label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" data-colkey="${col.key}" ${checked ? "checked" : ""} /><span>${col.label}</span></label>`;
+          }).join("");
+          box.querySelectorAll('input[type="checkbox"][data-colkey]').forEach(chk => {
+            chk.addEventListener("change", () => {
+              const k = chk.getAttribute("data-colkey");
+              if (chk.checked) this._leadsVisibleCols.add(k); else this._leadsVisibleCols.delete(k);
+              this.applyLeadsFilters(); 
+            });
+          });
+        }
+
+        const toggle = document.getElementById("leads-columns-toggle");
+        const pop = document.getElementById("leads-columns-popover");
+        if (toggle && pop) {
+          toggle.addEventListener("click", (e) => { e.preventDefault(); pop.classList.toggle("hidden"); });
+          document.addEventListener("click", (e) => { if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) pop.classList.add("hidden"); });
+        }
+        document.getElementById("leads-columns-all")?.addEventListener("click", () => { this._leadsVisibleCols = new Set(this._leadsCols.map(c => c.key)); this.initLeadsColumnsUI(); this.applyLeadsFilters(); });
+        document.getElementById("leads-columns-min")?.addEventListener("click", () => { this._leadsVisibleCols = this.getLeadsDefaultVisibleCols(); this.initLeadsColumnsUI(); this.applyLeadsFilters(); });
+      },
+
+      applyLeadsFilters() {
+        const state = this.getState();
+        const leads = (state && Array.isArray(state.leads)) ? state.leads : [];
+        const q = String(document.getElementById("leads-search")?.value || "").toLowerCase().trim();
+        const stVal = document.getElementById("leads-filter-status")?.value || "all";
+        const sDate = document.getElementById("leads-date-start")?.value || "";
+        const eDate = document.getElementById("leads-date-end")?.value || "";
+
+        let filtered = [...leads];
+
+        if (stVal !== "all") {
+          filtered = filtered.filter(l => {
+            const s = String(this.getLeadField(l, ["status", "Status", "STATUS"], "")).toUpperCase();
+            if (stVal === "APPROVED") return s.includes("APPROV") || s.includes("CONFIRM");
+            if (stVal === "REJECTED") return s.includes("REJECT");
+            if (stVal === "CREDITED") return s.includes("CREDIT");
+            if (stVal === "PENDING REVIEW") return s.includes("PENDING");
+            return s.includes(stVal);
+          });
+        }
+
+        if (q) {
+          filtered = filtered.filter(l => {
+            const allValuesString = Object.values(l).join(" ").toLowerCase();
+            return allValuesString.includes(q);
+          });
+        }
+
+        if (sDate || eDate) {
+           const startDt = sDate ? new Date(sDate + "T00:00:00") : null;
+           const endDt = eDate ? new Date(eDate + "T23:59:59") : null;
+           filtered = filtered.filter(l => {
+               const lDt = this.getLeadDateObj(l);
+               if(!lDt) return false;
+               if (startDt && lDt < startDt) return false;
+               if (endDt && lDt > endDt) return false;
+               return true;
+           });
+        }
+
+        if (this._leadsSort?.key === "date_submitted") {
+          const dir = this._leadsSort.dir === "asc" ? 1 : -1;
+          filtered.sort((a, b) => {
+            const da = this.getLeadDateObj(a);
+            const db = this.getLeadDateObj(b);
+            if (!da && !db) return 0; if (!da) return 1; if (!db) return -1;
+            return (da.getTime() - db.getTime()) * dir;
+          });
+        }
+
+        const countEl = document.getElementById("leads-count");
+        if (countEl) countEl.textContent = filtered.length;
+        this.renderLeads(filtered);
+      },
+
+      bindLeadsMasterEvents() {
+        if (this._leadsFiltersBound) return;
+        this._leadsFiltersBound = true;
+        const els = ["leads-search", "leads-filter-status", "leads-date-start", "leads-date-end"];
+        els.forEach(id => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          const evt = (id === "leads-search") ? "input" : "change";
+          el.addEventListener(evt, () => this.applyLeadsFilters());
+        });
+
+        document.getElementById("leads-clear")?.addEventListener("click", () => {
+            const s = document.getElementById("leads-search"); if (s) s.value = "";
+            const a = document.getElementById("leads-filter-status"); if (a) a.value = "all";
+            const ds = document.getElementById("leads-date-start"); if (ds) ds.value = "";
+            const de = document.getElementById("leads-date-end"); if (de) de.value = "";
+            this.applyLeadsFilters();
+        });
       },
 
       statusBadge(status) {
@@ -746,25 +1454,6 @@
         return `<span class="px-2 py-1 rounded-full text-xs font-extrabold border ${cls}">${status || "—"}</span>`;
       },
 
-      renderClientCards(clients) {
-        const container = document.getElementById('client-cards-container');
-        if (!container) return;
-        container.innerHTML = (clients || []).map(c => {
-          const code = this.extractCode(c);
-          return `<button type="button" class="text-left bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition" onclick="Admin.openPassbookClient('${String(code).replace(/'/g, "\\'")}')"><div class="flex items-center justify-between"><h3 class="font-bold text-gray-900 text-lg">${this.extractRoofingCompany(c)}</h3><span class="text-xs font-bold text-gray-500">${code}</span></div><p class="text-xs text-gray-500 mt-1">${this.extractCityState(c)}</p><p class="text-[10px] font-extrabold text-yellow-600 uppercase tracking-wider mt-3">Click to open</p><div class="sales-share-toggle"><label><input type="checkbox" class="share-checkbox" onchange="toggleShareWithSales('${code}', this)" ${c.shared_with_sales ? 'checked' : ''}> Share with Sales</label></div></button>`;
-        }).join('') || '<div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">No assigned clients found</div>';
-      },
-
-      openPassbookClient(codeName) { 
-          const modal = document.getElementById("passbook-modal"); 
-          document.getElementById("codeName").value = codeName;
-          document.getElementById("passbook-modal-sub").textContent = `Code: ${codeName}`;
-          document.getElementById("passbook-form-body").innerHTML = '<div class="p-4 text-sm text-gray-500 italic">Client details view coming soon...</div>';
-          modal.classList.remove("hidden");
-      },
-      
-      closePassbookModal() { document.getElementById("passbook-modal").classList.add("hidden"); },
-
       renderLeads(leads) {
         const tbody = document.getElementById('leads-table-body');
         const thead = document.getElementById('leads-table-head');
@@ -772,11 +1461,19 @@
         this.initLeadsColumnsUI();
         const visibleCols = this._leadsCols.filter(c => this._leadsVisibleCols.has(c.key));
         thead.innerHTML = `<tr>${visibleCols.map(c => `<th class="p-4">${c.label}</th>`).join("")}</tr>`;
-        tbody.innerHTML = leads.map(l => `<tr>${visibleCols.map(c => `<td class="p-4">${c.key === "status" ? this.statusBadge(this.getLeadField(l, c.keys)) : this.getLeadField(l, c.keys)}</td>`).join("")}</tr>`).join("");
+        // NO DROPDOWNS, NO TRASHCANS. Read Only.
+        tbody.innerHTML = leads.map(l => `<tr class="hover:bg-gray-50">${visibleCols.map(c => `<td class="p-4">${c.key === "status" ? this.statusBadge(this.getLeadField(l, c.keys)) : this.getLeadField(l, c.keys)}</td>`).join("")}</tr>`).join("");
       },
 
+      // --- PASSBOOK CLIENTS (LOCKED TO SHARED ONLY) ---
+      extractRoofingCompany(c) { return this.pick(c, ["company_name", "roofing_company"], "—"); },
+      extractCityState(c) { return this.pick(c, ["area", "city_state"], "—"); },
+      extractClientName(c) { return this.pick(c, ["contact_person", "client_name"], "—"); },
+      extractCode(c) { return this.pick(c, ["code_name", "client_code"], "N/A"); },
+
       setupPassbookFilters(clients) {
-        const locs = [...new Set((clients || []).map(c => this.extractCityState(c)).filter(Boolean))].sort();
+        const shared = (clients || []).filter(c => c.shared_with_sales === true || String(c.shared_with_sales).toLowerCase() === 'true');
+        const locs = [...new Set(shared.map(c => this.extractCityState(c)).filter(Boolean))].sort();
         const sel = document.getElementById("passbook-filter-location");
         if(sel) sel.innerHTML = `<option value="all">All Locations</option>` + locs.map(l => `<option value="${l}">${l}</option>`).join("");
       },
@@ -784,7 +1481,11 @@
       applyPassbookFilters(clients) {
         const q = String(document.getElementById("passbook-search")?.value || "").toLowerCase().trim();
         const loc = document.getElementById("passbook-filter-location")?.value || "all";
-        let rows = (clients || []).filter(c => (loc === "all" || this.extractCityState(c) === loc));
+        
+        // STRICT FILTER: Only show shared clients
+        let rows = (clients || []).filter(c => c.shared_with_sales === true || String(c.shared_with_sales).toLowerCase() === 'true');
+        
+        rows = rows.filter(c => (loc === "all" || this.extractCityState(c) === loc));
         if (q) rows = rows.filter(c => `${this.extractRoofingCompany(c)} ${this.extractCode(c)}`.toLowerCase().includes(q));
 
         const countEl = document.getElementById("passbook-count");
@@ -796,7 +1497,25 @@
 
       renderPassbookList(clients) {
         const tbody = document.getElementById("passbook-list-body");
-        if(tbody) tbody.innerHTML = (clients || []).map(c => `<tr class="hover:bg-gray-50"><td class="p-4">${this.extractCode(c)}</td><td class="p-4 font-bold">${this.extractRoofingCompany(c)}</td><td class="p-4">${this.extractCityState(c)}</td><td class="p-4">${this.extractClientName(c)}</td><td class="p-4 text-right"><div class="sales-share-toggle" style="display:inline-block; margin-right:10px;"><label><input type="checkbox" class="share-checkbox" onchange="toggleShareWithSales('${this.extractCode(c)}', this)" ${c.shared_with_sales ? 'checked' : ''}> Share with Sales</label></div><button class="px-3 py-1 rounded bg-gray-900 text-white text-xs" onclick="Admin.openPassbookClient('${this.extractCode(c)}')">Open</button></td></tr>`).join("");
+        // Read only row, View Details button only.
+        if(tbody) tbody.innerHTML = (clients || []).map(c => `<tr class="hover:bg-gray-50"><td class="p-4">${this.extractCode(c)}</td><td class="p-4 font-bold">${this.extractRoofingCompany(c)}</td><td class="p-4">${this.extractCityState(c)}</td><td class="p-4">${this.extractClientName(c)}</td><td class="p-4 text-center"><span class="px-2 py-1 rounded text-[10px] font-extrabold bg-blue-50 text-blue-700">${this.pick(c, ["status","client_status"], "ACTIVE").toUpperCase()}</span></td><td class="p-4 text-right"><button class="px-3 py-1 rounded bg-gray-900 text-white text-xs font-bold hover:bg-gray-800" onclick="Admin.openPassbookClient('${this.extractCode(c)}')">View Details</button></td></tr>`).join("") || `<tr><td colspan="6" class="p-6 text-center text-gray-400 italic">No shared clients available.</td></tr>`;
+      },
+
+      renderClientCards(clients) {
+        const container = document.getElementById('client-cards-container');
+        if (!container) return;
+        // Read only cards
+        container.innerHTML = (clients || []).map(c => {
+          const code = this.extractCode(c);
+          return `<div class="text-left bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition">
+              <div class="flex items-center justify-between"><h3 class="font-bold text-gray-900 text-lg">${this.extractRoofingCompany(c)}</h3><span class="text-xs font-bold text-gray-500">${code}</span></div>
+              <p class="text-xs text-gray-500 mt-1">${this.extractCityState(c)}</p>
+              <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+                  <span class="px-2 py-1 rounded text-[10px] font-extrabold bg-blue-50 text-blue-700">${this.pick(c, ["status","client_status"], "ACTIVE").toUpperCase()}</span>
+                  <button class="px-3 py-1 rounded bg-gray-900 text-white text-xs font-bold shadow-sm hover:bg-gray-800" onclick="Admin.openPassbookClient('${String(code).replace(/'/g, "\\'")}')">View Details</button>
+              </div>
+          </div>`;
+        }).join('') || '<div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm col-span-full">No shared clients available.</div>';
       },
 
       bindPassbookUI(clients) {
@@ -807,6 +1526,85 @@
         if(lBtn) lBtn.addEventListener("click", () => { this._passbookView="list"; this.applyPassbookFilters(clients); });
         document.getElementById("passbook-search")?.addEventListener("input", () => this.applyPassbookFilters(clients));
         document.getElementById("passbook-filter-location")?.addEventListener("change", () => this.applyPassbookFilters(clients));
+        document.getElementById("passbook-clear")?.addEventListener("click", () => {
+            const s = document.getElementById("passbook-search"); if(s) s.value = "";
+            const l = document.getElementById("passbook-filter-location"); if(l) l.value = "all";
+            this.applyPassbookFilters(clients);
+        });
+      },
+
+      openPassbookClient(codeName) { 
+          const modal = document.getElementById("passbook-modal"); 
+          document.getElementById("codeName").value = codeName;
+          document.getElementById("passbook-modal-sub").textContent = `Code: ${codeName}`;
+          document.getElementById("passbook-form-body").innerHTML = '<div class="p-4 text-sm text-gray-500 italic"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Loading live from database...</div>';
+          modal.classList.remove("hidden");
+          this._fetchAndRenderPassbookClient(codeName);
+      },
+
+      closePassbookModal() { document.getElementById("passbook-modal").classList.add("hidden"); },
+
+      async _fetchAndRenderPassbookClient(codeName) {
+        try {
+          if (typeof supaClient === 'undefined' || !supaClient) throw new Error("Database connection missing");
+          const { data, error } = await supaClient.from('clients').select('*').eq('client_code', codeName).limit(1);
+          if (error) throw error;
+          if (!data || data.length === 0) {
+             document.getElementById("passbook-form-body").innerHTML = `<div class="p-4 text-yellow-600 font-bold">Client not found.</div>`;
+             return;
+          }
+          this._renderPassbookForm(data[0]);
+        } catch (err) {
+          document.getElementById("passbook-form-body").innerHTML = '<div class="p-4 text-red-700 font-bold">Failed to load client.</div>';
+        }
+      },
+
+      _renderPassbookForm(raw) {
+        const safeStr = (val) => String(val || "").replace(/"/g, "&quot;");
+        const fields = [
+          { label: "Code Name", key: "client_code" },
+          { label: "Company Name", key: "company_name" },
+          { label: "Phone", key: "phone" },
+          { label: "Contact Person", key: "contact_person" },
+          { label: "Area / City State", key: "area" },
+          { label: "Area Codes To Use", key: "area_codes_to_use" },
+          { label: "Email", key: "email" },
+          { label: "Website", key: "website" },
+          { label: "Status", key: "client_status" },
+          { label: "Company Address", key: "company_address" },
+          { label: "Sales Rep Count", key: "sales_rep_count" },
+          { label: "Regions / Cities / Zip Codes", key: "regions" },
+          { label: "Days of Operation", key: "days_of_operation" },
+          { label: "Hours of Operation", key: "hours_of_operation" },
+          { label: "Appointment Interval", key: "appointment_interval" },
+          { label: "Roof Types", key: "roof_types" },
+          { label: "Leads Per Day Limit", key: "leads_per_day_limit" },
+          { label: "Double Bookings", key: "double_bookings" },
+          { label: "Additional Notes / Requests", key: "additional_notes" }
+        ];
+
+        const companyName = safeStr(raw.company_name) || "Unknown";
+        const codeName = safeStr(raw.client_code) || "—";
+        const cityState = safeStr(raw.area || raw.city_state) || "—";
+
+        document.getElementById("passbook-modal-title").textContent = companyName;
+        document.getElementById("passbook-modal-sub").textContent = `Code: ${codeName} • ${cityState}`;
+
+        let html = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+        for (const f of fields) {
+          const val = safeStr(raw[f.key]);
+          const isLong = ["additional_notes", "regions", "area_codes_to_use", "company_address"].includes(f.key);
+          html += `
+            <div>
+              <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">${f.label}</label>
+              ${ isLong 
+                  ? `<div class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm min-h-[6rem] text-gray-700 whitespace-pre-wrap">${val || '—'}</div>` 
+                  : `<div class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 truncate" title="${val}">${val || '—'}</div>` }
+            </div>
+          `;
+        }
+        html += `</div>`;
+        document.getElementById("passbook-form-body").innerHTML = html;
       },
 
       nav(viewId, linkEl) {
@@ -820,6 +1618,56 @@
 
     window.adminDashboard = AdminDashboard;
     window.Admin = AdminDashboard;
+
+    // --- SALES DEAL MODAL OVERRIDES ---
+    window.openAddDealModal = function(e) {
+        if(e) e.preventDefault(); 
+        document.getElementById('add-sale-form').reset();
+        document.getElementById('sale-package-id').value = ""; 
+        document.getElementById('sale-client-code').value = ""; 
+        document.getElementById('sale-deal-type').value = "New Client";
+        document.getElementById('sale-modal-title').innerText = "Log New Deal";
+        document.getElementById('save-sale-btn').innerText = "Save Deal";
+        if(window.populateSalesClientDropdown) window.populateSalesClientDropdown();
+        document.getElementById('add-sale-modal').classList.remove('hidden');
+    };
+
+    window.submitNewSale = async function(e) {
+        e.preventDefault();
+        if (typeof supaClient === 'undefined' || !supaClient) return;
+
+        const btn = document.getElementById('save-sale-btn');
+        btn.innerText = "Saving...";
+        btn.disabled = true;
+
+        const payload = {
+            client_code: document.getElementById('sale-client-code').value || document.getElementById('sale-company').value,
+            company_name: document.getElementById('sale-company').value,
+            poc: document.getElementById('sale-poc').value,
+            purchased_leads: Number(document.getElementById('sale-leads').value) || 0,
+            deal_value: Number(document.getElementById('sale-value').value) || 0,
+            commission_per_lead: Number(document.getElementById('sale-commission').value) || 0, // This saves Total Commission now
+            purchase_date: document.getElementById('sale-date').value,
+            transaction_id: document.getElementById('sale-transaction-id').value,
+            deal_type: document.getElementById('sale-deal-type').value,
+            deal_status: document.getElementById('sale-deal-status').value,
+            sale_category: document.getElementById('sale-category').value,
+            status: "Active"
+        };
+
+        const { error } = await supaClient.from('packages').insert([payload]);
+
+        if (error) {
+            console.error("Sale Save Error:", error);
+            alert("Failed to save deal.");
+        } else {
+            document.getElementById('add-sale-modal').classList.add('hidden');
+            if (window.portal && typeof window.portal.fetchAdminData === 'function') window.portal.fetchAdminData(true);
+        }
+
+        btn.innerText = "Save Deal";
+        btn.disabled = false;
+    };
   </script>
   <script src="main.js"></script>
 </body>
