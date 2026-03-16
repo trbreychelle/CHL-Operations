@@ -1058,7 +1058,13 @@
 
         if (pkgFilter !== "ALL") {
             filtered = filtered.filter(r => {
-                if (pkgFilter === "ONGOING") return r.packageStatus === "ONGOING" || r.owedRemaining > 0;
+                if (pkgFilter === "ONGOING") {
+                    // HARD BLOCK: Never show PAUSE or REFUNDED in the default ongoing view
+                    if (r.packageStatus === "PAUSE" || r.packageStatus === "REFUNDED") return false;
+                    
+                    // Otherwise, show if explicitly ONGOING, or if we owe them leads
+                    return r.packageStatus === "ONGOING" || r.owedRemaining > 0;
+                }
                 return r.packageStatus === pkgFilter;
             });
         }
