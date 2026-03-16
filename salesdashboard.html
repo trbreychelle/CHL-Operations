@@ -1341,9 +1341,11 @@
             const clientMatch = clients.find(c => String(c.client_code || c.code_name) === code) || {};
             const company = clientMatch.company_name || clientMatch.roofing_company || "Unknown Client";
             
-            if (q && !`${company} ${code} ${p.transaction_id || ''}`.toLowerCase().includes(q)) return;
+            // Fixed the search bar to look for external_package_id instead of transaction_id
+            if (q && !`${company} ${code} ${p.external_package_id || ''}`.toLowerCase().includes(q)) return;
 
-            const dealVal = Number(p.deal_value) || 0;
+            const rawAmt = p.amount ? String(p.amount).replace(/[^0-9.-]+/g,"") : "0";
+            const dealVal = parseFloat(rawAmt) || 0;
             const commVal = Number(p.commission_per_lead) || 0; 
             
             totalSales += dealVal;
@@ -1369,14 +1371,14 @@
             html += `
               <tr class="hover:bg-gray-50 border-b border-gray-50">
                 <td class="p-4 font-bold text-gray-700">${p.purchase_date || "—"}</td>
-                <td class="p-4 text-xs font-mono text-gray-400">${p.transaction_id || "—"}</td>
+                <td class="p-4 text-xs font-mono text-gray-400">${p.external_package_id || "—"}</td>
                 <td class="p-4 font-black text-gray-900">${company} <span class="text-[10px] text-gray-400 font-normal ml-1">(${code})</span></td>
                 <td class="p-4 text-gray-600">${p.poc || clientMatch.contact_person || "—"}</td>
                 <td class="p-4 text-center font-bold">${p.purchased_leads || 0}</td>
                 <td class="p-4 text-emerald-600 font-black">$${dealVal.toLocaleString()}</td>
                 <td class="p-4 text-purple-600 font-black">$${commVal.toLocaleString()}</td>
                 <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${stBadge}">${st || 'UNKNOWN'}</span></td>
-                <td class="p-4 text-gray-600 font-bold">${p.sold_by || "—"}</td>
+                <td class="p-4 text-gray-600 font-bold">${p.sales_category || "—"}</td>
                 <td class="p-4 text-blue-600 font-bold">${startedStr}</td>
                 <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${dealBadge}">${ds || 'UNKNOWN'}</span></td>
                 <td class="p-4 text-center flex justify-center gap-1">
