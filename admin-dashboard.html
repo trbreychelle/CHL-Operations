@@ -4065,11 +4065,14 @@
       },
       
       nav(viewId, linkEl) {
-        // 1. Switch the visual active tabs
+        // 1. Safely switch the visual active tabs
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-        document.getElementById('view-' + viewId).classList.add('active');
+        
+        const view = document.getElementById('view-' + viewId);
+        if (view) view.classList.add('active');
+        
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        linkEl.classList.add('active');
+        if (linkEl) linkEl.classList.add('active');
         
         // 2. FORCE THE ENGINE TO WAKE UP EVERY SINGLE TAB
         if (viewId === "payroll") { try { this.renderPayrollFinance(); } catch(e) { console.error(e); } }
