@@ -550,10 +550,10 @@
           <div class="flex flex-col md:flex-row gap-3 w-full">
             <div class="flex-1 relative">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
-              <input type="text" id="admin-sales-search" placeholder="Search deal, client name, package..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+              <input type="text" id="admin-sales-search" oninput="Admin.renderSalesTab()" placeholder="Search deal, client name, package..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
             </div>
             
-            <select id="admin-sales-category-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white w-40 text-blue-700">
+            <select id="admin-sales-category-filter" onchange="Admin.renderSalesTab()" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white w-40 text-blue-700">
               <option value="All">View: ALL Sales</option>
               <option value="Hammer">Hammer</option>
               <option value="Mikaela">Mikaela</option>
@@ -561,7 +561,7 @@
               <option value="CHL Team">CHL Team</option>
             </select>
 
-            <select id="admin-sales-package-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white w-48 text-gray-700">
+            <select id="admin-sales-package-filter" onchange="Admin.renderSalesTab()" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white w-48 text-gray-700">
               <option value="all">All Package Statuses</option>
               <option value="Active">Active / Ongoing</option>
               <option value="Pause">Pause</option>
@@ -569,7 +569,6 @@
               <option value="Refunded">Refunded</option>
             </select>
           </div>
-        </div>
 
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-8">
           <div class="table-scroll">
