@@ -497,11 +497,11 @@
           <div class="flex gap-3 items-end">
             <div class="bg-white px-5 py-2 rounded-xl border border-gray-100 shadow-sm text-right">
               <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TOTAL COMMISSIONS</p>
-              <p class="text-xl font-bold text-purple-600" id="sales-commissions-kpi">$0.00</p>
+              <p class="text-xl font-bold text-purple-600" id="new-sales-commissions-kpi">$0.00</p>
             </div>
             <div class="bg-white px-5 py-2 rounded-xl border border-gray-100 shadow-sm text-right">
               <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TOTAL SALES</p>
-              <p class="text-xl font-bold text-emerald-600" id="sales-total-kpi">$0.00</p>
+              <p class="text-xl font-bold text-emerald-600" id="new-sales-total-kpi">$0.00</p>
             </div>
             <button class="px-4 py-3 rounded-lg bg-emerald-600 text-white text-sm font-extrabold hover:bg-emerald-700 shadow-lg shadow-emerald-600/20" onclick="window.openAddDealModal()">
               <i class="fas fa-plus mr-2"></i> Add Deal
@@ -547,19 +547,21 @@
               <div class="text-xs font-bold text-gray-400" id="sales-range-label">Showing: All-Time</div>
           </div>
 
-          <div class="flex flex-col md:flex-row gap-3">
+          <div class="flex flex-col md:flex-row gap-3 w-full">
             <div class="flex-1 relative">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
               <input type="text" id="admin-sales-search" placeholder="Search deal, client name, package..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
             </div>
             
-            <select id="admin-sales-category-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[170px] text-blue-700">
+            <select id="admin-sales-category-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white w-40 text-blue-700">
               <option value="All">View: ALL Sales</option>
-              <option value="CHL">View: CHL Only</option>
-              <option value="Sales Team">View: Sales Team</option>
+              <option value="Hammer">Hammer</option>
+              <option value="Mikaela">Mikaela</option>
+              <option value="Hannah">Hannah</option>
+              <option value="CHL Team">CHL Team</option>
             </select>
 
-            <select id="admin-sales-package-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[170px] text-gray-700">
+            <select id="admin-sales-package-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white w-48 text-gray-700">
               <option value="all">All Package Statuses</option>
               <option value="Active">Active / Ongoing</option>
               <option value="Pause">Pause</option>
@@ -574,21 +576,10 @@
             <table class="w-full text-left text-sm whitespace-nowrap">
               <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
                 <tr>
-                  <th class="p-4">Purchased Date</th>
-                  <th class="p-4">TXN #</th>
-                  <th class="p-4">Roofing Company</th>
-                  <th class="p-4">POC</th>
-                  <th class="p-4">Total Leads</th>
-                  <th class="p-4 text-emerald-600">Deal Value</th>
-                  <th class="p-4 text-purple-600">Total Comm.</th>
-                  <th class="p-4">PKG Status</th>
-                  <th class="p-4">Sold By</th>
-                  <th class="p-4 text-blue-600">Started (First Lead)</th>
-                  <th class="p-4">Deal Status</th>
-                  <th class="p-4 text-center">Action</th>
+                  <th class="p-4">Purchased Date</th><th class="p-4">TXN #</th><th class="p-4">Roofing Company</th><th class="p-4">POC</th><th class="p-4">Total Leads</th><th class="p-4 text-emerald-600">Deal Value</th><th class="p-4 text-purple-600">Total Comm.</th><th class="p-4">PKG Status</th><th class="p-4">Sold By</th><th class="p-4 text-blue-600">Started (First Lead)</th><th class="p-4">Deal Status</th><th class="p-4 text-center">Action</th>
                 </tr>
               </thead>
-              <tbody id="admin-sales-table-body" class="divide-y divide-gray-50">
+              <tbody id="new-sales-table-body" class="divide-y divide-gray-50">
                 <tr><td colspan="12" class="p-6 text-center text-gray-400 italic">Loading master pipeline...</td></tr>
               </tbody>
             </table>
@@ -1188,14 +1179,18 @@
 
           <div class="grid grid-cols-2 gap-3 mb-3">
               <div>
-                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Total Commission ($)</label>
-                <input type="number" id="sale-commission" step="0.01" placeholder="e.g. 500" value="0" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Total Commission ($)</label>
+              <input type="number" id="sale-commission" step="0.01" placeholder="Auto Calculated" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-100 text-gray-500" disabled>
+            </div>
+          <div>
+                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sale Category</label>
+                <select id="sale-category" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
+                  <option value="Hammer">Hammer</option>
+                  <option value="Mikaela">Mikaela</option>
+                  <option value="Hannah">Hannah</option>
+                  <option value="CHL Team">CHL Team</option>
+                </select>
               </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Purchase Date</label>
-                <input type="date" id="sale-date" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
-              </div>
-          </div>
 
           <div class="mb-4">
               <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">TRANSACTION NUMBER</label>
@@ -1575,11 +1570,20 @@
         const leads = Array.isArray(state.leads) ? state.leads : [];
         const clients = Array.isArray(state.clients) ? state.clients : [];
 
-        // --- 1. THE SALES MINI-WATERFALL ENGINE ---
-        // Group leads by normalized Company Name using our safe picker
+        // 1. SAFE DATE FORMATTER
+        const formatLocalSafe = (dateStr) => {
+            if (!dateStr) return "—";
+            const parts = dateStr.split('T')[0].split('-');
+            if (parts.length === 3) {
+                const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                return `${months[parseInt(parts[1], 10)-1]} ${parseInt(parts[2], 10)}, ${parts[0]}`;
+            }
+            return dateStr;
+        };
+
         const leadsByCompany = new Map();
         leads.forEach(l => {
-            const rawComp = this.getLeadField(l, ["Company Name", "company_name", "roofing_company", "Client"]);
+            const rawComp = this.getLeadField(l, ["Company Name", "company_name", "roofing_company", "Client", "Roofing Company"]);
             const comp = this.normalizeCompanyName(rawComp);
             if (comp) {
                 if (!leadsByCompany.has(comp)) leadsByCompany.set(comp, []);
@@ -1587,7 +1591,6 @@
             }
         });
 
-        // Group packages by Client Code
         const pkgsByCode = new Map();
         packages.forEach(p => {
             const code = String(p.client_code || "").trim().toLowerCase();
@@ -1595,7 +1598,6 @@
             pkgsByCode.get(code).push(p);
         });
 
-        // Process the Waterfall for exact First Lead Dates
         pkgsByCode.forEach((clientPkgs, code) => {
             const clientObj = clients.find(c => String(c.client_code || c.code_name || "").toLowerCase() === code);
             const rawClientComp = clientObj ? (clientObj.company_name || clientObj.roofing_company) : "";
@@ -1606,7 +1608,6 @@
                 clientLeads = [...leadsByCompany.get(companyName)];
             }
             
-            // Sort leads oldest to newest using the safe date picker
             clientLeads.sort((a,b) => {
                 const dStrA = this.getLeadField(a, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
                 const dStrB = this.getLeadField(b, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
@@ -1615,7 +1616,6 @@
                 return (dA || 0) - (dB || 0);
             });
 
-            // Sort packages oldest to newest
             clientPkgs.sort((a,b) => new Date(a.purchase_date || 0) - new Date(b.purchase_date || 0));
 
             clientPkgs.forEach(pkg => {
@@ -1623,8 +1623,9 @@
                 let firstLeadDate = null;
                 let purchased = Number(pkg.purchased_leads) || 0;
                 
-                // Safely parse the package purchase date (Force T00:00:00 so it aligns to midnight local time)
-                let pDate = pkg.purchase_date ? new Date(pkg.purchase_date + "T00:00:00") : new Date(0);
+                let pDate = window.portal?.parseDateSafe ? window.portal.parseDateSafe(pkg.purchase_date) : new Date(pkg.purchase_date);
+                if (!pDate || isNaN(pDate.getTime())) pDate = new Date(0);
+                pDate.setHours(0,0,0,0);
 
                 while (clientLeads.length > 0 && qCount < purchased) {
                     let l = clientLeads[0];
@@ -1632,26 +1633,22 @@
                     let lDate = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
                     
                     if (!lDate || isNaN(lDate.getTime())) { clientLeads.shift(); continue; }
-                    
-                    // Skip older leads that happened before they bought this package
                     if (lDate < pDate) { clientLeads.shift(); continue; } 
 
-                    clientLeads.shift(); // Consume the lead
+                    clientLeads.shift(); 
 
                     const st = String(this.getLeadField(l, ["status", "Status", "STATUS", "Lead_Status"])).toUpperCase();
                     if (st.includes('APPROV') || st.includes('CONFIRM')) qCount++;
 
-                    // Log the first lead date!
                     if (!firstLeadDate) firstLeadDate = lDate;
                 }
                 pkg._safeFirstLead = firstLeadDate;
+                pkg._qCount = qCount; 
             });
         });
-        // --- END WATERFALL ---
 
         let filtered = [...packages];
 
-        // DATE FILTERING
         const { start, end, label } = this.getRangeFor(this.salesPeriod, []);
         if (this.salesPeriod !== 'all-time') {
              filtered = filtered.filter(p => {
@@ -1664,12 +1661,11 @@
         const lbl = document.getElementById("sales-range-label");
         if (lbl) lbl.textContent = this.salesPeriod === "custom" ? `Showing Custom: ${start.toLocaleDateString()} → ${end.toLocaleDateString()}` : `Showing: ${label}`;
 
-        // TEXT & DROPDOWN FILTERING
         const q = String(document.getElementById("admin-sales-search")?.value || "").toLowerCase().trim();
         const catFilter = document.getElementById("admin-sales-category-filter")?.value || "All";
         const pkgFilter = document.getElementById("admin-sales-package-filter")?.value || "all";
 
-        if (catFilter !== "All") filtered = filtered.filter(p => String(p.sale_category || "").toLowerCase() === catFilter.toLowerCase());
+        if (catFilter !== "All") filtered = filtered.filter(p => String(p.sales_category || p.sold_by || "").toLowerCase() === catFilter.toLowerCase());
         
         if (pkgFilter !== "all") {
             filtered = filtered.filter(p => {
@@ -1690,19 +1686,45 @@
             const clientMatch = clients.find(c => String(c.client_code || c.code_name) === code) || {};
             const company = clientMatch.company_name || clientMatch.roofing_company || "Unknown Client";
             
-            if (q && !`${company} ${code} ${p.transaction_id || ''}`.toLowerCase().includes(q)) return;
+            if (q && !`${company} ${code} ${p.external_package_id || p.transaction_id || ''}`.toLowerCase().includes(q)) return;
 
-            const dealVal = Number(p.deal_value) || 0;
-            const commVal = Number(p.commission_per_lead) || 0; 
+            // --- AUTO COMMISSION MATH ENGINE ---
+            const rawAmt = p.amount ? String(p.amount).replace(/[^0-9.-]+/g,"") : "0";
+            const dealVal = parseFloat(rawAmt) || Number(p.deal_value) || 0;
+            const purchasedLeads = Number(p.purchased_leads) || 0;
+            
+            let baseRate = 125;
+            const thresholdDate = new Date("2026-03-09T00:00:00"); 
+            
+            let pDateObj = null;
+            if (p.purchase_date) {
+                const parts = p.purchase_date.split('-');
+                if (parts.length === 3) pDateObj = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]), 0,0,0);
+            }
+            
+            if (pDateObj && !isNaN(pDateObj.getTime()) && pDateObj >= thresholdDate) {
+                baseRate = 135;
+            }
+            
+            const autoCommVal = dealVal > 0 ? Math.max(dealVal - (purchasedLeads * baseRate), 0) : 0;
             
             totalSales += dealVal;
-            totalCommissions += commVal;
+            totalCommissions += autoCommVal;
+
+            let st = String(p.status || "").toUpperCase();
+            if (st === 'ACTIVE') st = 'ONGOING';
+            if (st !== 'PAUSE' && st !== 'REFUNDED') {
+                const owed = Math.max(purchasedLeads - (p._qCount || 0), 0);
+                if (owed > 0) st = 'ONGOING';
+                else if (purchasedLeads > 0 && owed === 0) st = 'COMPLETED';
+                else st = 'ONGOING'; 
+            }
 
             let stBadge = "bg-gray-100 text-gray-700";
-            const st = String(p.status || "").toUpperCase();
-            if (st === 'ACTIVE') stBadge = "bg-emerald-100 text-emerald-800";
+            if (st === 'ONGOING') stBadge = "bg-blue-100 text-blue-800";
             if (st === 'PAUSE') stBadge = "bg-yellow-100 text-yellow-800";
-            if (st === 'COMPLETED') stBadge = "bg-blue-100 text-blue-800";
+            if (st === 'COMPLETED') stBadge = "bg-purple-100 text-purple-800";
+            if (st === 'REFUNDED') stBadge = "bg-red-100 text-red-800";
 
             let dealBadge = "bg-gray-100 text-gray-700";
             const ds = String(p.deal_status || "").toUpperCase();
@@ -1710,38 +1732,38 @@
             if (ds === 'NEGOTIATING') dealBadge = "bg-yellow-100 text-yellow-800";
             if (ds === 'REFUNDED') dealBadge = "bg-red-100 text-red-800";
 
-            // Safely Format the First Lead Date
             let startedStr = "—";
             if (p._safeFirstLead) {
-                // Formatting date to MM/DD/YYYY securely
                 startedStr = `${p._safeFirstLead.getMonth() + 1}/${p._safeFirstLead.getDate()}/${p._safeFirstLead.getFullYear()}`;
             }
 
             html += `
-              <tr class="hover:bg-gray-50 border-b border-gray-50">
-                <td class="p-4 font-bold text-gray-700">${p.purchase_date || "—"}</td>
-                <td class="p-4 text-xs font-mono text-gray-400">${p.transaction_id || "—"}</td>
+              <tr class="hover:bg-gray-50 border-b border-gray-50 transition-colors">
+                <td class="p-4 text-sm text-gray-500 font-bold">${formatLocalSafe(p.purchase_date)}</td>
+                <td class="p-4 text-xs font-mono text-gray-400 font-bold">${p.external_package_id || p.transaction_id || "—"}</td>
                 <td class="p-4 font-black text-gray-900">${company} <span class="text-[10px] text-gray-400 font-normal ml-1">(${code})</span></td>
-                <td class="p-4 text-gray-600">${p.poc || clientMatch.contact_person || "—"}</td>
-                <td class="p-4 text-center font-bold">${p.purchased_leads || 0}</td>
-                <td class="p-4 text-emerald-600 font-black">$${dealVal.toLocaleString()}</td>
-                <td class="p-4 text-purple-600 font-black">$${commVal.toLocaleString()}</td>
-                <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${stBadge}">${st || 'UNKNOWN'}</span></td>
-                <td class="p-4 text-gray-600 font-bold">${p.sold_by || "—"}</td>
+                <td class="p-4 text-sm text-gray-600">${p.poc || clientMatch.contact_person || "—"}</td>
+                <td class="p-4 font-bold text-gray-900">${purchasedLeads} Leads</td>
+                <td class="p-4 font-bold text-emerald-600">$${dealVal.toLocaleString()}</td>
+                <td class="p-4 font-bold text-purple-600">$${autoCommVal.toLocaleString()}</td>
+                <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold uppercase ${stBadge}">${st || 'UNKNOWN'}</span></td>
+                <td class="p-4 text-sm font-bold text-gray-600">${p.sales_category || p.sold_by || "—"}</td>
                 <td class="p-4 text-blue-600 font-bold">${startedStr}</td>
-                <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${dealBadge}">${ds || 'UNKNOWN'}</span></td>
-                <td class="p-4 text-center">
-                    <button class="text-gray-300 hover:text-red-500 transition-colors" title="Delete Deal"><i class="fa-solid fa-trash-can"></i></button>
+                <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold uppercase ${dealBadge}">${ds || 'UNKNOWN'}</span></td>
+                <td class="p-4 text-center flex justify-center gap-1">
+                    <button onclick="window.editDealModal('${p.id}')" class="px-3 py-1 bg-gray-100 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded shadow-sm transition-colors">Edit</button>
+                    <button onclick="window.deleteDeal('${p.id}', '${company.replace(/'/g, "\\'")}')" class="px-3 py-1 bg-gray-100 hover:bg-red-100 text-red-700 text-xs font-bold rounded shadow-sm transition-colors">Delete</button>
                 </td>
               </tr>
             `;
         });
 
-        document.getElementById("sales-total-kpi").textContent = totalSales.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-        document.getElementById("sales-commissions-kpi").textContent = totalCommissions.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-        document.getElementById("admin-sales-table-body").innerHTML = html || `<tr><td colspan="12" class="p-8 text-center text-gray-400 italic">No deals found for this range.</td></tr>`;
+        // UPDATE NEW IDS
+        document.getElementById("new-sales-total-kpi").textContent = totalSales.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        document.getElementById("new-sales-commissions-kpi").textContent = totalCommissions.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        document.getElementById("new-sales-table-body").innerHTML = html || `<tr><td colspan="12" class="p-8 text-center text-gray-400 italic">No deals found for this range.</td></tr>`;
       },
-
+      
       setupFilters(rows) {
         const statusPop = document.getElementById("health-status-popover");
         const statusBtn = document.getElementById("health-status-btn");
@@ -4103,6 +4125,13 @@
 
           btn.innerText = "Add Client";
           btn.disabled = false;
+      };
+    
+  // GHOST BUG KILLER
+      window.fetchSalesPipeline = function() {
+          if (window.Admin && typeof window.Admin.renderSalesTab === 'function') {
+              window.Admin.renderSalesTab();
+          }
       };
     
   </script>
