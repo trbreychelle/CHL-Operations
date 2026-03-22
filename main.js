@@ -145,40 +145,8 @@ class CallHammerPortal {
     window.location.href = this.routeByRole(user.role);
     return;
   } catch (supabaseErr) {
-    console.warn('Supabase login failed, falling back to legacy login:', supabaseErr);
-  }
-
-  // Legacy fallback login
-  const res = await fetch(this.webhooks.login, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-    body: JSON.stringify({ email: cleanEmail, password: cleanPassword })
-  });
-
-  if (!res.ok) {
-    throw new Error(`Login failed (HTTP ${res.status}).`);
-  }
-
-  const result = await res.json();
-
-  const user =
-    result?.user ||
-    result?.data?.user ||
-    result?.data?.profile ||
-    result?.profile ||
-    result?.data ||
-    null;
-
-  if (!user || typeof user !== 'object') {
-    console.error('Login response:', result);
-    throw new Error('Login failed: user record missing in response.');
-  }
-
-  user.role = user.role || user.Role || user.position || user.Position || 'agent';
-  user.email = user.email || cleanEmail;
-
-  this.saveSession(user);
-  window.location.href = this.routeByRole(user.role);
+  console.error('Supabase login failed:', supabaseErr);
+  throw supabaseErr;
 }
   async tryLoginFromQueryParams() {
   return false;
