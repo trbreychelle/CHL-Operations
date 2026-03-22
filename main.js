@@ -2,6 +2,13 @@
 class CallHammerPortal {
   constructor() {
     this.currentUser = null;
+    
+    this.supabase = window.supabase
+  ? window.supabase.createClient(
+      'https://api.supabase.callhammerleads.com',
+      'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc3MTcwMjI2MCwiZXhwIjo0OTI3Mzc1ODYwLCJyb2xlIjoiYW5vbiJ9.XuWCdGs0XSSSlWhsF6gR4gHMp50C-v6xra9ABgSVRoU'
+    )
+  : null;
 
     // Agent/TL datasets
     this.leadsData = [];
