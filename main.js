@@ -88,8 +88,8 @@ class CallHammerPortal {
   // Supabase Auth first
   try {
     if (!this.supabase) {
-      throw new Error('Supabase client not initialized.');
-    }
+  throw new Error('Supabase client not initialized.');
+}
 
     const { data, error } = await this.supabase.auth.signInWithPassword({
       email: cleanEmail,
