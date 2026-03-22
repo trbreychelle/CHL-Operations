@@ -92,12 +92,11 @@ class CallHammerPortal {
     throw new Error('Missing email or password.');
   }
 
-  // Supabase Auth first
-  try {
-    if (!this.supabase) {
-  throw new Error('Supabase client not initialized.');
-}
+  if (!this.supabase) {
+    throw new Error('Supabase client not initialized.');
+  }
 
+  try {
     const { data, error } = await this.supabase.auth.signInWithPassword({
       email: cleanEmail,
       password: cleanPassword
@@ -143,11 +142,12 @@ class CallHammerPortal {
 
     this.saveSession(user);
     window.location.href = this.routeByRole(user.role);
-    return;
   } catch (supabaseErr) {
-  console.error('Supabase login failed:', supabaseErr);
-  throw supabaseErr;
+    console.error('Supabase login failed:', supabaseErr);
+    throw supabaseErr;
+  }
 }
+  
   async tryLoginFromQueryParams() {
   return false;
 }
