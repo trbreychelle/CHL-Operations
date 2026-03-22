@@ -21,14 +21,17 @@ class CallHammerPortal {
 
     // Admin datasets (normalized + raw)
     this.adminState = {
-      clients: [],        // normalized for Client Health Monitor
-      leads: [],          // raw leads (RAW LEADS tab)
-      agents: [],         // normalized from AGENT_MASTER
-      rawStatuses: [],    // raw client status rows (Client Lead Delivery Tracker)
-      rawPackages: [],    // raw package rows (Lead Package tab)
-      weeklyPayroll: [],  // ✅ Added for Payroll
-      payrollHistory: []  // ✅ Added for Payroll
-    };
+  clients: [],
+  leads: [],
+  agents: [],
+  rawStatuses: [],
+  rawPackages: [],
+  weeklyPayroll: [],
+  payrollHistory: [],
+
+  clientHealthView: [],
+  agentPerformanceView: []
+};
 
     // Cache to avoid Google Sheets quota/too-many-requests issues
     this.lastAdminFetch = 0;
@@ -745,28 +748,39 @@ async fetchAdminData(forceRefresh = false) {
       const result = await response.json();
       const dataRoot = result?.data || result || {};
 
-      let supaLeads = [], supaPackages = [], supaClients = [], supaTime = [], supaAgents = [];
+      let supaLeads = [], supaPackages = [], supaClients = [], supaTime = [], supaAgents = [], supaClientHealth = [], supaAgentPerformance = [];
       if (supaClient) {
-          const [lRes, pRes, cRes, tRes, aRes] = await Promise.all([
-              supaClient.from('leads_raw').select('*'),
-              supaClient.from('packages').select('*'),
-              supaClient.from('clients').select('*'),
-              supaClient.from('time_events').select('*'), // PULLS HOURS
-              supaClient.from('agents').select('*')       // PULLS AGENTS
-          ]);
-          supaLeads = lRes.data || [];
-          supaPackages = pRes.data || [];
-          supaClients = cRes.data || [];
-          supaTime = tRes.data || [];
-          supaAgents = aRes.data || [];
+          const [lRes, pRes, cRes, tRes, aRes, chRes, apRes] = await Promise.all([
+    supaClient.from('leads_raw').select('*'),
+    supaClient.from('packages').select('*'),
+    supaClient.from('clients').select('*'),
+    supaClient.from('time_events').select('*'),
+    supaClient.from('agents').select('*'),
+    supaClient.from('client_health_view').select('*'),
+    supaClient.from('agent_performance_view').select('*')
+]);
+
+supaLeads = lRes.data || [];
+supaPackages = pRes.data || [];
+supaClients = cRes.data || [];
+supaTime = tRes.data || [];
+supaAgents = aRes.data || [];
+supaClientHealth = chRes.data || [];
+supaAgentPerformance = apRes.data || [];
       }
 
       this.adminState.clients = supaClients.length > 0 ? supaClients : (dataRoot.clients || []);
-      this.adminState.leads = supaLeads.length > 0 ? supaLeads : (dataRoot.leads || []);
-      this.adminState.packages = supaPackages.length > 0 ? supaPackages : (dataRoot.packages || []); 
-      this.adminState.timeEvents = supaTime;
-      this.adminState.agents = supaAgents.length > 0 ? supaAgents : (dataRoot.agents || []);
-      this.adminState.weeklyPayroll = dataRoot.weeklyPayroll || [];
+this.adminState.leads = supaLeads.length > 0 ? supaLeads : (dataRoot.leads || []);
+this.adminState.packages = supaPackages.length > 0 ? supaPackages : (dataRoot.packages || []);
+this.adminState.timeEvents = supaTime;
+this.adminState.agents = supaAgents.length > 0 ? supaAgents : (dataRoot.agents || []);
+this.adminState.weeklyPayroll = dataRoot.weeklyPayroll || [];
+
+this.adminState.clientHealthView = supaClientHealth;
+this.adminState.agentPerformanceView = supaAgentPerformance;
+
+      console.log('clientHealthView rows:', this.adminState.clientHealthView.length);
+console.log('agentPerformanceView rows:', this.adminState.agentPerformanceView.length);
 
       this.triggerAdminRefresh();
     } catch (err) {
