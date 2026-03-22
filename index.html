@@ -196,14 +196,14 @@
                     </div>
 
                     <!-- ✅ IDs updated to match main.js -->
-                    <form id="login-form" class="space-y-6">
+                    <form id="loginForm" class="space-y-6">
                         <div>
                             <label for="login-email" class="block text-sm font-medium text-gray-700 mb-2">
                                 Email Address
                             </label>
                             <input
                                 type="email"
-                                id="login-email"
+                                id="email"
                                 name="email"
                                 required
                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
@@ -216,7 +216,7 @@
                             </label>
                             <input
                                 type="password"
-                                id="login-password"
+                                id="password"
                                 name="password"
                                 required
                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
@@ -234,7 +234,7 @@
                         <!-- ✅ ID updated to match main.js -->
                         <button
                             type="submit"
-                            id="login-btn"
+                            id="loginButton"
                             class="w-full btn-primary text-white py-3 px-4 rounded-lg font-semibold transition-colors"
                         >
                             <span id="loginText">Sign In</span>
@@ -243,7 +243,7 @@
                     </form>
 
                     <!-- ✅ ID updated to match main.js -->
-                    <div id="login-error" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg hidden">
+                    <div id="loginError" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg hidden">
                         <p class="text-sm text-red-600"></p>
                     </div>
 
@@ -267,7 +267,8 @@
         </div>
     </footer>
 
-    <script src="main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="main.js"></script>
     <script>
         // Initialize typed text effect
         document.addEventListener('DOMContentLoaded', function() {
