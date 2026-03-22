@@ -217,8 +217,8 @@ class CallHammerPortal {
   // ------------------------
   // Init / Routing
   // ------------------------
-  init() {
-    this.checkExistingSession();
+  async init() {
+    await this.checkExistingSession();
 
     const path = (window.location.pathname || '').toLowerCase();
     const onIndex =
@@ -289,16 +289,46 @@ class CallHammerPortal {
   // ------------------------
   // Session / Events (safe)
   // ------------------------
-  checkExistingSession() {
-    try {
-      const raw = localStorage.getItem('ch_session');
-      if (!raw) return;
-      const session = JSON.parse(raw);
-      if (session && session.user) this.currentUser = session.user;
-    } catch (e) {
-      console.warn('Session parse failed:', e);
+  async checkExistingSession() {
+  try {
+    if (!this.supabase) return;
+
+    const { data, error } = await this.supabase.auth.getSession();
+
+    if (error || !data?.session) {
+      this.clearSession();
+      return;
     }
+
+    const authUser = data.session.user;
+
+    const { data: profile, error: profileError } = await this.supabase
+      .from('profiles')
+      .select('id, auth_user_id, organization_id, email, full_name, display_name, role, is_active')
+      .eq('auth_user_id', authUser.id)
+      .single();
+
+    if (profileError || !profile || !profile.is_active) {
+      this.clearSession();
+      return;
+    }
+
+    const user = {
+      id: profile.id,
+      auth_user_id: profile.auth_user_id,
+      organization_id: profile.organization_id,
+      email: profile.email,
+      name: profile.display_name || profile.full_name || profile.email,
+      role: profile.role
+    };
+
+    this.saveSession(user);
+
+  } catch (e) {
+    console.warn('Session validation failed:', e);
+    this.clearSession();
   }
+}
 
   bindEvents() {}
 
