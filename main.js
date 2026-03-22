@@ -174,20 +174,8 @@ class CallHammerPortal {
   window.location.href = this.routeByRole(user.role);
 }
   async tryLoginFromQueryParams() {
-    const params = new URLSearchParams(window.location.search || '');
-    const email = params.get('email');
-    const password = params.get('password');
-
-    if (!email || !password) return false;
-
-    try {
-      await this.loginWithCredentials(email, password);
-      return true;
-    } catch (err) {
-      console.error('Query param login failed:', err);
-      return false;
-    }
-  }
+  return false;
+}
 
   // ✅ Binds to YOUR index.html IDs
   bindIndexLoginForm() {
