@@ -259,9 +259,8 @@ class CallHammerPortal {
     }
 
     if (onIndex) {
-      this.bindIndexLoginForm();
-      this.tryLoginFromQueryParams();
-    }
+  this.bindIndexLoginForm();
+}
 
     this.enforceRoleRouting();
     this.bindEvents();
