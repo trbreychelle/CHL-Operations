@@ -1725,6 +1725,7 @@ allocation.forEach(a => {
     const poc = p.poc || clientMatch.contact_person || clientMatch.client_name || "—";
     const txn = p.transaction_id || p.external_package_id || "—";
     const soldBy = p.sold_by || p.sales_category || "—";
+    const alloc = allocationMap.get(p.id) || {};
 
     if (q && !`${company} ${code} ${txn}`.toLowerCase().includes(q)) return;
 
@@ -1743,7 +1744,6 @@ allocation.forEach(a => {
     totalCommissions += commVal;
 
     let stBadge = "bg-gray-100 text-gray-700";
-    const alloc = allocationMap.get(p.id) || {};
     const st = String(alloc.package_status || p.status || "").toUpperCase();
     if (st === 'ACTIVE' || st === 'ONGOING') stBadge = "bg-emerald-100 text-emerald-800";
     if (st === 'PAUSE') stBadge = "bg-yellow-100 text-yellow-800";
@@ -1756,19 +1756,17 @@ allocation.forEach(a => {
     if (ds === 'NEGOTIATING') dealBadge = "bg-yellow-100 text-yellow-800";
     if (ds === 'REFUNDED') dealBadge = "bg-red-100 text-red-800";
 
-    const alloc = allocationMap.get(p.id) || {};
-let startedStr = "—";
-
-if (alloc.first_lead_at) {
-  const d = new Date(alloc.first_lead_at);
-  if (!isNaN(d.getTime())) {
-    const mst = window.portal?.toMST ? window.portal.toMST(d) : d;
-    const mm = String(mst.getMonth() + 1).padStart(2, "0");
-    const dd = String(mst.getDate()).padStart(2, "0");
-    const yyyy = mst.getFullYear();
-    startedStr = `${mm}-${dd}-${yyyy}`;
-  }
-}
+    let startedStr = "—";
+    if (alloc.first_lead_at) {
+      const d = new Date(alloc.first_lead_at);
+      if (!isNaN(d.getTime())) {
+        const mst = window.portal?.toMST ? window.portal.toMST(d) : d;
+        const mm = String(mst.getMonth() + 1).padStart(2, "0");
+        const dd = String(mst.getDate()).padStart(2, "0");
+        const yyyy = mst.getFullYear();
+        startedStr = `${mm}-${dd}-${yyyy}`;
+      }
+    }
 
     html += `
       <tr class="hover:bg-gray-50 border-b border-gray-50">
@@ -1801,7 +1799,6 @@ if (alloc.first_lead_at) {
       </tr>
     `;
 });
-
         document.getElementById("sales-total-kpi").textContent = totalSales.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
         document.getElementById("sales-commissions-kpi").textContent = totalCommissions.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
         document.getElementById("admin-sales-table-body").innerHTML = html || `<tr><td colspan="12" class="p-8 text-center text-gray-400 italic">No deals found for this range.</td></tr>`;
