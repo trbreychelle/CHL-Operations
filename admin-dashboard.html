@@ -3570,8 +3570,11 @@ if (st.includes('APPROV') || st.includes('CONFIRM')) {
                       const lAg = this.getOfficialAgentName(l.appointment_coordinator_name || l.agent_name);
                       if (lDt && lDt >= customStart && lDt <= customEnd && lAg === agName) {
                           const st = String(l.status || "").toLowerCase();
-                          if (st.includes('approv') || st.includes('confirm')) qCount++;
-                          else if (st.includes('credit') || st.includes('reject')) uCount++;
+                          if (st.includes('approv') || st.includes('confirm')) {
+  qCount++;
+} else if (st.includes('credit')) {
+  uCount++;
+}
                       }
                   });
               } else {
