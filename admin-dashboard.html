@@ -1323,11 +1323,8 @@
       refreshDashboard() {
         const state = this.getState();
         if (!state) return;
-
-        const rawClients = state.rawClients || [];
-const healthRows = (state.clientHealthView && state.clientHealthView.length)
-  ? state.clientHealthView
-  : (state.clients || []);
+        
+const allocationRows = Array.isArray(state.clientPackageAllocationView) ? state.clientPackageAllocationView : [];
 const leads = state.leads || [];
 const packages = state.packages || [];
 
@@ -1345,10 +1342,8 @@ const packages = state.packages || [];
         // 2. Trigger the table builds
         try {
           this.clientHealthRaw = this.normalizeClientHealthRows(
-  healthRows,
-  packages,
-  rawClients,
-  state.clientPackageStatusView || []
+  allocationRows,
+  rawClients
 );
           this.setupFilters(this.clientHealthRaw);
           this.applyClientHealthFilters();
@@ -1384,208 +1379,125 @@ const packages = state.packages || [];
         return isNaN(dt.getTime()) ? null : dt;
       },
 
-      normalizeClientHealthRows(clients, packages, rawClients = [], packageStatusRows = []) {
-        const mstFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit' });
-        const now = new Date();
-        const todayStr = mstFormatter.format(now); 
-        const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = mstFormatter.format(yesterday);
+      normalizeClientHealthRows(allocationRows, rawClients = []) {
+  const now = new Date();
+  const mstFormatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Denver',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
 
-        let finalRows = [];
+  const rawClientMap = new Map(
+    (rawClients || []).map(rc => [
+      String(rc.client_code || rc.code_name || "").trim().toLowerCase(),
+      rc
+    ])
+  );
 
-        const rawClientMap = new Map(
-  (rawClients || []).map(rc => [
-    String(rc.client_code || rc.code_name || "").trim().toLowerCase(),
-    rc
-  ])
-);
-        const packageStatusMap = new Map(
-  (packageStatusRows || []).map(ps => [
-    String(ps.client_code || "").trim().toLowerCase(),
-    ps
-  ])
-);
+  return (allocationRows || []).map(row => {
+    const code = String(row.client_code || "").trim();
+    const rawClient = rawClientMap.get(code.toLowerCase()) || {};
 
-        clients.forEach(c => {
-          const code = String(c.code_name || c.client_code || "").trim();
-          const rawClient = rawClientMap.get(code.toLowerCase()) || {};
-          const packageStatusRow = packageStatusMap.get(code.toLowerCase()) || {};
-          const company = String(
-  c.company_name ||
-  c.roofing_company ||
-  rawClient.company_name ||
-  rawClient.roofing_company ||
-  "—"
-).trim();
+    const company = String(
+      rawClient.company_name ||
+      rawClient.roofing_company ||
+      row.company_name ||
+      "—"
+    ).trim();
 
-const clientName = String(
-  c.client_name ||
-  c.contact_person ||
-  rawClient.contact_person ||
-  rawClient.client_name ||
-  "—"
-).trim();
+    const clientName = String(
+      rawClient.contact_person ||
+      rawClient.client_name ||
+      row.client_name ||
+      "—"
+    ).trim();
 
-const cityState = String(
-  c.city_state ||
-  c.area ||
-  c.location ||
-  rawClient.area ||
-  rawClient.city_state ||
-  rawClient.location ||
-  "—"
-).trim();
-          const compKey = this.normalizeCompanyName(company);
-          
-          // Sort packages oldest to newest for the Waterfall
-          const clientPkgs = packages.filter(p => String(p.client_code || "").trim().toLowerCase() === code.toLowerCase())
-                                     .sort((a,b) => new Date(a.purchase_date || 0) - new Date(b.purchase_date || 0));
-          
-          if (clientPkgs.length === 0) return; // Skip if they have literally no packages
+    const cityState = String(
+      rawClient.area ||
+      rawClient.city_state ||
+      rawClient.location ||
+      row.city_state ||
+      "—"
+    ).trim();
 
-          // Get ALL leads for this client, sorted chronologically oldest to newest
-          let leadList = [...(this._leadsIndexByCompany?.get(compKey) || [])];
-          leadList.sort((a,b) => {
-              const dA = window.portal?.parseDateSafe ? window.portal.parseDateSafe(a.date_submitted || a.created_at) : new Date(a.date_submitted || a.created_at);
-              const dB = window.portal?.parseDateSafe ? window.portal.parseDateSafe(b.date_submitted || b.created_at) : new Date(b.date_submitted || b.created_at);
-              return (dA || 0) - (dB || 0);
-          });
+    const purchased = Number(row.purchased_leads || 0);
+    const qualified = Number(row.qualified_leads || 0);
+    const credited = Number(row.credited_leads || 0);
+    const delivered = Number(row.delivered_leads || (qualified + credited) || 0);
+    const owed = Number(row.owed_leads || Math.max(purchased - delivered, 0));
 
-          // WATERFALL ALLOCATION LOOP
-          clientPkgs.forEach((pkg, pkgIndex) => {
-              let qCount = 0, cCount = 0, todayCount = 0, yesterdayCount = 0;
-              let firstLeadDate = null, lastLeadDate = null;
-              let purchased = Number(pkg.purchased_leads) || 0;
-              const pDate = pkg.purchase_date ? new Date(pkg.purchase_date + "T00:00:00") : new Date(0);
+    let packageStatus = String(row.package_status || "").toUpperCase().trim();
+    if (packageStatus === "ACTIVE") packageStatus = "ONGOING";
 
-              // Consume leads until this package is fulfilled
-              while(leadList.length > 0 && qCount < purchased) {
-                  let l = leadList[0];
-                  let lDate = window.portal?.parseDateSafe ? window.portal.parseDateSafe(l.date_submitted || l['Date Submitted'] || l.created_at) : new Date(l.date_submitted || l.created_at);
-                  
-                  if (!lDate || isNaN(lDate.getTime())) { leadList.shift(); continue; }
+    const firstLeadAt = row.first_lead_at ? new Date(row.first_lead_at) : null;
+    const lastLeadAt = row.last_lead_at ? new Date(row.last_lead_at) : null;
 
-                  // Only count leads that happened ON OR AFTER the package purchase date
-                  if (lDate < pDate) { leadList.shift(); continue; }
+    let leadsToday = 0;
+    let leadsYesterday = 0;
 
-                  // IT COUNTS!
-                  leadList.shift(); // Remove it from the queue so the next package doesn't get it
-                  
-                  const st = String(l.status || l.STATUS || l.Lead_Status || "").toUpperCase();
+    if (lastLeadAt && !isNaN(lastLeadAt.getTime())) {
+      const lastLeadMst = window.portal?.toMST ? window.portal.toMST(lastLeadAt) : lastLeadAt;
+      const todayStr = mstFormatter.format(now);
+      const y = new Date(now);
+      y.setDate(y.getDate() - 1);
+      const yesterdayStr = mstFormatter.format(y);
+      const lastLeadStr = mstFormatter.format(lastLeadMst);
 
-if (st.includes('APPROV') || st.includes('CONFIRM')) {
-  qCount++;
-} else if (st.includes('CREDIT')) {
-  cCount++;
-}
+      if (lastLeadStr === todayStr) leadsToday = 1;
+      if (lastLeadStr === yesterdayStr) leadsYesterday = 1;
+    }
 
-                  if (!firstLeadDate) firstLeadDate = lDate;
-                  lastLeadDate = lDate;
+    let healthStatus = "NOT STARTED";
+    if (lastLeadAt && !isNaN(lastLeadAt.getTime())) {
+      const hoursSinceLastLead = (Date.now() - lastLeadAt.getTime()) / (1000 * 60 * 60);
+      if (leadsToday >= 1 && leadsYesterday >= 1) healthStatus = "HEALTHY";
+      else if (hoursSinceLastLead > 48) healthStatus = "CRITICAL";
+      else healthStatus = "AT RISK";
+    }
 
-                  let compareStr;
-                  const rawStr = String(l.date_submitted || l['Date Submitted'] || l.created_at).trim();
-                  if (rawStr.match(/^\d{4}-\d{2}-\d{2}$/)) compareStr = rawStr.substring(0, 10);
-                  else if (rawStr.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
-                      const [mm, dd, yyyy] = rawStr.split('/');
-                      compareStr = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
-                  } else compareStr = mstFormatter.format(lDate);
+    const isRenewal = Number(row.package_seq || 1) > 1;
 
-                  if (compareStr === todayStr) todayCount++;
-                  if (compareStr === yesterdayStr) yesterdayCount++;
-              }
+    return {
+      _raw: row,
+      rawClientId: rawClient.id || null,
+      _pkgId: row.package_id || row.id || null,
 
-              // Save waterfall stats to the package object for the Sales Pipeline to use!
-              pkg._waterfallStats = { 
-                  qualified: qCount, credited: cCount, 
-                  firstLead: firstLeadDate, lastLead: lastLeadDate 
-              };
+      code,
+      passbookStatus: String(rawClient.client_status || "INACTIVE").toUpperCase().trim(),
+      healthStatus,
 
-              let owed = Math.max(purchased - qCount, 0);
-              let pkgStatus = String(pkg.status || "").toUpperCase().trim();
-              if (pkgStatus === 'ACTIVE') pkgStatus = 'ONGOING';
+      roofingCompany: company + (
+        isRenewal
+          ? ' <span class="text-[9px] font-black text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded ml-2">RENEWAL</span>'
+          : ''
+      ),
+      searchName: company + (isRenewal ? ' renewal' : ''),
 
-              // Smart Status override
-              if (pkgStatus !== 'PAUSE' && pkgStatus !== 'REFUNDED') {
-                  if (owed > 0) pkgStatus = 'ONGOING';
-                  else if (purchased > 0 && owed === 0) pkgStatus = 'COMPLETED';
-                  else pkgStatus = 'COMPLETED';
-              }
+      cityState,
+      clientName,
 
-              // Only show ONGOING, PAUSED, or highly recent COMPLETED packages in health monitor to prevent clutter
-              if (pkgStatus === 'COMPLETED' && pkgIndex < clientPkgs.length - 1) return; 
+      packageStatus,
+      packageRatio: `${owed} / ${purchased}`,
+      packageLabel: `${owed} / ${purchased}`,
+      owedRemaining: owed,
 
-              let healthStatus = String(c.client_status || c.status || "INACTIVE").toUpperCase().trim(); 
-              const nowMs = Date.now();
-              const hoursSinceLastLead = lastLeadDate ? (nowMs - lastLeadDate.getTime()) / (1000 * 60 * 60) : 9999;
+      qualifiedCount: qualified,
+      creditedCount: credited,
 
-              if (!lastLeadDate) healthStatus = "NOT STARTED"; 
-              else if (todayCount >= 1 && yesterdayCount >= 1) healthStatus = "HEALTHY";    
-              else if (hoursSinceLastLead > 48) healthStatus = "CRITICAL";   
-              else healthStatus = "AT RISK";    
+      purchaseDate: row.purchase_date || "—",
+      leadsToday,
+      leadsYesterday,
+      lastLead: row.last_lead_at ? window.portal.formatDate(row.last_lead_at) : "—",
 
-             const isRenewal = pkgIndex > 0;
-
-const backendPurchased = Number(packageStatusRow.purchased_leads ?? 0);
-const backendOwed = Number(packageStatusRow.owed_leads ?? 0);
-const backendPackageStatus = String(
-  packageStatusRow.package_status ||
-  pkgStatus ||
-  ""
-).toUpperCase().trim();
-
-const finalPurchased = backendPurchased > 0 ? backendPurchased : purchased;
-const finalOwed = backendPurchased > 0 ? backendOwed : owed;
-const finalPackageStatus = backendPackageStatus || pkgStatus;
-const finalPackageRatio = `${finalOwed} / ${finalPurchased}`;
-
-// Prefer backend truth from client_health_view when available
-const backendCredited = Number(c.credited_leads_all_time ?? c.creditedCount ?? c.credited_leads ?? cCount ?? 0);
-const backendDelivered = Number(c.delivered_leads_all_time ?? c.delivered_leads ?? 0);
-const backendQualified = backendDelivered > 0
-  ? Math.max(backendDelivered - backendCredited, 0)
-  : qCount;
-
-const backendHealthStatus = String(c.health_status || "").toUpperCase().trim();
-const finalHealthStatus = backendHealthStatus || healthStatus;
-
-const backendLastLead = c.last_lead_at
-  ? window.portal.formatDate(c.last_lead_at)
-  : (lastLeadDate ? window.portal.formatDate(lastLeadDate) : "—");
-
-const finalCityState = cityState;
-const finalClientName = clientName;
-
-finalRows.push({
-  _raw: c,
-  rawClientId: rawClient.id || c.client_id || c.id || null,
-  _pkgId: pkg.id,
-  code: code,
-  passbookStatus: String(c.client_status || c.status || "INACTIVE").toUpperCase().trim(),
-  healthStatus: finalHealthStatus,
-  roofingCompany: company + (isRenewal ? ' <span class="text-[9px] font-black text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded ml-2">RENEWAL</span>' : ''),
-  searchName: company + (isRenewal ? ' renewal' : ''),
-  cityState: finalCityState,
-  clientName: finalClientName,
-  packageStatus: finalPackageStatus,
-  packageRatio: finalPackageRatio,
-  packageLabel: finalPackageRatio,
-  owedRemaining: finalOwed,
-  qualifiedCount: backendQualified,
-  creditedCount: backendCredited,
-  purchaseDate: pkg.purchase_date || "—",
-  leadsToday: todayCount,
-  leadsYesterday: yesterdayCount,
-  lastLead: backendLastLead,
-  isServing: c.is_serving === true || c.is_serving === 'true',
-  dailyAgents: c.daily_agents || "",
-  dailyGoal: Number(c.daily_goal) || 0,
-  salesRepCount: Number(rawClient.sales_rep_count || c.sales_rep_count || 0),
-  leadsPerDayLimit: Number(rawClient.leads_per_day_limit || c.leads_per_day_limit || 0)
-});
-          });
-        });
-        return finalRows;
-      },
+      isServing: rawClient.is_serving === true || rawClient.is_serving === 'true',
+      dailyAgents: rawClient.daily_agents || "",
+      dailyGoal: Number(rawClient.daily_goal) || 0,
+      salesRepCount: Number(rawClient.sales_rep_count || 0),
+      leadsPerDayLimit: Number(rawClient.leads_per_day_limit || 0)
+    };
+  });
+},
       
 
       // --- NEW SALES PIPELINE ENGINE ---
