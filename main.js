@@ -21,6 +21,7 @@ class CallHammerPortal {
 
     // Admin datasets (normalized + raw)
     this.adminState = {
+  rawClients: [],
   clients: [],
   leads: [],
   agents: [],
@@ -769,7 +770,10 @@ supaClientHealth = chRes.data || [];
 supaAgentPerformance = apRes.data || [];
       }
 
-      this.adminState.clients = supaClients.length > 0 ? supaClients : (dataRoot.clients || []);
+      this.adminState.rawClients = supaClients.length > 0 ? supaClients : (dataRoot.clients || []);
+this.adminState.clients = this.adminState.clientHealthView.length > 0
+  ? this.adminState.clientHealthView
+  : this.adminState.rawClients;
 this.adminState.leads = supaLeads.length > 0 ? supaLeads : (dataRoot.leads || []);
 this.adminState.packages = supaPackages.length > 0 ? supaPackages : (dataRoot.packages || []);
 this.adminState.timeEvents = supaTime;
