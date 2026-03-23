@@ -1488,7 +1488,26 @@ const packages = state.packages || [];
       qualifiedCount: qualified,
       creditedCount: credited,
 
-      purchaseDate: row.purchase_date || "—",
+      purchaseDate: (() => {
+  if (!row.purchase_date) return "—";
+  const raw = String(row.purchase_date).trim();
+
+  let d = null;
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
+    d = new Date(raw.substring(0, 10) + "T00:00:00");
+  } else {
+    d = new Date(raw);
+  }
+
+  if (!d || isNaN(d.getTime())) return raw;
+
+  const mst = window.portal?.toMST ? window.portal.toMST(d) : d;
+  const mm = String(mst.getMonth() + 1).padStart(2, "0");
+  const dd = String(mst.getDate()).padStart(2, "0");
+  const yyyy = mst.getFullYear();
+
+  return `${mm}-${dd}-${yyyy}`;
+})(),
       leadsToday,
       leadsYesterday,
       lastLead: row.last_lead_at ? window.portal.formatDate(row.last_lead_at) : "—",
