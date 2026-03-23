@@ -1556,30 +1556,32 @@ const finalCityState = cityState;
 const finalClientName = clientName;
 
 finalRows.push({
-                  _raw: c,
-                  _pkgId: pkg.id,
-                  code: code,
-                  passbookStatus: String(c.client_status || c.status || "INACTIVE").toUpperCase().trim(),
-                  healthStatus: finalHealthStatus,
-                  // VISUAL RENEWAL TAG!
-                  roofingCompany: company + (isRenewal ? ' <span class="text-[9px] font-black text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded ml-2">RENEWAL</span>' : ''),
-                  searchName: company + (isRenewal ? ' renewal' : ''),
-                  cityState: finalCityState,
-                  clientName: finalClientName,
-                  packageStatus: finalPackageStatus,
-                  packageRatio: finalPackageRatio,
-                  packageLabel: finalPackageRatio,
-                  owedRemaining: finalOwed,
-                  qualifiedCount: backendQualified,
-                  creditedCount: backendCredited,
-                  purchaseDate: pkg.purchase_date || "—",
-                  leadsToday: todayCount,
-                  leadsYesterday: yesterdayCount,
-                  lastLead: backendLastLead,
-                  isServing: c.is_serving === true || c.is_serving === 'true',
-                  dailyAgents: c.daily_agents || "",
-                  dailyGoal: Number(c.daily_goal) || 0
-              });
+  _raw: c,
+  rawClientId: rawClient.id || c.client_id || c.id || null,
+  _pkgId: pkg.id,
+  code: code,
+  passbookStatus: String(c.client_status || c.status || "INACTIVE").toUpperCase().trim(),
+  healthStatus: finalHealthStatus,
+  roofingCompany: company + (isRenewal ? ' <span class="text-[9px] font-black text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded ml-2">RENEWAL</span>' : ''),
+  searchName: company + (isRenewal ? ' renewal' : ''),
+  cityState: finalCityState,
+  clientName: finalClientName,
+  packageStatus: finalPackageStatus,
+  packageRatio: finalPackageRatio,
+  packageLabel: finalPackageRatio,
+  owedRemaining: finalOwed,
+  qualifiedCount: backendQualified,
+  creditedCount: backendCredited,
+  purchaseDate: pkg.purchase_date || "—",
+  leadsToday: todayCount,
+  leadsYesterday: yesterdayCount,
+  lastLead: backendLastLead,
+  isServing: c.is_serving === true || c.is_serving === 'true',
+  dailyAgents: c.daily_agents || "",
+  dailyGoal: Number(c.daily_goal) || 0,
+  salesRepCount: Number(rawClient.sales_rep_count || c.sales_rep_count || 0),
+  leadsPerDayLimit: Number(rawClient.leads_per_day_limit || c.leads_per_day_limit || 0)
+});
           });
         });
         return finalRows;
@@ -3477,9 +3479,12 @@ finalRows.push({
           }
 
           // Use exact Row ID so it never misses
-          if (typeof supaClient !== 'undefined' && supaClient && client && client._raw.id) {
-              await supaClient.from('clients').update({ is_serving: true, daily_agents: "", daily_goal: 0 }).eq('id', client._raw.id); 
-          }
+          if (typeof supaClient !== 'undefined' && supaClient && client && client.rawClientId) {
+    await supaClient
+      .from('clients')
+      .update({ is_serving: true, daily_agents: "", daily_goal: 0 })
+      .eq('id', client.rawClientId);
+}
       },
 
       async dailyRemove(btnElement, code) {
@@ -3496,11 +3501,14 @@ finalRows.push({
           this.renderDailyTab(); 
 
           // 3. TARGET EXACT ROW ID IN DATABASE
-          if (typeof supaClient !== 'undefined' && supaClient && client && client._raw.id) {
-              try {
-                  await supaClient.from('clients').update({ is_serving: false }).eq('id', client._raw.id);
-              } catch (e) { console.error("DB Sync Failed:", e); }
-          }
+          if (typeof supaClient !== 'undefined' && supaClient && client && client.rawClientId) {
+    try {
+        await supaClient
+          .from('clients')
+          .update({ is_serving: false })
+          .eq('id', client.rawClientId);
+    } catch (e) { console.error("DB Sync Failed:", e); }
+}
       },
 
       async dailyUpdate(code, field, value) {
@@ -3511,10 +3519,10 @@ finalRows.push({
           if (field === 'daily_agents') client.dailyAgents = value;
 
           // Target exact Row ID for typing and goals
-          if (typeof supaClient !== 'undefined' && supaClient && client._raw.id) {
+          if (typeof supaClient !== 'undefined' && supaClient && client.rawClientId) {
               const payload = {};
               payload[field] = field === 'daily_goal' ? (Number(value) || 0) : value;
-              await supaClient.from('clients').update(payload).eq('id', client._raw.id); 
+              await supaClient.from('clients').update(payload).eq('id', client.rawClientId); 
           }
       },
       
