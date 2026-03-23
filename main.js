@@ -1097,6 +1097,8 @@ async function toggleShareWithSales(codeName, checkboxElement) {
 // SALES PIPELINE CONTROLS (UPGRADED HYBRID LEDGER)
 // ==========================================
 window.fetchSalesPipeline = function() {
+  console.warn("⚠️ OLD fetchSalesPipeline DISABLED");
+  return;
     const state = window.portal?.adminState;
     if (!state || !state.packages) return;
 
