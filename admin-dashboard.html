@@ -1324,9 +1324,12 @@
         const state = this.getState();
         if (!state) return;
 
-        const clients = state.clients || [];
-        const leads = state.leads || [];
-        const packages = state.packages || [];
+        const rawClients = state.rawClients || [];
+const healthRows = (state.clientHealthView && state.clientHealthView.length)
+  ? state.clientHealthView
+  : (state.clients || []);
+const leads = state.leads || [];
+const packages = state.packages || [];
 
         // 1. Index leads by COMPANY NAME for Health Monitor math
         this._leadsIndexByCompany = new Map();
@@ -1341,7 +1344,7 @@
 
         // 2. Trigger the table builds
         try {
-          this.clientHealthRaw = this.normalizeClientHealthRows(clients, packages);
+          this.clientHealthRaw = this.normalizeClientHealthRows(healthRows, packages, rawClients);
           this.setupFilters(this.clientHealthRaw);
           this.applyClientHealthFilters();
         } catch(e) { console.error("CHM Error:", e); }
@@ -1376,7 +1379,7 @@
         return isNaN(dt.getTime()) ? null : dt;
       },
 
-      normalizeClientHealthRows(clients, packages) {
+      normalizeClientHealthRows(clients, packages, rawClients = []) {
         const mstFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit' });
         const now = new Date();
         const todayStr = mstFormatter.format(now); 
@@ -1385,11 +1388,41 @@
 
         let finalRows = [];
 
+        const rawClientMap = new Map(
+  (rawClients || []).map(rc => [
+    String(rc.client_code || rc.code_name || "").trim().toLowerCase(),
+    rc
+  ])
+);
+
         clients.forEach(c => {
           const code = String(c.code_name || c.client_code || "").trim();
-          const company = String(c.company_name || c.roofing_company || "—").trim();
-          const clientName = String(c.contact_person || c.client_name || "—").trim();
-          const cityState = String(c.area || c.city_state || "—").trim();
+          const rawClient = rawClientMap.get(code.toLowerCase()) || {};
+          const company = String(
+  c.company_name ||
+  c.roofing_company ||
+  rawClient.company_name ||
+  rawClient.roofing_company ||
+  "—"
+).trim();
+
+const clientName = String(
+  c.client_name ||
+  c.contact_person ||
+  rawClient.contact_person ||
+  rawClient.client_name ||
+  "—"
+).trim();
+
+const cityState = String(
+  c.city_state ||
+  c.area ||
+  c.location ||
+  rawClient.area ||
+  rawClient.city_state ||
+  rawClient.location ||
+  "—"
+).trim();
           const compKey = this.normalizeCompanyName(company);
           
           // Sort packages oldest to newest for the Waterfall
@@ -1481,9 +1514,11 @@ if (st.includes('APPROV') || st.includes('CONFIRM')) {
               const isRenewal = pkgIndex > 0;
 
 // Prefer backend truth from client_health_view when available
-const backendCredited = Number(c.credited_leads_all_time ?? c.creditedCount ?? 0);
-const backendDelivered = Number(c.delivered_leads_all_time ?? 0);
-const backendQualified = Math.max(backendDelivered - backendCredited, 0);
+const backendCredited = Number(c.credited_leads_all_time ?? c.creditedCount ?? c.credited_leads ?? cCount ?? 0);
+const backendDelivered = Number(c.delivered_leads_all_time ?? c.delivered_leads ?? 0);
+const backendQualified = backendDelivered > 0
+  ? Math.max(backendDelivered - backendCredited, 0)
+  : qCount;
 
 const backendHealthStatus = String(c.health_status || "").toUpperCase().trim();
 const finalHealthStatus = backendHealthStatus || healthStatus;
@@ -1492,27 +1527,8 @@ const backendLastLead = c.last_lead_at
   ? window.portal.formatDate(c.last_lead_at)
   : (lastLeadDate ? window.portal.formatDate(lastLeadDate) : "—");
 
-       const finalCityState =
-  c.city_state ||
-  c.cityState ||
-  c.location ||
-  c.Location ||
-  clientMatch?.city_state ||
-  clientMatch?.cityState ||
-  clientMatch?.location ||
-  clientMatch?.Location ||
-  "—";
-
-const finalClientName =
-  c.client_name ||
-  c.clientName ||
-  c.contact_person ||
-  c.contactPerson ||
-  clientMatch?.client_name ||
-  clientMatch?.clientName ||
-  clientMatch?.contact_person ||
-  clientMatch?.contactPerson ||
-  "—";
+      const finalCityState = cityState;
+const finalClientName = clientName;
 
 const finalPackageRatio = `${Math.max((Number(pkg.purchased_leads) || 0) - qCount, 0)} / ${Number(pkg.purchased_leads) || 0}`;
 
@@ -1916,12 +1932,25 @@ finalRows.push({
 
         const { key, dir } = this.sortState;
         if (key) {
-          filtered.sort((a,b) => {
-            const A = a[key]; const B = b[key];
-            if (typeof A === "number" && typeof B === "number") return dir === "asc" ? A - B : B - A;
-            return dir === "asc" ? String(A).localeCompare(String(B)) : String(B).localeCompare(String(A));
-          });
-        }
+  filtered.sort((a, b) => {
+    if (key === "packageRatio") {
+      return dir === "asc"
+        ? (a.owedRemaining - b.owedRemaining)
+        : (b.owedRemaining - a.owedRemaining);
+    }
+
+    const A = a[key];
+    const B = b[key];
+
+    if (typeof A === "number" && typeof B === "number") {
+      return dir === "asc" ? A - B : B - A;
+    }
+
+    return dir === "asc"
+      ? String(A ?? "").localeCompare(String(B ?? ""))
+      : String(B ?? "").localeCompare(String(A ?? ""));
+  });
+}
 
         this.clientHealthView = filtered;
         this.renderClientHealthTable(filtered);
