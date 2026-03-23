@@ -1480,12 +1480,24 @@ if (st.includes('APPROV') || st.includes('CONFIRM')) {
 
               const isRenewal = pkgIndex > 0;
 
-              finalRows.push({
+// Prefer backend truth from client_health_view when available
+const backendCredited = Number(c.credited_leads_all_time ?? c.creditedCount ?? 0);
+const backendDelivered = Number(c.delivered_leads_all_time ?? 0);
+const backendQualified = Math.max(backendDelivered - backendCredited, 0);
+
+const backendHealthStatus = String(c.health_status || "").toUpperCase().trim();
+const finalHealthStatus = backendHealthStatus || healthStatus;
+
+const backendLastLead = c.last_lead_at
+  ? window.portal.formatDate(c.last_lead_at)
+  : (lastLeadDate ? window.portal.formatDate(lastLeadDate) : "—");
+
+finalRows.push({
                   _raw: c,
                   _pkgId: pkg.id,
                   code: code,
                   passbookStatus: String(c.client_status || c.status || "INACTIVE").toUpperCase().trim(),
-                  healthStatus: healthStatus,
+                  healthStatus: finalHealthStatus,
                   // VISUAL RENEWAL TAG!
                   roofingCompany: company + (isRenewal ? ' <span class="text-[9px] font-black text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded ml-2">RENEWAL</span>' : ''),
                   searchName: company + (isRenewal ? ' renewal' : ''),
@@ -1494,12 +1506,12 @@ if (st.includes('APPROV') || st.includes('CONFIRM')) {
                   packageStatus: pkgStatus,
                   packageLabel: `${owed} / ${purchased}`,
                   owedRemaining: owed,
-                  qualifiedCount: qCount,
-                  creditedCount: cCount,
+                  qualifiedCount: backendQualified,
+                  creditedCount: backendCredited,
                   purchaseDate: pkg.purchase_date || "—",
                   leadsToday: todayCount,
                   leadsYesterday: yesterdayCount,
-                  lastLead: lastLeadDate ? window.portal.formatDate(lastLeadDate) : "—",
+                  lastLead: backendLastLead,
                   isServing: c.is_serving === true || c.is_serving === 'true',
                   dailyAgents: c.daily_agents || "",
                   dailyGoal: Number(c.daily_goal) || 0
