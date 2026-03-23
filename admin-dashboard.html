@@ -1344,7 +1344,12 @@ const packages = state.packages || [];
 
         // 2. Trigger the table builds
         try {
-          this.clientHealthRaw = this.normalizeClientHealthRows(healthRows, packages, rawClients);
+          this.clientHealthRaw = this.normalizeClientHealthRows(
+  healthRows,
+  packages,
+  rawClients,
+  state.clientPackageStatusView || []
+);
           this.setupFilters(this.clientHealthRaw);
           this.applyClientHealthFilters();
         } catch(e) { console.error("CHM Error:", e); }
@@ -1379,7 +1384,7 @@ const packages = state.packages || [];
         return isNaN(dt.getTime()) ? null : dt;
       },
 
-      normalizeClientHealthRows(clients, packages, rawClients = []) {
+      normalizeClientHealthRows(clients, packages, rawClients = [], packageStatusRows = []) {
         const mstFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit' });
         const now = new Date();
         const todayStr = mstFormatter.format(now); 
@@ -1394,10 +1399,17 @@ const packages = state.packages || [];
     rc
   ])
 );
+        const packageStatusMap = new Map(
+  (packageStatusRows || []).map(ps => [
+    String(ps.client_code || "").trim().toLowerCase(),
+    ps
+  ])
+);
 
         clients.forEach(c => {
           const code = String(c.code_name || c.client_code || "").trim();
           const rawClient = rawClientMap.get(code.toLowerCase()) || {};
+          const packageStatusRow = packageStatusMap.get(code.toLowerCase()) || {};
           const company = String(
   c.company_name ||
   c.roofing_company ||
@@ -1512,6 +1524,20 @@ if (st.includes('APPROV') || st.includes('CONFIRM')) {
               else healthStatus = "AT RISK";    
 
               const isRenewal = pkgIndex > 0;
+            const packageStatusRow = packageStatusMap.get(code.toLowerCase()) || {};
+
+const backendPurchased = Number(packageStatusRow.purchased_leads ?? 0);
+const backendOwed = Number(packageStatusRow.owed_leads ?? 0);
+const backendPackageStatus = String(
+  packageStatusRow.package_status ||
+  pkgStatus ||
+  ""
+).toUpperCase().trim();
+
+const finalPurchased = backendPurchased > 0 ? backendPurchased : purchased;
+const finalOwed = backendPurchased > 0 ? backendOwed : owed;
+const finalPackageStatus = backendPackageStatus || pkgStatus;
+const finalPackageRatio = `${finalOwed} / ${finalPurchased}`;
 
 // Prefer backend truth from client_health_view when available
 const backendCredited = Number(c.credited_leads_all_time ?? c.creditedCount ?? c.credited_leads ?? cCount ?? 0);
@@ -1543,10 +1569,10 @@ finalRows.push({
                   searchName: company + (isRenewal ? ' renewal' : ''),
                   cityState: finalCityState,
                   clientName: finalClientName,
-                  packageStatus: pkgStatus,
-                  packageRatio: `${owed} / ${purchased}`,
-                  packageLabel: `${owed} / ${purchased}`,
-                  owedRemaining: owed,
+                  packageStatus: finalPackageStatus,
+                  packageRatio: finalPackageRatio,
+                  packageLabel: finalPackageRatio,
+                  owedRemaining: finalOwed,
                   qualifiedCount: backendQualified,
                   creditedCount: backendCredited,
                   purchaseDate: pkg.purchase_date || "—",
@@ -1561,6 +1587,7 @@ finalRows.push({
         });
         return finalRows;
       },
+      
 
       // --- NEW SALES PIPELINE ENGINE ---
       salesPeriod: 'all-time',
