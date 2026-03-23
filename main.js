@@ -1543,30 +1543,19 @@ async function submitNewClient(e) {
 // ==========================================
 // ✅ CLIENT HEALTH MONITOR (MISSION CONTROL)
 // ==========================================
-window.updateClientPackageStatus = async function(clientCode, newPackageStatus) {
+window.updateClientPackageStatus = async function(packageId, newPackageStatus) {
     if (!supaClient) return alert("Database connection missing.");
 
     try {
-        // 1. Find the MOST RECENT package for this client
-        const { data: pkgs, error: fetchErr } = await supaClient.from('packages')
-            .select('*')
-            .eq('client_code', clientCode)
-            .order('created_at', { ascending: false })
-            .limit(1);
-
-        if (fetchErr || !pkgs || pkgs.length === 0) {
-            return alert("Could not find any package in the ledger to update.");
-        }
-
-        // 2. Update that specific package ID
-        const { error: updateErr } = await supaClient.from('packages')
+        const { error: updateErr } = await supaClient
+            .from('packages')
             .update({ status: newPackageStatus })
-            .eq('id', pkgs[0].id);
+            .eq('id', packageId);
 
         if (updateErr) {
+            console.error("Status Update Error:", updateErr);
             alert("Failed to update package in ledger.");
         } else {
-            // 3. Refresh the dashboard
             if (window.portal && typeof window.portal.fetchAdminData === 'function') {
                 window.portal.fetchAdminData(true);
             } else {
