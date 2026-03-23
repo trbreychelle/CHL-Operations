@@ -1758,9 +1758,7 @@ document.addEventListener("click", (e) => {
       const soldBy = p.sold_by || p.sales_category || "—";
 
       const ds = String(p.deal_status || "").toUpperCase().trim();
-
-      // RULE: Negotiating deals do not belong in Sales financial totals or operational sales pipeline
-      if (ds === "NEGOTIATING") return;
+const isNegotiating = ds === "NEGOTIATING";
 
       let st = normalizePkgStatus(alloc.package_status || p.status || "");
       if (ds === "REFUNDED") st = "REFUNDED";
@@ -1793,8 +1791,10 @@ document.addEventListener("click", (e) => {
       const totalLeadCost = purchasedAmount * ratePerLead;
       const commVal = Math.max(0, dealVal - totalLeadCost);
 
-      totalSales += dealVal;
-      totalCommissions += commVal;
+      if (!isNegotiating) {
+  totalSales += dealVal;
+  totalCommissions += commVal;
+}
 
       let stBadge = "bg-gray-100 text-gray-700";
       if (st === "ONGOING") stBadge = "bg-emerald-100 text-emerald-800";
