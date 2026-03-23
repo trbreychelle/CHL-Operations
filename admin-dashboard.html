@@ -1454,7 +1454,15 @@ const packages = state.packages || [];
    let packageStatus = String(row.package_status || "").toUpperCase().trim();
 if (packageStatus === "ACTIVE") packageStatus = "ONGOING";
 
-// 🔥 IMPORTANT: deal_status overrides
+const rawPkgStatus = String(pkg.status || "").toUpperCase().trim();
+
+// raw package status should override allocation status for manual package control
+if (rawPkgStatus.startsWith("PAUS")) packageStatus = "PAUSE";
+else if (rawPkgStatus.includes("REFUND")) packageStatus = "REFUNDED";
+else if (rawPkgStatus.includes("COMPLET")) packageStatus = "COMPLETED";
+else if (rawPkgStatus.includes("ACTIVE") || rawPkgStatus.includes("ONGOING")) packageStatus = "ONGOING";
+
+// deal status still wins for refunded
 if (dealStatus === "REFUNDED") packageStatus = "REFUNDED";
 
     const firstLeadAt = row.first_lead_at ? new Date(row.first_lead_at) : null;
