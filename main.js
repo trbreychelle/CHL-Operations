@@ -771,9 +771,6 @@ supaAgentPerformance = apRes.data || [];
       }
 
       this.adminState.rawClients = supaClients.length > 0 ? supaClients : (dataRoot.clients || []);
-this.adminState.clients = this.adminState.clientHealthView.length > 0
-  ? this.adminState.clientHealthView
-  : this.adminState.rawClients;
 this.adminState.leads = supaLeads.length > 0 ? supaLeads : (dataRoot.leads || []);
 this.adminState.packages = supaPackages.length > 0 ? supaPackages : (dataRoot.packages || []);
 this.adminState.timeEvents = supaTime;
@@ -782,6 +779,10 @@ this.adminState.weeklyPayroll = dataRoot.weeklyPayroll || [];
 
 this.adminState.clientHealthView = supaClientHealth;
 this.adminState.agentPerformanceView = supaAgentPerformance;
+
+this.adminState.clients = this.adminState.clientHealthView.length > 0
+  ? this.adminState.clientHealthView
+  : this.adminState.rawClients;
       const arrowheadDebug = this.adminState.clientHealthView.find(
   x => String(x.company_name || '').toLowerCase().includes('arrowhead')
 );
