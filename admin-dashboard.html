@@ -1571,7 +1571,7 @@ const packages = state.packages || [];
         const state = this.getState();
         const packages = Array.isArray(state.packages) ? [...state.packages] : [];
         const leads = Array.isArray(state.leads) ? state.leads : [];
-        const clients = Array.isArray(state.clients) ? state.clients : [];
+        const clients = Array.isArray(state.rawClients) ? state.rawClients : [];
 
         // --- 1. THE SALES MINI-WATERFALL ENGINE ---
         // Group leads by normalized Company Name using our safe picker
