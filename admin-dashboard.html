@@ -1351,7 +1351,8 @@ const packages = state.packages || [];
         try {
           this.clientHealthRaw = this.normalizeClientHealthRows(
   allocationRows,
-  rawClients
+  rawClients,
+  packages
 );
           this.setupFilters(this.clientHealthRaw);
           this.applyClientHealthFilters();
@@ -1387,7 +1388,7 @@ const packages = state.packages || [];
         return isNaN(dt.getTime()) ? null : dt;
       },
 
-      normalizeClientHealthRows(allocationRows, rawClients = []) {
+      normalizeClientHealthRows(allocationRows, rawClients = [], packages = []) {
   const now = new Date();
   const mstFormatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Denver',
@@ -1406,6 +1407,8 @@ const packages = state.packages || [];
   return (allocationRows || []).map(row => {
     const code = String(row.client_code || "").trim();
     const rawClient = rawClientMap.get(code.toLowerCase()) || {};
+    const pkg = packageMap.get(String(row.package_id || row.id || "").trim()) || {};
+    const dealStatus = String(pkg.deal_status || "").toUpperCase().trim();
 
     const company = String(
       rawClient.company_name ||
@@ -1435,8 +1438,11 @@ const packages = state.packages || [];
     const delivered = Number(row.delivered_leads || (qualified + credited) || 0);
     const owed = Number(row.owed_leads || Math.max(purchased - delivered, 0));
 
-    let packageStatus = String(row.package_status || "").toUpperCase().trim();
-    if (packageStatus === "ACTIVE") packageStatus = "ONGOING";
+   let packageStatus = String(row.package_status || "").toUpperCase().trim();
+if (packageStatus === "ACTIVE") packageStatus = "ONGOING";
+
+// 🔥 IMPORTANT: deal_status overrides
+if (dealStatus === "REFUNDED") packageStatus = "REFUNDED";
 
     const firstLeadAt = row.first_lead_at ? new Date(row.first_lead_at) : null;
     const lastLeadAt = row.last_lead_at ? new Date(row.last_lead_at) : null;
@@ -1486,6 +1492,7 @@ const packages = state.packages || [];
       clientName,
 
       packageStatus,
+      dealStatus,
       packageRatio: `${owed} / ${purchased}`,
       packageLabel: `${owed} / ${purchased}`,
       owedRemaining: owed,
@@ -1592,150 +1599,167 @@ const packages = state.packages || [];
       },
 
       renderSalesTab() {
-        const state = this.getState();
-        const packages = Array.isArray(state.packages) ? [...state.packages] : [];
-        const leads = Array.isArray(state.leads) ? state.leads : [];
-        const clients = Array.isArray(state.rawClients) ? state.rawClients : [];
+  const state = this.getState();
+  const packages = Array.isArray(state.packages) ? [...state.packages] : [];
+  const clients = Array.isArray(state.rawClients) ? state.rawClients : [];
+  const allocation = Array.isArray(state.clientPackageAllocationView)
+    ? state.clientPackageAllocationView
+    : [];
 
-        const allocation = Array.isArray(state.clientPackageAllocationView)
-  ? state.clientPackageAllocationView
-  : [];
+  const allocationMap = new Map();
+  allocation.forEach(a => allocationMap.set(a.package_id, a));
 
-const allocationMap = new Map();
-allocation.forEach(a => {
-  allocationMap.set(a.package_id, a);
-});
+  const q = String(document.getElementById("admin-sales-search")?.value || "").toLowerCase().trim();
+  const catFilter = document.getElementById("admin-sales-category-filter")?.value || "All";
+  const pkgFilter = document.getElementById("admin-sales-package-filter")?.value || "all";
 
-        let filtered = [...packages];
+  let filtered = [...packages];
 
-        // DATE FILTERING
-        const { start, end, label } = this.getRangeFor(this.salesPeriod, []);
-        if (this.salesPeriod !== 'all-time') {
-             filtered = filtered.filter(p => {
-                 if (!p.purchase_date) return false;
-                 const pDate = new Date(p.purchase_date + "T12:00:00");
-                 return pDate >= start && pDate <= end;
-             });
-        }
-        
-        const lbl = document.getElementById("sales-range-label");
-        if (lbl) lbl.textContent = this.salesPeriod === "custom" ? `Showing Custom: ${start.toLocaleDateString()} → ${end.toLocaleDateString()}` : `Showing: ${label}`;
+  const { start, end, label } = this.getRangeFor(this.salesPeriod, []);
+  if (this.salesPeriod !== "all-time") {
+    filtered = filtered.filter(p => {
+      if (!p.purchase_date) return false;
+      const d = new Date(String(p.purchase_date).trim() + "T12:00:00");
+      return !isNaN(d.getTime()) && d >= start && d <= end;
+    });
+  }
 
-        // TEXT & DROPDOWN FILTERING
-        const q = String(document.getElementById("admin-sales-search")?.value || "").toLowerCase().trim();
-        const catFilter = document.getElementById("admin-sales-category-filter")?.value || "All";
-        const pkgFilter = document.getElementById("admin-sales-package-filter")?.value || "all";
+  const lbl = document.getElementById("sales-range-label");
+  if (lbl) {
+    lbl.textContent = this.salesPeriod === "custom"
+      ? `Showing Custom: ${start.toLocaleDateString()} → ${end.toLocaleDateString()}`
+      : `Showing: ${label}`;
+  }
 
-        if (catFilter !== "All") {
-  filtered = filtered.filter(p =>
-    String(p.sales_category || p.sold_by || "").toLowerCase() === catFilter.toLowerCase()
-  );
-}
-        
-        if (pkgFilter !== "all") {
-            filtered = filtered.filter(p => {
-                 let s = String(p.status || "").toLowerCase();
-                 if (s === 'active') s = 'ongoing'; 
-                 let target = pkgFilter.toLowerCase();
-                 if (target === 'active') target = 'ongoing';
-                 return s.includes(target);
-            });
-        }
+  let totalSales = 0;
+  let totalCommissions = 0;
+  let html = "";
 
-        let totalSales = 0;
-        let totalCommissions = 0;
-        let html = "";
+  const normalizePkgStatus = (value) => {
+    let s = String(value || "").toUpperCase().trim();
+    if (s === "ACTIVE") s = "ONGOING";
+    return s || "UNKNOWN";
+  };
 
-        filtered.sort((a,b) => new Date(b.purchase_date || 0) - new Date(a.purchase_date || 0)).forEach(p => {
-    const code = String(p.client_code || "—").trim();
-    const clientMatch = clients.find(c =>
-      String(c.client_code || c.code_name || "").trim().toLowerCase() === code.toLowerCase()
-    ) || {};
+  filtered
+    .sort((a, b) => new Date(b.purchase_date || 0) - new Date(a.purchase_date || 0))
+    .forEach(p => {
+      const code = String(p.client_code || "").trim();
+      const clientMatch = clients.find(c =>
+        String(c.client_code || c.code_name || "").trim().toLowerCase() === code.toLowerCase()
+      ) || {};
 
-    const company = clientMatch.company_name || clientMatch.roofing_company || "Unknown Client";
-    const poc = p.poc || clientMatch.contact_person || clientMatch.client_name || "—";
-    const txn = p.transaction_id || p.external_package_id || "—";
-    const soldBy = p.sold_by || p.sales_category || "—";
-    const alloc = allocationMap.get(p.id) || {};
+      const alloc = allocationMap.get(p.id) || {};
 
-    if (q && !`${company} ${code} ${txn}`.toLowerCase().includes(q)) return;
+      const company = clientMatch.company_name || clientMatch.roofing_company || "Unknown Client";
+      const poc = p.poc || clientMatch.contact_person || clientMatch.client_name || "—";
+      const txn = p.transaction_id || p.external_package_id || "—";
+      const soldBy = p.sold_by || p.sales_category || "—";
 
-    const dealVal = Number(p.deal_value || p.amount) || 0;
-    const purchasedAmount = Number(p.purchased_leads) || 0;
+      const ds = String(p.deal_status || "").toUpperCase().trim();
 
-    const purchaseDateObj = p.purchase_date ? new Date(p.purchase_date + "T00:00:00") : null;
-    const ratePerLead = purchaseDateObj && purchaseDateObj >= new Date("2026-03-09T00:00:00")
-      ? 135
-      : 125;
+      // RULE: Negotiating deals do not belong in Sales financial totals or operational sales pipeline
+      if (ds === "NEGOTIATING") return;
 
-    const totalLeadCost = purchasedAmount * ratePerLead;
-    const commVal = Math.max(0, dealVal - totalLeadCost);
+      let st = normalizePkgStatus(alloc.package_status || p.status || "");
+      if (ds === "REFUNDED") st = "REFUNDED";
 
-    totalSales += dealVal;
-    totalCommissions += commVal;
-
-    let stBadge = "bg-gray-100 text-gray-700";
-    let st = String(alloc.package_status || p.status || "").toUpperCase();
-    if (ds === 'REFUNDED') st = 'REFUNDED';
-    if (st === 'ACTIVE' || st === 'ONGOING') stBadge = "bg-emerald-100 text-emerald-800";
-    if (st === 'PAUSE') stBadge = "bg-yellow-100 text-yellow-800";
-    if (st === 'COMPLETED') stBadge = "bg-blue-100 text-blue-800";
-    if (st === 'REFUNDED') stBadge = "bg-red-100 text-red-800";
-
-    let dealBadge = "bg-gray-100 text-gray-700";
-    const ds = String(p.deal_status || "").toUpperCase();
-    if (ds === 'NEGOTIATING') return;
-    if (ds === 'PAID') dealBadge = "bg-emerald-100 text-emerald-800";
-    if (ds === 'NEGOTIATING') dealBadge = "bg-yellow-100 text-yellow-800";
-    if (ds === 'REFUNDED') dealBadge = "bg-red-100 text-red-800";
-
-    let startedStr = "—";
-    if (alloc.first_lead_at) {
-      const d = new Date(alloc.first_lead_at);
-      if (!isNaN(d.getTime())) {
-        const mst = window.portal?.toMST ? window.portal.toMST(d) : d;
-        const mm = String(mst.getMonth() + 1).padStart(2, "0");
-        const dd = String(mst.getDate()).padStart(2, "0");
-        const yyyy = mst.getFullYear();
-        startedStr = `${mm}-${dd}-${yyyy}`;
+      if (catFilter !== "All") {
+        const salesCat = String(p.sales_category || p.sold_by || "").toLowerCase();
+        if (salesCat !== catFilter.toLowerCase()) return;
       }
-    }
 
-    html += `
-      <tr class="hover:bg-gray-50 border-b border-gray-50">
-        <td class="p-4 font-bold text-gray-700">
-  ${(() => {
-    if (!p.purchase_date) return "—";
-    const d = new Date(p.purchase_date + "T00:00:00");
-    const mst = window.portal?.toMST ? window.portal.toMST(d) : d;
-    return `${mst.getMonth()+1}-${mst.getDate()}-${mst.getFullYear()}`;
-  })()}
-</td>
-        <td class="p-4 text-xs font-mono text-gray-400">${txn}</td>
-        <td class="p-4 font-black text-gray-900">${company} <span class="text-[10px] text-gray-400 font-normal ml-1">(${code})</span></td>
-        <td class="p-4 text-gray-600">${poc}</td>
-        <td class="p-4 text-center font-bold">${purchasedAmount}</td>
-        <td class="p-4 text-emerald-600 font-black">$${dealVal.toLocaleString()}</td>
-        <td class="p-4 text-purple-600 font-black">$${commVal.toLocaleString()}</td>
-        <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${stBadge}">${st || 'UNKNOWN'}</span></td>
-        <td class="p-4 text-gray-600 font-bold">${soldBy}</td>
-        <td class="p-4 text-blue-600 font-bold">${startedStr}</td>
-        <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${dealBadge}">${ds || 'UNKNOWN'}</span></td>
-        <td class="p-4 text-center flex justify-center gap-2">
+      if (pkgFilter !== "all") {
+        let target = String(pkgFilter || "").toUpperCase().trim();
+        if (target === "ACTIVE") target = "ONGOING";
+        if (target === "PAUSE") target = "PAUSE";
+        if (target === "COMPLETED") target = "COMPLETED";
+        if (target === "REFUNDED") target = "REFUNDED";
+        if (target !== st) return;
+      }
+
+      const searchBlob = `${company} ${code} ${txn} ${poc} ${soldBy}`.toLowerCase();
+      if (q && !searchBlob.includes(q)) return;
+
+      const dealVal = Number(p.deal_value || p.amount) || 0;
+      const purchasedAmount = Number(p.purchased_leads) || 0;
+
+      const purchaseDateObj = p.purchase_date ? new Date(String(p.purchase_date).trim() + "T00:00:00") : null;
+      const ratePerLead = purchaseDateObj && purchaseDateObj >= new Date("2026-03-09T00:00:00")
+        ? 135
+        : 125;
+
+      const totalLeadCost = purchasedAmount * ratePerLead;
+      const commVal = Math.max(0, dealVal - totalLeadCost);
+
+      totalSales += dealVal;
+      totalCommissions += commVal;
+
+      let stBadge = "bg-gray-100 text-gray-700";
+      if (st === "ONGOING") stBadge = "bg-emerald-100 text-emerald-800";
+      if (st === "PAUSE") stBadge = "bg-yellow-100 text-yellow-800";
+      if (st === "COMPLETED") stBadge = "bg-blue-100 text-blue-800";
+      if (st === "REFUNDED") stBadge = "bg-red-100 text-red-800";
+
+      let dealBadge = "bg-gray-100 text-gray-700";
+      if (ds === "PAID") dealBadge = "bg-emerald-100 text-emerald-800";
+      if (ds === "NEGOTIATING") dealBadge = "bg-yellow-100 text-yellow-800";
+      if (ds === "REFUNDED") dealBadge = "bg-red-100 text-red-800";
+
+      let startedStr = "—";
+      if (alloc.first_lead_at) {
+        const d = new Date(alloc.first_lead_at);
+        if (!isNaN(d.getTime())) {
+          const mst = window.portal?.toMST ? window.portal.toMST(d) : d;
+          const mm = String(mst.getMonth() + 1).padStart(2, "0");
+          const dd = String(mst.getDate()).padStart(2, "0");
+          const yyyy = mst.getFullYear();
+          startedStr = `${mm}-${dd}-${yyyy}`;
+        }
+      }
+
+      const purchaseDateDisplay = (() => {
+        if (!p.purchase_date) return "—";
+        const d = new Date(String(p.purchase_date).trim() + "T00:00:00");
+        if (isNaN(d.getTime())) return String(p.purchase_date);
+        const mst = window.portal?.toMST ? window.portal.toMST(d) : d;
+        return `${mst.getMonth() + 1}-${mst.getDate()}-${mst.getFullYear()}`;
+      })();
+
+      html += `
+        <tr class="hover:bg-gray-50 border-b border-gray-50">
+          <td class="p-4 font-bold text-gray-700">${purchaseDateDisplay}</td>
+          <td class="p-4 text-xs font-mono text-gray-400">${txn}</td>
+          <td class="p-4 font-black text-gray-900">${company} <span class="text-[10px] text-gray-400 font-normal ml-1">(${code || "—"})</span></td>
+          <td class="p-4 text-gray-600">${poc}</td>
+          <td class="p-4 text-center font-bold">${purchasedAmount}</td>
+          <td class="p-4 text-emerald-600 font-black">$${dealVal.toLocaleString()}</td>
+          <td class="p-4 text-purple-600 font-black">$${commVal.toLocaleString()}</td>
+          <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${stBadge}">${st}</span></td>
+          <td class="p-4 text-gray-600 font-bold">${soldBy}</td>
+          <td class="p-4 text-blue-600 font-bold">${startedStr}</td>
+          <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${dealBadge}">${ds || "UNKNOWN"}</span></td>
+          <td class="p-4 text-center flex justify-center gap-2">
             <button onclick="window.editDealModal('${p.id}')" class="text-gray-400 hover:text-blue-600 transition-colors" title="Edit Deal">
               <i class="fa-solid fa-pen-to-square"></i>
             </button>
             <button onclick="window.deleteDeal('${p.id}', '${String(company).replace(/'/g, "\\'")}')" class="text-gray-300 hover:text-red-500 transition-colors" title="Delete Deal">
               <i class="fa-solid fa-trash-can"></i>
             </button>
-        </td>
-      </tr>
-    `;
-});
-        document.getElementById("sales-total-kpi").textContent = totalSales.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-        document.getElementById("sales-commissions-kpi").textContent = totalCommissions.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-        document.getElementById("admin-sales-table-body").innerHTML = html || `<tr><td colspan="12" class="p-8 text-center text-gray-400 italic">No deals found for this range.</td></tr>`;
-      },
+          </td>
+        </tr>
+      `;
+    });
+
+  document.getElementById("sales-total-kpi").textContent =
+    totalSales.toLocaleString("en-US", { style: "currency", currency: "USD" });
+
+  document.getElementById("sales-commissions-kpi").textContent =
+    totalCommissions.toLocaleString("en-US", { style: "currency", currency: "USD" });
+
+  document.getElementById("admin-sales-table-body").innerHTML =
+    html || `<tr><td colspan="12" class="p-8 text-center text-gray-400 italic">No deals found for this range.</td></tr>`;
+},
 
       setupFilters(rows) {
         const statusPop = document.getElementById("health-status-popover");
