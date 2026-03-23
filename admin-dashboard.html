@@ -1826,7 +1826,24 @@ allocation.forEach(a => {
         let filtered = [...this.clientHealthRaw];
 
         // RULE 1: STRICTLY PASSBOOK 'ACTIVE' ONLY
-        filtered = filtered.filter(r => r.passbookStatus === 'ACTIVE');
+        const activePkgFilter = String(pkgFilter || "ONGOING").toUpperCase();
+
+filtered = filtered.filter(r => {
+  const passbook = String(r.passbookStatus || "").toUpperCase();
+  const pkgStatus = String(r.packageStatus || "").toUpperCase();
+
+  // Default operational view: only ACTIVE clients
+  if (activePkgFilter === "ONGOING") {
+    return passbook === "ACTIVE" && pkgStatus === "ONGOING";
+  }
+
+  // When explicitly filtering by package status, allow rows regardless of passbook status
+  if (activePkgFilter === "PAUSE" || activePkgFilter === "COMPLETED" || activePkgFilter === "REFUNDED" || activePkgFilter === "ALL") {
+    return true;
+  }
+
+  return passbook === "ACTIVE";
+});
 
        // RULE 2: PACKAGE FILTER (Defaults to ONGOING)
         if (pkgFilter !== "ALL") {
