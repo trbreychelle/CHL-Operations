@@ -551,12 +551,16 @@
           <div class="flex flex-col md:flex-row gap-3">
             <div class="flex-1 relative">
   <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
-  <input type="text" id="admin-sales-search" autocomplete="off"
+  <input
+    type="text"
+    id="admin-sales-search"
+    autocomplete="off"
     placeholder="Search deal, client name, package..."
-    class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
-
-  <div id="admin-sales-search-suggestions"
-       class="hidden absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-xl max-h-56 overflow-y-auto">
+    class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+  />
+  <div
+    id="admin-sales-search-suggestions"
+    class="hidden absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-xl max-h-56 overflow-y-auto">
   </div>
 </div>
             
@@ -1575,6 +1579,89 @@ if (search) {
     this._salesSearchTimer = setTimeout(() => this.renderSalesTab(), 180);
   });
 }
+
+        const suggestionBox = document.getElementById("admin-sales-search-suggestions");
+
+const renderSalesSuggestions = () => {
+  if (!search || !suggestionBox) return;
+
+  const value = String(search.value || "").toLowerCase().trim();
+  if (!value) {
+    suggestionBox.classList.add("hidden");
+    suggestionBox.innerHTML = "";
+    return;
+  }
+
+  const state = this.getState();
+  const packages = Array.isArray(state.packages) ? state.packages : [];
+  const clients = Array.isArray(state.rawClients) ? state.rawClients : [];
+
+  const seen = new Set();
+  const suggestions = [];
+
+  for (const p of packages) {
+    const ds = String(p.deal_status || "").toUpperCase().trim();
+    if (ds === "NEGOTIATING") continue;
+
+    const code = String(p.client_code || "").trim();
+    const client = clients.find(c =>
+      String(c.client_code || c.code_name || "").trim().toLowerCase() === code.toLowerCase()
+    ) || {};
+
+    const company = client.company_name || client.roofing_company || "";
+    const txn = p.transaction_id || p.external_package_id || "";
+    const poc = p.poc || client.contact_person || client.client_name || "";
+    const blob = `${company} ${code} ${txn} ${poc}`.toLowerCase();
+
+    if (!blob.includes(value)) continue;
+
+    const label = company || code || txn;
+    if (!label || seen.has(label)) continue;
+
+    seen.add(label);
+    suggestions.push({ label, fill: label });
+    if (suggestions.length >= 8) break;
+  }
+
+  if (!suggestions.length) {
+    suggestionBox.classList.add("hidden");
+    suggestionBox.innerHTML = "";
+    return;
+  }
+
+  suggestionBox.innerHTML = suggestions.map(s => `
+    <button type="button" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 font-semibold border-b border-gray-50 last:border-b-0">
+      ${s.label}
+    </button>
+  `).join("");
+
+  Array.from(suggestionBox.querySelectorAll("button")).forEach((btn, idx) => {
+    btn.addEventListener("click", () => {
+      search.value = suggestions[idx].fill;
+      suggestionBox.classList.add("hidden");
+      this.renderSalesTab();
+    });
+  });
+
+  suggestionBox.classList.remove("hidden");
+};
+
+if (search) {
+  search.addEventListener("input", () => {
+    clearTimeout(this._salesSuggestTimer);
+    this._salesSuggestTimer = setTimeout(renderSalesSuggestions, 100);
+  });
+
+  search.addEventListener("focus", renderSalesSuggestions);
+}
+
+document.addEventListener("click", (e) => {
+  if (!suggestionBox || !search) return;
+  if (!suggestionBox.contains(e.target) && e.target !== search) {
+    suggestionBox.classList.add("hidden");
+  }
+});
+        
         if (catSel) catSel.addEventListener("change", () => this.renderSalesTab());
         if (pkgSel) pkgSel.addEventListener("change", () => this.renderSalesTab());
 
