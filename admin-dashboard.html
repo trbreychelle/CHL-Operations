@@ -1355,7 +1355,7 @@ const packages = state.packages || [];
         // 3. Keep other dashboard modules alive
         try { this.initLeadsColumnsUI(); this.applyLeadsFilters(); } catch(e) {}
         try { this.bindLeadsMasterEvents(); } catch(e) {} 
-        try { window.fetchSalesPipeline(); } catch(e) {} 
+        try { this.renderSalesTab(); } catch(e) {} 
         try { this.bindPassbookUI(rawClients); this.applyPassbookFilters(rawClients); } catch(e) {}
         try { this.bindOverviewAnalyticsUI(); } catch(e) {} 
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
@@ -1730,7 +1730,14 @@ const packages = state.packages || [];
 
     html += `
       <tr class="hover:bg-gray-50 border-b border-gray-50">
-        <td class="p-4 font-bold text-gray-700">${p.purchase_date || "—"}</td>
+        <td class="p-4 font-bold text-gray-700">
+  ${(() => {
+    if (!p.purchase_date) return "—";
+    const d = new Date(p.purchase_date + "T00:00:00");
+    const mst = window.portal?.toMST ? window.portal.toMST(d) : d;
+    return `${mst.getMonth()+1}-${mst.getDate()}-${mst.getFullYear()}`;
+  })()}
+</td>
         <td class="p-4 text-xs font-mono text-gray-400">${txn}</td>
         <td class="p-4 font-black text-gray-900">${company} <span class="text-[10px] text-gray-400 font-normal ml-1">(${code})</span></td>
         <td class="p-4 text-gray-600">${poc}</td>
