@@ -782,6 +782,10 @@ this.adminState.weeklyPayroll = dataRoot.weeklyPayroll || [];
 
 this.adminState.clientHealthView = supaClientHealth;
 this.adminState.agentPerformanceView = supaAgentPerformance;
+      const arrowheadDebug = this.adminState.clientHealthView.find(
+  x => String(x.company_name || '').toLowerCase().includes('arrowhead')
+);
+console.log('DEBUG clientHealthView Arrowhead:', arrowheadDebug);
 
       console.log('clientHealthView rows:', this.adminState.clientHealthView.length);
 console.log('agentPerformanceView rows:', this.adminState.agentPerformanceView.length);
