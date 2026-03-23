@@ -1330,7 +1330,6 @@ const allocationRows = Array.isArray(state.clientPackageAllocationView)
   : [];
 const leads = state.leads || [];
 const packages = state.packages || [];
-const rawClients = state.rawClients || [];
 
         // 1. Index leads by COMPANY NAME for Health Monitor math
         this._leadsIndexByCompany = new Map();
@@ -3347,7 +3346,7 @@ const normalizePkgStatus = (value) => {
                     <i class="fa-solid fa-xmark text-sm font-black pointer-events-none"></i>
                 </button>
                 
-                <<div class="mb-3 pr-4">
+               <div class="mb-3 pr-4">
     <p class="text-[11px] text-gray-500 font-bold uppercase mb-1">${c.code}</p>
     <h4 class="font-bold text-gray-900 leading-tight" title="${String(c.roofingCompany).replace(/<[^>]*>/g, '')}">
       ${c.roofingCompany}
