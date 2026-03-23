@@ -1830,19 +1830,17 @@ allocation.forEach(a => {
 
        // RULE 2: PACKAGE FILTER (Defaults to ONGOING)
         if (pkgFilter !== "ALL") {
-            filtered = filtered.filter(r => {
-                if (pkgFilter === "ONGOING") {
-                    // HARD BLOCK: If the package is PAUSE or REFUNDED, never show it in default view
-                    if (r.packageStatus === "PAUSE" || r.packageStatus === "REFUNDED") return false;
-                    
-                    // Otherwise, show if explicitly ONGOING, or if we owe them leads
-                    return r.packageStatus === "ONGOING" || r.owedRemaining > 0;
-                }
-                
-                // For all other dropdown selections (Pause, Completed, etc.), match exactly
-                return r.packageStatus === pkgFilter;
-            });
+    filtered = filtered.filter(r => {
+        const status = String(r.packageStatus || "").toUpperCase();
+        const target = String(pkgFilter || "").toUpperCase();
+
+        if (target === "ONGOING") {
+            return status === "ONGOING";
         }
+
+        return status === target;
+    });
+}
 
         // RULE 3: HEALTH STATUS (At risk, critical, etc.)
         if (checkedHealth.length > 0) {
