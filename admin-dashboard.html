@@ -1358,7 +1358,7 @@ const packages = state.packages || [];
         try { this.initLeadsColumnsUI(); this.applyLeadsFilters(); } catch(e) {}
         try { this.bindLeadsMasterEvents(); } catch(e) {} 
         try { window.fetchSalesPipeline(); } catch(e) {} 
-        try { this.bindPassbookUI(clients); this.applyPassbookFilters(clients); } catch(e) {}
+        try { this.bindPassbookUI(rawClients); this.applyPassbookFilters(rawClients); } catch(e) {}
         try { this.bindOverviewAnalyticsUI(); } catch(e) {} 
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
         try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
@@ -1523,8 +1523,7 @@ if (st.includes('APPROV') || st.includes('CONFIRM')) {
               else if (hoursSinceLastLead > 48) healthStatus = "CRITICAL";   
               else healthStatus = "AT RISK";    
 
-              const isRenewal = pkgIndex > 0;
-            const packageStatusRow = packageStatusMap.get(code.toLowerCase()) || {};
+             const isRenewal = pkgIndex > 0;
 
 const backendPurchased = Number(packageStatusRow.purchased_leads ?? 0);
 const backendOwed = Number(packageStatusRow.owed_leads ?? 0);
@@ -1553,10 +1552,8 @@ const backendLastLead = c.last_lead_at
   ? window.portal.formatDate(c.last_lead_at)
   : (lastLeadDate ? window.portal.formatDate(lastLeadDate) : "—");
 
-      const finalCityState = cityState;
+const finalCityState = cityState;
 const finalClientName = clientName;
-
-const finalPackageRatio = `${Math.max((Number(pkg.purchased_leads) || 0) - qCount, 0)} / ${Number(pkg.purchased_leads) || 0}`;
 
 finalRows.push({
                   _raw: c,
