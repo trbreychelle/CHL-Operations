@@ -1427,8 +1427,12 @@
                   leadList.shift(); // Remove it from the queue so the next package doesn't get it
                   
                   const st = String(l.status || l.STATUS || l.Lead_Status || "").toUpperCase();
-                  if (st.includes('APPROV') || st.includes('CONFIRM')) qCount++;
-                  else if (st.includes('CREDIT') || st.includes('REJECT')) cCount++;
+
+if (st.includes('APPROV') || st.includes('CONFIRM')) {
+  qCount++;
+} else if (st.includes('CREDIT')) {
+  cCount++;
+}
 
                   if (!firstLeadDate) firstLeadDate = lDate;
                   lastLeadDate = lDate;
