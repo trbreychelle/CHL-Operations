@@ -3413,12 +3413,12 @@ const normalizePkgStatus = (value) => {
                     <i class="fa-solid fa-xmark text-sm font-black pointer-events-none"></i>
                 </button>
                 
-                <div class="mb-3 pr-4">
-    <h4 class="font-bold text-gray-900 truncate" title="${String(c.roofingCompany).replace(/<[^>]*>/g, '')}">
+                <<div class="mb-3 pr-4">
+    <p class="text-[11px] text-gray-500 font-bold uppercase mb-1">${c.code}</p>
+    <h4 class="font-bold text-gray-900 leading-tight" title="${String(c.roofingCompany).replace(/<[^>]*>/g, '')}">
       ${c.roofingCompany}
-      <span class="text-xs text-gray-500 font-normal ml-1">(${c.code})</span>
     </h4>
-    <p class="text-[10px] text-gray-400 font-bold uppercase mt-0.5">${c.cityState}</p>
+    <p class="text-[10px] text-gray-400 font-bold uppercase mt-1">${c.cityState}</p>
     <p class="text-[11px] text-gray-600 mt-1">
       <span class="font-bold">Owed:</span> ${c.owedRemaining}
       <span class="mx-2 text-gray-300">•</span>
@@ -3471,11 +3471,12 @@ const normalizePkgStatus = (value) => {
 
             poolHtml += `
             <div class="border border-gray-200 rounded-lg p-3 hover:border-gray-300 hover:shadow-sm transition-all flex justify-between items-center group bg-gray-50/30">
-                <div>
-    <h4 class="text-sm font-bold text-gray-800 truncate" title="${String(c.roofingCompany).replace(/<[^>]*>/g, '')}">
+  <div>
+    <p class="text-[10px] text-gray-500 font-bold uppercase mb-1">${c.code}</p>
+    <h4 class="text-sm font-bold text-gray-800 leading-tight" title="${String(c.roofingCompany).replace(/<[^>]*>/g, '')}">
       ${c.roofingCompany}
     </h4>
-    <p class="text-[10px] text-gray-500 mb-1">${c.code} • ${c.cityState}</p>
+    <p class="text-[10px] text-gray-500 mb-1">${c.cityState}</p>
     <p class="text-[11px] text-gray-600 mb-1.5">
       <span class="font-bold">Owed:</span> ${c.owedRemaining}
       <span class="mx-2 text-gray-300">•</span>
