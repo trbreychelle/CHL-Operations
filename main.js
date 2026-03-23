@@ -22,16 +22,16 @@ class CallHammerPortal {
     // Admin datasets (normalized + raw)
     this.adminState = {
   rawClients: [],
-  clients: [],
-  leads: [],
-  agents: [],
-  rawStatuses: [],
-  rawPackages: [],
-  weeklyPayroll: [],
-  payrollHistory: [],
-
-  clientHealthView: [],
-  agentPerformanceView: []
+clients: [],
+leads: [],
+agents: [],
+rawStatuses: [],
+rawPackages: [],
+weeklyPayroll: [],
+payrollHistory: [],
+clientHealthView: [],
+agentPerformanceView: [],
+clientPackageStatusView: []
 };
 
     // Cache to avoid Google Sheets quota/too-many-requests issues
@@ -749,16 +749,17 @@ async fetchAdminData(forceRefresh = false) {
       const result = await response.json();
       const dataRoot = result?.data || result || {};
 
-      let supaLeads = [], supaPackages = [], supaClients = [], supaTime = [], supaAgents = [], supaClientHealth = [], supaAgentPerformance = [];
+      let supaLeads = [], supaPackages = [], supaClients = [], supaTime = [], supaAgents = [], supaClientHealth = [], supaAgentPerformance = [], supaClientPackageStatus = [];
       if (supaClient) {
-          const [lRes, pRes, cRes, tRes, aRes, chRes, apRes] = await Promise.all([
+          const [lRes, pRes, cRes, tRes, aRes, chRes, apRes, cpsRes] = await Promise.all([
     supaClient.from('leads_raw').select('*'),
     supaClient.from('packages').select('*'),
     supaClient.from('clients').select('*'),
     supaClient.from('time_events').select('*'),
     supaClient.from('agents').select('*'),
     supaClient.from('client_health_view').select('*'),
-    supaClient.from('agent_performance_view').select('*')
+    supaClient.from('agent_performance_view').select('*'),
+    supaClient.from('client_package_status_view').select('*')
 ]);
 
 supaLeads = lRes.data || [];
@@ -768,6 +769,7 @@ supaTime = tRes.data || [];
 supaAgents = aRes.data || [];
 supaClientHealth = chRes.data || [];
 supaAgentPerformance = apRes.data || [];
+supaClientPackageStatus = cpsRes.data || [];
       }
 
       this.adminState.rawClients = supaClients.length > 0 ? supaClients : (dataRoot.clients || []);
@@ -779,6 +781,9 @@ this.adminState.weeklyPayroll = dataRoot.weeklyPayroll || [];
 
 this.adminState.clientHealthView = supaClientHealth;
 this.adminState.agentPerformanceView = supaAgentPerformance;
+this.adminState.clientPackageStatusView = supaClientPackageStatus;
+
+      console.log('clientPackageStatusView rows:', this.adminState.clientPackageStatusView.length);
 
 this.adminState.clients = this.adminState.clientHealthView.length > 0
   ? this.adminState.clientHealthView
