@@ -1322,11 +1322,15 @@
 
       refreshDashboard() {
         const state = this.getState();
-        if (!state) return;
-        
-const allocationRows = Array.isArray(state.clientPackageAllocationView) ? state.clientPackageAllocationView : [];
+if (!state) return;
+
+const rawClients = state.rawClients || [];
+const allocationRows = Array.isArray(state.clientPackageAllocationView)
+  ? state.clientPackageAllocationView
+  : [];
 const leads = state.leads || [];
 const packages = state.packages || [];
+const rawClients = state.rawClients || [];
 
         // 1. Index leads by COMPANY NAME for Health Monitor math
         this._leadsIndexByCompany = new Map();
@@ -1681,56 +1685,74 @@ const packages = state.packages || [];
         let html = "";
 
         filtered.sort((a,b) => new Date(b.purchase_date || 0) - new Date(a.purchase_date || 0)).forEach(p => {
-            const code = String(p.client_code || "—").trim();
-            const clientMatch = clients.find(c => String(c.client_code || c.code_name) === code) || {};
-            const company = clientMatch.company_name || clientMatch.roofing_company || "Unknown Client";
-            
-            if (q && !`${company} ${code} ${p.transaction_id || ''}`.toLowerCase().includes(q)) return;
+    const code = String(p.client_code || "—").trim();
+    const clientMatch = clients.find(c =>
+      String(c.client_code || c.code_name || "").trim().toLowerCase() === code.toLowerCase()
+    ) || {};
 
-            const dealVal = Number(p.deal_value) || 0;
-            const commVal = Number(p.commission_per_lead) || 0; 
-            
-            totalSales += dealVal;
-            totalCommissions += commVal;
+    const company = clientMatch.company_name || clientMatch.roofing_company || "Unknown Client";
+    const poc = p.poc || clientMatch.contact_person || clientMatch.client_name || "—";
+    const txn = p.transaction_id || p.external_package_id || "—";
+    const soldBy = p.sold_by || p.sales_category || "—";
 
-            let stBadge = "bg-gray-100 text-gray-700";
-            const st = String(p.status || "").toUpperCase();
-            if (st === 'ACTIVE') stBadge = "bg-emerald-100 text-emerald-800";
-            if (st === 'PAUSE') stBadge = "bg-yellow-100 text-yellow-800";
-            if (st === 'COMPLETED') stBadge = "bg-blue-100 text-blue-800";
+    if (q && !`${company} ${code} ${txn}`.toLowerCase().includes(q)) return;
 
-            let dealBadge = "bg-gray-100 text-gray-700";
-            const ds = String(p.deal_status || "").toUpperCase();
-            if (ds === 'PAID') dealBadge = "bg-emerald-100 text-emerald-800";
-            if (ds === 'NEGOTIATING') dealBadge = "bg-yellow-100 text-yellow-800";
-            if (ds === 'REFUNDED') dealBadge = "bg-red-100 text-red-800";
+    const dealVal = Number(p.deal_value || p.amount) || 0;
+    const purchasedAmount = Number(p.purchased_leads) || 0;
 
-            // Safely Format the First Lead Date
-            let startedStr = "—";
-            if (p._safeFirstLead) {
-                // Formatting date to MM/DD/YYYY securely
-                startedStr = `${p._safeFirstLead.getMonth() + 1}/${p._safeFirstLead.getDate()}/${p._safeFirstLead.getFullYear()}`;
-            }
+    const purchaseDateObj = p.purchase_date ? new Date(p.purchase_date + "T00:00:00") : null;
+    const ratePerLead = purchaseDateObj && purchaseDateObj >= new Date("2026-03-09T00:00:00")
+      ? 135
+      : 125;
 
-            html += `
-              <tr class="hover:bg-gray-50 border-b border-gray-50">
-                <td class="p-4 font-bold text-gray-700">${p.purchase_date || "—"}</td>
-                <td class="p-4 text-xs font-mono text-gray-400">${p.transaction_id || "—"}</td>
-                <td class="p-4 font-black text-gray-900">${company} <span class="text-[10px] text-gray-400 font-normal ml-1">(${code})</span></td>
-                <td class="p-4 text-gray-600">${p.poc || clientMatch.contact_person || "—"}</td>
-                <td class="p-4 text-center font-bold">${p.purchased_leads || 0}</td>
-                <td class="p-4 text-emerald-600 font-black">$${dealVal.toLocaleString()}</td>
-                <td class="p-4 text-purple-600 font-black">$${commVal.toLocaleString()}</td>
-                <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${stBadge}">${st || 'UNKNOWN'}</span></td>
-                <td class="p-4 text-gray-600 font-bold">${p.sold_by || "—"}</td>
-                <td class="p-4 text-blue-600 font-bold">${startedStr}</td>
-                <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${dealBadge}">${ds || 'UNKNOWN'}</span></td>
-                <td class="p-4 text-center">
-                    <button class="text-gray-300 hover:text-red-500 transition-colors" title="Delete Deal"><i class="fa-solid fa-trash-can"></i></button>
-                </td>
-              </tr>
-            `;
-        });
+    const totalLeadCost = purchasedAmount * ratePerLead;
+    const commVal = Math.max(0, dealVal - totalLeadCost);
+
+    totalSales += dealVal;
+    totalCommissions += commVal;
+
+    let stBadge = "bg-gray-100 text-gray-700";
+    const st = String(p.status || "").toUpperCase();
+    if (st === 'ACTIVE' || st === 'ONGOING') stBadge = "bg-emerald-100 text-emerald-800";
+    if (st === 'PAUSE') stBadge = "bg-yellow-100 text-yellow-800";
+    if (st === 'COMPLETED') stBadge = "bg-blue-100 text-blue-800";
+    if (st === 'REFUNDED') stBadge = "bg-red-100 text-red-800";
+
+    let dealBadge = "bg-gray-100 text-gray-700";
+    const ds = String(p.deal_status || "").toUpperCase();
+    if (ds === 'PAID') dealBadge = "bg-emerald-100 text-emerald-800";
+    if (ds === 'NEGOTIATING') dealBadge = "bg-yellow-100 text-yellow-800";
+    if (ds === 'REFUNDED') dealBadge = "bg-red-100 text-red-800";
+
+    let startedStr = "—";
+    if (p._safeFirstLead instanceof Date && !isNaN(p._safeFirstLead.getTime())) {
+        startedStr = `${p._safeFirstLead.getMonth() + 1}/${p._safeFirstLead.getDate()}/${p._safeFirstLead.getFullYear()}`;
+    }
+
+    html += `
+      <tr class="hover:bg-gray-50 border-b border-gray-50">
+        <td class="p-4 font-bold text-gray-700">${p.purchase_date || "—"}</td>
+        <td class="p-4 text-xs font-mono text-gray-400">${txn}</td>
+        <td class="p-4 font-black text-gray-900">${company} <span class="text-[10px] text-gray-400 font-normal ml-1">(${code})</span></td>
+        <td class="p-4 text-gray-600">${poc}</td>
+        <td class="p-4 text-center font-bold">${purchasedAmount}</td>
+        <td class="p-4 text-emerald-600 font-black">$${dealVal.toLocaleString()}</td>
+        <td class="p-4 text-purple-600 font-black">$${commVal.toLocaleString()}</td>
+        <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${stBadge}">${st || 'UNKNOWN'}</span></td>
+        <td class="p-4 text-gray-600 font-bold">${soldBy}</td>
+        <td class="p-4 text-blue-600 font-bold">${startedStr}</td>
+        <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${dealBadge}">${ds || 'UNKNOWN'}</span></td>
+        <td class="p-4 text-center flex justify-center gap-2">
+            <button onclick="window.editDealModal('${p.id}')" class="text-gray-400 hover:text-blue-600 transition-colors" title="Edit Deal">
+              <i class="fa-solid fa-pen-to-square"></i>
+            </button>
+            <button onclick="window.deleteDeal('${p.id}', '${String(company).replace(/'/g, "\\'")}')" class="text-gray-300 hover:text-red-500 transition-colors" title="Delete Deal">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+        </td>
+      </tr>
+    `;
+});
 
         document.getElementById("sales-total-kpi").textContent = totalSales.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
         document.getElementById("sales-commissions-kpi").textContent = totalCommissions.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
