@@ -1398,13 +1398,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('salesClientStatusFilter')) {
         fetchSalesClients('Active');
     }
-    document.getElementById('admin-sales-category-filter')?.addEventListener('change', fetchSalesPipeline);
-    document.getElementById('admin-sales-status-filter')?.addEventListener('change', fetchSalesPipeline);
-    document.getElementById('sales-status-filter')?.addEventListener('change', fetchSalesPipeline);
-    document.getElementById('admin-sales-search')?.addEventListener('input', fetchSalesPipeline);
-    document.getElementById('admin-sales-package-filter')?.addEventListener('change', fetchSalesPipeline);
-    
-    if (document.getElementById('view-sales')) fetchSalesPipeline();
+    // ❌ OLD SALES PIPELINE DISABLED COMPLETELY
+// All rendering is now handled by Admin.renderSalesTab()
 });
 
 // ==========================================
