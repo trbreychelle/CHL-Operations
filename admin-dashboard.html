@@ -1409,6 +1409,9 @@ const packages = state.packages || [];
       rc
     ])
   );
+        const packageMap = new Map(
+  (packages || []).map(p => [String(p.id || "").trim(), p])
+);
 
   return (allocationRows || []).map(row => {
     const code = String(row.client_code || "").trim();
