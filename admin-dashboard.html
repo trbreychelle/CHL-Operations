@@ -3455,11 +3455,14 @@ const normalizePkgStatus = (value) => {
 
         // 2. RENDER POOL BOARD
         poolClients.forEach(c => {
-          const normalizedPkgStatus = normalizePkgStatus(c.packageStatus);
-            if (c.owedRemaining <= 0) return;
-            if (c.packageStatus !== "ONGOING" && c.packageStatus !== "PAUSE") return;
-            if (searchTerm && !`${c.roofingCompany} ${c.code} ${c.cityState}`.toLowerCase().includes(searchTerm)) return;
-            if (packageFilter !== "ALL" && normalizedPkgStatus !== packageFilter) return;
+  const normalizedPkgStatus = normalizePkgStatus(c.packageStatus);
+  if (c.owedRemaining <= 0) return;
+  if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return;
+
+  const safeSearchText = `${String(c.searchName || c.roofingCompany || "")} ${String(c.code || "")} ${String(c.cityState || "")}`.toLowerCase();
+  if (searchTerm && !safeSearchText.includes(searchTerm)) return;
+
+  if (packageFilter !== "ALL" && normalizedPkgStatus !== packageFilter) return;
 
             let healthColor = "text-blue-600 bg-blue-50";
             if (c.healthStatus === "CRITICAL") healthColor = "text-red-600 bg-red-50";
