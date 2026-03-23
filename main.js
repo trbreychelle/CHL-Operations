@@ -31,6 +31,7 @@ weeklyPayroll: [],
 payrollHistory: [],
 clientHealthView: [],
 agentPerformanceView: [],
+clientPackageAllocationView: [],
 clientPackageStatusView: []
 };
 
@@ -749,9 +750,9 @@ async fetchAdminData(forceRefresh = false) {
       const result = await response.json();
       const dataRoot = result?.data || result || {};
 
-      let supaLeads = [], supaPackages = [], supaClients = [], supaTime = [], supaAgents = [], supaClientHealth = [], supaAgentPerformance = [], supaClientPackageStatus = [];
+      let supaLeads = [], supaPackages = [], supaClients = [], supaTime = [], supaAgents = [], supaClientHealth = [], supaAgentPerformance = [], supaClientPackageStatus = [], supaClientPackageAllocation = [];
       if (supaClient) {
-          const [lRes, pRes, cRes, tRes, aRes, chRes, apRes, cpsRes] = await Promise.all([
+          const [lRes, pRes, cRes, tRes, aRes, chRes, apRes, cpsRes, cpaRes] = await Promise.all([
     supaClient.from('leads_raw').select('*'),
     supaClient.from('packages').select('*'),
     supaClient.from('clients').select('*'),
@@ -759,7 +760,8 @@ async fetchAdminData(forceRefresh = false) {
     supaClient.from('agents').select('*'),
     supaClient.from('client_health_view').select('*'),
     supaClient.from('agent_performance_view').select('*'),
-    supaClient.from('client_package_status_view').select('*')
+    supaClient.from('client_package_status_view').select('*'),
+    supaClient.from('client_package_allocation_view').select('*')
 ]);
 
 supaLeads = lRes.data || [];
@@ -770,6 +772,7 @@ supaAgents = aRes.data || [];
 supaClientHealth = chRes.data || [];
 supaAgentPerformance = apRes.data || [];
 supaClientPackageStatus = cpsRes.data || [];
+supaClientPackageAllocation = cpaRes.data || [];
       }
 
       this.adminState.rawClients = supaClients.length > 0 ? supaClients : (dataRoot.clients || []);
@@ -782,6 +785,7 @@ this.adminState.weeklyPayroll = dataRoot.weeklyPayroll || [];
 this.adminState.clientHealthView = supaClientHealth;
 this.adminState.agentPerformanceView = supaAgentPerformance;
 this.adminState.clientPackageStatusView = supaClientPackageStatus;
+this.adminState.clientPackageAllocationView = supaClientPackageAllocation;
 
       console.log('clientPackageStatusView rows:', this.adminState.clientPackageStatusView.length);
 
@@ -791,10 +795,11 @@ this.adminState.clients = this.adminState.clientHealthView.length > 0
       const arrowheadDebug = this.adminState.clientHealthView.find(
   x => String(x.company_name || '').toLowerCase().includes('arrowhead')
 );
-console.log('DEBUG clientHealthView Arrowhead:', arrowheadDebug);
+      console.log('DEBUG clientHealthView Arrowhead:', arrowheadDebug);
 
       console.log('clientHealthView rows:', this.adminState.clientHealthView.length);
-console.log('agentPerformanceView rows:', this.adminState.agentPerformanceView.length);
+      console.log('agentPerformanceView rows:', this.adminState.agentPerformanceView.length);
+      console.log('clientPackageAllocationView rows:', this.adminState.clientPackageAllocationView.length);
 
       this.triggerAdminRefresh();
     } catch (err) {
