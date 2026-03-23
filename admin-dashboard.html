@@ -1492,6 +1492,30 @@ const backendLastLead = c.last_lead_at
   ? window.portal.formatDate(c.last_lead_at)
   : (lastLeadDate ? window.portal.formatDate(lastLeadDate) : "—");
 
+       const finalCityState =
+  c.city_state ||
+  c.cityState ||
+  c.location ||
+  c.Location ||
+  clientMatch?.city_state ||
+  clientMatch?.cityState ||
+  clientMatch?.location ||
+  clientMatch?.Location ||
+  "—";
+
+const finalClientName =
+  c.client_name ||
+  c.clientName ||
+  c.contact_person ||
+  c.contactPerson ||
+  clientMatch?.client_name ||
+  clientMatch?.clientName ||
+  clientMatch?.contact_person ||
+  clientMatch?.contactPerson ||
+  "—";
+
+const finalPackageRatio = `${Math.max((Number(pkg.purchased_leads) || 0) - qCount, 0)} / ${Number(pkg.purchased_leads) || 0}`;
+
 finalRows.push({
                   _raw: c,
                   _pkgId: pkg.id,
@@ -1501,9 +1525,10 @@ finalRows.push({
                   // VISUAL RENEWAL TAG!
                   roofingCompany: company + (isRenewal ? ' <span class="text-[9px] font-black text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded ml-2">RENEWAL</span>' : ''),
                   searchName: company + (isRenewal ? ' renewal' : ''),
-                  cityState: cityState,
-                  clientName: clientName,
+                  cityState: finalCityState,
+                  clientName: finalClientName,
                   packageStatus: pkgStatus,
+                  packageRatio: `${owed} / ${purchased}`,
                   packageLabel: `${owed} / ${purchased}`,
                   owedRemaining: owed,
                   qualifiedCount: backendQualified,
