@@ -1544,23 +1544,39 @@ async function submitNewClient(e) {
 // ✅ CLIENT HEALTH MONITOR (MISSION CONTROL)
 // ==========================================
 window.updateClientPackageStatus = async function(packageId, newPackageStatus) {
-    if (!supaClient) return alert("Database connection missing.");
+    if (!supaClient) {
+        alert("Database connection missing.");
+        return;
+    }
+
+    const cleanId = String(packageId || "").trim();
+    if (!cleanId || cleanId === "null" || cleanId === "undefined") {
+        console.error("Missing packageId in updateClientPackageStatus:", packageId);
+        alert("Package ID is missing for this row. Cannot update status.");
+        return;
+    }
+
+    console.log("Updating package status", { packageId: cleanId, newPackageStatus });
 
     try {
-        const { error: updateErr } = await supaClient
+        const { data, error: updateErr } = await supaClient
             .from('packages')
             .update({ status: newPackageStatus })
-            .eq('id', packageId);
+            .eq('id', cleanId)
+            .select();
 
         if (updateErr) {
             console.error("Status Update Error:", updateErr);
             alert("Failed to update package in ledger.");
+            return;
+        }
+
+        console.log("Package status updated:", data);
+
+        if (window.portal && typeof window.portal.fetchAdminData === 'function') {
+            await window.portal.fetchAdminData(true);
         } else {
-            if (window.portal && typeof window.portal.fetchAdminData === 'function') {
-                window.portal.fetchAdminData(true);
-            } else {
-                location.reload();
-            }
+            location.reload();
         }
     } catch (error) {
         console.error("Status Update Error:", error);
