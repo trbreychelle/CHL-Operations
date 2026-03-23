@@ -1751,10 +1751,19 @@ allocation.forEach(a => {
     if (ds === 'NEGOTIATING') dealBadge = "bg-yellow-100 text-yellow-800";
     if (ds === 'REFUNDED') dealBadge = "bg-red-100 text-red-800";
 
-    let startedStr = "—";
-    if (p._safeFirstLead instanceof Date && !isNaN(p._safeFirstLead.getTime())) {
-        startedStr = `${p._safeFirstLead.getMonth() + 1}/${p._safeFirstLead.getDate()}/${p._safeFirstLead.getFullYear()}`;
-    }
+    const alloc = allocationMap.get(p.id) || {};
+let startedStr = "—";
+
+if (alloc.first_lead_at) {
+  const d = new Date(alloc.first_lead_at);
+  if (!isNaN(d.getTime())) {
+    const mst = window.portal?.toMST ? window.portal.toMST(d) : d;
+    const mm = String(mst.getMonth() + 1).padStart(2, "0");
+    const dd = String(mst.getDate()).padStart(2, "0");
+    const yyyy = mst.getFullYear();
+    startedStr = `${mm}-${dd}-${yyyy}`;
+  }
+}
 
     html += `
       <tr class="hover:bg-gray-50 border-b border-gray-50">
