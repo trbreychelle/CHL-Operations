@@ -1258,7 +1258,7 @@ window.editDealModal = function(pkgId) {
     document.getElementById('sale-transaction-id').value = pkg.external_package_id || "";
     document.getElementById('sale-deal-status').value = pkg.deal_status || "Paid";
     document.getElementById('sale-deal-type').value = pkg.deal_type || "New Client";
-    document.getElementById('sale-category').value = pkg.sales_category || "Sales Team";
+    document.getElementById('sale-category').value = pkg.sales_category || "CHL Team";
 
     document.getElementById('sale-modal-title').innerText = "Edit Deal Details";
     document.getElementById('save-sale-btn').innerText = "Update Deal";
