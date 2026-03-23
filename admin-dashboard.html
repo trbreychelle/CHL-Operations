@@ -550,9 +550,15 @@
 
           <div class="flex flex-col md:flex-row gap-3">
             <div class="flex-1 relative">
-              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
-              <input type="text" id="admin-sales-search" placeholder="Search deal, client name, package..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
-            </div>
+  <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+  <input type="text" id="admin-sales-search" autocomplete="off"
+    placeholder="Search deal, client name, package..."
+    class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+
+  <div id="admin-sales-search-suggestions"
+       class="hidden absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-xl max-h-56 overflow-y-auto">
+  </div>
+</div>
             
             <select id="admin-sales-category-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[170px] text-blue-700">
   <option value="All">View: ALL Sales</option>
@@ -1361,7 +1367,7 @@ const packages = state.packages || [];
         // 3. Keep other dashboard modules alive
         try { this.initLeadsColumnsUI(); this.applyLeadsFilters(); } catch(e) {}
         try { this.bindLeadsMasterEvents(); } catch(e) {} 
-        try { this.renderSalesTab(); } catch(e) {} 
+        try { this.bindSalesUI(); this.renderSalesTab(); } catch(e) { console.error("Sales Error:", e); } 
         try { this.bindPassbookUI(rawClients); this.applyPassbookFilters(rawClients); } catch(e) {}
         try { this.bindOverviewAnalyticsUI(); } catch(e) {} 
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
@@ -1560,7 +1566,12 @@ if (dealStatus === "REFUNDED") packageStatus = "REFUNDED";
         const catSel = document.getElementById("admin-sales-category-filter");
         const pkgSel = document.getElementById("admin-sales-package-filter");
 
-        if (search) search.addEventListener("input", () => this.renderSalesTab());
+if (search) {
+  search.addEventListener("input", () => {
+    clearTimeout(this._salesSearchTimer);
+    this._salesSearchTimer = setTimeout(() => this.renderSalesTab(), 180);
+  });
+}
         if (catSel) catSel.addEventListener("change", () => this.renderSalesTab());
         if (pkgSel) pkgSel.addEventListener("change", () => this.renderSalesTab());
 
@@ -1855,6 +1866,7 @@ if (dealStatus === "REFUNDED") packageStatus = "REFUNDED";
         const checkedHealth = Array.from(document.querySelectorAll('.health-st-chk:checked')).map(cb => cb.value.toUpperCase());
 
         let filtered = [...this.clientHealthRaw];
+        filtered = filtered.filter(r => String(r.dealStatus || "").toUpperCase() !== "NEGOTIATING");
 
         // RULE 1: STRICTLY PASSBOOK 'ACTIVE' ONLY
         const activePkgFilter = String(pkgFilter || "ONGOING").toUpperCase();
@@ -1936,7 +1948,7 @@ filtered = filtered.filter(r => {
       renderClientHealthTable(rows) {
         const tbody = document.getElementById("client-health-body");
         if (!rows.length) {
-          tbody.innerHTML = `<tr><td colspan="15" class="p-6 text-center text-gray-400 italic">No Active clients matching filters.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="15" class="p-6 text-center text-gray-400 italic">No packages matching filters.</td></tr>`;
           return;
         }
 
@@ -2320,14 +2332,17 @@ filtered = filtered.filter(r => {
       },
 
       computeTotalOwedLeads(packageStatus = "all") {
-        const rows = Array.isArray(this.clientHealthRaw) ? this.clientHealthRaw : [];
-        let total = 0;
-        for (const r of rows) {
-          if (packageStatus !== "all" && String(r.packageStatus || "").toUpperCase() !== packageStatus) continue;
-          total += Number(r.owedRemaining) || 0; 
-        }
-        return total;
-      },
+  const rows = Array.isArray(this.clientHealthRaw) ? this.clientHealthRaw : [];
+  let total = 0;
+
+  for (const r of rows) {
+    if (String(r.dealStatus || "").toUpperCase() === "NEGOTIATING") continue;
+    if (packageStatus !== "all" && String(r.packageStatus || "").toUpperCase() !== packageStatus) continue;
+    total += Number(r.owedRemaining) || 0;
+  }
+
+  return total;
+},
 
       bindOwedLeadsKPI() {
         const sel = document.getElementById("owed-package-filter");
@@ -3322,7 +3337,10 @@ const normalizePkgStatus = (value) => {
         let serveHtml = "";
         
         // SEPARATE SORTING: Pool stays alphabetical, Serving stacks at the bottom
-        let allActiveClients = this.clientHealthRaw.filter(c => c.passbookStatus === "ACTIVE");
+        let allActiveClients = this.clientHealthRaw.filter(c =>
+  c.passbookStatus === "ACTIVE" &&
+  String(c.dealStatus || "").toUpperCase() !== "NEGOTIATING"
+);
         let servingClients = allActiveClients.filter(c => c.isServing);
         let poolClients = allActiveClients.filter(c => !c.isServing);
 
@@ -3407,8 +3425,10 @@ const normalizePkgStatus = (value) => {
         // 2. RENDER POOL BOARD
         poolClients.forEach(c => {
   const normalizedPkgStatus = normalizePkgStatus(c.packageStatus);
-  if (c.owedRemaining <= 0) return;
-  if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return;
+  if (String(c.dealStatus || "").toUpperCase() === "NEGOTIATING") return;
+if (normalizedPkgStatus === "REFUNDED" || normalizedPkgStatus === "COMPLETED") return;
+if (c.owedRemaining <= 0) return;
+if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return;
 
   const safeSearchText = `${String(c.searchName || c.roofingCompany || "")} ${String(c.code || "")} ${String(c.cityState || "")}`.toLowerCase();
   if (searchTerm && !safeSearchText.includes(searchTerm)) return;
