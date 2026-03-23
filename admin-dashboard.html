@@ -2065,7 +2065,10 @@ filtered = filtered.filter(r => {
                   <span class="tooltip-text"><b>${r.healthStatus}</b></span>
                 </div>
               </td>
-              <td class="p-4 text-gray-700 font-semibold">${r.code}</td>
+              <td class="p-4 text-gray-700 font-semibold">
+  ${r.code}
+  <div class="text-[10px] text-red-400 font-bold">pkg: ${r._pkgId || 'MISSING'}</div>
+</td>
               <td class="p-4 font-bold text-gray-900">${r.roofingCompany}</td>
               <td class="p-4 text-gray-600">${r.cityState}</td>
               <td class="p-4 text-center text-gray-900 font-bold">${r.packageLabel}</td>
@@ -2075,7 +2078,7 @@ filtered = filtered.filter(r => {
               <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsToday}</td>
               <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsYesterday}</td>
               <td class="p-4">
-                <select onchange="window.updateClientPackageStatus('${r._pkgId}', this.value)" class="px-2 py-1 rounded text-[10px] font-extrabold border outline-none cursor-pointer shadow-sm ${pkgColor}">
+                <select onchange="window.updateClientPackageStatus('${String(r._pkgId || "").replace(/'/g, "\'")}', this.value)" class="px-2 py-1 rounded text-[10px] font-extrabold border outline-none cursor-pointer shadow-sm ${pkgColor}">
                     <option value="Active" ${r.packageStatus === 'ONGOING' ? 'selected' : ''}>ONGOING</option>
                     <option value="Pause" ${r.packageStatus === 'PAUSE' ? 'selected' : ''}>PAUSE</option>
                     <option value="Completed" ${r.packageStatus === 'COMPLETED' ? 'selected' : ''}>COMPLETED</option>
