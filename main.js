@@ -1096,7 +1096,7 @@ window.fetchSalesPipeline = function() {
     if (!state || !state.packages) return;
 
     const packages = state.packages; 
-    const clients = state.clients || [];
+    const clients = state.rawClients || state.clients || [];
 
     const tbody = document.getElementById('admin-sales-table-body');
     if (!tbody) return;
@@ -1109,7 +1109,9 @@ window.fetchSalesPipeline = function() {
 
     let rows = packages.map(pkg => {
         const code = String(pkg.client_code || "").trim();
-        const client = clients.find(c => String(c.code_name || c.client_code || "").trim().toLowerCase() === code.toLowerCase()) || {};
+        const client = clients.find(c =>
+  String(c.client_code || c.code_name || "").trim().toLowerCase() === code.toLowerCase()
+) || {};
         
         let pStatus = String(pkg.status || "COMPLETED").toUpperCase();
         if (pStatus === 'ACTIVE') pStatus = 'ONGOING';
@@ -1128,16 +1130,16 @@ window.fetchSalesPipeline = function() {
             id: pkg.id,
             purchaseDateRaw: new Date(pkg.purchase_date || 0),
             purchaseDate: window.portal.formatDate(pkg.purchase_date) || "—",
-            txn: pkg.external_package_id || "—",
+            txn: pkg.external_package_id || pkg.transaction_id || "—",
             company: client.company_name || client.roofing_company || "—",
-            poc: client.contact_person || client.client_name || "—",
+            poc: client.contact_person || client.client_name || client.contact_name || "—",
             packageLeads: purchasedAmount,
             dealValueNum: valNum,
             dealValue: valFormatted,
             totalComm: commFormatted,
             pkgStatus: pStatus,
             dealStatus: pkg.deal_status || "—", // <--- NEW LINE
-            soldBy: pkg.sales_category || "CHL", 
+            soldBy: pkg.sales_category || pkg.sold_by || "CHL", 
             dateStarted: window.portal.formatDate(pkg.package_start_date) || "—",
             searchStr: `${code} ${client.company_name} ${pkg.external_package_id}`.toLowerCase()
         };
@@ -1230,8 +1232,10 @@ window.editDealModal = function(pkgId) {
     if (!pkg) return;
 
     window.populateSalesClientDropdown();
-    const clients = window.portal?.adminState?.clients || [];
-    const client = clients.find(c => c.client_code === pkg.client_code || c.code_name === pkg.client_code) || {};
+    const clients = window.portal?.adminState?.rawClients || window.portal?.adminState?.clients || [];
+    const client = clients.find(c =>
+  String(c.client_code || c.code_name || "").trim().toLowerCase() === String(pkg.client_code || "").trim().toLowerCase()
+) || {};
 
     document.getElementById('sale-package-id').value = pkg.id;
     document.getElementById('sale-client-code').value = pkg.client_code || "";
@@ -1259,7 +1263,7 @@ window.populateSalesClientDropdown = function() {
     const suggestionBox = document.getElementById('custom-client-suggestions');
     if (!companyInput || !suggestionBox) return;
 
-    const clients = window.portal?.adminState?.clients || [];
+    const clients = window.portal?.adminState?.rawClients || window.portal?.adminState?.clients || [];
     
     // 1. Hide dropdown when clicking outside of it
     document.addEventListener('click', (e) => {
