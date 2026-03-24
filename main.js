@@ -750,9 +750,9 @@ async fetchAdminData(forceRefresh = false) {
       const result = await response.json();
       const dataRoot = result?.data || result || {};
 
-      let supaLeads = [], supaPackages = [], supaClients = [], supaTime = [], supaAgents = [], supaClientHealth = [], supaAgentPerformance = [], supaClientPackageStatus = [], supaClientPackageAllocation = [];
+      let supaLeads = [], supaPackages = [], supaClients = [], supaTime = [], supaAgents = [], supaClientHealth = [], supaAgentPerformance = [], supaClientPackageStatus = [], supaClientPackageAllocation = [], supaProfiles = [];
       if (supaClient) {
-          const [lRes, pRes, cRes, tRes, aRes, chRes, apRes, cpsRes, cpaRes] = await Promise.all([
+          const [lRes, pRes, cRes, tRes, aRes, chRes, apRes, cpsRes, cpaRes, profRes] = await Promise.all([
     supaClient.from('leads_raw').select('*'),
     supaClient.from('packages').select('*'),
     supaClient.from('clients').select('*'),
@@ -761,7 +761,8 @@ async fetchAdminData(forceRefresh = false) {
     supaClient.from('client_health_view').select('*'),
     supaClient.from('agent_performance_view').select('*'),
     supaClient.from('client_package_status_view').select('*'),
-    supaClient.from('client_package_allocation_view').select('*')
+    supaClient.from('client_package_allocation_view').select('*'),
+    supaClient.from('profiles').select('*')
 ]);
 
 supaLeads = lRes.data || [];
@@ -773,6 +774,7 @@ supaClientHealth = chRes.data || [];
 supaAgentPerformance = apRes.data || [];
 supaClientPackageStatus = cpsRes.data || [];
 supaClientPackageAllocation = cpaRes.data || [];
+const supaProfiles = profRes.data || [];
       }
 
       this.adminState.rawClients = supaClients.length > 0 ? supaClients : (dataRoot.clients || []);
@@ -780,6 +782,7 @@ this.adminState.leads = supaLeads.length > 0 ? supaLeads : (dataRoot.leads || []
 this.adminState.packages = supaPackages.length > 0 ? supaPackages : (dataRoot.packages || []);
 this.adminState.timeEvents = supaTime;
 this.adminState.agents = supaAgents.length > 0 ? supaAgents : (dataRoot.agents || []);
+this.adminState.rawProfiles = supaProfiles || [];
 this.adminState.weeklyPayroll = dataRoot.weeklyPayroll || [];
 
 this.adminState.clientHealthView = supaClientHealth;
