@@ -1023,73 +1023,179 @@
       <div id="view-hr" class="view-section">
   <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
     <div>
-      <h2 class="text-2xl font-bold text-gray-900">HR & Agents</h2>
-      <p class="text-sm text-gray-500 mt-1">Manage workforce status, access, and performance snapshot.</p>
+      <h2 class="text-3xl font-black text-gray-900 tracking-tight">HR & Agents</h2>
+      <p class="text-sm text-gray-500 mt-1">Workforce operations, performance, compensation, and people management.</p>
     </div>
   </div>
 
-  <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
-    <div class="flex flex-col md:flex-row md:items-center gap-3">
-      <div class="flex-1 relative">
-        <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
-        <input
-          id="hr-search"
-          type="text"
-          placeholder="Search agent name or email..."
-          class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
-        />
-      </div>
-
-      <div class="flex items-center gap-2">
-        <select id="hr-stage-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
-          <option value="all">All Statuses</option>
-          <option value="active" selected>Active</option>
-          <option value="onboarding">Onboarding</option>
-          <option value="offboarded">Offboarded</option>
-        </select>
-
-        <select id="hr-warned-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
-          <option value="all" selected>Warned: All</option>
-          <option value="warned">Warned Only</option>
-          <option value="not-warned">Not Warned</option>
-        </select>
-
-        <select id="hr-role-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
-          <option value="all" selected>All Roles</option>
-          <option value="agent">Agent</option>
-          <option value="sales">Sales</option>
-          <option value="admin">Admin</option>
-        </select>
-      </div>
+  <!-- KPI CARDS -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+      <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Active Workforce</div>
+      <div id="hr-kpi-active" class="text-2xl font-black text-gray-900 mt-2">0</div>
+      <div class="text-xs text-gray-500 mt-1">Currently active team members</div>
     </div>
 
-    <div class="mt-3 text-xs text-gray-500">
-      Showing <span class="font-bold" id="hr-count">0</span> team members
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+      <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Onboarding / Training</div>
+      <div id="hr-kpi-onboarding" class="text-2xl font-black text-yellow-600 mt-2">0</div>
+      <div class="text-xs text-gray-500 mt-1">New and in-progress hires</div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+      <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Warned / Coaching</div>
+      <div id="hr-kpi-warned" class="text-2xl font-black text-orange-600 mt-2">0</div>
+      <div class="text-xs text-gray-500 mt-1">Needs HR or lead review</div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+      <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Access Mismatch</div>
+      <div id="hr-kpi-access" class="text-2xl font-black text-red-600 mt-2">0</div>
+      <div class="text-xs text-gray-500 mt-1">Workforce vs login mismatch</div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+      <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Top Performers</div>
+      <div id="hr-kpi-top" class="text-2xl font-black text-emerald-600 mt-2">0</div>
+      <div class="text-xs text-gray-500 mt-1">High-quality performers</div>
     </div>
   </div>
 
-  <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-    <div class="overflow-x-auto">
-      <table class="w-full text-left text-sm whitespace-nowrap">
-        <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
-          <tr>
-            <th class="p-4">Agent Name</th>
-            <th class="p-4">Email</th>
-            <th class="p-4">Country</th>
-            <th class="p-4">Role</th>
-            <th class="p-4">Employment Status</th>
-            <th class="p-4">Access</th>
-            <th class="p-4">Warned</th>
-            <th class="p-4 text-right">Hourly Rate</th>
-            <th class="p-4 text-center">Total Leads</th>
-            <th class="p-4 text-center">Qualified</th>
-            <th class="p-4 text-center">Cancel Rate</th>
-          </tr>
-        </thead>
-        <tbody id="hr-body" class="divide-y divide-gray-50">
-          <tr><td colspan="11" class="p-6 text-center text-gray-400 italic">Loading HR data...</td></tr>
-        </tbody>
-      </table>
+  <!-- SUB TABS -->
+  <div class="flex gap-3 mb-6 overflow-x-auto pb-1">
+    <button id="hr-tab-overview" class="hr-subtab-btn px-4 py-2 rounded-xl text-sm font-extrabold bg-gray-900 text-white" onclick="Admin.setHRSubtab('overview')">Overview</button>
+    <button id="hr-tab-directory" class="hr-subtab-btn px-4 py-2 rounded-xl text-sm font-extrabold bg-white border border-gray-200 text-gray-600" onclick="Admin.setHRSubtab('directory')">Directory</button>
+    <button id="hr-tab-performance" class="hr-subtab-btn px-4 py-2 rounded-xl text-sm font-extrabold bg-white border border-gray-200 text-gray-600" onclick="Admin.setHRSubtab('performance')">Performance</button>
+    <button id="hr-tab-compensation" class="hr-subtab-btn px-4 py-2 rounded-xl text-sm font-extrabold bg-white border border-gray-200 text-gray-600" onclick="Admin.setHRSubtab('compensation')">Compensation & Contracts</button>
+    <button id="hr-tab-access" class="hr-subtab-btn px-4 py-2 rounded-xl text-sm font-extrabold bg-white border border-gray-200 text-gray-600" onclick="Admin.setHRSubtab('access')">Access & Roles</button>
+    <button id="hr-tab-notes" class="hr-subtab-btn px-4 py-2 rounded-xl text-sm font-extrabold bg-white border border-gray-200 text-gray-600" onclick="Admin.setHRSubtab('notes')">Notes & Actions</button>
+    <button id="hr-tab-hiring" class="hr-subtab-btn px-4 py-2 rounded-xl text-sm font-extrabold bg-white border border-gray-200 text-gray-600" onclick="Admin.setHRSubtab('hiring')">Hiring Pipeline</button>
+  </div>
+
+  <!-- SUBTAB CONTENT -->
+  <div id="hr-subtab-overview" class="hr-subtab-view">
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div class="xl:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-black text-gray-900 text-lg">Workforce Snapshot</h3>
+          <span class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Overview</span>
+        </div>
+        <div id="hr-overview-cards" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-500 italic">Loading overview...</div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-black text-gray-900 text-lg">Priority Alerts</h3>
+          <span class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">HR</span>
+        </div>
+        <div id="hr-alerts" class="space-y-3">
+          <div class="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-500 italic">Loading alerts...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="hr-subtab-directory" class="hr-subtab-view hidden">
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+      <div class="flex flex-col md:flex-row md:items-center gap-3">
+        <div class="flex-1 relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+          <input
+            id="hr-search"
+            type="text"
+            placeholder="Search agent name or email..."
+            class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+          />
+        </div>
+
+        <div class="flex items-center gap-2">
+          <select id="hr-stage-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
+            <option value="all">All Statuses</option>
+            <option value="active" selected>Active</option>
+            <option value="onboarding">Onboarding</option>
+            <option value="offboarded">Offboarded</option>
+          </select>
+
+          <select id="hr-warned-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
+            <option value="all" selected>Warned: All</option>
+            <option value="warned">Warned Only</option>
+            <option value="not-warned">Not Warned</option>
+          </select>
+
+          <select id="hr-role-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
+            <option value="all" selected>All Roles</option>
+            <option value="agent">Agent</option>
+            <option value="sales">Sales</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="mt-3 text-xs text-gray-500">
+        Showing <span class="font-bold" id="hr-count">0</span> team members
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm whitespace-nowrap">
+          <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+            <tr>
+              <th class="p-4">Agent Name</th>
+              <th class="p-4">Email</th>
+              <th class="p-4">Country</th>
+              <th class="p-4">Role</th>
+              <th class="p-4">Employment Status</th>
+              <th class="p-4">Access</th>
+              <th class="p-4">Warned</th>
+              <th class="p-4 text-right">Hourly Rate</th>
+              <th class="p-4 text-center">Total Leads</th>
+              <th class="p-4 text-center">Qualified</th>
+              <th class="p-4 text-center">Cancel Rate</th>
+            </tr>
+          </thead>
+          <tbody id="hr-body" class="divide-y divide-gray-50">
+            <tr><td colspan="11" class="p-6 text-center text-gray-400 italic">Loading HR data...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="hr-subtab-performance" class="hr-subtab-view hidden">
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div class="text-lg font-black text-gray-900 mb-2">Performance Intelligence</div>
+      <div class="text-sm text-gray-500">This section will show agent trends, quality metrics, and coaching risk.</div>
+    </div>
+  </div>
+
+  <div id="hr-subtab-compensation" class="hr-subtab-view hidden">
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div class="text-lg font-black text-gray-900 mb-2">Compensation & Contracts</div>
+      <div class="text-sm text-gray-500">This section will manage rates, raises, contracts, and compensation history.</div>
+    </div>
+  </div>
+
+  <div id="hr-subtab-access" class="hr-subtab-view hidden">
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div class="text-lg font-black text-gray-900 mb-2">Access & Roles</div>
+      <div class="text-sm text-gray-500">This section will manage profile access, roles, and mismatch cleanup.</div>
+    </div>
+  </div>
+
+  <div id="hr-subtab-notes" class="hr-subtab-view hidden">
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div class="text-lg font-black text-gray-900 mb-2">Notes & Actions</div>
+      <div class="text-sm text-gray-500">This section will track warnings, coaching, and HR actions.</div>
+    </div>
+  </div>
+
+  <div id="hr-subtab-hiring" class="hr-subtab-view hidden">
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div class="text-lg font-black text-gray-900 mb-2">Hiring Pipeline</div>
+      <div class="text-sm text-gray-500">This section will manage applicants, interviews, onboarding, and training.</div>
     </div>
   </div>
 </div>
@@ -1368,6 +1474,7 @@ _hrBound: false,
 hrStageFilter: 'active',
 hrWarnedFilter: 'all',
 hrRoleFilter: 'all',
+hrSubtab: 'overview',
 
       // TEAM STATE
       teamPeriod: 'today',
@@ -1451,7 +1558,12 @@ const packages = state.packages || [];
         // 3. Keep other dashboard modules alive
         try { this.initLeadsColumnsUI(); this.applyLeadsFilters(); } catch(e) {}
         try { this.bindLeadsMasterEvents(); } catch(e) {}
-        try { this.bindHRUI(); this.renderHRTab(); } catch(e) { console.error("HR Error:", e); }
+        try {
+  this.bindHRUI();
+  this.renderHROverview();
+  this.renderHRTab();
+  this.setHRSubtab(this.hrSubtab || 'overview');
+} catch(e) { console.error("HR Error:", e); }
         try { this.bindSalesUI(); this.renderSalesTab(); } catch(e) { console.error("Sales Error:", e); } 
         try { this.bindPassbookUI(rawClients); this.applyPassbookFilters(rawClients); } catch(e) {}
         try { this.bindOverviewAnalyticsUI(); } catch(e) {} 
@@ -1634,7 +1746,6 @@ if (dealStatus === "REFUNDED") packageStatus = "REFUNDED";
     };
   });
 },
-      
 
       // --- NEW SALES PIPELINE ENGINE ---
       salesPeriod: 'all-time',
@@ -1788,6 +1899,146 @@ document.addEventListener("click", (e) => {
         }
       },
 
+      
+setHRSubtab(tab) {
+  this.hrSubtab = tab;
+
+  document.querySelectorAll('.hr-subtab-view').forEach(el => el.classList.add('hidden'));
+  const activeView = document.getElementById(`hr-subtab-${tab}`);
+  if (activeView) activeView.classList.remove('hidden');
+
+  document.querySelectorAll('.hr-subtab-btn').forEach(btn => {
+    btn.classList.remove('bg-gray-900', 'text-white');
+    btn.classList.add('bg-white', 'border', 'border-gray-200', 'text-gray-600');
+  });
+
+  const activeBtn = document.getElementById(`hr-tab-${tab}`);
+  if (activeBtn) {
+    activeBtn.classList.add('bg-gray-900', 'text-white');
+    activeBtn.classList.remove('bg-white', 'border', 'border-gray-200', 'text-gray-600');
+  }
+
+  if (tab === 'directory') {
+    this.renderHRTab();
+  } else if (tab === 'overview') {
+    this.renderHROverview();
+  }
+},
+
+renderHROverview() {
+  const state = this.getState();
+  const agents = Array.isArray(state.agents) ? state.agents : [];
+  const profiles = Array.isArray(state.rawProfiles) ? state.rawProfiles : [];
+  const leads = Array.isArray(state.leads) ? state.leads : [];
+
+  const profileByEmail = new Map(
+    profiles.map(p => [String(p.email || "").trim().toLowerCase(), p])
+  );
+
+  const rows = agents.map(a => {
+    const name = String(a.agent_name || a.name || "").trim();
+    const email = String(a.email || "").trim().toLowerCase();
+    const profile = profileByEmail.get(email) || {};
+
+    let qualified = 0;
+    let credited = 0;
+
+    leads.forEach(l => {
+      const rawAgent = String(
+        l.appointment_coordinator_name ||
+        l["Appointment Coordinator Name"] ||
+        l.agent_name ||
+        ""
+      ).trim().toLowerCase();
+
+      if (!name || rawAgent !== name.toLowerCase()) return;
+
+      const st = String(l.status || l.Status || "").toLowerCase();
+      if (st.includes("approv") || st.includes("confirm")) qualified++;
+      else if (st.includes("credit")) credited++;
+    });
+
+    const cancelRate = (qualified + credited) > 0
+      ? Math.round((credited / (qualified + credited)) * 100)
+      : 0;
+
+    const employmentStatus = String(a.employment_status || "active").toLowerCase().trim();
+    const warned = !!(
+      a.warned === true ||
+      String(a.warned || "").toLowerCase() === "true" ||
+      String(a.tags || "").toLowerCase().includes("warned")
+    );
+    const accessActive = profile.is_active === true || String(profile.is_active).toLowerCase() === "true";
+
+    return { name, email, employmentStatus, warned, accessActive, qualified, cancelRate };
+  });
+
+  const activeCount = rows.filter(r => r.employmentStatus === 'active').length;
+  const onboardingCount = rows.filter(r => r.employmentStatus === 'onboarding').length;
+  const warnedCount = rows.filter(r => r.warned).length;
+  const accessMismatchCount = rows.filter(r => r.employmentStatus === 'active' && !r.accessActive).length;
+  const topPerformers = rows.filter(r => r.qualified >= 10 && r.cancelRate < 20).length;
+
+  const setText = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  };
+
+  setText('hr-kpi-active', activeCount);
+  setText('hr-kpi-onboarding', onboardingCount);
+  setText('hr-kpi-warned', warnedCount);
+  setText('hr-kpi-access', accessMismatchCount);
+  setText('hr-kpi-top', topPerformers);
+
+  const cards = document.getElementById('hr-overview-cards');
+  if (cards) {
+    cards.innerHTML = `
+      <div class="rounded-xl border border-gray-100 bg-gray-50 p-4">
+        <div class="text-xs font-extrabold uppercase tracking-wider text-gray-400 mb-2">Workforce Health</div>
+        <div class="text-sm text-gray-700">Active: <span class="font-black text-gray-900">${activeCount}</span></div>
+        <div class="text-sm text-gray-700 mt-1">Onboarding: <span class="font-black text-yellow-600">${onboardingCount}</span></div>
+        <div class="text-sm text-gray-700 mt-1">Warned: <span class="font-black text-orange-600">${warnedCount}</span></div>
+      </div>
+
+      <div class="rounded-xl border border-gray-100 bg-gray-50 p-4">
+        <div class="text-xs font-extrabold uppercase tracking-wider text-gray-400 mb-2">System Readiness</div>
+        <div class="text-sm text-gray-700">Access mismatches: <span class="font-black text-red-600">${accessMismatchCount}</span></div>
+        <div class="text-sm text-gray-700 mt-1">Top performers: <span class="font-black text-emerald-600">${topPerformers}</span></div>
+      </div>
+
+      <div class="rounded-xl border border-gray-100 bg-gray-50 p-4">
+        <div class="text-xs font-extrabold uppercase tracking-wider text-gray-400 mb-2">HR Focus</div>
+        <div class="text-sm text-gray-700">Use this module to manage workforce status, contracts, access, performance, and coaching.</div>
+      </div>
+
+      <div class="rounded-xl border border-gray-100 bg-gray-50 p-4">
+        <div class="text-xs font-extrabold uppercase tracking-wider text-gray-400 mb-2">Next Expansion</div>
+        <div class="text-sm text-gray-700">Directory is live now. Performance, contracts, access, notes, and hiring pipeline come next.</div>
+      </div>
+    `;
+  }
+
+  const alerts = document.getElementById('hr-alerts');
+  if (alerts) {
+    const alertItems = [];
+
+    if (accessMismatchCount > 0) {
+      alertItems.push(`<div class="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700 font-semibold">There are ${accessMismatchCount} active team members with disabled or missing access.</div>`);
+    }
+    if (warnedCount > 0) {
+      alertItems.push(`<div class="rounded-xl border border-orange-100 bg-orange-50 p-4 text-sm text-orange-700 font-semibold">${warnedCount} team members are currently warned or flagged for coaching.</div>`);
+    }
+    if (topPerformers > 0) {
+      alertItems.push(`<div class="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-700 font-semibold">${topPerformers} team members are currently performing at a high level.</div>`);
+    }
+    if (!alertItems.length) {
+      alertItems.push(`<div class="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-500 italic">No major HR alerts right now.</div>`);
+    }
+
+    alerts.innerHTML = alertItems.join('');
+  }
+},
+      
       bindHRUI() {
   if (this._hrBound) return;
   this._hrBound = true;
