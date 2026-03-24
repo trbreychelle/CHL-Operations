@@ -775,7 +775,7 @@ supaClientHealth = chRes.data || [];
 supaAgentPerformance = apRes.data || [];
 supaClientPackageStatus = cpsRes.data || [];
 supaClientPackageAllocation = cpaRes.data || [];
-const supaProfiles = profRes.data || [];
+supaProfiles = profRes.data || [];
 supaAgentCurrentRates = acrRes.data || [];
       }
 
