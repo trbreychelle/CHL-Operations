@@ -132,9 +132,9 @@
           <a href="#payroll" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('payroll', this)">
             <i class="fa-solid fa-file-invoice-dollar w-5 text-center"></i> Payroll & Finance
           </a>
-          <a href="#" class="nav-item flex items-center px-6 py-3 text-sm opacity-50 cursor-not-allowed">
-            <i class="fa-solid fa-users-gear w-5 text-center"></i> HR & Agents
-          </a>
+         <a href="#hr" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('hr', this)">
+  <i class="fa-solid fa-users-gear w-5 text-center"></i> HR & Agents
+</a>
         </nav>
       </div>
     </div>
@@ -1020,6 +1020,80 @@
         </div>
       </div>
 
+      <div id="view-hr" class="view-section">
+  <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+    <div>
+      <h2 class="text-2xl font-bold text-gray-900">HR & Agents</h2>
+      <p class="text-sm text-gray-500 mt-1">Manage workforce status, access, and performance snapshot.</p>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+    <div class="flex flex-col md:flex-row md:items-center gap-3">
+      <div class="flex-1 relative">
+        <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+        <input
+          id="hr-search"
+          type="text"
+          placeholder="Search agent name or email..."
+          class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+        />
+      </div>
+
+      <div class="flex items-center gap-2">
+        <select id="hr-stage-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
+          <option value="all">All Statuses</option>
+          <option value="active" selected>Active</option>
+          <option value="onboarding">Onboarding</option>
+          <option value="offboarded">Offboarded</option>
+        </select>
+
+        <select id="hr-warned-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
+          <option value="all" selected>Warned: All</option>
+          <option value="warned">Warned Only</option>
+          <option value="not-warned">Not Warned</option>
+        </select>
+
+        <select id="hr-role-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
+          <option value="all" selected>All Roles</option>
+          <option value="agent">Agent</option>
+          <option value="sales">Sales</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="mt-3 text-xs text-gray-500">
+      Showing <span class="font-bold" id="hr-count">0</span> team members
+    </div>
+  </div>
+
+  <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-sm whitespace-nowrap">
+        <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+          <tr>
+            <th class="p-4">Agent Name</th>
+            <th class="p-4">Email</th>
+            <th class="p-4">Country</th>
+            <th class="p-4">Role</th>
+            <th class="p-4">Employment Status</th>
+            <th class="p-4">Access</th>
+            <th class="p-4">Warned</th>
+            <th class="p-4 text-right">Hourly Rate</th>
+            <th class="p-4 text-center">Total Leads</th>
+            <th class="p-4 text-center">Qualified</th>
+            <th class="p-4 text-center">Cancel Rate</th>
+          </tr>
+        </thead>
+        <tbody id="hr-body" class="divide-y divide-gray-50">
+          <tr><td colspan="11" class="p-6 text-center text-gray-400 italic">Loading HR data...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+      
       <div id="view-payroll" class="view-section">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
           <div>
@@ -1289,6 +1363,12 @@
       sortState: { key: null, dir: 'asc' },
       _firstLoadDone: false,
 
+      // HR TAB STATE
+_hrBound: false,
+hrStageFilter: 'active',
+hrWarnedFilter: 'all',
+hrRoleFilter: 'all',
+
       // TEAM STATE
       teamPeriod: 'today',
       _teamCustomRange: { active: false, start: null, end: null },
@@ -1370,7 +1450,8 @@ const packages = state.packages || [];
 
         // 3. Keep other dashboard modules alive
         try { this.initLeadsColumnsUI(); this.applyLeadsFilters(); } catch(e) {}
-        try { this.bindLeadsMasterEvents(); } catch(e) {} 
+        try { this.bindLeadsMasterEvents(); } catch(e) {}
+        try { this.bindHRUI(); this.renderHRTab(); } catch(e) { console.error("HR Error:", e); }
         try { this.bindSalesUI(); this.renderSalesTab(); } catch(e) { console.error("Sales Error:", e); } 
         try { this.bindPassbookUI(rawClients); this.applyPassbookFilters(rawClients); } catch(e) {}
         try { this.bindOverviewAnalyticsUI(); } catch(e) {} 
@@ -1706,6 +1787,165 @@ document.addEventListener("click", (e) => {
           });
         }
       },
+
+      bindHRUI() {
+  if (this._hrBound) return;
+  this._hrBound = true;
+
+  const search = document.getElementById("hr-search");
+  const stage = document.getElementById("hr-stage-filter");
+  const warned = document.getElementById("hr-warned-filter");
+  const role = document.getElementById("hr-role-filter");
+
+  if (search) search.addEventListener("input", () => this.renderHRTab());
+  if (stage) stage.addEventListener("change", () => {
+    this.hrStageFilter = stage.value;
+    this.renderHRTab();
+  });
+  if (warned) warned.addEventListener("change", () => {
+    this.hrWarnedFilter = warned.value;
+    this.renderHRTab();
+  });
+  if (role) role.addEventListener("change", () => {
+    this.hrRoleFilter = role.value;
+    this.renderHRTab();
+  });
+},
+
+renderHRTab() {
+  const state = this.getState();
+  const agents = Array.isArray(state.agents) ? state.agents : [];
+  const profiles = Array.isArray(state.rawProfiles) ? state.rawProfiles : [];
+  const leads = Array.isArray(state.leads) ? state.leads : [];
+
+  const q = String(document.getElementById("hr-search")?.value || "").toLowerCase().trim();
+  const stageFilter = document.getElementById("hr-stage-filter")?.value || "active";
+  const warnedFilter = document.getElementById("hr-warned-filter")?.value || "all";
+  const roleFilter = document.getElementById("hr-role-filter")?.value || "all";
+
+  const profileByEmail = new Map(
+    profiles.map(p => [String(p.email || "").trim().toLowerCase(), p])
+  );
+
+  const rows = agents.map(a => {
+    const name = String(a.agent_name || a.name || "").trim();
+    const email = String(a.email || "").trim().toLowerCase();
+    const profile = profileByEmail.get(email) || {};
+
+    let total = 0;
+    let qualified = 0;
+    let credited = 0;
+
+    leads.forEach(l => {
+      const rawAgent = String(
+        l.appointment_coordinator_name ||
+        l["Appointment Coordinator Name"] ||
+        l.agent_name ||
+        ""
+      ).trim().toLowerCase();
+
+      if (!name || rawAgent !== name.toLowerCase()) return;
+
+      total++;
+      const st = String(l.status || l.Status || "").toLowerCase();
+      if (st.includes("approv") || st.includes("confirm")) qualified++;
+      else if (st.includes("credit")) credited++;
+    });
+
+    const cancelRate = (qualified + credited) > 0
+      ? Math.round((credited / (qualified + credited)) * 100)
+      : 0;
+
+    const employmentStatus = String(a.employment_status || "active").toLowerCase().trim();
+    const warned = !!(
+      a.warned === true ||
+      String(a.warned || "").toLowerCase() === "true" ||
+      String(a.tags || "").toLowerCase().includes("warned")
+    );
+    const role = String(profile.role || a.role || "agent").toLowerCase().trim();
+    const accessActive = profile.is_active === true || String(profile.is_active).toLowerCase() === "true";
+
+    return {
+      name: name || "Unknown",
+      email: email || "—",
+      country: String(a.country || "—").toUpperCase(),
+      role,
+      employmentStatus,
+      accessActive,
+      warned,
+      hourlyRate: Number(a.effective_hourly_rate || a.base_rate || 0),
+      total,
+      qualified,
+      cancelRate
+    };
+  });
+
+  let filtered = [...rows];
+
+  if (stageFilter !== "all") {
+    filtered = filtered.filter(r => r.employmentStatus === stageFilter);
+  }
+
+  if (warnedFilter === "warned") filtered = filtered.filter(r => r.warned);
+  if (warnedFilter === "not-warned") filtered = filtered.filter(r => !r.warned);
+
+  if (roleFilter !== "all") {
+    filtered = filtered.filter(r => r.role === roleFilter);
+  }
+
+  if (q) {
+    filtered = filtered.filter(r =>
+      `${r.name} ${r.email}`.toLowerCase().includes(q)
+    );
+  }
+
+  const countEl = document.getElementById("hr-count");
+  if (countEl) countEl.textContent = filtered.length;
+
+  const tbody = document.getElementById("hr-body");
+  if (!tbody) return;
+
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-gray-400 italic">No HR records found.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(r => {
+    const roleBadge =
+      r.role === "admin" ? "bg-red-100 text-red-800" :
+      r.role === "sales" ? "bg-blue-100 text-blue-800" :
+      "bg-gray-100 text-gray-700";
+
+    const empBadge =
+      r.employmentStatus === "active" ? "bg-emerald-100 text-emerald-800" :
+      r.employmentStatus === "onboarding" ? "bg-yellow-100 text-yellow-800" :
+      "bg-gray-100 text-gray-700";
+
+    const accessBadge = r.accessActive
+      ? `<span class="px-2 py-1 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800">ACTIVE</span>`
+      : `<span class="px-2 py-1 rounded text-[10px] font-extrabold bg-red-100 text-red-800">DISABLED</span>`;
+
+    const warnedBadge = r.warned
+      ? `<span class="px-2 py-1 rounded text-[10px] font-extrabold bg-orange-100 text-orange-800">WARNED</span>`
+      : `<span class="px-2 py-1 rounded text-[10px] font-extrabold bg-gray-100 text-gray-600">NO</span>`;
+
+    return `
+      <tr class="hover:bg-gray-50">
+        <td class="p-4 font-bold text-gray-900">${r.name}</td>
+        <td class="p-4 text-gray-600">${r.email}</td>
+        <td class="p-4 text-gray-700 font-semibold">${r.country}</td>
+        <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${roleBadge}">${r.role.toUpperCase()}</span></td>
+        <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${empBadge}">${r.employmentStatus.toUpperCase()}</span></td>
+        <td class="p-4">${accessBadge}</td>
+        <td class="p-4">${warnedBadge}</td>
+        <td class="p-4 text-right font-bold text-gray-900">$${r.hourlyRate.toFixed(2)}</td>
+        <td class="p-4 text-center font-semibold text-gray-700">${r.total}</td>
+        <td class="p-4 text-center font-bold text-blue-600">${r.qualified}</td>
+        <td class="p-4 text-center font-bold ${r.cancelRate >= 25 ? 'text-red-500' : 'text-emerald-600'}">${r.cancelRate}%</td>
+      </tr>
+    `;
+  }).join("");
+},
 
       renderSalesTab() {
   const state = this.getState();
