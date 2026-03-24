@@ -2069,6 +2069,15 @@ renderHRTab() {
   const profiles = Array.isArray(state.rawProfiles) ? state.rawProfiles : [];
   const leads = Array.isArray(state.leads) ? state.leads : [];
 
+  const currentRates = Array.isArray(state.agentCurrentRates) ? state.agentCurrentRates : [];
+
+const rateByName = new Map(
+  currentRates.map(r => [
+    String(r.agent_name_key || "").trim().toLowerCase(),
+    Number(r.current_rate || 0)
+  ])
+);
+
   const q = String(document.getElementById("hr-search")?.value || "").toLowerCase().trim();
   const stageFilter = document.getElementById("hr-stage-filter")?.value || "active";
   const warnedFilter = document.getElementById("hr-warned-filter")?.value || "all";
@@ -2108,27 +2117,31 @@ renderHRTab() {
       : 0;
 
     const employmentStatus = String(a.employment_status || "active").toLowerCase().trim();
-    const warned = !!(
-      a.warned === true ||
-      String(a.warned || "").toLowerCase() === "true" ||
-      String(a.tags || "").toLowerCase().includes("warned")
-    );
-    const role = String(profile.role || a.role || "agent").toLowerCase().trim();
-    const accessActive = profile.is_active === true || String(profile.is_active).toLowerCase() === "true";
+const warned = !!(
+  a.warned === true ||
+  String(a.warned || "").toLowerCase() === "true" ||
+  String(a.tags || "").toLowerCase().includes("warned")
+);
+const role = String(profile.role || a.role || "agent").toLowerCase().trim();
+const accessActive = profile.is_active === true || String(profile.is_active).toLowerCase() === "true";
 
-    return {
-      name: name || "Unknown",
-      email: email || "—",
-      country: String(a.country || "—").toUpperCase(),
-      role,
-      employmentStatus,
-      accessActive,
-      warned,
-      hourlyRate: Number(a.effective_hourly_rate || a.base_rate || 0),
-      total,
-      qualified,
-      cancelRate
-    };
+const fallbackRateRaw = a.effective_hourly_rate || a.base_rate || 0;
+const fallbackRate = Number(String(fallbackRateRaw).replace(/[^0-9.]/g, '')) || 0;
+const currentRate = rateByName.get(String(name || "").trim().toLowerCase()) ?? fallbackRate;
+
+return {
+  name: name || "Unknown",
+  email: email || "—",
+  country: String(a.country || "—").toUpperCase(),
+  role,
+  employmentStatus,
+  accessActive,
+  warned,
+  hourlyRate: currentRate,
+  total,
+  qualified,
+  cancelRate
+};
   });
 
   let filtered = [...rows];
