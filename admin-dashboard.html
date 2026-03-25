@@ -1651,11 +1651,11 @@ const healthMap = new Map(
       "—"
     ).trim();
 
-    const purchased = Number(row.purchased_leads || 0);
-    const qualified = Number(row.qualified_leads || 0);
-    const credited = Number(row.credited_leads || 0);
-    const delivered = Number(row.delivered_leads || (qualified + credited) || 0);
-    const owed = Number(row.owed_leads || Math.max(purchased - delivered, 0));
+   const purchased = Number(row.purchased_leads || 0);
+const qualified = Number(health.qualified_leads || 0);
+const credited = Number(health.credited_leads || 0);
+const rejected = Number(health.rejected_leads || 0);
+const owed = Math.max(purchased - qualified, 0);
 
    let packageStatus = String(row.package_status || "").toUpperCase().trim();
 if (packageStatus === "ACTIVE") packageStatus = "ONGOING";
