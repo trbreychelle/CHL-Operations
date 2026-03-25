@@ -750,36 +750,48 @@ async fetchAdminData(forceRefresh = false) {
       const result = await response.json();
       const dataRoot = result?.data || result || {};
 
-      let supaLeads = [], supaPackages = [], supaClients = [], supaTime = [], supaAgents = [], supaClientHealth = [], supaAgentPerformance = [], supaClientPackageStatus = [], supaClientPackageAllocation = [], supaProfiles = [], supaAgentCurrentRates = [];
-      if (supaClient) {
-         const [lRes, pRes, cRes, tRes, aRes, chRes, apRes, cpsRes, cpaRes, profRes, acrRes, wpRes] = await Promise.all([
-  supaClient.from('leads_raw').select('*'),
-  supaClient.from('packages').select('*'),
-  supaClient.from('clients').select('*'),
-  supaClient.from('time_events').select('*'),
-  supaClient.from('agents').select('*'),
-  supaClient.from('client_health_view').select('*'),
-  supaClient.from('agent_performance_view').select('*'),
-  supaClient.from('client_package_status_view').select('*'),
-  supaClient.from('client_package_allocation_view').select('*'),
-  supaClient.from('profiles').select('*'),
-  supaClient.from('agent_current_rate_view').select('*'),
-  supaClient.from('agent_weekly_payroll_view').select('*')
-]);
+      let supaLeads = [],
+    supaPackages = [],
+    supaClients = [],
+    supaTime = [],
+    supaAgents = [],
+    supaClientHealth = [],
+    supaAgentPerformance = [],
+    supaClientPackageStatus = [],
+    supaClientPackageAllocation = [],
+    supaProfiles = [],
+    supaAgentCurrentRates = [],
+    supaWeeklyPayroll = [];
 
-supaLeads = lRes.data || [];
-supaPackages = pRes.data || [];
-supaClients = cRes.data || [];
-supaTime = tRes.data || [];
-supaAgents = aRes.data || [];
-supaClientHealth = chRes.data || [];
-supaAgentPerformance = apRes.data || [];
-supaClientPackageStatus = cpsRes.data || [];
-supaClientPackageAllocation = cpaRes.data || [];
-supaProfiles = profRes.data || [];
-supaAgentCurrentRates = acrRes.data || [];
-const supaWeeklyPayroll = wpRes.data || [];
-      }
+if (supaClient) {
+  const [lRes, pRes, cRes, tRes, aRes, chRes, apRes, cpsRes, cpaRes, profRes, acrRes, wpRes] = await Promise.all([
+    supaClient.from('leads_raw').select('*'),
+    supaClient.from('packages').select('*'),
+    supaClient.from('clients').select('*'),
+    supaClient.from('time_events').select('*'),
+    supaClient.from('agents').select('*'),
+    supaClient.from('client_health_view').select('*'),
+    supaClient.from('agent_performance_view').select('*'),
+    supaClient.from('client_package_status_view').select('*'),
+    supaClient.from('client_package_allocation_view').select('*'),
+    supaClient.from('profiles').select('*'),
+    supaClient.from('agent_current_rate_view').select('*'),
+    supaClient.from('agent_weekly_payroll_view').select('*')
+  ]);
+
+  supaLeads = lRes.data || [];
+  supaPackages = pRes.data || [];
+  supaClients = cRes.data || [];
+  supaTime = tRes.data || [];
+  supaAgents = aRes.data || [];
+  supaClientHealth = chRes.data || [];
+  supaAgentPerformance = apRes.data || [];
+  supaClientPackageStatus = cpsRes.data || [];
+  supaClientPackageAllocation = cpaRes.data || [];
+  supaProfiles = profRes.data || [];
+  supaAgentCurrentRates = acrRes.data || [];
+  supaWeeklyPayroll = wpRes.data || [];
+}
 
       this.adminState.rawClients = supaClients.length > 0 ? supaClients : (dataRoot.clients || []);
 this.adminState.leads = supaLeads.length > 0 ? supaLeads : (dataRoot.leads || []);
