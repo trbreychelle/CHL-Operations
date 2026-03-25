@@ -776,7 +776,7 @@ if (supaClient) {
     supaClient.from('client_package_allocation_view').select('*'),
     supaClient.from('profiles').select('*'),
     supaClient.from('agent_current_rate_view').select('*'),
-    supaClient.from('agent_weekly_payroll_view').select('*')
+    supaClient.from('payroll_time_events_view').select('*')
   ]);
 
   supaLeads = lRes.data || [];
@@ -792,7 +792,7 @@ if (supaClient) {
   supaAgentCurrentRates = acrRes.data || [];
   supaWeeklyPayroll = wpRes.data || [];
 }
-
+      
       this.adminState.rawClients = supaClients.length > 0 ? supaClients : (dataRoot.clients || []);
 this.adminState.leads = supaLeads.length > 0 ? supaLeads : (dataRoot.leads || []);
 this.adminState.packages = supaPackages.length > 0 ? supaPackages : (dataRoot.packages || []);
