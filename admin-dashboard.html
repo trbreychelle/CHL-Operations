@@ -1527,8 +1527,8 @@ hrSubtab: 'overview',
 if (!state) return;
 
 const rawClients = state.rawClients || [];
-const allocationRows = Array.isArray(state.clientHealthView)
-  ? state.clientHealthView
+const allocationRows = Array.isArray(state.clientPackageAllocationView)
+  ? state.clientPackageAllocationView
   : [];
 const leads = state.leads || [];
 const packages = state.packages || [];
@@ -1606,12 +1606,25 @@ const packages = state.packages || [];
       rc
     ])
   );
+
+        const healthRows = Array.isArray(this.getState().clientHealthView)
+  ? this.getState().clientHealthView
+  : [];
+
+const healthMap = new Map(
+  healthRows.map(h => [
+    String(h.client_code || "").trim().toLowerCase(),
+    h
+  ])
+);
+        
         const packageMap = new Map(
   (packages || []).map(p => [String(p.id || "").trim(), p])
 );
 
   return (allocationRows || []).map(row => {
     const code = String(row.client_code || "").trim();
+    const health = healthMap.get(code.toLowerCase()) || {};
     const rawClient = rawClientMap.get(code.toLowerCase()) || {};
     const pkg = packageMap.get(String(row.package_id || row.id || "").trim()) || {};
     const dealStatus = String(pkg.deal_status || "").toUpperCase().trim();
@@ -1658,10 +1671,10 @@ else if (rawPkgStatus.includes("ACTIVE") || rawPkgStatus.includes("ONGOING")) pa
 // deal status still wins for refunded
 if (dealStatus === "REFUNDED") packageStatus = "REFUNDED";
 
-    const lastLeadAt = row.last_lead_at_mst ? new Date(row.last_lead_at_mst) : null;
+    const lastLeadAt = health.last_lead_at_mst ? new Date(health.last_lead_at_mst) : null;
 
-const leadsToday = Number(row.leads_today || 0);
-const leadsYesterday = Number(row.leads_yesterday || 0);
+const leadsToday = Number(health.leads_today || 0);
+const leadsYesterday = Number(health.leads_yesterday || 0);
 
 let healthStatus = "NOT STARTED";
 if (lastLeadAt && !isNaN(lastLeadAt.getTime())) {
@@ -1723,7 +1736,7 @@ if (lastLeadAt && !isNaN(lastLeadAt.getTime())) {
 })(),
       leadsToday,
       leadsYesterday,
-      lastLead: row.last_lead_received || "—",
+      lastLead: health.last_lead_received || "—",
 
       isServing: rawClient.is_serving === true || rawClient.is_serving === 'true',
       dailyAgents: rawClient.daily_agents || "",
