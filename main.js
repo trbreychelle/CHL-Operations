@@ -776,7 +776,7 @@ if (supaClient) {
     supaClient.from('client_package_allocation_view').select('*'),
     supaClient.from('profiles').select('*'),
     supaClient.from('agent_current_rate_view').select('*'),
-    supaClient.from('payroll_time_events_view').select('*')
+    supaClient.from('payroll_dashboard_final_view').select('*')
   ]);
 
   supaLeads = lRes.data || [];
