@@ -4171,13 +4171,13 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
 
   const weekSelect = document.getElementById("payroll-week-select");
   const uniqueWeeks = [...new Set(
-    payrollRows
-      .map(r => String(r.week_start || "").trim())
-      .filter(Boolean)
+    payrollRows.map(r => String(r.week_start || "").trim()).filter(Boolean)
   )].sort((a, b) => String(b).localeCompare(String(a)));
 
   if (weekSelect && (weekSelect.options.length === 0 || weekSelect.options[0].value === "latest")) {
-    weekSelect.innerHTML = uniqueWeeks.map(w => `<option value="${w}">${this.getPayrollWeekRangeLabel(w)}</option>`).join("");
+    weekSelect.innerHTML = uniqueWeeks
+      .map(w => `<option value="${w}">${this.getPayrollWeekRangeLabel(w)}</option>`)
+      .join("");
   }
 
   let selectedWeek = weekSelect ? weekSelect.value : uniqueWeeks[0];
@@ -4186,17 +4186,11 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
 
   document.getElementById("payroll-ledger-period").textContent = this.getPayrollWeekRangeLabel(selectedWeek);
 
-  const selectedRows = payrollRows.filter(r => String(r.week_start || "").trim() === selectedWeek);
+  const selectedRows = payrollRows.filter(
+    r => String(r.week_start || "").trim() === selectedWeek
+  );
 
-  let ledgerData = [];
-  if (typeof supaClient !== 'undefined' && supaClient) {
-    const { data } = await supaClient
-      .from('payroll_ledger')
-      .select('*')
-      .eq('week_id', selectedWeek);
-    ledgerData = data || [];
-  }
-  this._currentLedgerData = ledgerData;
+  this._currentPayrollRows = selectedRows;
 
   this.loadPayrollNotes(selectedWeek);
 
@@ -4225,16 +4219,22 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
 
   this._chartData = { labels: [], payouts: [], revenue: [] };
 
+  const allRowsByWeek = new Map();
+  payrollRows.forEach(r => {
+    const wk = String(r.week_start || "").trim();
+    if (!wk) return;
+    const arr = allRowsByWeek.get(wk) || [];
+    arr.push(r);
+    allRowsByWeek.set(wk, arr);
+  });
+
   const processedAgents = selectedRows.map(r => {
     const agName = String(r.agent_name || "").trim() || "Unknown";
     const agKey = agName.toLowerCase();
     const agent = agentMap.get(agKey) || {};
 
-    const dbRecord = ledgerData.find(x => String(x.agent_name || "").trim().toLowerCase() === agKey) || {};
-    const isPaid = (dbRecord.is_paid === true || String(dbRecord.is_paid) === 'true');
-
-    const backendRate = Number(r.hourly_rate || 0);
-    const baseRate = Number(dbRecord.rate) || backendRate || 5;
+    const workerId = r.worker_id;
+    const baseRate = Number(r.hourly_rate || 0);
 
     const finalHours = {
       sa: Number(r.sat_hours || 0),
@@ -4253,8 +4253,9 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
     const cxPercent = Number(r.cx_percent || 0);
     const basePay = Number(r.base_pay || 0);
     const autoBonus = Number(r.auto_bonus || 0);
-    const manualSpiff = Number(dbRecord.manual_spiff || 0);
-    const finalPay = Number(r.total_pay || 0) + manualSpiff;
+    const manualSpiff = Number(r.manual_spiff || 0);
+    const finalPay = Number(r.total_pay || 0);
+    const isPaid = !!r.is_paid;
 
     const revenue = qualified * 125;
 
@@ -4267,18 +4268,70 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
       this._chartData.revenue.push(revenue);
     }
 
+    const selectedWeekIndex = uniqueWeeks.indexOf(selectedWeek);
+
+    let consistencyBonus = false;
+    if (selectedWeekIndex >= 0 && selectedWeekIndex + 3 < uniqueWeeks.length) {
+      let hitStreak = true;
+      for (let i = 0; i < 4; i++) {
+        const wk = uniqueWeeks[selectedWeekIndex + i];
+        const wkRows = allRowsByWeek.get(wk) || [];
+        const past = wkRows.find(x => String(x.agent_name || "").trim().toLowerCase() === agKey);
+        if (!past || Number(past.qualified || 0) < 8) {
+          hitStreak = false;
+          break;
+        }
+      }
+      consistencyBonus = hitStreak;
+    }
+
+    let raffleMsg = "";
+    if (qualified >= 9) {
+      const monthPrefix = selectedWeek.substring(0, 7);
+      let mQ = 0;
+      let mC = 0;
+
+      for (const [wk, wkRows] of allRowsByWeek.entries()) {
+        if (!wk.startsWith(monthPrefix)) continue;
+        const row = wkRows.find(x => String(x.agent_name || "").trim().toLowerCase() === agKey);
+        if (!row) continue;
+        mQ += Number(row.qualified || 0);
+        mC += Number(row.credited || 0);
+      }
+
+      const monthlyCx = (mQ + mC > 0) ? (mC / (mQ + mC)) * 100 : 0;
+
+      if (monthlyCx < 20) {
+        raffleMsg = `<span class="inline-flex items-center gap-1 bg-gradient-to-r from-amber-100 to-yellow-200 text-yellow-800 border border-yellow-300 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ml-2 shadow-sm"><i class="fa-solid fa-ticket text-yellow-600"></i> Raffle Earned (CX: ${monthlyCx.toFixed(1)}%)</span>`;
+      } else {
+        raffleMsg = `<span class="text-gray-400 text-[10px] uppercase font-bold ml-2">❌ Raffle Void (CX: ${monthlyCx.toFixed(1)}%)</span>`;
+      }
+    }
+
+    const alerts = [];
     if (qualified >= 8) {
+      alerts.push(`${qualified} qualified • CX ${cxPercent.toFixed(1)}% • Bonus $${autoBonus.toFixed(2)}`);
+    }
+    if (consistencyBonus) {
+      alerts.push(`🔥 $100 Consistency Bonus`);
+    }
+    if (raffleMsg) {
+      alerts.push(raffleMsg);
+    }
+
+    if (alerts.length > 0) {
       notificationsHTML += `
         <div class="p-3 bg-white border border-gray-100 rounded-xl text-xs text-gray-800 font-bold shadow-sm flex items-center gap-2">
           <span class="w-2 h-2 rounded-full ${cxPercent < 25 ? 'bg-emerald-500' : 'bg-yellow-500'}"></span>
-          ${agName}: ${qualified} qualified • CX ${cxPercent.toFixed(1)}% • Bonus $${autoBonus.toFixed(2)}
+          ${agName}: ${alerts.join(' ')}
         </div>`;
     }
 
     return {
+      workerId,
       agName,
       weekStart: String(r.week_start || ""),
-      country: String(agent.country || "UNASSIGNED").toUpperCase(),
+      country: String(r.country || agent.country || "UNASSIGNED").toUpperCase(),
       baseRate,
       totalHrs,
       qualified,
@@ -4322,7 +4375,7 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
         <td class="p-4 text-right font-black text-purple-600">$${(data.autoBonus + data.manualSpiff).toFixed(2)}</td>
         <td class="p-4 text-right font-black text-emerald-500 text-lg">$${data.finalPay.toFixed(2)}</td>
         <td class="p-4 text-center">
-          <button onclick="Admin.updatePayrollLedger('${data.agName}', 'is_paid', ${!data.isPaid})"
+          <button onclick="Admin.updatePayrollLedger('${data.workerId}', '${data.weekStart}', 'is_paid', ${!data.isPaid})"
             class="px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wide uppercase transition-all shadow-sm ${data.isPaid ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}">
             ${data.isPaid ? 'PAID ✓' : 'MARK PAID'}
           </button>
@@ -4332,20 +4385,53 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
     ledgerHtml += `
       <tr class="hover:bg-gray-50 border-b border-gray-50">
         <td class="p-3 font-black text-gray-900 text-sm">${data.agName}</td>
-        <td class="p-3 text-center">$${data.baseRate.toFixed(2)}</td>
-        <td class="p-3 text-center">${data.finalHours.sa.toFixed(2)}</td>
-        <td class="p-3 text-center">${data.finalHours.su.toFixed(2)}</td>
-        <td class="p-3 text-center">${data.finalHours.m.toFixed(2)}</td>
-        <td class="p-3 text-center">${data.finalHours.t.toFixed(2)}</td>
-        <td class="p-3 text-center">${data.finalHours.w.toFixed(2)}</td>
-        <td class="p-3 text-center">${data.finalHours.th.toFixed(2)}</td>
-        <td class="p-3 text-center">${data.finalHours.f.toFixed(2)}</td>
+        <td class="p-3 text-center">
+          <input type="number" step="0.25" min="0" value="${data.baseRate.toFixed(2)}"
+            onchange="Admin.updatePayrollLedger('${data.workerId}', '${data.weekStart}', 'rate_override', this.value)"
+            class="w-20 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-700">
+        </td>
+        <td class="p-2 text-center">
+          <input type="number" step="0.25" min="0" value="${data.finalHours.sa.toFixed(2)}"
+            onchange="Admin.updatePayrollLedger('${data.workerId}', '${data.weekStart}', 'sat_hours_override', this.value)"
+            class="w-16 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-700">
+        </td>
+        <td class="p-2 text-center">
+          <input type="number" step="0.25" min="0" value="${data.finalHours.su.toFixed(2)}"
+            onchange="Admin.updatePayrollLedger('${data.workerId}', '${data.weekStart}', 'sun_hours_override', this.value)"
+            class="w-16 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-700">
+        </td>
+        <td class="p-2 text-center">
+          <input type="number" step="0.25" min="0" value="${data.finalHours.m.toFixed(2)}"
+            onchange="Admin.updatePayrollLedger('${data.workerId}', '${data.weekStart}', 'mon_hours_override', this.value)"
+            class="w-16 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-700">
+        </td>
+        <td class="p-2 text-center">
+          <input type="number" step="0.25" min="0" value="${data.finalHours.t.toFixed(2)}"
+            onchange="Admin.updatePayrollLedger('${data.workerId}', '${data.weekStart}', 'tue_hours_override', this.value)"
+            class="w-16 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-700">
+        </td>
+        <td class="p-2 text-center">
+          <input type="number" step="0.25" min="0" value="${data.finalHours.w.toFixed(2)}"
+            onchange="Admin.updatePayrollLedger('${data.workerId}', '${data.weekStart}', 'wed_hours_override', this.value)"
+            class="w-16 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-700">
+        </td>
+        <td class="p-2 text-center">
+          <input type="number" step="0.25" min="0" value="${data.finalHours.th.toFixed(2)}"
+            onchange="Admin.updatePayrollLedger('${data.workerId}', '${data.weekStart}', 'thu_hours_override', this.value)"
+            class="w-16 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-700">
+        </td>
+        <td class="p-2 text-center">
+          <input type="number" step="0.25" min="0" value="${data.finalHours.f.toFixed(2)}"
+            onchange="Admin.updatePayrollLedger('${data.workerId}', '${data.weekStart}', 'fri_hours_override', this.value)"
+            class="w-16 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-700">
+        </td>
         <td class="p-3 text-center bg-blue-50 font-black text-blue-800 text-sm">${data.totalHrs.toFixed(2)}</td>
         <td class="p-3 text-center font-bold text-blue-500 text-sm">${data.qualified}</td>
         <td class="p-3 text-center font-bold ${data.cxPercent < 25 ? 'text-emerald-500' : 'text-red-400'} text-sm">${data.cxPercent.toFixed(1)}%</td>
         <td class="p-3 text-right font-black text-purple-600 text-sm">$${data.autoBonus.toFixed(2)}</td>
         <td class="p-3 text-center">
-          <input type="number" step="1" value="${data.manualSpiff}" onchange="Admin.updatePayrollLedger('${data.agName}', 'manual_spiff', this.value)"
+          <input type="number" step="1" value="${data.manualSpiff}"
+            onchange="Admin.updatePayrollLedger('${data.workerId}', '${data.weekStart}', 'manual_spiff', this.value)"
             class="w-20 text-center font-bold border border-purple-200 bg-purple-50 text-purple-700 rounded focus:ring-2 focus:ring-purple-500 py-1.5 text-sm">
         </td>
         <td class="p-3 text-right font-black text-emerald-500 text-lg">$${data.finalPay.toFixed(2)}</td>
@@ -4378,41 +4464,65 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
 },
 
       // --- MULTIPLAYER DATABASE SYNC ---
-      async updatePayrollLedger(agentName, field, value) {
-          if (typeof supaClient === 'undefined' || !supaClient) return alert("Database connection missing!");
-          let week = document.getElementById("payroll-week-select").value;
-          if (this._payrollCustomRange?.active) week = "CUSTOM_RANGE";
-          
-          const existing = this._currentLedgerData.find(x => x.agent_name === agentName);
-          let payload = { week_id: week, agent_name: agentName };
+      async updatePayrollLedger(workerId, weekStart, field, value) {
+  if (typeof supaClient === 'undefined' || !supaClient) {
+    return alert("Database connection missing!");
+  }
 
-          if (field === 'rate') payload.rate = Number(value);
-          else if (field === 'manual_spiff') payload.manual_spiff = Number(value);
-          else if (field === 'is_paid') {
-              // STRICT BOOLEAN FIX: Forces Javascript to translate the toggle flawlessly
-              payload.is_paid = (value === true || value === 'true' || value === 1); 
-          }
-          else {
-              let hours = existing ? (existing.hours_json || {}) : {};
-              hours[field] = Number(value);
-              payload.hours_json = hours;
-          }
+  const payload = {
+    worker_id: workerId,
+    week_start: weekStart
+  };
 
-          // BULLETPROOF SYNC: Updates by Agent Name and Week instead of ID
-          if (existing) {
-              const { error } = await supaClient
-                  .from('payroll_ledger')
-                  .update(payload)
-                  .eq('week_id', week)
-                  .eq('agent_name', agentName);
-                  
-              if (error) console.error("Update Ledger Error:", error);
-          } else {
-              await supaClient.from('payroll_ledger').insert([payload]);
-          }
-          
-          this.renderPayrollFinance(); // Instant refresh
-      },
+  if (field === 'rate_override') {
+    payload.rate_override = Number(value) || 0;
+  } else if (field === 'manual_spiff') {
+    payload.manual_spiff = Number(value) || 0;
+  } else if (field === 'is_paid') {
+    payload.is_paid = (value === true || value === 'true' || value === 1);
+  } else {
+    payload[field] = Number(value) || 0;
+  }
+
+  const { data: existing, error: fetchError } = await supaClient
+    .from('payroll_weekly_overrides')
+    .select('id')
+    .eq('worker_id', workerId)
+    .eq('week_start', weekStart)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error("Fetch payroll override error:", fetchError);
+    return;
+  }
+
+  let error = null;
+
+  if (existing?.id) {
+    const res = await supaClient
+      .from('payroll_weekly_overrides')
+      .update(payload)
+      .eq('id', existing.id);
+    error = res.error;
+  } else {
+    const res = await supaClient
+      .from('payroll_weekly_overrides')
+      .insert([payload]);
+    error = res.error;
+  }
+
+  if (error) {
+    console.error("Update payroll override error:", error);
+    alert("Failed to save payroll override.");
+    return;
+  }
+
+  if (window.portal && typeof window.portal.fetchAdminData === 'function') {
+    await window.portal.fetchAdminData(true);
+  } else {
+    this.renderPayrollFinance();
+  }
+},
 
       // --- EXEC NOTES ENGINE (SCALABLE & BULLETPROOF) ---
       async loadPayrollNotes(week) {
