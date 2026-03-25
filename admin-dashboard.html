@@ -1527,8 +1527,8 @@ hrSubtab: 'overview',
 if (!state) return;
 
 const rawClients = state.rawClients || [];
-const allocationRows = Array.isArray(state.clientPackageAllocationView)
-  ? state.clientPackageAllocationView
+const allocationRows = Array.isArray(state.clientHealthView)
+  ? state.clientHealthView
   : [];
 const leads = state.leads || [];
 const packages = state.packages || [];
@@ -1658,31 +1658,18 @@ else if (rawPkgStatus.includes("ACTIVE") || rawPkgStatus.includes("ONGOING")) pa
 // deal status still wins for refunded
 if (dealStatus === "REFUNDED") packageStatus = "REFUNDED";
 
-    const firstLeadAt = row.first_lead_at ? new Date(row.first_lead_at) : null;
-    const lastLeadAt = row.last_lead_at ? new Date(row.last_lead_at) : null;
+    const lastLeadAt = row.last_lead_at_mst ? new Date(row.last_lead_at_mst) : null;
 
-    let leadsToday = 0;
-    let leadsYesterday = 0;
+const leadsToday = Number(row.leads_today || 0);
+const leadsYesterday = Number(row.leads_yesterday || 0);
 
-    if (lastLeadAt && !isNaN(lastLeadAt.getTime())) {
-      const lastLeadMst = window.portal?.toMST ? window.portal.toMST(lastLeadAt) : lastLeadAt;
-      const todayStr = mstFormatter.format(now);
-      const y = new Date(now);
-      y.setDate(y.getDate() - 1);
-      const yesterdayStr = mstFormatter.format(y);
-      const lastLeadStr = mstFormatter.format(lastLeadMst);
-
-      if (lastLeadStr === todayStr) leadsToday = 1;
-      if (lastLeadStr === yesterdayStr) leadsYesterday = 1;
-    }
-
-    let healthStatus = "NOT STARTED";
-    if (lastLeadAt && !isNaN(lastLeadAt.getTime())) {
-      const hoursSinceLastLead = (Date.now() - lastLeadAt.getTime()) / (1000 * 60 * 60);
-      if (leadsToday >= 1 && leadsYesterday >= 1) healthStatus = "HEALTHY";
-      else if (hoursSinceLastLead > 48) healthStatus = "CRITICAL";
-      else healthStatus = "AT RISK";
-    }
+let healthStatus = "NOT STARTED";
+if (lastLeadAt && !isNaN(lastLeadAt.getTime())) {
+  const hoursSinceLastLead = (Date.now() - lastLeadAt.getTime()) / (1000 * 60 * 60);
+  if (leadsToday >= 1 && leadsYesterday >= 1) healthStatus = "HEALTHY";
+  else if (hoursSinceLastLead > 48) healthStatus = "CRITICAL";
+  else healthStatus = "AT RISK";
+}
 
     const isRenewal = Number(row.package_seq || 1) > 1;
 
@@ -1736,7 +1723,7 @@ if (dealStatus === "REFUNDED") packageStatus = "REFUNDED";
 })(),
       leadsToday,
       leadsYesterday,
-      lastLead: row.last_lead_at ? window.portal.formatDate(row.last_lead_at) : "—",
+      lastLead: row.last_lead_received || "—",
 
       isServing: rawClient.is_serving === true || rawClient.is_serving === 'true',
       dailyAgents: rawClient.daily_agents || "",
