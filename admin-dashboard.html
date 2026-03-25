@@ -1671,18 +1671,9 @@ else if (rawPkgStatus.includes("ACTIVE") || rawPkgStatus.includes("ONGOING")) pa
 // deal status still wins for refunded
 if (dealStatus === "REFUNDED") packageStatus = "REFUNDED";
 
-    const lastLeadAt = health.last_lead_at_mst ? new Date(health.last_lead_at_mst) : null;
-
-const leadsToday = Number(health.leads_today || 0);
+ const leadsToday = Number(health.leads_today || 0);
 const leadsYesterday = Number(health.leads_yesterday || 0);
-
-let healthStatus = "NOT STARTED";
-if (lastLeadAt && !isNaN(lastLeadAt.getTime())) {
-  const hoursSinceLastLead = (Date.now() - lastLeadAt.getTime()) / (1000 * 60 * 60);
-  if (leadsToday >= 1 && leadsYesterday >= 1) healthStatus = "HEALTHY";
-  else if (hoursSinceLastLead > 48) healthStatus = "CRITICAL";
-  else healthStatus = "AT RISK";
-}
+const healthStatus = String(health.health_status || "NOT STARTED").toUpperCase();
 
     const isRenewal = Number(row.package_seq || 1) > 1;
 
@@ -2555,10 +2546,12 @@ filtered = filtered.filter(r => {
         }
 
         tbody.innerHTML = rows.map(r => {
-          let dotClass = "st-new";
-          if (r.healthStatus === "CRITICAL") dotClass = "st-critical";
-          if (r.healthStatus === "AT RISK") dotClass = "st-risk";
-          if (r.healthStatus === "HEALTHY") dotClass = "st-healthy";
+          const hs = String(r.healthStatus || "").toUpperCase().trim();
+
+let dotClass = "st-new";
+if (hs === "CRITICAL") dotClass = "st-critical";
+else if (hs === "AT RISK") dotClass = "st-risk";
+else if (hs === "HEALTHY") dotClass = "st-healthy";
           
           const totalQC = r.qualifiedCount + r.creditedCount;
           const cancelRate = totalQC > 0 ? Math.round((r.creditedCount / totalQC) * 100) : 0;
@@ -2574,7 +2567,7 @@ filtered = filtered.filter(r => {
               <td class="p-4">
                 <div class="status-container">
                   <span class="status-dot ${dotClass}"></span>
-                  <span class="tooltip-text"><b>${r.healthStatus}</b></span>
+                  <span class="tooltip-text"><b>${hs || "NOT STARTED"}</b></span>
                 </div>
               </td>
               <td class="p-4 text-gray-700 font-semibold">${r.code}</td>
