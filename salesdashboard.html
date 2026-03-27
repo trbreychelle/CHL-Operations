@@ -446,8 +446,21 @@
             <div class="p-5 max-h-[80vh] overflow-y-auto">
               <div id="passbook-form-body"><div class="p-4 rounded-xl border border-gray-100 bg-gray-50/40 text-sm text-gray-500 italic">Loading client details...</div></div>
               <div class="flex items-center justify-end gap-2 pt-4 border-t border-gray-100 mt-4">
-                <button type="button" class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800" onclick="Admin.closePassbookModal()">Close</button>
-              </div>
+  <button
+    type="button"
+    id="passbookSaveButton"
+    class="px-4 py-2 rounded-lg bg-yellow-500 text-gray-900 text-sm font-extrabold hover:bg-yellow-400"
+  >
+    Save Changes
+  </button>
+  <button
+    type="button"
+    class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800"
+    onclick="Admin.closePassbookModal()"
+  >
+    Close
+  </button>
+</div>
             </div>
           </div>
         </div>
@@ -1650,52 +1663,92 @@
       },
 
       _renderPassbookForm(raw) {
-        const safeStr = (val) => String(val || "").replace(/"/g, "&quot;");
-        const fields = [
-          { label: "Code Name", key: "client_code" },
-          { label: "Company Name", key: "company_name" },
-          { label: "Phone", key: "phone" },
-          { label: "Contact Person", key: "contact_person" },
-          { label: "Area / City State", key: "area" },
-          { label: "Area Codes To Use", key: "area_codes_to_use" },
-          { label: "Email", key: "email" },
-          { label: "Website", key: "website" },
-          { label: "Status", key: "client_status" },
-          { label: "Company Address", key: "company_address" },
-          { label: "Sales Rep Count", key: "sales_rep_count" },
-          { label: "Regions / Cities / Zip Codes", key: "regions" },
-          { label: "Days of Operation", key: "days_of_operation" },
-          { label: "Hours of Operation", key: "hours_of_operation" },
-          { label: "Appointment Interval", key: "appointment_interval" },
-          { label: "Roof Types", key: "roof_types" },
-          { label: "Leads Per Day Limit", key: "leads_per_day_limit" },
-          { label: "Double Bookings", key: "double_bookings" },
-          { label: "Additional Notes / Requests", key: "additional_notes" }
-        ];
+  const safeStr = (val) => String(val ?? "").replace(/"/g, "&quot;");
+  const companyName = safeStr(raw.company_name) || "Unknown";
+  const codeName = safeStr(raw.client_code) || "—";
+  const cityState = safeStr(raw.area || raw.city_state) || "—";
 
-        const companyName = safeStr(raw.company_name) || "Unknown";
-        const codeName = safeStr(raw.client_code) || "—";
-        const cityState = safeStr(raw.area || raw.city_state) || "—";
+  document.getElementById("passbook-modal-title").textContent = companyName;
+  document.getElementById("passbook-modal-sub").textContent = `Code: ${codeName} • ${cityState}`;
 
-        document.getElementById("passbook-modal-title").textContent = companyName;
-        document.getElementById("passbook-modal-sub").textContent = `Code: ${codeName} • ${cityState}`;
+  const fields = [
+    { label: "Code Name", key: "client_code", locked: true },
+    { label: "Company Name", key: "company_name", locked: true },
+    { label: "Phone", key: "phone" },
+    { label: "Contact Person", key: "contact_person" },
+    { label: "Area / City State", key: "area" },
+    { label: "Area Codes To Use", key: "area_codes_to_use", long: true },
+    { label: "Email", key: "email" },
+    { label: "Website", key: "website" },
+    { label: "Status", key: "client_status" },
+    { label: "Company Address", key: "company_address", long: true },
+    { label: "Sales Rep Count", key: "sales_rep_count" },
+    { label: "Regions / Cities / Zip Codes", key: "regions", long: true },
+    { label: "Days of Operation", key: "days_of_operation" },
+    { label: "Hours of Operation", key: "hours_of_operation" },
+    { label: "Appointment Interval", key: "appointment_interval" },
+    { label: "Roof Types", key: "roof_types" },
+    { label: "Leads Per Day Limit", key: "leads_per_day_limit" },
+    { label: "Double Bookings", key: "double_bookings" },
+    { label: "Additional Notes / Requests", key: "additional_notes", long: true }
+  ];
 
-        let html = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
-        for (const f of fields) {
-          const val = safeStr(raw[f.key]);
-          const isLong = ["additional_notes", "regions", "area_codes_to_use", "company_address"].includes(f.key);
-          html += `
-            <div>
-              <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">${f.label}</label>
-              ${ isLong 
-                  ? `<div class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm min-h-[6rem] text-gray-700 whitespace-pre-wrap">${val || '—'}</div>` 
-                  : `<div class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 truncate" title="${val}">${val || '—'}</div>` }
-            </div>
-          `;
-        }
-        html += `</div>`;
-        document.getElementById("passbook-form-body").innerHTML = html;
-      },
+  let html = `
+    <form id="passbookClientForm" data-passbook-form="client" class="space-y-4">
+      <input type="hidden" id="codeName" value="${codeName}" />
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+  `;
+
+  for (const f of fields) {
+    const val = safeStr(raw[f.key]);
+    const locked = !!f.locked;
+
+    if (f.long) {
+      html += `
+        <div class="${f.key === 'additional_notes' || f.key === 'company_address' || f.key === 'regions' || f.key === 'area_codes_to_use' ? 'md:col-span-2' : ''}">
+          <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">${f.label}</label>
+          <textarea
+            name="${f.key}"
+            ${locked ? "readonly" : ""}
+            class="w-full px-3 py-2 border rounded-lg text-sm min-h-[110px] ${
+              locked
+                ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-white border-gray-200 text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+            }"
+          >${val}</textarea>
+        </div>
+      `;
+    } else {
+      html += `
+        <div>
+          <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">${f.label}</label>
+          <input
+            type="text"
+            name="${f.key}"
+            value="${val}"
+            ${locked ? "readonly" : ""}
+            class="w-full px-3 py-2 border rounded-lg text-sm ${
+              locked
+                ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-white border-gray-200 text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+            }"
+          />
+        </div>
+      `;
+    }
+  }
+
+  html += `
+      </div>
+    </form>
+  `;
+
+  document.getElementById("passbook-form-body").innerHTML = html;
+
+  if (window.portal && typeof window.portal.bindPassbookUpdateButton === "function") {
+    window.portal.bindPassbookUpdateButton();
+  }
+},
 
       nav(viewId, linkEl) {
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
