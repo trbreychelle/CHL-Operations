@@ -629,33 +629,113 @@
       <div id="view-onboarding" class="view-section">
   <div class="p-6">
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h2 class="text-2xl font-bold text-gray-900">Client Onboarding</h2>
-          <p class="text-sm text-gray-500">Track onboarding progress for each client.</p>
-        </div>
-      </div>
+      <div class="flex flex-col gap-4 mb-4">
+  <div>
+    <h2 class="text-2xl font-bold text-gray-900">Client Onboarding</h2>
+    <p class="text-sm text-gray-500">Track onboarding progress for each client.</p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-3">
+    <div class="lg:col-span-2 relative">
+      <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+      <input
+        id="onboarding-search"
+        type="text"
+        placeholder="Search client code or company..."
+        class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+      />
+    </div>
+
+    <select id="ob-filter-contract-sent" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+      <option value="all">Contract Sent: All</option>
+      <option value="done">Done</option>
+      <option value="not_done">Not Done</option>
+    </select>
+
+    <select id="ob-filter-contract-done" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+      <option value="all">Contract Done: All</option>
+      <option value="done">Done</option>
+      <option value="not_done">Not Done</option>
+    </select>
+
+    <select id="ob-filter-ready" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+      <option value="all">Ready: All</option>
+      <option value="done">Done</option>
+      <option value="not_done">Not Done</option>
+    </select>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-3">
+    <select id="ob-filter-paid" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+      <option value="all">Paid: All</option>
+      <option value="done">Done</option>
+      <option value="not_done">Not Done</option>
+    </select>
+
+    <select id="ob-filter-form-sent" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+      <option value="all">Form Sent: All</option>
+      <option value="done">Done</option>
+      <option value="not_done">Not Done</option>
+    </select>
+
+    <select id="ob-filter-form-received" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+      <option value="all">Form Received: All</option>
+      <option value="done">Done</option>
+      <option value="not_done">Not Done</option>
+    </select>
+
+    <select id="ob-filter-portal" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+      <option value="all">Portal Created: All</option>
+      <option value="done">Done</option>
+      <option value="not_done">Not Done</option>
+    </select>
+
+    <select id="ob-filter-demo" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+      <option value="all">Demo: All</option>
+      <option value="done">Done</option>
+      <option value="not_done">Not Done</option>
+    </select>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-3">
+    <select id="ob-filter-tracker" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+      <option value="all">Shared Tracker: All</option>
+      <option value="done">Done</option>
+      <option value="not_done">Not Done</option>
+    </select>
+
+    <div></div>
+    <div></div>
+    <div></div>
+
+    <button
+      id="ob-clear-filters"
+      class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50"
+    >
+      Clear Filters
+    </button>
+  </div>
+</div>
 
       <div class="overflow-x-auto">
         <table class="min-w-[1600px] w-full text-sm">
           <thead>
-            <tr class="border-b border-gray-200 text-left text-[11px] uppercase tracking-wide text-gray-500">
-              <th class="p-3">Code</th>
-              <th class="p-3">Company</th>
-              <th class="p-3">Paid</th>
-              <th class="p-3">Contract Sent</th>
-              <th class="p-3">Contract Done</th>
-              <th class="p-3">Onboarding Sent</th>
-              <th class="p-3">Onboarding Done</th>
-              <th class="p-3">GHL</th>
-              <th class="p-3">Portal</th>
-              <th class="p-3">Tracker</th>
-              <th class="p-3">Demo</th>
-              <th class="p-3">Ready</th>
-              <th class="p-3">Notes</th>
-              <th class="p-3">Action</th>
-            </tr>
-          </thead>
+  <tr class="border-b border-gray-200 text-left text-[11px] uppercase tracking-wide text-gray-500">
+    <th class="p-3">Code</th>
+    <th class="p-3">Company</th>
+    <th class="p-3">Paid</th>
+    <th class="p-3">Contract Sent</th>
+    <th class="p-3">Contract Done</th>
+    <th class="p-3">Onboarding Form Sent</th>
+    <th class="p-3">Onboarding Form Received</th>
+    <th class="p-3">Portal Created</th>
+    <th class="p-3">Shared Tracker</th>
+    <th class="p-3">Demo</th>
+    <th class="p-3">Ready</th>
+    <th class="p-3">Notes</th>
+    <th class="p-3">Action</th>
+  </tr>
+</thead>
           <tbody id="onboarding-table-body"></tbody>
         </table>
       </div>
@@ -4850,11 +4930,86 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
     .sort((a, b) => a.company_name.localeCompare(b.company_name));
 },
 
+      
+getFilteredOnboardingRows() {
+  let rows = this.getOnboardingRows();
+
+  const q = String(document.getElementById("onboarding-search")?.value || "").toLowerCase().trim();
+
+  const filterMap = [
+    ["ob-filter-paid", "client_paid"],
+    ["ob-filter-contract-sent", "contract_sent"],
+    ["ob-filter-contract-done", "contract_completed"],
+    ["ob-filter-form-sent", "onboarding_link_sent"],
+    ["ob-filter-form-received", "onboarding_link_completed"],
+    ["ob-filter-portal", "client_portal_created"],
+    ["ob-filter-tracker", "live_lead_tracker_created"],
+    ["ob-filter-demo", "client_portal_demo_completed"],
+    ["ob-filter-ready", "ready_to_receive_leads"]
+  ];
+
+  if (q) {
+    rows = rows.filter(row =>
+      `${row.client_code} ${row.company_name}`.toLowerCase().includes(q)
+    );
+  }
+
+  filterMap.forEach(([id, field]) => {
+    const val = document.getElementById(id)?.value || "all";
+    if (val === "done") rows = rows.filter(r => !!r[field]);
+    if (val === "not_done") rows = rows.filter(r => !r[field]);
+  });
+
+  return rows;
+},
+
+bindOnboardingFilters() {
+  if (this._onboardingFiltersBound) return;
+  this._onboardingFiltersBound = true;
+
+  const ids = [
+    "onboarding-search",
+    "ob-filter-paid",
+    "ob-filter-contract-sent",
+    "ob-filter-contract-done",
+    "ob-filter-form-sent",
+    "ob-filter-form-received",
+    "ob-filter-portal",
+    "ob-filter-tracker",
+    "ob-filter-demo",
+    "ob-filter-ready"
+  ];
+
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const evt = id === "onboarding-search" ? "input" : "change";
+    el.addEventListener(evt, () => this.renderOnboardingTab());
+  });
+
+  const clearBtn = document.getElementById("ob-clear-filters");
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      const search = document.getElementById("onboarding-search");
+      if (search) search.value = "";
+
+      ids.forEach(id => {
+        if (id === "onboarding-search") return;
+        const el = document.getElementById(id);
+        if (el) el.value = "all";
+      });
+
+      this.renderOnboardingTab();
+    });
+  }
+},
+      
 renderOnboardingTab() {
   const tbody = document.getElementById("onboarding-table-body");
   if (!tbody) return;
 
-  const rows = this.getOnboardingRows();
+  this.bindOnboardingFilters();
+const rows = this.getFilteredOnboardingRows();
 
   tbody.innerHTML = rows.map(row => `
   <tr class="border-b border-gray-100 hover:bg-gray-50">
@@ -4889,12 +5044,6 @@ renderOnboardingTab() {
       <input type="checkbox" class="onboard-checkbox"
         data-ob-code="${row.client_code}" data-ob-field="onboarding_link_completed"
         ${row.onboarding_link_completed ? "checked" : ""}>
-    </td>
-
-    <td class="p-3">
-      <input type="checkbox" class="onboard-checkbox"
-        data-ob-code="${row.client_code}" data-ob-field="ghl_account_created"
-        ${row.ghl_account_created ? "checked" : ""}>
     </td>
 
     <td class="p-3">
