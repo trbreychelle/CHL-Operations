@@ -718,7 +718,7 @@
 </div>
 
       <div class="overflow-x-auto">
-        <table class="min-w-[1600px] w-full text-sm">
+        <table class="min-w-[1350px] w-full text-sm">
           <thead>
   <tr class="border-b border-gray-200 text-left text-[11px] uppercase tracking-wide text-gray-500">
     <th class="p-3">Code</th>
@@ -5145,16 +5145,17 @@ async saveOnboardingRow(clientCode) {
     return;
   }
 
-  await window.portal.fetchAdminData(true);
+    await window.portal.fetchAdminData(true);
 
-  if (rowBtn) {
-    rowBtn.textContent = "Saved ✓";
-    rowBtn.classList.remove("opacity-70", "cursor-not-allowed");
-    rowBtn.disabled = false;
+  const freshBtn = document.querySelector(`button[data-ob-save="${clientCode}"]`);
+  if (freshBtn) {
+    freshBtn.textContent = "Saved ✓";
+    freshBtn.disabled = false;
+    freshBtn.classList.remove("opacity-70", "cursor-not-allowed");
 
     setTimeout(() => {
-      const freshBtn = document.querySelector(`button[data-ob-save="${clientCode}"]`);
-      if (freshBtn) freshBtn.textContent = "Save";
+      const latestBtn = document.querySelector(`button[data-ob-save="${clientCode}"]`);
+      if (latestBtn) latestBtn.textContent = "Save";
     }, 1200);
   }
 },
