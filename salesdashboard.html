@@ -612,8 +612,9 @@
         if (!state) return;
 
         const clients = state.clients || [];
-        const leads = state.leads || [];
-        const packages = state.packages || [];
+const rawClients = state.rawClients || [];
+const leads = state.leads || [];
+const packages = state.packages || [];
 
         this._leadsIndexByCompany = new Map();
         leads.forEach(l => {
@@ -635,10 +636,11 @@
         try { this.bindSalesUI(); this.renderSalesTab(); } catch(e) { console.error("Sales Error:", e); }
         
         try {
-          this.setupPassbookFilters(clients);
-          this.bindPassbookUI(clients);
-          this.applyPassbookFilters(clients);
-        } catch(e) { console.error("Passbook Error:", e); }
+  const passbookClients = rawClients.length ? rawClients : clients;
+  this.setupPassbookFilters(passbookClients);
+  this.bindPassbookUI(passbookClients);
+  this.applyPassbookFilters(passbookClients);
+} catch(e) { console.error("Passbook Error:", e); }
         
         try {
           this.initLeadsColumnsUI();
