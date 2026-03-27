@@ -982,8 +982,15 @@ const purchaseDate = this.getAny(r, ['purchase_date', 'Purchase Date'], '');
       }
     };
 
-    if (btn) btn.addEventListener('click', handler);
-    if (form) form.addEventListener('submit', handler);
+    if (btn) {
+  btn.onclick = null;
+  btn.onclick = handler;
+}
+
+if (form) {
+  form.onsubmit = null;
+  form.onsubmit = handler;
+    } 
   }
 
   collectPassbookUpdatePayloadFromForm(rootEl) {
