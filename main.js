@@ -842,7 +842,7 @@ if (this.adminState.clientHealthView.length > 0) {
       const status = this.getAny(r, ['client_status', 'status', 'Client Status', 'CLIENT STATUS'], 'NOT STARTED');
 const codeName = this.getAny(r, ['client_code', 'code_name', 'codeName', 'CODE NAME', 'CODE', 'code'], 'N/A');
 const roofingCompany = this.getAny(r, ['company_name', 'roofing_company', 'Roofing Company', 'Roofing Company Name', 'Company Name', 'COMPANY NAME'], '—');
-const cityState = this.getAny(r, ['city_state', 'CITY STATE', 'City State', 'location', 'Location'], 'Remote');
+const cityState = this.getAny(r, ['area', 'city_state', 'CITY STATE', 'City State', 'location', 'Location'], '—');
 const clientName = this.getAny(r, ['client_name', 'CLIENT NAME', 'Client Name'], '—');
 const lastLeadReceived = this.getAny(r, ['last_lead_received', 'Last Lead Received'], '');
 const hoursSinceLastLead = 0;
@@ -872,7 +872,7 @@ const purchaseDate = this.getAny(r, ['purchase_date', 'Purchase Date'], '');
       status: this.getAny(c, ['STATUS', 'Status', 'Client Status', 'CLIENT STATUS'], 'NOT STARTED'),
       code_name: this.getAny(c, ['CODE NAME', 'Code Name', 'CODE', 'Client Code'], 'N/A'),
       roofing_company: this.getAny(c, ['COMPANY NAME', 'Company Name', 'Roofing Company'], '—'),
-      city_state: this.getAny(c, ['CITY STATE', 'City State', 'Location'], 'Remote'),
+      city_state: this.getAny(c, ['area', 'city_state', 'CITY STATE', 'City State', 'Location'], '—'),
       client_name: this.getAny(c, ['CLIENT NAME', 'Client Name'], '—'),
       last_lead_received: '', hours_since_last_lead: 0, leads_today: 0, leads_yesterday: 0,
       purchased_leads: 0, owed_leads: 0, package_status: '', purchase_date: ''
