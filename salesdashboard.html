@@ -30,14 +30,7 @@
 }
 
 #view-leads td:hover {
-    overflow: visible;
-    white-space: normal;
-    word-break: break-word;
     background-color: #f8fafc;
-    position: relative;
-    z-index: 50;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    border-radius: 6px;
 }
     
     * { font-family: 'Inter', sans-serif; }
@@ -597,9 +590,11 @@
                 <div>
                   <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sale Category</label>
                   <select id="sale-category" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
-                    <option value="Sales Team">Sales Team</option>
-                    <option value="CHL">CHL (Admin)</option>
-                  </select>
+  <option value="Hammer">Hammer</option>
+  <option value="Mikaela">Mikaela</option>
+  <option value="Hannah">Hannah</option>
+  <option value="CHL Team">CHL Team</option>
+</select>
                 </div>
             </div>
             <button type="submit" id="save-sale-btn" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg mt-2 shadow-lg">Save Deal</button>
@@ -1850,33 +1845,41 @@ const packages = state.packages || [];
     };
 
     window.editDealModal = function(pkgId) {
-        const pkg = window.portal.adminState.packages.find(p => p.id == pkgId);
-        if (!pkg) return;
+    const pkg = window.portal?.adminState?.packages?.find(p => p.id == pkgId);
+    if (!pkg) return;
 
-        if (window.populateSalesClientDropdown) window.populateSalesClientDropdown();
-        const clients = window.portal?.adminState?.clients || [];
-        const client = clients.find(c => c.client_code === pkg.client_code || c.code_name === pkg.client_code) || {};
+    if (window.populateSalesClientDropdown) window.populateSalesClientDropdown();
 
-        document.getElementById('sale-package-id').value = pkg.id;
-        document.getElementById('sale-client-code').value = pkg.client_code || "";
-        document.getElementById('sale-company').value = client.company_name || "";
-        document.getElementById('sale-poc').value = client.contact_person || "";
-        
-        document.getElementById('sale-leads').value = pkg.purchased_leads || "";
-        document.getElementById('sale-value').value = String(pkg.amount || "").replace(/[^0-9.-]+/g,"");
-        document.getElementById('sale-commission').value = pkg.commission_per_lead || 0;
-        
-        if (pkg.purchase_date) document.getElementById('sale-date').value = new Date(pkg.purchase_date).toISOString().split('T')[0];
+    const clients = window.portal?.adminState?.rawClients || window.portal?.adminState?.clients || [];
+    const normalize = (v) => String(v || "").trim().toLowerCase();
 
-        document.getElementById('sale-transaction-id').value = pkg.external_package_id || "";
-        document.getElementById('sale-deal-status').value = pkg.deal_status || "Paid";
-        document.getElementById('sale-deal-type').value = pkg.deal_type || "New Client";
-        document.getElementById('sale-category').value = pkg.sales_category || "Sales Team";
+    const client = clients.find(c =>
+        normalize(c.client_code || c.code_name) === normalize(pkg.client_code) ||
+        normalize(c.company_name || c.roofing_company) === normalize(pkg.company_name || pkg.roofing_company)
+    ) || {};
 
-        document.getElementById('sale-modal-title').innerText = "Edit Deal Details";
-        document.getElementById('save-sale-btn').innerText = "Update Deal";
-        document.getElementById('add-sale-modal').classList.remove('hidden');
-    };
+    document.getElementById('sale-package-id').value = pkg.id;
+    document.getElementById('sale-client-code').value = pkg.client_code || "";
+    document.getElementById('sale-company').value = client.company_name || pkg.company_name || pkg.roofing_company || "";
+    document.getElementById('sale-poc').value = client.contact_person || client.client_name || "";
+
+    document.getElementById('sale-leads').value = pkg.purchased_leads || "";
+    document.getElementById('sale-value').value = String(pkg.amount || "").replace(/[^0-9.-]+/g, "");
+    document.getElementById('sale-commission').value = pkg.commission_per_lead || 0;
+
+    if (pkg.purchase_date) {
+        document.getElementById('sale-date').value = new Date(pkg.purchase_date).toISOString().split('T')[0];
+    }
+
+    document.getElementById('sale-transaction-id').value = pkg.external_package_id || "";
+    document.getElementById('sale-deal-status').value = pkg.deal_status || "Paid";
+    document.getElementById('sale-deal-type').value = pkg.deal_type || "New Client";
+    document.getElementById('sale-category').value = pkg.sales_category || "CHL Team";
+
+    document.getElementById('sale-modal-title').innerText = "Edit Deal Details";
+    document.getElementById('save-sale-btn').innerText = "Update Deal";
+    document.getElementById('add-sale-modal').classList.remove('hidden');
+};
 
     window.populateSalesClientDropdown = function() {
         const companyInput = document.getElementById('sale-company');
