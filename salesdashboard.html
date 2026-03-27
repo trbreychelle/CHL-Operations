@@ -29,8 +29,38 @@
     padding-right: 10px;
 }
 
+#view-leads td {
+    position: relative;
+}
+
+#view-leads td .cell-text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#view-leads td:hover .cell-text {
+    position: absolute;
+    left: 0;
+    top: 100%;
+    margin-top: 4px;
+    z-index: 100;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    padding: 8px 10px;
+    white-space: normal;
+    word-break: break-word;
+    min-width: 220px;
+    max-width: 420px;
+    overflow: visible;
+}
+
 #view-leads td:hover {
     background-color: #f8fafc;
+    z-index: 20;
 }
     
     * { font-family: 'Inter', sans-serif; }
@@ -1630,7 +1660,17 @@ const packages = state.packages || [];
         const visibleCols = this._leadsCols.filter(c => this._leadsVisibleCols.has(c.key));
         thead.innerHTML = `<tr>${visibleCols.map(c => `<th class="p-4">${c.label}</th>`).join("")}</tr>`;
         // NO DROPDOWNS, NO TRASHCANS. Read Only.
-        tbody.innerHTML = leads.map(l => `<tr class="hover:bg-gray-50">${visibleCols.map(c => `<td class="p-4">${c.key === "status" ? this.statusBadge(this.getLeadField(l, c.keys)) : this.getLeadField(l, c.keys)}</td>`).join("")}</tr>`).join("");
+        tbody.innerHTML = leads.map(l => `
+  <tr class="hover:bg-gray-50">
+    ${visibleCols.map(c => {
+      const rawVal = this.getLeadField(l, c.keys);
+      const cellHtml = c.key === "status"
+        ? this.statusBadge(rawVal)
+        : `<span class="cell-text">${rawVal ?? "—"}</span>`;
+      return `<td class="p-4">${cellHtml}</td>`;
+    }).join("")}
+  </tr>
+`).join("");
       },
 
       // --- PASSBOOK CLIENTS (LOCKED TO SHARED ONLY) ---
@@ -1886,7 +1926,7 @@ const packages = state.packages || [];
         const suggestionBox = document.getElementById('custom-client-suggestions');
         if (!companyInput || !suggestionBox) return;
 
-        const clients = window.portal?.adminState?.clients || [];
+        const clients = window.portal?.adminState?.rawClients || window.portal?.adminState?.clients || [];
         
         document.addEventListener('click', (e) => {
             if (e.target !== companyInput && e.target !== suggestionBox) {
