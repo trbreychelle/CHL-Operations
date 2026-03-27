@@ -836,40 +836,70 @@ if (this.adminState.clientHealthView.length > 0) {
   }
 
   normalizeAdminFromHealthMonitor(rows) {
-    const list = Array.isArray(rows) ? rows : [];
+  const list = Array.isArray(rows) ? rows : [];
+  const rawClients = Array.isArray(this.adminState.rawClients) ? this.adminState.rawClients : [];
 
-    this.adminState.clients = list.map(r => {
-      const status = this.getAny(r, ['client_status', 'status', 'Client Status', 'CLIENT STATUS'], 'NOT STARTED');
-const codeName = this.getAny(r, ['client_code', 'code_name', 'codeName', 'CODE NAME', 'CODE', 'code'], 'N/A');
-const roofingCompany = this.getAny(r, ['company_name', 'roofing_company', 'Roofing Company', 'Roofing Company Name', 'Company Name', 'COMPANY NAME'], '—');
-const cityState = this.getAny(r, ['area', 'city_state', 'CITY STATE', 'City State', 'location', 'Location'], '—');
-const clientName = this.getAny(r, ['client_name', 'CLIENT NAME', 'Client Name', 'contact_person', 'Contact Person'], '—');
-const lastLeadReceived = this.getAny(r, ['last_lead_received', 'Last Lead Received'], '');
-const hoursSinceLastLead = 0;
-const leadsToday = this.toNumberSafe(this.getAny(r, ['leads_today', 'Leads Today'], 0), 0);
-const leadsYesterday = this.toNumberSafe(this.getAny(r, ['leads_yesterday', 'Leads Yesterday'], 0), 0);
-const purchasedLeads = this.toNumberSafe(this.getAny(r, ['purchased_leads', 'Purchased Leads'], 0), 0);
-const owedLeads = this.toNumberSafe(this.getAny(r, ['owed_leads', 'Owed Leads'], 0), 0);
-const packageStatus = this.getAny(r, ['package_status', 'Package Status'], '');
-const purchaseDate = this.getAny(r, ['purchase_date', 'Purchase Date'], '');
+  const normalizeKey = (v) => String(v || '').trim().toLowerCase();
 
-      return {
-  status,
-  code_name: codeName,
-  roofing_company: roofingCompany,
-  city_state: cityState,
-  client_name: clientName,
-  last_lead_received: lastLeadReceived,
-  hours_since_last_lead: hoursSinceLastLead,
-  leads_today: leadsToday,
-  leads_yesterday: leadsYesterday,
-  purchased_leads: purchasedLeads,
-  owed_leads: owedLeads,
-  package_status: packageStatus,
-  purchase_date: purchaseDate,
-};
-    });
-  }
+  const rawByCode = new Map();
+  const rawByCompany = new Map();
+
+  rawClients.forEach(c => {
+    const code = normalizeKey(this.getAny(c, ['client_code', 'code_name', 'codeName', 'CODE NAME', 'CODE', 'code'], ''));
+    const company = normalizeKey(this.getAny(c, ['company_name', 'roofing_company', 'Roofing Company', 'Company Name', 'COMPANY NAME'], ''));
+
+    if (code) rawByCode.set(code, c);
+    if (company) rawByCompany.set(company, c);
+  });
+
+  this.adminState.clients = list.map(r => {
+    const status = this.getAny(r, ['client_status', 'status', 'Client Status', 'CLIENT STATUS'], 'NOT STARTED');
+    const codeName = this.getAny(r, ['client_code', 'code_name', 'codeName', 'CODE NAME', 'CODE', 'code'], 'N/A');
+    const roofingCompany = this.getAny(r, ['company_name', 'roofing_company', 'Roofing Company', 'Roofing Company Name', 'Company Name', 'COMPANY NAME'], '—');
+
+    const matchedRaw =
+      rawByCode.get(normalizeKey(codeName)) ||
+      rawByCompany.get(normalizeKey(roofingCompany)) ||
+      {};
+
+    const cityState = this.getAny(
+      r,
+      ['area', 'city_state', 'CITY STATE', 'City State', 'location', 'Location'],
+      this.getAny(matchedRaw, ['area', 'city_state', 'CITY STATE', 'City State', 'location', 'Location'], '—')
+    );
+
+    const clientName = this.getAny(
+      r,
+      ['client_name', 'CLIENT NAME', 'Client Name', 'contact_person', 'Contact Person'],
+      this.getAny(matchedRaw, ['client_name', 'CLIENT NAME', 'Client Name', 'contact_person', 'Contact Person'], '—')
+    );
+
+    const lastLeadReceived = this.getAny(r, ['last_lead_received', 'Last Lead Received'], '');
+    const hoursSinceLastLead = 0;
+    const leadsToday = this.toNumberSafe(this.getAny(r, ['leads_today', 'Leads Today'], 0), 0);
+    const leadsYesterday = this.toNumberSafe(this.getAny(r, ['leads_yesterday', 'Leads Yesterday'], 0), 0);
+    const purchasedLeads = this.toNumberSafe(this.getAny(r, ['purchased_leads', 'Purchased Leads'], 0), 0);
+    const owedLeads = this.toNumberSafe(this.getAny(r, ['owed_leads', 'Owed Leads'], 0), 0);
+    const packageStatus = this.getAny(r, ['package_status', 'Package Status'], '');
+    const purchaseDate = this.getAny(r, ['purchase_date', 'Purchase Date'], '');
+
+    return {
+      status,
+      code_name: codeName,
+      roofing_company: roofingCompany,
+      city_state: cityState,
+      client_name: clientName,
+      last_lead_received: lastLeadReceived,
+      hours_since_last_lead: hoursSinceLastLead,
+      leads_today: leadsToday,
+      leads_yesterday: leadsYesterday,
+      purchased_leads: purchasedLeads,
+      owed_leads: owedLeads,
+      package_status: packageStatus,
+      purchase_date: purchaseDate,
+    };
+  });
+}
 
   normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages) {
     this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
