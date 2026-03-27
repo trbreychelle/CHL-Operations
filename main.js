@@ -843,7 +843,7 @@ if (this.adminState.clientHealthView.length > 0) {
 const codeName = this.getAny(r, ['client_code', 'code_name', 'codeName', 'CODE NAME', 'CODE', 'code'], 'N/A');
 const roofingCompany = this.getAny(r, ['company_name', 'roofing_company', 'Roofing Company', 'Roofing Company Name', 'Company Name', 'COMPANY NAME'], '—');
 const cityState = this.getAny(r, ['area', 'city_state', 'CITY STATE', 'City State', 'location', 'Location'], '—');
-const clientName = this.getAny(r, ['client_name', 'CLIENT NAME', 'Client Name'], '—');
+const clientName = this.getAny(r, ['client_name', 'CLIENT NAME', 'Client Name', 'contact_person', 'Contact Person'], '—');
 const lastLeadReceived = this.getAny(r, ['last_lead_received', 'Last Lead Received'], '');
 const hoursSinceLastLead = 0;
 const leadsToday = this.toNumberSafe(this.getAny(r, ['leads_today', 'Leads Today'], 0), 0);
@@ -854,10 +854,20 @@ const packageStatus = this.getAny(r, ['package_status', 'Package Status'], '');
 const purchaseDate = this.getAny(r, ['purchase_date', 'Purchase Date'], '');
 
       return {
-        status, code_name: codeName, roofing_company: roofingCompany, city_state: cityState, clientName,
-        last_lead_received: lastLeadReceived, hours_since_last_lead: hoursSinceLastLead, leads_today: leadsToday, leads_yesterday: leadsYesterday,
-        purchased_leads: purchasedLeads, owed_leads: owedLeads, package_status: packageStatus, purchase_date: purchaseDate,
-      };
+  status,
+  code_name: codeName,
+  roofing_company: roofingCompany,
+  city_state: cityState,
+  client_name: clientName,
+  last_lead_received: lastLeadReceived,
+  hours_since_last_lead: hoursSinceLastLead,
+  leads_today: leadsToday,
+  leads_yesterday: leadsYesterday,
+  purchased_leads: purchasedLeads,
+  owed_leads: owedLeads,
+  package_status: packageStatus,
+  purchase_date: purchaseDate,
+};
     });
   }
 
@@ -873,7 +883,7 @@ const purchaseDate = this.getAny(r, ['purchase_date', 'Purchase Date'], '');
       code_name: this.getAny(c, ['CODE NAME', 'Code Name', 'CODE', 'Client Code'], 'N/A'),
       roofing_company: this.getAny(c, ['COMPANY NAME', 'Company Name', 'Roofing Company'], '—'),
       city_state: this.getAny(c, ['area', 'city_state', 'CITY STATE', 'City State', 'Location'], '—'),
-      client_name: this.getAny(c, ['CLIENT NAME', 'Client Name'], '—'),
+      client_name: this.getAny(c, ['client_name', 'CLIENT NAME', 'Client Name', 'contact_person', 'Contact Person'], '—'),
       last_lead_received: '', hours_since_last_lead: 0, leads_today: 0, leads_yesterday: 0,
       purchased_leads: 0, owed_leads: 0, package_status: '', purchase_date: ''
     }));
