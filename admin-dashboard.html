@@ -13,6 +13,20 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
+    
+    /* ONBOARDING CHECKBOX STYLE */
+.onboard-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #10b981; /* emerald */
+  transform: scale(1.2);
+}
+
+/* Optional: nicer hover */
+.onboard-checkbox:hover {
+  transform: scale(1.3);
+}
     * { font-family: 'Inter', sans-serif; }
     body { background-color: #F9FAFB; color: #111827; }
 
@@ -4843,44 +4857,105 @@ renderOnboardingTab() {
   const rows = this.getOnboardingRows();
 
   tbody.innerHTML = rows.map(row => `
-    <tr class="border-b border-gray-100 hover:bg-gray-50">
-      <td class="p-3 font-semibold text-gray-700">${row.client_code}</td>
-      <td class="p-3 text-gray-800">${row.company_name}</td>
-      <td class="p-3"><input type="checkbox" data-ob-code="${row.client_code}" data-ob-field="client_paid" ${row.client_paid ? "checked" : ""}></td>
-      <td class="p-3"><input type="checkbox" data-ob-code="${row.client_code}" data-ob-field="contract_sent" ${row.contract_sent ? "checked" : ""}></td>
-      <td class="p-3"><input type="checkbox" data-ob-code="${row.client_code}" data-ob-field="contract_completed" ${row.contract_completed ? "checked" : ""}></td>
-      <td class="p-3"><input type="checkbox" data-ob-code="${row.client_code}" data-ob-field="onboarding_link_sent" ${row.onboarding_link_sent ? "checked" : ""}></td>
-      <td class="p-3"><input type="checkbox" data-ob-code="${row.client_code}" data-ob-field="onboarding_link_completed" ${row.onboarding_link_completed ? "checked" : ""}></td>
-      <td class="p-3"><input type="checkbox" data-ob-code="${row.client_code}" data-ob-field="ghl_account_created" ${row.ghl_account_created ? "checked" : ""}></td>
-      <td class="p-3"><input type="checkbox" data-ob-code="${row.client_code}" data-ob-field="client_portal_created" ${row.client_portal_created ? "checked" : ""}></td>
-      <td class="p-3"><input type="checkbox" data-ob-code="${row.client_code}" data-ob-field="live_lead_tracker_created" ${row.live_lead_tracker_created ? "checked" : ""}></td>
-      <td class="p-3"><input type="checkbox" data-ob-code="${row.client_code}" data-ob-field="client_portal_demo_completed" ${row.client_portal_demo_completed ? "checked" : ""}></td>
-      <td class="p-3"><input type="checkbox" data-ob-code="${row.client_code}" data-ob-field="ready_to_receive_leads" ${row.ready_to_receive_leads ? "checked" : ""}></td>
-      <td class="p-3">
-        <input
-          type="text"
-          data-ob-code="${row.client_code}"
-          data-ob-field="notes"
-          value="${String(row.notes).replace(/"/g, '&quot;')}"
-          class="w-full min-w-[220px] px-3 py-2 border border-gray-200 rounded-lg text-sm"
-        />
-      </td>
-      <td class="p-3">
-        <button
-          class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500"
-          onclick="Admin.saveOnboardingRow('${row.client_code.replace(/'/g, "\\'")}')"
-        >
-          Save
-        </button>
-      </td>
-    </tr>
-  `).join("");
-},
+  <tr class="border-b border-gray-100 hover:bg-gray-50">
+    <td class="p-3 font-semibold text-gray-700">${row.client_code}</td>
+    <td class="p-3 text-gray-800">${row.company_name}</td>
+
+    <td class="p-3">
+      <input type="checkbox" class="onboard-checkbox"
+        data-ob-code="${row.client_code}" data-ob-field="client_paid"
+        ${row.client_paid ? "checked" : ""}>
+    </td>
+
+    <td class="p-3">
+      <input type="checkbox" class="onboard-checkbox"
+        data-ob-code="${row.client_code}" data-ob-field="contract_sent"
+        ${row.contract_sent ? "checked" : ""}>
+    </td>
+
+    <td class="p-3">
+      <input type="checkbox" class="onboard-checkbox"
+        data-ob-code="${row.client_code}" data-ob-field="contract_completed"
+        ${row.contract_completed ? "checked" : ""}>
+    </td>
+
+    <td class="p-3">
+      <input type="checkbox" class="onboard-checkbox"
+        data-ob-code="${row.client_code}" data-ob-field="onboarding_link_sent"
+        ${row.onboarding_link_sent ? "checked" : ""}>
+    </td>
+
+    <td class="p-3">
+      <input type="checkbox" class="onboard-checkbox"
+        data-ob-code="${row.client_code}" data-ob-field="onboarding_link_completed"
+        ${row.onboarding_link_completed ? "checked" : ""}>
+    </td>
+
+    <td class="p-3">
+      <input type="checkbox" class="onboard-checkbox"
+        data-ob-code="${row.client_code}" data-ob-field="ghl_account_created"
+        ${row.ghl_account_created ? "checked" : ""}>
+    </td>
+
+    <td class="p-3">
+      <input type="checkbox" class="onboard-checkbox"
+        data-ob-code="${row.client_code}" data-ob-field="client_portal_created"
+        ${row.client_portal_created ? "checked" : ""}>
+    </td>
+
+    <td class="p-3">
+      <input type="checkbox" class="onboard-checkbox"
+        data-ob-code="${row.client_code}" data-ob-field="live_lead_tracker_created"
+        ${row.live_lead_tracker_created ? "checked" : ""}>
+    </td>
+
+    <td class="p-3">
+      <input type="checkbox" class="onboard-checkbox"
+        data-ob-code="${row.client_code}" data-ob-field="client_portal_demo_completed"
+        ${row.client_portal_demo_completed ? "checked" : ""}>
+    </td>
+
+    <td class="p-3">
+      <input type="checkbox" class="onboard-checkbox"
+        data-ob-code="${row.client_code}" data-ob-field="ready_to_receive_leads"
+        ${row.ready_to_receive_leads ? "checked" : ""}>
+    </td>
+
+    <td class="p-3">
+      <input
+        type="text"
+        data-ob-code="${row.client_code}"
+        data-ob-field="notes"
+        value="${String(row.notes).replace(/"/g, '&quot;')}"
+        class="w-full min-w-[220px] px-3 py-2 border border-gray-200 rounded-lg text-sm"
+      />
+    </td>
+
+    <td class="p-3">
+      <button
+        data-ob-save="${row.client_code}"
+        class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500"
+        onclick="Admin.saveOnboardingRow('${row.client_code.replace(/'/g, "\\'")}')"
+      >
+        Save
+      </button>
+    </td>
+  </tr>
+`).join("");
 
 async saveOnboardingRow(clientCode) {
   const state = this.getState();
   const clients = Array.isArray(state?.rawClients) ? state.rawClients : [];
   const client = clients.find(c => String(c.client_code || "").trim() === String(clientCode).trim()) || {};
+
+  const rowBtn = document.querySelector(`button[data-ob-save="${clientCode}"]`);
+  const originalBtnText = rowBtn ? rowBtn.textContent : "Save";
+
+  if (rowBtn) {
+    rowBtn.disabled = true;
+    rowBtn.textContent = "Saving...";
+    rowBtn.classList.add("opacity-70", "cursor-not-allowed");
+  }
 
   const payload = {
     client_code: clientCode,
@@ -4896,6 +4971,11 @@ async saveOnboardingRow(clientCode) {
 
   const supa = supaClient;
   if (!supa) {
+    if (rowBtn) {
+      rowBtn.disabled = false;
+      rowBtn.textContent = originalBtnText;
+      rowBtn.classList.remove("opacity-70", "cursor-not-allowed");
+    }
     alert("Supabase is not available.");
     return;
   }
@@ -4906,11 +4986,27 @@ async saveOnboardingRow(clientCode) {
 
   if (error) {
     console.error("Onboarding save failed:", error);
+    if (rowBtn) {
+      rowBtn.disabled = false;
+      rowBtn.textContent = originalBtnText;
+      rowBtn.classList.remove("opacity-70", "cursor-not-allowed");
+    }
     alert("Failed to save onboarding row.");
     return;
   }
 
   await window.portal.fetchAdminData(true);
+
+  if (rowBtn) {
+    rowBtn.textContent = "Saved ✓";
+    rowBtn.classList.remove("opacity-70", "cursor-not-allowed");
+    rowBtn.disabled = false;
+
+    setTimeout(() => {
+      const freshBtn = document.querySelector(`button[data-ob-save="${clientCode}"]`);
+      if (freshBtn) freshBtn.textContent = "Save";
+    }, 1200);
+  }
 },
       
       nav(viewId, linkEl) {
