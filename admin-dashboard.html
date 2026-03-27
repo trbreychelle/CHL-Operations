@@ -114,6 +114,9 @@
           <a href="#sales" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('sales', this)">
             <i class="fa-solid fa-handshake w-5 text-center"></i> Sales Pipeline
           </a>
+          <a href="#onboarding" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('onboarding', this)">
+            <i class="fa-solid fa-list-check w-5 text-center"></i> Onboarding
+          </a>
           <a href="#clients" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('clients', this)">
             <i class="fa-solid fa-building w-5 text-center"></i> Passbook Clients
           </a>
@@ -608,6 +611,43 @@
           </div>
         </div>
       </div>
+
+      <div id="view-onboarding" class="view-section">
+  <div class="p-6">
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">Client Onboarding</h2>
+          <p class="text-sm text-gray-500">Track onboarding progress for each client.</p>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="min-w-[1600px] w-full text-sm">
+          <thead>
+            <tr class="border-b border-gray-200 text-left text-[11px] uppercase tracking-wide text-gray-500">
+              <th class="p-3">Code</th>
+              <th class="p-3">Company</th>
+              <th class="p-3">Paid</th>
+              <th class="p-3">Contract Sent</th>
+              <th class="p-3">Contract Done</th>
+              <th class="p-3">Onboarding Sent</th>
+              <th class="p-3">Onboarding Done</th>
+              <th class="p-3">GHL</th>
+              <th class="p-3">Portal</th>
+              <th class="p-3">Tracker</th>
+              <th class="p-3">Demo</th>
+              <th class="p-3">Ready</th>
+              <th class="p-3">Notes</th>
+              <th class="p-3">Action</th>
+            </tr>
+          </thead>
+          <tbody id="onboarding-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
 
       <div id="view-leads" class="view-section">
         <h2 class="text-2xl font-bold text-gray-900 mb-4">Leads Master Record</h2>
@@ -1566,7 +1606,8 @@ const packages = state.packages || [];
 } catch(e) { console.error("HR Error:", e); }
         try { this.bindSalesUI(); this.renderSalesTab(); } catch(e) { console.error("Sales Error:", e); } 
         try { this.bindPassbookUI(rawClients); this.applyPassbookFilters(rawClients); } catch(e) {}
-        try { this.bindOverviewAnalyticsUI(); } catch(e) {} 
+        try { this.bindOverviewAnalyticsUI(); } catch(e) {}
+        try { this.renderOnboardingTab(); } catch(e) { console.error("Onboarding Error:", e); }
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
         try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
         try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
@@ -4760,6 +4801,117 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
             });
         }
       },
+
+      getOnboardingRows() {
+  const state = this.getState();
+  const clients = Array.isArray(state?.rawClients) ? state.rawClients : [];
+  const onboarding = Array.isArray(state?.clientOnboarding) ? state.clientOnboarding : [];
+
+  const byCode = new Map(
+    onboarding.map(row => [String(row.client_code || "").trim(), row])
+  );
+
+  return clients
+    .filter(c => String(c.client_code || "").trim())
+    .map(c => {
+      const clientCode = String(c.client_code || "").trim();
+      const saved = byCode.get(clientCode) || {};
+
+      return {
+        client_code: clientCode,
+        company_name: c.company_name || c.roofing_company || "—",
+        client_paid: !!saved.client_paid,
+        contract_sent: !!saved.contract_sent,
+        contract_completed: !!saved.contract_completed,
+        onboarding_link_sent: !!saved.onboarding_link_sent,
+        onboarding_link_completed: !!saved.onboarding_link_completed,
+        ghl_account_created: !!saved.ghl_account_created,
+        client_portal_created: !!saved.client_portal_created,
+        live_lead_tracker_created: !!saved.live_lead_tracker_created,
+        client_portal_demo_completed: !!saved.client_portal_demo_completed,
+        ready_to_receive_leads: !!saved.ready_to_receive_leads,
+        notes: saved.notes || ""
+      };
+    })
+    .sort((a, b) => a.company_name.localeCompare(b.company_name));
+},
+
+renderOnboardingTab() {
+  const tbody = document.getElementById("onboarding-table-body");
+  if (!tbody) return;
+
+  const rows = this.getOnboardingRows();
+
+  tbody.innerHTML = rows.map(row => `
+    <tr class="border-b border-gray-100 hover:bg-gray-50">
+      <td class="p-3 font-semibold text-gray-700">${row.client_code}</td>
+      <td class="p-3 text-gray-800">${row.company_name}</td>
+      <td class="p-3"><input type="checkbox" data-ob-code="${row.client_code}" data-ob-field="client_paid" ${row.client_paid ? "checked" : ""}></td>
+      <td class="p-3"><input type="checkbox" data-ob-code="${row.client_code}" data-ob-field="contract_sent" ${row.contract_sent ? "checked" : ""}></td>
+      <td class="p-3"><input type="checkbox" data-ob-code="${row.client_code}" data-ob-field="contract_completed" ${row.contract_completed ? "checked" : ""}></td>
+      <td class="p-3"><input type="checkbox" data-ob-code="${row.client_code}" data-ob-field="onboarding_link_sent" ${row.onboarding_link_sent ? "checked" : ""}></td>
+      <td class="p-3"><input type="checkbox" data-ob-code="${row.client_code}" data-ob-field="onboarding_link_completed" ${row.onboarding_link_completed ? "checked" : ""}></td>
+      <td class="p-3"><input type="checkbox" data-ob-code="${row.client_code}" data-ob-field="ghl_account_created" ${row.ghl_account_created ? "checked" : ""}></td>
+      <td class="p-3"><input type="checkbox" data-ob-code="${row.client_code}" data-ob-field="client_portal_created" ${row.client_portal_created ? "checked" : ""}></td>
+      <td class="p-3"><input type="checkbox" data-ob-code="${row.client_code}" data-ob-field="live_lead_tracker_created" ${row.live_lead_tracker_created ? "checked" : ""}></td>
+      <td class="p-3"><input type="checkbox" data-ob-code="${row.client_code}" data-ob-field="client_portal_demo_completed" ${row.client_portal_demo_completed ? "checked" : ""}></td>
+      <td class="p-3"><input type="checkbox" data-ob-code="${row.client_code}" data-ob-field="ready_to_receive_leads" ${row.ready_to_receive_leads ? "checked" : ""}></td>
+      <td class="p-3">
+        <input
+          type="text"
+          data-ob-code="${row.client_code}"
+          data-ob-field="notes"
+          value="${String(row.notes).replace(/"/g, '&quot;')}"
+          class="w-full min-w-[220px] px-3 py-2 border border-gray-200 rounded-lg text-sm"
+        />
+      </td>
+      <td class="p-3">
+        <button
+          class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500"
+          onclick="Admin.saveOnboardingRow('${row.client_code.replace(/'/g, "\\'")}')"
+        >
+          Save
+        </button>
+      </td>
+    </tr>
+  `).join("");
+},
+
+async saveOnboardingRow(clientCode) {
+  const state = this.getState();
+  const clients = Array.isArray(state?.rawClients) ? state.rawClients : [];
+  const client = clients.find(c => String(c.client_code || "").trim() === String(clientCode).trim()) || {};
+
+  const payload = {
+    client_code: clientCode,
+    company_name: client.company_name || client.roofing_company || null,
+    updated_at: new Date().toISOString()
+  };
+
+  document.querySelectorAll(`[data-ob-code="${clientCode}"]`).forEach(el => {
+    const field = el.getAttribute("data-ob-field");
+    if (!field) return;
+    payload[field] = el.type === "checkbox" ? !!el.checked : el.value;
+  });
+
+  const supa = supaClient;
+  if (!supa) {
+    alert("Supabase is not available.");
+    return;
+  }
+
+  const { error } = await supa
+    .from("client_onboarding")
+    .upsert([payload], { onConflict: "client_code" });
+
+  if (error) {
+    console.error("Onboarding save failed:", error);
+    alert("Failed to save onboarding row.");
+    return;
+  }
+
+  await window.portal.fetchAdminData(true);
+}
       
       nav(viewId, linkEl) {
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
