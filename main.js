@@ -22,19 +22,19 @@ class CallHammerPortal {
     // Admin datasets (normalized + raw)
     this.adminState = {
   rawClients: [],
-clients: [],
-leads: [],
-agents: [],
-rawStatuses: [],
-rawPackages: [],
-weeklyPayroll: [],
-payrollHistory: [],
-clientHealthView: [],
-agentPerformanceView: [],
-clientPackageAllocationView: [],
-clientPackageStatusView: []
+  clients: [],
+  leads: [],
+  agents: [],
+  rawStatuses: [],
+  rawPackages: [],
+  weeklyPayroll: [],
+  payrollHistory: [],
+  clientHealthView: [],
+  agentPerformanceView: [],
+  clientPackageAllocationView: [],
+  clientPackageStatusView: [],
+  clientOnboarding: []
 };
-
     // Cache to avoid Google Sheets quota/too-many-requests issues
     this.lastAdminFetch = 0;
     this.adminCacheMs = 60_000; // 60s
@@ -761,10 +761,11 @@ async fetchAdminData(forceRefresh = false) {
     supaClientPackageAllocation = [],
     supaProfiles = [],
     supaAgentCurrentRates = [],
-    supaWeeklyPayroll = [];
+    supaWeeklyPayroll = [],
+    supaClientOnboarding = [];
 
 if (supaClient) {
-  const [lRes, pRes, cRes, tRes, aRes, chRes, apRes, cpsRes, cpaRes, profRes, acrRes, wpRes] = await Promise.all([
+  const [lRes, pRes, cRes, tRes, aRes, chRes, apRes, cpsRes, cpaRes, profRes, acrRes, wpRes, coRes] = await Promise.all([
     supaClient.from('leads_raw').select('*'),
     supaClient.from('packages').select('*'),
     supaClient.from('clients').select('*'),
@@ -776,7 +777,8 @@ if (supaClient) {
     supaClient.from('client_package_allocation_view').select('*'),
     supaClient.from('profiles').select('*'),
     supaClient.from('agent_current_rate_view').select('*'),
-    supaClient.from('payroll_dashboard_final_view').select('*')
+    supaClient.from('payroll_dashboard_final_view').select('*'),
+    supaClient.from('client_onboarding').select('*')
   ]);
 
   supaLeads = lRes.data || [];
@@ -791,6 +793,7 @@ if (supaClient) {
   supaProfiles = profRes.data || [];
   supaAgentCurrentRates = acrRes.data || [];
   supaWeeklyPayroll = wpRes.data || [];
+  supaClientOnboarding = coRes.data || [];
 }
       
       this.adminState.rawClients = supaClients.length > 0 ? supaClients : (dataRoot.clients || []);
@@ -806,6 +809,7 @@ this.adminState.clientHealthView = supaClientHealth;
 this.adminState.agentPerformanceView = supaAgentPerformance;
 this.adminState.clientPackageStatusView = supaClientPackageStatus;
 this.adminState.clientPackageAllocationView = supaClientPackageAllocation;
+this.adminState.clientOnboarding = supaClientOnboarding;
 
       console.log('clientPackageStatusView rows:', this.adminState.clientPackageStatusView.length);
 
