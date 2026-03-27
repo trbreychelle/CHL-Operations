@@ -13,6 +13,33 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
+    /* TIGHTEN LEADS TRACKER COLUMNS (match admin) */
+#view-leads table {
+    table-layout: auto !important;
+    width: 100% !important;
+}
+
+#view-leads th,
+#view-leads td {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+#view-leads td:hover {
+    overflow: visible;
+    white-space: normal;
+    word-break: break-word;
+    background-color: #f8fafc;
+    position: relative;
+    z-index: 50;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    border-radius: 6px;
+}
+    
     * { font-family: 'Inter', sans-serif; }
     body { background-color: #F9FAFB; color: #111827; }
 
@@ -1444,33 +1471,78 @@ const packages = state.packages || [];
       },
 
       initLeadsColumnsUI() {
-        if (this._leadsCols) return;
-        this._leadsCols = this.getLeadsColumns();
-        this._leadsVisibleCols = this.getLeadsDefaultVisibleCols();
-        const box = document.getElementById("leads-columns-box");
-        if(box){
-          box.innerHTML = this._leadsCols.map(col => {
-            const checked = this._leadsVisibleCols.has(col.key);
-            return `<label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" data-colkey="${col.key}" ${checked ? "checked" : ""} /><span>${col.label}</span></label>`;
-          }).join("");
-          box.querySelectorAll('input[type="checkbox"][data-colkey]').forEach(chk => {
-            chk.addEventListener("change", () => {
-              const k = chk.getAttribute("data-colkey");
-              if (chk.checked) this._leadsVisibleCols.add(k); else this._leadsVisibleCols.delete(k);
-              this.applyLeadsFilters(); 
-            });
-          });
-        }
+  if (!this._leadsCols) {
+    this._leadsCols = this.getLeadsColumns();
+  }
 
-        const toggle = document.getElementById("leads-columns-toggle");
-        const pop = document.getElementById("leads-columns-popover");
-        if (toggle && pop) {
-          toggle.addEventListener("click", (e) => { e.preventDefault(); pop.classList.toggle("hidden"); });
-          document.addEventListener("click", (e) => { if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) pop.classList.add("hidden"); });
-        }
-        document.getElementById("leads-columns-all")?.addEventListener("click", () => { this._leadsVisibleCols = new Set(this._leadsCols.map(c => c.key)); this.initLeadsColumnsUI(); this.applyLeadsFilters(); });
-        document.getElementById("leads-columns-min")?.addEventListener("click", () => { this._leadsVisibleCols = this.getLeadsDefaultVisibleCols(); this.initLeadsColumnsUI(); this.applyLeadsFilters(); });
-      },
+  if (!this._leadsVisibleCols) {
+    this._leadsVisibleCols = this.getLeadsDefaultVisibleCols();
+  }
+
+  const toggle = document.getElementById("leads-columns-toggle");
+  const pop = document.getElementById("leads-columns-popover");
+  const box = document.getElementById("leads-columns-box");
+  const allBtn = document.getElementById("leads-columns-all");
+  const minBtn = document.getElementById("leads-columns-min");
+
+  if (!toggle || !pop || !box) return;
+
+  const renderChecks = () => {
+    box.innerHTML = this._leadsCols.map(col => {
+      const checked = this._leadsVisibleCols.has(col.key);
+      return `
+        <label class="flex items-center gap-2 text-sm text-gray-700">
+          <input type="checkbox" data-colkey="${col.key}" ${checked ? "checked" : ""} />
+          <span>${col.label}</span>
+        </label>
+      `;
+    }).join("");
+
+    box.querySelectorAll('input[type="checkbox"][data-colkey]').forEach(chk => {
+      chk.addEventListener("change", () => {
+        const k = chk.getAttribute("data-colkey");
+        if (!k) return;
+        if (chk.checked) this._leadsVisibleCols.add(k);
+        else this._leadsVisibleCols.delete(k);
+        this.applyLeadsFilters();
+      });
+    });
+  };
+
+  if (!toggle.dataset.bound) {
+    toggle.dataset.bound = "true";
+    toggle.addEventListener("click", (e) => {
+      e.preventDefault();
+      pop.classList.toggle("hidden");
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
+        pop.classList.add("hidden");
+      }
+    });
+  }
+
+  if (allBtn && !allBtn.dataset.bound) {
+    allBtn.dataset.bound = "true";
+    allBtn.addEventListener("click", () => {
+      this._leadsVisibleCols = new Set(this._leadsCols.map(c => c.key));
+      renderChecks();
+      this.applyLeadsFilters();
+    });
+  }
+
+  if (minBtn && !minBtn.dataset.bound) {
+    minBtn.dataset.bound = "true";
+    minBtn.addEventListener("click", () => {
+      this._leadsVisibleCols = this.getLeadsDefaultVisibleCols();
+      renderChecks();
+      this.applyLeadsFilters();
+    });
+  }
+
+  renderChecks();
+},
 
       applyLeadsFilters() {
         const state = this.getState();
