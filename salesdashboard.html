@@ -764,6 +764,9 @@
       _leadsIndexByCompany: null,
       _analyticsChart: null,
       _firstLoadDone: false,
+      _onboardingDrafts: {},
+_onboardingFiltersBound: false,
+_onboardingDraftsBound: false,
       _healthSearchTimer: null,
 
       getState() { return window.portal?.adminState || {}; },
@@ -1984,6 +1987,7 @@ try {
   const state = this.getState();
   const clients = Array.isArray(state?.rawClients) ? state.rawClients : [];
   const onboarding = Array.isArray(state?.clientOnboarding) ? state.clientOnboarding : [];
+  const drafts = this._onboardingDrafts || {};
 
   const byCode = new Map(
     onboarding.map(row => [String(row.client_code || "").trim(), row])
@@ -1994,20 +1998,23 @@ try {
     .map(c => {
       const clientCode = String(c.client_code || "").trim();
       const saved = byCode.get(clientCode) || {};
+      const draft = drafts[clientCode] || {};
 
       return {
         client_code: clientCode,
         company_name: c.company_name || c.roofing_company || "—",
-        client_paid: !!saved.client_paid,
-        contract_sent: !!saved.contract_sent,
-        contract_completed: !!saved.contract_completed,
-        onboarding_link_sent: !!saved.onboarding_link_sent,
-        onboarding_link_completed: !!saved.onboarding_link_completed,
-        client_portal_created: !!saved.client_portal_created,
-        live_lead_tracker_created: !!saved.live_lead_tracker_created,
-        client_portal_demo_completed: !!saved.client_portal_demo_completed,
-        ready_to_receive_leads: !!saved.ready_to_receive_leads,
-        notes: saved.notes || ""
+
+        client_paid: draft.client_paid ?? !!saved.client_paid,
+        contract_sent: draft.contract_sent ?? !!saved.contract_sent,
+        contract_completed: draft.contract_completed ?? !!saved.contract_completed,
+        onboarding_link_sent: draft.onboarding_link_sent ?? !!saved.onboarding_link_sent,
+        onboarding_link_completed: draft.onboarding_link_completed ?? !!saved.onboarding_link_completed,
+        client_portal_created: draft.client_portal_created ?? !!saved.client_portal_created,
+        live_lead_tracker_created: draft.live_lead_tracker_created ?? !!saved.live_lead_tracker_created,
+        client_portal_demo_completed: draft.client_portal_demo_completed ?? !!saved.client_portal_demo_completed,
+        ready_to_receive_leads: draft.ready_to_receive_leads ?? !!saved.ready_to_receive_leads,
+
+        notes: draft.notes ?? (saved.notes || "")
       };
     })
     .sort((a, b) => a.company_name.localeCompare(b.company_name));
@@ -2086,11 +2093,44 @@ bindOnboardingFilters() {
   }
 },
 
+      bindOnboardingDraftTracking() {
+  const tbody = document.getElementById("onboarding-table-body");
+  if (!tbody) return;
+
+  if (this._onboardingDraftsBound) return;
+  this._onboardingDraftsBound = true;
+
+  tbody.addEventListener("change", (e) => {
+    const el = e.target;
+    if (!el || !el.matches("[data-ob-code][data-ob-field]")) return;
+
+    const clientCode = el.getAttribute("data-ob-code");
+    const field = el.getAttribute("data-ob-field");
+    if (!clientCode || !field) return;
+
+    if (!this._onboardingDrafts[clientCode]) this._onboardingDrafts[clientCode] = {};
+    this._onboardingDrafts[clientCode][field] = el.type === "checkbox" ? !!el.checked : el.value;
+  });
+
+  tbody.addEventListener("input", (e) => {
+    const el = e.target;
+    if (!el || !el.matches("[data-ob-code][data-ob-field]")) return;
+
+    const clientCode = el.getAttribute("data-ob-code");
+    const field = el.getAttribute("data-ob-field");
+    if (!clientCode || !field) return;
+
+    if (!this._onboardingDrafts[clientCode]) this._onboardingDrafts[clientCode] = {};
+    this._onboardingDrafts[clientCode][field] = el.type === "checkbox" ? !!el.checked : el.value;
+  });
+},
+
 renderOnboardingTab() {
   const tbody = document.getElementById("onboarding-table-body");
   if (!tbody) return;
 
   this.bindOnboardingFilters();
+  this.bindOnboardingDraftTracking();
   const rows = this.getFilteredOnboardingRows();
 
   tbody.innerHTML = rows.map(row => `
@@ -2227,6 +2267,7 @@ async saveOnboardingRow(clientCode) {
     return;
   }
 
+  delete this._onboardingDrafts[clientCode];
   await window.portal.fetchAdminData(true);
 
   const freshBtn = document.querySelector(`button[data-ob-save="${clientCode}"]`);
