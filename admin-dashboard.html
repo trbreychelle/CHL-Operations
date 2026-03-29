@@ -4287,616 +4287,449 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
   return 0;
 },
 
-      async renderPayrollFinance() {
-  const state = this.getState();
-  const payrollRows = Array.isArray(state.weeklyPayroll) ? state.weeklyPayroll : [];
-  const agents = Array.isArray(state.agents) ? state.agents : [];
+           async renderPayrollFinance() {
+        const state = this.getState();
+        const payrollRows = Array.isArray(state.payrollWeeklyFactView)
+          ? state.payrollWeeklyFactView
+          : [];
 
-  if (!payrollRows.length) {
-    document.getElementById("payroll-summary-body").innerHTML =
-      `<tr><td colspan="7" class="p-8 text-center text-gray-400 italic">No payroll data found.</td></tr>`;
-    document.getElementById("payroll-ledger-body").innerHTML =
-      `<tr><td colspan="16" class="p-8 text-center text-gray-400 italic">No payroll data found.</td></tr>`;
-    document.getElementById("ceo-total-payout").textContent = "$0.00";
-    return;
-  }
+        const workers = Array.isArray(state.payrollWorkers)
+          ? state.payrollWorkers
+          : [];
 
-  const weekSelect = document.getElementById("payroll-week-select");
-  const uniqueWeeks = [...new Set(
-    payrollRows.map(r => String(r.week_start || "").trim()).filter(Boolean)
-  )].sort((a, b) => String(b).localeCompare(String(a)));
-
-  if (weekSelect && (weekSelect.options.length === 0 || weekSelect.options[0].value === "latest")) {
-    weekSelect.innerHTML = uniqueWeeks
-      .map(w => `<option value="${w}">${this.getPayrollWeekRangeLabel(w)}</option>`)
-      .join("");
-  }
-
-  let selectedWeek = weekSelect ? weekSelect.value : uniqueWeeks[0];
-  if (!selectedWeek) selectedWeek = uniqueWeeks[0];
-  if (!selectedWeek) return;
-
-  document.getElementById("payroll-ledger-period").textContent = this.getPayrollWeekRangeLabel(selectedWeek);
-
-  const selectedRows = payrollRows.filter(
-    r => String(r.week_start || "").trim() === selectedWeek
-  );
-
-  this._currentPayrollRows = selectedRows;
-
-  this.loadPayrollNotes(selectedWeek);
-
-  const weekStartDt = new Date(selectedWeek + "T00:00:00");
-  const dayNames = ['sat', 'sun', 'mon', 'tue', 'wed', 'thu', 'fri'];
-  dayNames.forEach((dName, i) => {
-    const el = document.getElementById(`head-date-${dName}`);
-    if (!el) return;
-    const dayDt = new Date(weekStartDt);
-    dayDt.setDate(dayDt.getDate() + i);
-    el.textContent = `${dayDt.getMonth() + 1}/${dayDt.getDate()}`;
-  });
-
-  const agentMap = new Map(
-    agents.map(a => [
-      String(a.agent_name || a.name || "").trim().toLowerCase(),
-      a
-    ])
-  );
-
-  let notificationsHTML = "";
-  let grandTotalPayout = 0;
-  let grandTotalRevenue = 0;
-  let summaryHtml = "";
-  let ledgerHtml = "";
-
-  this._chartData = { labels: [], payouts: [], revenue: [] };
-
-  const allRowsByWeek = new Map();
-  payrollRows.forEach(r => {
-    const wk = String(r.week_start || "").trim();
-    if (!wk) return;
-    const arr = allRowsByWeek.get(wk) || [];
-    arr.push(r);
-    allRowsByWeek.set(wk, arr);
-  });
-
-  const processedAgents = selectedRows.map(r => {
-    const agName = String(r.agent_name || "").trim() || "Unknown";
-    const agKey = agName.toLowerCase();
-    const agent = agentMap.get(agKey) || {};
-
-    const workerId = r.worker_id;
-    const baseRate = Number(r.hourly_rate || 0);
-
-    const finalHours = {
-      sa: Number(r.sat_hours || 0),
-      su: Number(r.sun_hours || 0),
-      m: Number(r.mon_hours || 0),
-      t: Number(r.tue_hours || 0),
-      w: Number(r.wed_hours || 0),
-      th: Number(r.thu_hours || 0),
-      f: Number(r.fri_hours || 0)
-    };
-
-    const totalHrs = Number(r.total_hours || 0);
-    const qualified = Number(r.qualified || 0);
-    const credited = Number(r.credited || 0);
-    const rejected = Number(r.rejected || 0);
-    const cxPercent = Number(r.cx_percent || 0);
-    const basePay = Number(r.base_pay || 0);
-    const autoBonus = Number(r.auto_bonus || 0);
-    const manualSpiff = Number(r.manual_spiff || 0);
-    const finalPay = Number(r.total_pay || 0);
-    const isPaid = !!r.is_paid;
-
-    const revenue = qualified * 125;
-
-    grandTotalPayout += finalPay;
-    grandTotalRevenue += revenue;
-
-    if (finalPay > 0 || revenue > 0) {
-      this._chartData.labels.push(agName);
-      this._chartData.payouts.push(finalPay);
-      this._chartData.revenue.push(revenue);
-    }
-
-    const selectedWeekIndex = uniqueWeeks.indexOf(selectedWeek);
-
-    let consistencyBonus = false;
-    if (selectedWeekIndex >= 0 && selectedWeekIndex + 3 < uniqueWeeks.length) {
-      let hitStreak = true;
-      for (let i = 0; i < 4; i++) {
-        const wk = uniqueWeeks[selectedWeekIndex + i];
-        const wkRows = allRowsByWeek.get(wk) || [];
-        const past = wkRows.find(x => String(x.agent_name || "").trim().toLowerCase() === agKey);
-        if (!past || Number(past.qualified || 0) < 8) {
-          hitStreak = false;
-          break;
+        if (!payrollRows.length) {
+          document.getElementById("payroll-summary-body").innerHTML =
+            `<tr><td colspan="7" class="p-8 text-center text-gray-400 italic">No payroll data found.</td></tr>`;
+          document.getElementById("payroll-ledger-body").innerHTML =
+            `<tr><td colspan="16" class="p-8 text-center text-gray-400 italic">No payroll data found.</td></tr>`;
+          document.getElementById("ceo-total-payout").textContent = "$0.00";
+          document.getElementById("payroll-notifications").innerHTML =
+            `<div class="p-4 bg-gray-50 rounded-xl text-sm text-gray-400 italic text-center h-full flex items-center justify-center">No payroll data found.</div>`;
+          return;
         }
-      }
-      consistencyBonus = hitStreak;
-    }
 
-    let raffleMsg = "";
-    if (qualified >= 9) {
-      const monthPrefix = selectedWeek.substring(0, 7);
-      let mQ = 0;
-      let mC = 0;
+        const weekSelect = document.getElementById("payroll-week-select");
 
-      for (const [wk, wkRows] of allRowsByWeek.entries()) {
-        if (!wk.startsWith(monthPrefix)) continue;
-        const row = wkRows.find(x => String(x.agent_name || "").trim().toLowerCase() === agKey);
-        if (!row) continue;
-        mQ += Number(row.qualified || 0);
-        mC += Number(row.credited || 0);
-      }
+        const uniqueWeeks = [
+          ...new Map(
+            payrollRows
+              .filter(r => r.week_id && r.week_start)
+              .map(r => [String(r.week_id), {
+                week_id: String(r.week_id),
+                week_start: String(r.week_start),
+                week_end: String(r.week_end || "")
+              }])
+          ).values()
+        ].sort((a, b) => String(b.week_start).localeCompare(String(a.week_start)));
 
-      const monthlyCx = (mQ + mC > 0) ? (mC / (mQ + mC)) * 100 : 0;
+        if (weekSelect && (weekSelect.options.length === 0 || weekSelect.options[0].value === "latest")) {
+          weekSelect.innerHTML = uniqueWeeks
+            .map(w => `<option value="${w.week_id}">${this.getPayrollWeekRangeLabel(w.week_start)}</option>`)
+            .join("");
+        }
 
-      if (monthlyCx < 20) {
-        raffleMsg = `<span class="inline-flex items-center gap-1 bg-gradient-to-r from-amber-100 to-yellow-200 text-yellow-800 border border-yellow-300 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ml-2 shadow-sm"><i class="fa-solid fa-ticket text-yellow-600"></i> Raffle Earned (CX: ${monthlyCx.toFixed(1)}%)</span>`;
-      } else {
-        raffleMsg = `<span class="text-gray-400 text-[10px] uppercase font-bold ml-2">❌ Raffle Void (CX: ${monthlyCx.toFixed(1)}%)</span>`;
-      }
-    }
+        let selectedWeekId = weekSelect ? weekSelect.value : (uniqueWeeks[0]?.week_id || "");
+        if (!selectedWeekId && uniqueWeeks[0]) selectedWeekId = uniqueWeeks[0].week_id;
+        if (!selectedWeekId) return;
 
-    const alerts = [];
-    if (qualified >= 8) {
-      alerts.push(`${qualified} qualified • CX ${cxPercent.toFixed(1)}% • Bonus $${autoBonus.toFixed(2)}`);
-    }
-    if (consistencyBonus) {
-      alerts.push(`🔥 $100 Consistency Bonus`);
-    }
-    if (raffleMsg) {
-      alerts.push(raffleMsg);
-    }
+        const selectedWeekMeta = uniqueWeeks.find(w => w.week_id === selectedWeekId);
+        const selectedRows = payrollRows.filter(r => String(r.week_id) === selectedWeekId);
 
-    if (alerts.length > 0) {
-      notificationsHTML += `
-        <div class="p-3 bg-white border border-gray-100 rounded-xl text-xs text-gray-800 font-bold shadow-sm flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full ${cxPercent < 25 ? 'bg-emerald-500' : 'bg-yellow-500'}"></span>
-          ${agName}: ${alerts.join(' ')}
-        </div>`;
-    }
+        this._currentPayrollRows = selectedRows;
 
-    return {
-      workerId,
-      agName,
-      weekStart: String(r.week_start || ""),
-      country: String(r.country || agent.country || "UNASSIGNED").toUpperCase(),
-      baseRate,
-      totalHrs,
-      qualified,
-      credited,
-      rejected,
-      cxPercent,
-      autoBonus,
-      manualSpiff,
-      basePay,
-      finalPay,
-      isPaid,
-      finalHours
-    };
-  });
+        if (selectedWeekMeta?.week_start) {
+          this.loadPayrollNotes(selectedWeekMeta.week_start);
+          document.getElementById("payroll-ledger-period").textContent =
+            this.getPayrollWeekRangeLabel(selectedWeekMeta.week_start);
 
-  processedAgents.sort((a, b) => {
-    if (a.country === b.country) return a.agName.localeCompare(b.agName);
-    return a.country.localeCompare(b.country);
-  });
+          const weekStartDt = new Date(`${selectedWeekMeta.week_start}T00:00:00`);
+          const dayNames = ['sat', 'sun', 'mon', 'tue', 'wed', 'thu', 'fri'];
+          dayNames.forEach((dName, i) => {
+            const el = document.getElementById(`head-date-${dName}`);
+            if (!el) return;
+            const dayDt = new Date(weekStartDt);
+            dayDt.setDate(dayDt.getDate() + i);
+            el.textContent = `${dayDt.getMonth() + 1}/${dayDt.getDate()}`;
+          });
+        }
 
-  this.bindExportCSV(selectedWeek, processedAgents);
+        const workerMap = new Map(
+          workers.map(w => [
+            String(w.id || "").trim(),
+            w
+          ])
+        );
 
-  let currentCountry = "";
-  processedAgents.forEach(data => {
-    if (data.country !== currentCountry) {
-      currentCountry = data.country;
-      summaryHtml += `
-        <tr>
-          <td colspan="7" class="bg-gray-100/50 p-2 px-4 text-xs font-black text-gray-500 uppercase tracking-widest border-y border-gray-200">
-            <i class="fa-solid fa-earth-americas mr-2 text-gray-400"></i> ${currentCountry}
-          </td>
-        </tr>`;
-    }
+        let notificationsHTML = "";
+        let grandTotalPayout = 0;
+        let summaryHtml = "";
+        let ledgerHtml = "";
 
-    summaryHtml += `
-      <tr class="hover:bg-blue-50/30 transition-colors group">
-        <td class="p-4 font-black text-gray-900">${data.agName}</td>
-        <td class="p-4 text-center text-gray-500 font-bold">${data.country}</td>
-        <td class="p-4 text-center font-bold text-gray-700">${data.totalHrs.toFixed(2)}</td>
-        <td class="p-4 text-center font-black text-blue-600">${data.qualified}</td>
-        <td class="p-4 text-right font-black text-purple-600">$${(data.autoBonus + data.manualSpiff).toFixed(2)}</td>
-        <td class="p-4 text-right font-black text-emerald-500 text-lg">$${data.finalPay.toFixed(2)}</td>
-        <td class="p-4 text-center">
-          <button onclick="Admin.updatePayrollLedger('${data.workerId}', '${data.weekStart}', 'is_paid', ${!data.isPaid})"
-            class="px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wide uppercase transition-all shadow-sm ${data.isPaid ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}">
-            ${data.isPaid ? 'PAID ✓' : 'MARK PAID'}
-          </button>
-        </td>
-      </tr>`;
+        this._chartData = { labels: [], payouts: [], revenue: [] };
 
-    ledgerHtml += `
-      <tr class="hover:bg-gray-50 border-b border-gray-50">
-        <td class="p-3 font-black text-gray-900 text-sm">${data.agName}</td>
-        <td class="p-3 text-center">
-          <input type="number" step="0.25" min="0" value="${data.baseRate.toFixed(2)}"
-            onchange="Admin.updatePayrollLedger('${data.workerId}', '${data.weekStart}', 'rate_override', this.value)"
-            class="w-20 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-700">
-        </td>
-        <td class="p-2 text-center">
-          <input type="number" step="0.25" min="0" value="${data.finalHours.sa.toFixed(2)}"
-            onchange="Admin.updatePayrollLedger('${data.workerId}', '${data.weekStart}', 'sat_hours_override', this.value)"
-            class="w-16 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-700">
-        </td>
-        <td class="p-2 text-center">
-          <input type="number" step="0.25" min="0" value="${data.finalHours.su.toFixed(2)}"
-            onchange="Admin.updatePayrollLedger('${data.workerId}', '${data.weekStart}', 'sun_hours_override', this.value)"
-            class="w-16 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-700">
-        </td>
-        <td class="p-2 text-center">
-          <input type="number" step="0.25" min="0" value="${data.finalHours.m.toFixed(2)}"
-            onchange="Admin.updatePayrollLedger('${data.workerId}', '${data.weekStart}', 'mon_hours_override', this.value)"
-            class="w-16 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-700">
-        </td>
-        <td class="p-2 text-center">
-          <input type="number" step="0.25" min="0" value="${data.finalHours.t.toFixed(2)}"
-            onchange="Admin.updatePayrollLedger('${data.workerId}', '${data.weekStart}', 'tue_hours_override', this.value)"
-            class="w-16 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-700">
-        </td>
-        <td class="p-2 text-center">
-          <input type="number" step="0.25" min="0" value="${data.finalHours.w.toFixed(2)}"
-            onchange="Admin.updatePayrollLedger('${data.workerId}', '${data.weekStart}', 'wed_hours_override', this.value)"
-            class="w-16 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-700">
-        </td>
-        <td class="p-2 text-center">
-          <input type="number" step="0.25" min="0" value="${data.finalHours.th.toFixed(2)}"
-            onchange="Admin.updatePayrollLedger('${data.workerId}', '${data.weekStart}', 'thu_hours_override', this.value)"
-            class="w-16 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-700">
-        </td>
-        <td class="p-2 text-center">
-          <input type="number" step="0.25" min="0" value="${data.finalHours.f.toFixed(2)}"
-            onchange="Admin.updatePayrollLedger('${data.workerId}', '${data.weekStart}', 'fri_hours_override', this.value)"
-            class="w-16 text-center font-bold border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 py-1.5 text-sm text-gray-700">
-        </td>
-        <td class="p-3 text-center bg-blue-50 font-black text-blue-800 text-sm">${data.totalHrs.toFixed(2)}</td>
-        <td class="p-3 text-center font-bold text-blue-500 text-sm">${data.qualified}</td>
-        <td class="p-3 text-center font-bold ${data.cxPercent < 25 ? 'text-emerald-500' : 'text-red-400'} text-sm">${data.cxPercent.toFixed(1)}%</td>
-        <td class="p-3 text-right font-black text-purple-600 text-sm">$${data.autoBonus.toFixed(2)}</td>
-        <td class="p-3 text-center">
-          <input type="number" step="1" value="${data.manualSpiff}"
-            onchange="Admin.updatePayrollLedger('${data.workerId}', '${data.weekStart}', 'manual_spiff', this.value)"
-            class="w-20 text-center font-bold border border-purple-200 bg-purple-50 text-purple-700 rounded focus:ring-2 focus:ring-purple-500 py-1.5 text-sm">
-        </td>
-        <td class="p-3 text-right font-black text-emerald-500 text-lg">$${data.finalPay.toFixed(2)}</td>
-        <td class="p-3 text-center">
-          <span class="px-2 py-1 rounded text-[10px] font-extrabold uppercase tracking-wide ${data.isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'}">
-            ${data.isPaid ? 'PAID ✓' : 'PENDING'}
-          </span>
-        </td>
-      </tr>`;
-  });
+        const processedAgents = selectedRows
+          .map(r => {
+            const workerId = String(r.worker_id || "").trim();
+            const worker = workerMap.get(workerId) || {};
 
-  this._chartData.totalRevenue = grandTotalRevenue;
-  this._chartData.totalPayout = grandTotalPayout;
+            const agName = String(r.display_name || worker.display_name || "Unknown").trim();
+            const country = String(worker.country || r.country || "UNASSIGNED").toUpperCase();
 
-  document.getElementById("ceo-total-payout").textContent =
-    grandTotalPayout.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+            const totalHours = Number(r.total_hours || 0);
+            const manualHoursDelta = Number(r.manual_hours_delta || 0);
+            const adjustedHours = Number(r.adjusted_hours || 0);
+            const effectiveRate = Number(r.effective_rate || 0);
+            const approvedLeads = Number(r.approved_leads || 0);
+            const rejectedLeads = Number(r.rejected_leads || 0);
+            const totalLeads = Number(r.total_leads || 0);
+            const manualIncentiveDelta = Number(r.manual_incentive_delta || 0);
+            const basePay = Number(r.base_pay || 0);
+            const finalPay = Number(r.final_pay || 0);
+            const isPaid = !!r.is_paid;
+            const locked = !!r.locked;
+            const note = r.note || "";
+            const approvedBy = r.approved_by || "";
 
-  document.getElementById("payroll-notifications").innerHTML =
-    notificationsHTML || `<div class="p-4 bg-gray-50 rounded-xl text-sm text-gray-400 italic text-center h-full flex items-center justify-center">No performance alerts this week.</div>`;
+            const creditedLeads = Math.max(totalLeads - approvedLeads - rejectedLeads, 0);
+            const cxPercent = (approvedLeads + creditedLeads) > 0
+              ? ((creditedLeads / (approvedLeads + creditedLeads)) * 100)
+              : 0;
 
-  document.getElementById("payroll-summary-body").innerHTML =
-    summaryHtml || `<tr><td colspan="7" class="p-8 text-center text-gray-400 italic">No payroll rows for this week.</td></tr>`;
+            grandTotalPayout += finalPay;
 
-  document.getElementById("payroll-ledger-body").innerHTML =
-    ledgerHtml || `<tr><td colspan="16" class="p-8 text-center text-gray-400 italic">No payroll rows for this week.</td></tr>`;
+            if (finalPay > 0) {
+              this._chartData.labels.push(agName);
+              this._chartData.payouts.push(finalPay);
+              this._chartData.revenue.push(approvedLeads * 125);
+            }
 
-  if (!document.getElementById("payroll-history-view").classList.contains("hidden")) {
-    this.renderPayrollCharts();
-  }
-},
+            if (approvedLeads >= 8) {
+              notificationsHTML += `
+                <div class="p-3 bg-white border border-gray-100 rounded-xl text-xs text-gray-800 font-bold shadow-sm flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full ${cxPercent < 20 ? 'bg-emerald-500' : 'bg-yellow-500'}"></span>
+                  ${agName}: ${approvedLeads} approved leads • CX ${cxPercent.toFixed(1)}% • Final $${finalPay.toFixed(2)}
+                </div>`;
+            }
 
-      // --- MULTIPLAYER DATABASE SYNC ---
-      async updatePayrollLedger(workerId, weekStart, field, value) {
-  if (typeof supaClient === 'undefined' || !supaClient) {
-    return alert("Database connection missing!");
-  }
-
-  const payload = {
-    worker_id: workerId,
-    week_start: weekStart
-  };
-
-  if (field === 'rate_override') {
-    payload.rate_override = Number(value) || 0;
-  } else if (field === 'manual_spiff') {
-    payload.manual_spiff = Number(value) || 0;
-  } else if (field === 'is_paid') {
-    payload.is_paid = (value === true || value === 'true' || value === 1);
-  } else {
-    payload[field] = Number(value) || 0;
-  }
-
-  const { data: existing, error: fetchError } = await supaClient
-    .from('payroll_weekly_overrides')
-    .select('id')
-    .eq('worker_id', workerId)
-    .eq('week_start', weekStart)
-    .maybeSingle();
-
-  if (fetchError) {
-    console.error("Fetch payroll override error:", fetchError);
-    return;
-  }
-
-  let error = null;
-
-  if (existing?.id) {
-    const res = await supaClient
-      .from('payroll_weekly_overrides')
-      .update(payload)
-      .eq('id', existing.id);
-    error = res.error;
-  } else {
-    const res = await supaClient
-      .from('payroll_weekly_overrides')
-      .insert([payload]);
-    error = res.error;
-  }
-
-  if (error) {
-    console.error("Update payroll override error:", error);
-    alert("Failed to save payroll override.");
-    return;
-  }
-
-  if (window.portal && typeof window.portal.fetchAdminData === 'function') {
-    await window.portal.fetchAdminData(true);
-  } else {
-    this.renderPayrollFinance();
-  }
-},
-
-      // --- EXEC NOTES ENGINE (SCALABLE & BULLETPROOF) ---
-      async loadPayrollNotes(week) {
-          const container = document.getElementById('payroll-notes-container');
-          if (typeof supaClient === 'undefined' || !supaClient) return container.innerHTML = '<p class="text-xs text-red-500 p-4">DB Offline</p>';
-          
-          // SCALABLE: Orders by actual creation time so the chat always flows top-to-bottom
-          const { data, error } = await supaClient.from('payroll_notes').select('*').eq('week_id', week).order('created_at', { ascending: true });
-          if (error) console.error("Notes Load Error:", error);
-
-          if (!data || data.length === 0) {
-              container.innerHTML = '<div class="text-xs text-gray-400 italic text-center mt-6">No exec notes for this period.</div>';
-              return;
-          }
-
-          // SCALABLE: Button now deletes based on the unique UUID string (n.id)
-          container.innerHTML = data.map(n => `
-              <div class="bg-white border border-blue-100 shadow-sm p-3 rounded-xl relative group flex gap-3 items-start">
-                  <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="fa-solid fa-user-tie text-[10px]"></i></div>
-                  <p class="text-xs text-gray-700 leading-relaxed pr-6 pt-1">${String(n.note_text).replace(/</g, "&lt;")}</p>
-                  <button onclick="Admin.deletePayrollNote('${n.id}')" class="absolute top-2 right-2 w-6 h-6 rounded-full hover:bg-red-50 text-gray-300 hover:text-red-500 hidden group-hover:flex items-center justify-center transition-colors"><i class="fa-solid fa-trash text-[10px]"></i></button>
-              </div>
-          `).join('');
-          container.scrollTop = container.scrollHeight; 
-      },
-
-      async addPayrollNote() {
-          const input = document.getElementById('payroll-new-note');
-          const text = input.value.trim();
-          
-          const weekSelect = document.getElementById("payroll-week-select");
-          const week = weekSelect ? weekSelect.value : "";
-          
-          if (!text || !week || typeof supaClient === 'undefined' || !supaClient) return;
-
-          input.value = "Saving...";
-          input.disabled = true;
-
-          const { error } = await supaClient.from('payroll_notes').insert([{ week_id: week, note_text: text }]);
-          
-          input.value = "";
-          input.disabled = false;
-
-          if (error) {
-              console.error("Notes Error:", error);
-              alert("Failed to save note. Please check console.");
-          } else {
-              this.loadPayrollNotes(week);
-          }
-      },
-
-      async deletePayrollNote(id) {
-          if (typeof supaClient === 'undefined' || !supaClient) return;
-          
-          // SCALABLE: Deletes exactly ONE specific note using its unique database ID
-          await supaClient.from('payroll_notes').delete().eq('id', id);
-          
-          const weekSelect = document.getElementById("payroll-week-select");
-          this.loadPayrollNotes(weekSelect ? weekSelect.value : "");
-      },
-
-      renderPayrollCharts() {
-          if (!this._chartData || this._chartData.labels.length === 0) return;
-          
-          const sorted = this._chartData.labels.map((l, i) => ({ label: l, val: this._chartData.payouts[i] })).sort((a,b) => b.val - a.val);
-          const topLabels = sorted.slice(0, 7).map(x => x.label);
-          const topVals = sorted.slice(0, 7).map(x => x.val);
-
-          const createChart = (id, type, labels, data, color, isDoughnut = false) => {
-              const ctx = document.getElementById(id);
-              if (!ctx) return;
-              if (this[`_chart_${id}`]) this[`_chart_${id}`].destroy();
-              
-              const options = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: isDoughnut } } };
-              if (!isDoughnut) options.scales = { y: { beginAtZero: true, ticks: { callback: v => '$'+v } } };
-
-              this[`_chart_${id}`] = new Chart(ctx, {
-                  type: type,
-                  data: { labels, datasets: [{ data, backgroundColor: color, borderRadius: isDoughnut ? 0 : 6 }] },
-                  options: options
-              });
-          };
-
-          // REVENUE VS PAYOUT CHART
-          createChart('payroll-roi-chart', 'doughnut', ['Gross Revenue ($)', 'Payroll Expense ($)'], [this._chartData.totalRevenue, this._chartData.totalPayout], ['#10B981', '#EF4444'], true);
-          createChart('payroll-expense-chart', 'line', topLabels, topVals, '#3B82F6');
-          createChart('payroll-earners-chart', 'bar', topLabels, topVals, '#6366F1');
-      },
-
-      _calculateHoursFromEvents(events, weekStartStr, customStart, customEnd) {
-          const hrs = {};
-          if (!events || !Array.isArray(events)) return hrs;
-
-          let weekStartMST, weekEndMST;
-          if (customStart && customEnd) {
-              weekStartMST = customStart; weekEndMST = customEnd;
-          } else {
-              const [y, m, d] = weekStartStr.split('-');
-              weekStartMST = new Date(y, m-1, d, 0, 0, 0);
-              weekEndMST = new Date(y, m-1, d, 23, 59, 59);
-              weekEndMST.setDate(weekEndMST.getDate() + 6); 
-          }
-
-          const sorted = [...events].sort((a,b) => new Date(a.occurred_at || a.created_at || 0) - new Date(b.occurred_at || b.created_at || 0));
-          const agentLogs = {};
-          
-          sorted.forEach(e => {
-              const timestamp = e.occurred_at || e.created_at;
-              if (!timestamp) return;
-              const mstDt = window.portal?.toMST ? window.portal.toMST(timestamp) : new Date(timestamp);
-              if (mstDt >= weekStartMST && mstDt <= weekEndMST) {
-                  const ag = this.getOfficialAgentName(e.agent_name || "").toLowerCase();
-                  if (!agentLogs[ag]) agentLogs[ag] = [];
-                  agentLogs[ag].push({ ...e, mstDt });
-              }
+            return {
+              weekId: String(r.week_id),
+              weekStart: String(r.week_start || ""),
+              workerId,
+              agName,
+              country,
+              totalHours,
+              manualHoursDelta,
+              adjustedHours,
+              effectiveRate,
+              approvedLeads,
+              rejectedLeads,
+              totalLeads,
+              creditedLeads,
+              cxPercent,
+              manualIncentiveDelta,
+              basePay,
+              finalPay,
+              isPaid,
+              locked,
+              note,
+              approvedBy
+            };
+          })
+          .sort((a, b) => {
+            if (a.country === b.country) return a.agName.localeCompare(b.agName);
+            return a.country.localeCompare(b.country);
           });
 
-          for (const [ag, logs] of Object.entries(agentLogs)) {
-              hrs[ag] = { m:0, t:0, w:0, th:0, f:0, sa:0, su:0 };
-              const byDay = {};
-              logs.forEach(l => {
-                  const dStr = `${l.mstDt.getFullYear()}-${String(l.mstDt.getMonth()+1).padStart(2,'0')}-${String(l.mstDt.getDate()).padStart(2,'0')}`;
-                  if (!byDay[dStr]) byDay[dStr] = [];
-                  byDay[dStr].push(l);
-              });
+        this.bindExportCSV(selectedWeekMeta?.week_start || selectedWeekId, processedAgents);
 
-              for (const [dateStr, dayLogs] of Object.entries(byDay)) {
-                  let totalMs = 0; let lastIn = null;
-                  dayLogs.forEach(l => {
-                      const action = String(l.action).trim().toLowerCase();
-                      const time = l.mstDt.getTime();
-                      if (action === 'clock in' || action === 'resume') { lastIn = time; } 
-                      else if (action === 'clock out' || action === 'break start') {
-                          if (lastIn) { totalMs += (time - lastIn); lastIn = null; }
-                      }
-                  });
-                  const dayIdx = new Date(dateStr + "T12:00:00").getDay();
-                  const dayMap = [ 'su', 'm', 't', 'w', 'th', 'f', 'sa' ];
-                  hrs[ag][dayMap[dayIdx]] = Math.max(0, totalMs / (1000 * 60 * 60));
-              }
+        let currentCountry = "";
+        processedAgents.forEach(data => {
+          if (data.country !== currentCountry) {
+            currentCountry = data.country;
+            summaryHtml += `
+              <tr>
+                <td colspan="7" class="bg-gray-100/50 p-2 px-4 text-xs font-black text-gray-500 uppercase tracking-widest border-y border-gray-200">
+                  <i class="fa-solid fa-earth-americas mr-2 text-gray-400"></i> ${currentCountry}
+                </td>
+              </tr>`;
           }
-          return hrs;
+
+          summaryHtml += `
+            <tr class="hover:bg-blue-50/30 transition-colors group">
+              <td class="p-4 font-black text-gray-900">${data.agName}</td>
+              <td class="p-4 text-center text-gray-500 font-bold">${data.country}</td>
+              <td class="p-4 text-center font-bold text-gray-700">${data.adjustedHours.toFixed(2)}</td>
+              <td class="p-4 text-center font-black text-blue-600">${data.approvedLeads}</td>
+              <td class="p-4 text-right font-black text-purple-600">$${data.manualIncentiveDelta.toFixed(2)}</td>
+              <td class="p-4 text-right font-black text-emerald-500 text-lg">$${data.finalPay.toFixed(2)}</td>
+              <td class="p-4 text-center">
+                <button
+                  onclick="Admin.savePayrollLedgerStatus('${data.weekId}', '${data.workerId}', { is_paid: ${!data.isPaid}, locked: ${data.locked} })"
+                  class="px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wide uppercase transition-all shadow-sm ${data.isPaid ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}">
+                  ${data.isPaid ? 'PAID ✓' : 'MARK PAID'}
+                </button>
+              </td>
+            </tr>`;
+        });
+
+        processedAgents.forEach(data => {
+          ledgerHtml += `
+            <tr class="hover:bg-gray-50 border-b border-gray-50">
+              <td class="p-3 font-black text-gray-900 text-sm">${data.agName}</td>
+              <td class="p-3 text-center font-bold text-gray-700">$${data.effectiveRate.toFixed(2)}</td>
+              <td class="p-3 text-center text-gray-400">—</td>
+              <td class="p-3 text-center text-gray-400">—</td>
+              <td class="p-3 text-center text-gray-400">—</td>
+              <td class="p-3 text-center text-gray-400">—</td>
+              <td class="p-3 text-center text-gray-400">—</td>
+              <td class="p-3 text-center text-gray-400">—</td>
+              <td class="p-3 text-center text-gray-400">—</td>
+              <td class="p-3 text-center bg-blue-50 font-black text-blue-800 text-sm">${data.adjustedHours.toFixed(2)}</td>
+              <td class="p-3 text-center font-bold text-blue-500 text-sm">${data.approvedLeads}</td>
+              <td class="p-3 text-center font-bold ${data.cxPercent < 20 ? 'text-emerald-500' : 'text-red-400'} text-sm">${data.cxPercent.toFixed(1)}%</td>
+              <td class="p-3 text-right font-black text-purple-600 text-sm">$0.00</td>
+              <td class="p-3 text-center">
+                <input
+                  type="number"
+                  step="0.01"
+                  value="${data.manualIncentiveDelta.toFixed(2)}"
+                  onchange="Admin.savePayrollAdjustment('${data.weekId}', '${data.workerId}', 0, this.value)"
+                  class="w-24 text-center font-bold border border-purple-200 bg-purple-50 text-purple-700 rounded focus:ring-2 focus:ring-purple-500 py-1.5 text-sm">
+              </td>
+              <td class="p-3 text-right font-black text-emerald-500 text-lg">$${data.finalPay.toFixed(2)}</td>
+              <td class="p-3 text-center flex flex-col gap-2 items-center">
+                <button
+                  onclick="Admin.savePayrollLedgerStatus('${data.weekId}', '${data.workerId}', { is_paid: ${!data.isPaid}, locked: ${data.locked} })"
+                  class="px-2 py-1 rounded text-[10px] font-extrabold uppercase tracking-wide ${data.isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'}">
+                  ${data.isPaid ? 'PAID ✓' : 'PENDING'}
+                </button>
+
+                <button
+                  onclick="Admin.savePayrollLedgerStatus('${data.weekId}', '${data.workerId}', { is_paid: ${data.isPaid}, locked: ${!data.locked} })"
+                  class="px-2 py-1 rounded text-[10px] font-extrabold uppercase tracking-wide ${data.locked ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'}">
+                  ${data.locked ? 'LOCKED' : 'UNLOCKED'}
+                </button>
+              </td>
+            </tr>`;
+        });
+
+        document.getElementById("ceo-total-payout").textContent =
+          grandTotalPayout.toLocaleString("en-US", { style: "currency", currency: "USD" });
+
+        document.getElementById("payroll-notifications").innerHTML =
+          notificationsHTML || `<div class="p-4 bg-gray-50 rounded-xl text-sm text-gray-400 italic text-center h-full flex items-center justify-center">No performance alerts this week.</div>`;
+
+        document.getElementById("payroll-summary-body").innerHTML =
+          summaryHtml || `<tr><td colspan="7" class="p-8 text-center text-gray-400 italic">No payroll rows for this week.</td></tr>`;
+
+        document.getElementById("payroll-ledger-body").innerHTML =
+          ledgerHtml || `<tr><td colspan="16" class="p-8 text-center text-gray-400 italic">No payroll rows for this week.</td></tr>`;
+
+        if (!document.getElementById("payroll-history-view").classList.contains("hidden")) {
+          this.renderPayrollCharts();
+        }
       },
 
-      getLeadPayrollWeekStart(l) {
-        let dt = this.getLeadDateObj(l);
-        if (!dt) return "";
-        if (window.portal && window.portal.toMST) dt = window.portal.toMST(dt); 
-        const day = dt.getDay(); 
-        const diff = (day === 6) ? 0 : day + 1; 
-        dt.setDate(dt.getDate() - diff);
-        return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
+      async savePayrollLedgerStatus(weekId, workerId, fields = {}) {
+        if (typeof supaClient === "undefined" || !supaClient) {
+          alert("Database connection missing!");
+          return;
+        }
+
+        const payload = {
+          week_id: weekId,
+          worker_id: workerId,
+          ...fields,
+          updated_at: new Date().toISOString()
+        };
+
+        const { data: existing, error: fetchError } = await supaClient
+          .from("payroll_ledger")
+          .select("id")
+          .eq("week_id", weekId)
+          .eq("worker_id", workerId)
+          .maybeSingle();
+
+        if (fetchError) {
+          console.error("Fetch payroll ledger error:", fetchError);
+          alert("Failed to check payroll ledger row.");
+          return;
+        }
+
+        let writeError = null;
+
+        if (existing?.id) {
+          const res = await supaClient
+            .from("payroll_ledger")
+            .update(payload)
+            .eq("id", existing.id);
+          writeError = res.error;
+        } else {
+          const res = await supaClient
+            .from("payroll_ledger")
+            .insert([payload]);
+          writeError = res.error;
+        }
+
+        if (writeError) {
+          console.error("Save payroll ledger error:", writeError);
+          alert("Failed to save payroll status.");
+          return;
+        }
+
+        if (window.portal && typeof window.portal.fetchAdminData === "function") {
+          await window.portal.fetchAdminData(true);
+        } else {
+          this.renderPayrollFinance();
+        }
       },
 
-      computePayrollFromLeads() {
-  return { weeks: [], byWeek: new Map() };
-},
+      async savePayrollAdjustment(weekId, workerId, hoursDelta, incentiveDelta) {
+        if (typeof supaClient === "undefined" || !supaClient) {
+          alert("Database connection missing!");
+          return;
+        }
+
+        const numericHours = Number(hoursDelta || 0);
+        const numericIncentive = Number(incentiveDelta || 0);
+
+        const { data: existingRows, error: fetchError } = await supaClient
+          .from("payroll_adjustments")
+          .select("id")
+          .eq("week_id", weekId)
+          .eq("agent_id", workerId)
+          .eq("notes", "Admin dashboard adjustment");
+
+        if (fetchError) {
+          console.error("Fetch payroll adjustment error:", fetchError);
+          alert("Failed to check payroll adjustment row.");
+          return;
+        }
+
+        let writeError = null;
+
+        if (Array.isArray(existingRows) && existingRows.length > 0) {
+          const targetId = existingRows[0].id;
+          const res = await supaClient
+            .from("payroll_adjustments")
+            .update({
+              hours_delta: numericHours,
+              incentive_delta: numericIncentive,
+              notes: "Admin dashboard adjustment"
+            })
+            .eq("id", targetId);
+          writeError = res.error;
+        } else {
+          const res = await supaClient
+            .from("payroll_adjustments")
+            .insert([{
+              week_id: weekId,
+              agent_id: workerId,
+              hours_delta: numericHours,
+              incentive_delta: numericIncentive,
+              notes: "Admin dashboard adjustment"
+            }]);
+          writeError = res.error;
+        }
+
+        if (writeError) {
+          console.error("Save payroll adjustment error:", writeError);
+          alert("Failed to save payroll adjustment.");
+          return;
+        }
+
+        if (window.portal && typeof window.portal.fetchAdminData === "function") {
+          await window.portal.fetchAdminData(true);
+        } else {
+          this.renderPayrollFinance();
+        }
+      },
 
       getPayrollWeekRangeLabel(weekStartStr) {
-  if (!weekStartStr) return "—";
-  const start = new Date(weekStartStr + "T00:00:00");
-  if (isNaN(start.getTime())) return weekStartStr;
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
-  return `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
-},
+        if (!weekStartStr) return "—";
+        const start = new Date(`${weekStartStr}T00:00:00`);
+        if (isNaN(start.getTime())) return weekStartStr;
+        const end = new Date(start);
+        end.setDate(end.getDate() + 6);
+        return `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
+      },
 
-      bindExportCSV(week, processedAgents) {
-  const btn = document.getElementById("payroll-export");
-  if (!btn) return;
+      bindExportCSV(weekLabel, processedAgents) {
+        const btn = document.getElementById("payroll-export");
+        if (!btn) return;
 
-  const newBtn = btn.cloneNode(true);
-  btn.parentNode.replaceChild(newBtn, btn);
+        const newBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(newBtn, btn);
 
-  newBtn.addEventListener("click", () => {
-    let csv = "Agent Name,Week Start,Total Hrs,Qualified Leads,Credited,Rejected,CX %,Hourly Rate,Base Pay,Auto Bonus,Total Pay,Status\n";
-    processedAgents.forEach(a => {
-      csv += `"${a.agName}","${a.weekStart}",${a.totalHrs.toFixed(2)},${a.qualified},${a.credited},${a.rejected},${a.cxPercent.toFixed(2)},${a.baseRate.toFixed(2)},${a.basePay.toFixed(2)},${a.autoBonus.toFixed(2)},${a.finalPay.toFixed(2)},${a.isPaid ? 'PAID' : 'PENDING'}\n`;
-    });
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `CHL_Payroll_${week}.csv`;
-    a.click();
-  });
-},
+        newBtn.addEventListener("click", () => {
+          let csv = "Agent Name,Week Start,Adjusted Hours,Approved Leads,Rejected Leads,Total Leads,Effective Rate,Manual Incentive,Base Pay,Final Pay,Status,Locked\n";
+          processedAgents.forEach(a => {
+            csv += `"${a.agName}","${a.weekStart}",${a.adjustedHours.toFixed(2)},${a.approvedLeads},${a.rejectedLeads},${a.totalLeads},${a.effectiveRate.toFixed(2)},${a.manualIncentiveDelta.toFixed(2)},${a.basePay.toFixed(2)},${a.finalPay.toFixed(2)},${a.isPaid ? 'PAID' : 'PENDING'},${a.locked ? 'LOCKED' : 'UNLOCKED'}\n`;
+          });
+          const blob = new Blob([csv], { type: "text/csv" });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `CHL_Payroll_${weekLabel}.csv`;
+          a.click();
+        });
+      },
 
       bindPayrollUI() {
         if (this._payrollBound) return;
         this._payrollBound = true;
+
         const sel = document.getElementById("payroll-week-select");
-        if (sel) sel.addEventListener("change", () => {
-            this._payrollCustomRange = { active: false }; 
+        if (sel) {
+          sel.addEventListener("change", () => {
             this.renderPayrollFinance();
-        });
+          });
+        }
 
-        const noteInput = document.getElementById('payroll-new-note');
-        if (noteInput) noteInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.addPayrollNote();
-        });
+        const noteInput = document.getElementById("payroll-new-note");
+        if (noteInput) {
+          noteInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") this.addPayrollNote();
+          });
+        }
 
-        // FIXED: Apply Button logic added!
         const toggle = document.getElementById("payroll-custom-toggle");
         const pop = document.getElementById("payroll-custom-popover");
         const applyBtn = document.getElementById("payroll-custom-apply");
         const clearBtn = document.getElementById("payroll-custom-clear");
-        
-        if (toggle && pop) {
-            toggle.addEventListener("click", (e) => { 
-                e.preventDefault(); 
-                pop.classList.toggle("hidden"); 
-            });
-            document.addEventListener("click", (e) => {
-                if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
-                    pop.classList.add("hidden");
-                }
-            });
-        }
-        
-        if (applyBtn) {
-            applyBtn.addEventListener("click", (e) => {
-                e.preventDefault();
-                const start = document.getElementById("payroll-custom-start").value;
-                const end = document.getElementById("payroll-custom-end").value;
-                if (!start || !end) return;
 
-                this._payrollCustomRange = { active: true, start: start, end: end };
-                pop.classList.add("hidden");
-                this.renderPayrollFinance();
-            });
+        if (toggle && pop) {
+          toggle.addEventListener("click", (e) => {
+            e.preventDefault();
+            pop.classList.toggle("hidden");
+          });
+
+          document.addEventListener("click", (e) => {
+            if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
+              pop.classList.add("hidden");
+            }
+          });
+        }
+
+        if (applyBtn) {
+          applyBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            const start = document.getElementById("payroll-custom-start").value;
+            const end = document.getElementById("payroll-custom-end").value;
+            if (!start || !end) return;
+
+            // keep UI simple for now; custom range can be added later against payroll_weeks
+            pop.classList.add("hidden");
+          });
         }
 
         if (clearBtn) {
-            clearBtn.addEventListener("click", (e) => { 
-                e.preventDefault();
-                document.getElementById("payroll-custom-start").value = "";
-                document.getElementById("payroll-custom-end").value = "";
-                this._payrollCustomRange = { active: false };
-                pop.classList.add("hidden"); 
-                this.renderPayrollFinance();
-            });
+          clearBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            document.getElementById("payroll-custom-start").value = "";
+            document.getElementById("payroll-custom-end").value = "";
+            pop.classList.add("hidden");
+          });
         }
       },
 
