@@ -29,6 +29,8 @@ class CallHammerPortal {
   rawPackages: [],
   weeklyPayroll: [],
   payrollHistory: [],
+  payrollWeeklyFactView: [],
+  payrollWorkers: [],
   clientHealthView: [],
   agentPerformanceView: [],
   clientPackageAllocationView: [],
@@ -761,25 +763,42 @@ async fetchAdminData(forceRefresh = false) {
     supaClientPackageAllocation = [],
     supaProfiles = [],
     supaAgentCurrentRates = [],
-    supaWeeklyPayroll = [],
+    supaPayrollWeeklyFactView = [],
+    supaPayrollWorkers = [],
     supaClientOnboarding = [];
 
 if (supaClient) {
-  const [lRes, pRes, cRes, tRes, aRes, chRes, apRes, cpsRes, cpaRes, profRes, acrRes, wpRes, coRes] = await Promise.all([
-    supaClient.from('leads_raw').select('*'),
-    supaClient.from('packages').select('*'),
-    supaClient.from('clients').select('*'),
-    supaClient.from('time_events').select('*'),
-    supaClient.from('agents').select('*'),
-    supaClient.from('client_health_view').select('*'),
-    supaClient.from('agent_performance_view').select('*'),
-    supaClient.from('client_package_status_view').select('*'),
-    supaClient.from('client_package_allocation_view').select('*'),
-    supaClient.from('profiles').select('*'),
-    supaClient.from('agent_current_rate_view').select('*'),
-    supaClient.from('payroll_dashboard_final_view').select('*'),
-    supaClient.from('client_onboarding').select('*')
-  ]);
+  const [
+  lRes,
+  pRes,
+  cRes,
+  tRes,
+  aRes,
+  chRes,
+  apRes,
+  cpsRes,
+  cpaRes,
+  profRes,
+  acrRes,
+  pwfRes,
+  pwwRes,
+  coRes
+] = await Promise.all([
+  supaClient.from('leads_raw').select('*'),
+  supaClient.from('packages').select('*'),
+  supaClient.from('clients').select('*'),
+  supaClient.from('time_events').select('*'),
+  supaClient.from('agents').select('*'),
+  supaClient.from('client_health_view').select('*'),
+  supaClient.from('agent_performance_view').select('*'),
+  supaClient.from('client_package_status_view').select('*'),
+  supaClient.from('client_package_allocation_view').select('*'),
+  supaClient.from('profiles').select('*'),
+  supaClient.from('agent_current_rate_view').select('*'),
+  supaClient.from('payroll_dashboard_final_view').select('*'),
+  supaClient.from('payroll_workers').select('*'),
+  supaClient.from('client_onboarding').select('*')
+]);
 
   supaLeads = lRes.data || [];
   supaPackages = pRes.data || [];
@@ -792,7 +811,8 @@ if (supaClient) {
   supaClientPackageAllocation = cpaRes.data || [];
   supaProfiles = profRes.data || [];
   supaAgentCurrentRates = acrRes.data || [];
-  supaWeeklyPayroll = wpRes.data || [];
+  supaPayrollWeeklyFactView = pwfRes.data || [];
+  supaPayrollWorkers = pwwRes.data || [];
   supaClientOnboarding = coRes.data || [];
 }
       
@@ -803,7 +823,11 @@ this.adminState.timeEvents = supaTime;
 this.adminState.agents = supaAgents.length > 0 ? supaAgents : (dataRoot.agents || []);
 this.adminState.rawProfiles = supaProfiles || [];
 this.adminState.agentCurrentRates = supaAgentCurrentRates || [];
-this.adminState.weeklyPayroll = supaWeeklyPayroll;
+this.adminState.payrollWeeklyFactView = supaPayrollWeeklyFactView || [];
+this.adminState.payrollWorkers = supaPayrollWorkers || [];
+
+/* temporary backward compatibility */
+this.adminState.weeklyPayroll = supaPayrollWeeklyFactView || [];
 
 this.adminState.clientHealthView = supaClientHealth;
 this.adminState.agentPerformanceView = supaAgentPerformance;
@@ -826,6 +850,8 @@ if (this.adminState.clientHealthView.length > 0) {
       console.log('clientHealthView rows:', this.adminState.clientHealthView.length);
       console.log('agentPerformanceView rows:', this.adminState.agentPerformanceView.length);
       console.log('clientPackageAllocationView rows:', this.adminState.clientPackageAllocationView.length);
+      console.log('payrollWeeklyFactView rows:', this.adminState.payrollWeeklyFactView.length);
+      console.log('payrollWorkers rows:', this.adminState.payrollWorkers.length);
 
       this.triggerAdminRefresh();
     } catch (err) {
