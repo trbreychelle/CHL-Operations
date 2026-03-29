@@ -795,10 +795,15 @@ if (supaClient) {
   supaClient.from('client_package_allocation_view').select('*'),
   supaClient.from('profiles').select('*'),
   supaClient.from('agent_current_rate_view').select('*'),
-  supaClient.from('payroll_dashboard_final_view').select('*'),
+  supaClient.from('payroll_weekly_fact_view').select('*'),
   supaClient.from('payroll_workers').select('*'),
   supaClient.from('client_onboarding').select('*')
 ]);
+
+  console.log('pwfRes error:', pwfRes.error);
+console.log('pwwRes error:', pwwRes.error);
+console.log('pwfRes rows:', pwfRes.data?.length || 0);
+console.log('pwwRes rows:', pwwRes.data?.length || 0);
 
   supaLeads = lRes.data || [];
   supaPackages = pRes.data || [];
