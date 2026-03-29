@@ -4654,6 +4654,55 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
         return `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
       },
 
+            async loadPayrollNotes(weekStart) {
+        const notesWrap = document.getElementById("payroll-notes-feed");
+        if (!notesWrap) return;
+
+        if (!weekStart) {
+          notesWrap.innerHTML = `
+            <div class="text-sm text-gray-400 italic p-3">No notes for this period.</div>
+          `;
+          return;
+        }
+
+        if (typeof supaClient === "undefined" || !supaClient) {
+          notesWrap.innerHTML = `
+            <div class="text-sm text-red-400 italic p-3">Database connection missing.</div>
+          `;
+          return;
+        }
+
+        const { data, error } = await supaClient
+          .from("payroll_notes")
+          .select("*")
+          .eq("week_id", weekStart)
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          console.error("Load payroll notes error:", error);
+          notesWrap.innerHTML = `
+            <div class="text-sm text-red-400 italic p-3">Failed to load notes.</div>
+          `;
+          return;
+        }
+
+        if (!Array.isArray(data) || data.length === 0) {
+          notesWrap.innerHTML = `
+            <div class="text-sm text-gray-400 italic p-3">No notes for this period.</div>
+          `;
+          return;
+        }
+
+        notesWrap.innerHTML = data.map(note => `
+          <div class="p-3 border-b border-gray-100">
+            <div class="text-sm text-gray-700">${note.note_text || ""}</div>
+            <div class="text-[11px] text-gray-400 mt-1">
+              ${note.created_at ? new Date(note.created_at).toLocaleString() : ""}
+            </div>
+          </div>
+        `).join("");
+      },
+
       bindExportCSV(weekLabel, processedAgents) {
         const btn = document.getElementById("payroll-export");
         if (!btn) return;
