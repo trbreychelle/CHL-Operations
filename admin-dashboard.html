@@ -4322,11 +4322,18 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
           ).values()
         ].sort((a, b) => String(b.week_start).localeCompare(String(a.week_start)));
 
-        if (weekSelect && (weekSelect.options.length === 0 || weekSelect.options[0].value === "latest")) {
-          weekSelect.innerHTML = uniqueWeeks
-            .map(w => `<option value="${w.week_id}">${this.getPayrollWeekRangeLabel(w.week_start)}</option>`)
-            .join("");
-        }
+        if (weekSelect) {
+  const currentValue = weekSelect.value;
+  weekSelect.innerHTML = uniqueWeeks
+    .map(w => `<option value="${w.week_id}">${this.getPayrollWeekRangeLabel(w.week_start)}</option>`)
+    .join("");
+
+  if (uniqueWeeks.some(w => w.week_id === currentValue)) {
+    weekSelect.value = currentValue;
+  } else if (uniqueWeeks[0]) {
+    weekSelect.value = uniqueWeeks[0].week_id;
+  }
+}
 
         let selectedWeekId = weekSelect ? weekSelect.value : (uniqueWeeks[0]?.week_id || "");
         if (!selectedWeekId && uniqueWeeks[0]) selectedWeekId = uniqueWeeks[0].week_id;
@@ -4484,7 +4491,16 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
               <td class="p-3 text-center text-gray-400">—</td>
               <td class="p-3 text-center text-gray-400">—</td>
               <td class="p-3 text-center text-gray-400">—</td>
-              <td class="p-3 text-center bg-blue-50 font-black text-blue-800 text-sm">${data.adjustedHours.toFixed(2)}</td>
+              <td class="p-3 text-center bg-blue-50">
+  <div class="font-black text-blue-800 text-sm">${data.adjustedHours.toFixed(2)}</div>
+  <input
+    type="number"
+    step="0.01"
+    value="${data.manualHoursDelta.toFixed(2)}"
+    onchange="Admin.savePayrollAdjustment('${data.weekId}', '${data.workerId}', this.value, ${data.manualIncentiveDelta})"
+    class="mt-2 w-24 text-center font-bold border border-blue-200 bg-white text-blue-700 rounded focus:ring-2 focus:ring-blue-500 py-1 text-sm">
+  <div class="text-[10px] text-gray-400 mt-1">Manual hrs Δ</div>
+</td>
               <td class="p-3 text-center font-bold text-blue-500 text-sm">${data.approvedLeads}</td>
               <td class="p-3 text-center font-bold ${data.cxPercent < 20 ? 'text-emerald-500' : 'text-red-400'} text-sm">${data.cxPercent.toFixed(1)}%</td>
               <td class="p-3 text-right font-black text-purple-600 text-sm">$0.00</td>
@@ -4493,7 +4509,7 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
                   type="number"
                   step="0.01"
                   value="${data.manualIncentiveDelta.toFixed(2)}"
-                  onchange="Admin.savePayrollAdjustment('${data.weekId}', '${data.workerId}', 0, this.value)"
+                  onchange="Admin.savePayrollAdjustment('${data.weekId}', '${data.workerId}', ${data.manualHoursDelta}, this.value)"
                   class="w-24 text-center font-bold border border-purple-200 bg-purple-50 text-purple-700 rounded focus:ring-2 focus:ring-purple-500 py-1.5 text-sm">
               </td>
               <td class="p-3 text-right font-black text-emerald-500 text-lg">$${data.finalPay.toFixed(2)}</td>
@@ -4655,7 +4671,7 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
       },
 
             async loadPayrollNotes(weekStart) {
-        const notesWrap = document.getElementById("payroll-notes-feed");
+        const notesWrap = document.getElementById("payroll-notes-container");
         if (!notesWrap) return;
 
         if (!weekStart) {
