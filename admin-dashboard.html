@@ -3758,15 +3758,18 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
 
         // ONLY SHOW ACTIVE AGENTS (Exclude Admin, Offboarded, Resigned)
         const uniqueAgentNames = new Set();
-        agents.forEach(a => {
-            if (a) {
-                const status = String(a.employment_status || a.Status || "").toLowerCase().trim();
-                const role = String(a.role || a.Role || "").toLowerCase().trim();
-                if (status === "active" && role !== "admin" && (a.name || a.agent_name)) {
-                    uniqueAgentNames.add(String(a.name || a.agent_name).trim());
-                }
-            }
-        });
+agents.forEach(a => {
+  if (!a) return;
+
+  const role = String(a.role || a.Role || "").toLowerCase().trim();
+  const stage = this.getAgentStage(a);
+
+  if (role === "admin") return;
+  if (stageFilter !== "all" && stage !== stageFilter) return;
+
+  const name = String(a.name || a.agent_name || "").trim();
+  if (name) uniqueAgentNames.add(name);
+});
 
         let rows = Array.from(uniqueAgentNames).map(agentName => {
           const dbAgent = agents.find(a => a && String(a.name || a.agent_name || "").trim() === agentName) || {};
@@ -4397,6 +4400,16 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
             const note = r.note || "";
             const approvedBy = r.approved_by || "";
 
+            const dailyHours = {
+  sat: Number(r.hours_sat || 0),
+  sun: Number(r.hours_sun || 0),
+  mon: Number(r.hours_mon || 0),
+  tue: Number(r.hours_tue || 0),
+  wed: Number(r.hours_wed || 0),
+  thu: Number(r.hours_thu || 0),
+  fri: Number(r.hours_fri || 0)
+};
+
             const creditedLeads = Math.max(totalLeads - approvedLeads - rejectedLeads, 0);
             const cxPercent = (approvedLeads + creditedLeads) > 0
               ? ((creditedLeads / (approvedLeads + creditedLeads)) * 100)
@@ -4410,7 +4423,7 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
               this._chartData.revenue.push(approvedLeads * 125);
             }
 
-            if (approvedLeads >= 8) {
+            if (approvedLeads >= 1 || finalPay > 0 || adjustedHours > 0) {
               notificationsHTML += `
                 <div class="p-3 bg-white border border-gray-100 rounded-xl text-xs text-gray-800 font-bold shadow-sm flex items-center gap-2">
                   <span class="w-2 h-2 rounded-full ${cxPercent < 20 ? 'bg-emerald-500' : 'bg-yellow-500'}"></span>
@@ -4439,7 +4452,8 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
               isPaid,
               locked,
               note,
-              approvedBy
+              approvedBy,
+              dailyHours
             };
           })
           .sort((a, b) => {
@@ -4484,13 +4498,13 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
             <tr class="hover:bg-gray-50 border-b border-gray-50">
               <td class="p-3 font-black text-gray-900 text-sm">${data.agName}</td>
               <td class="p-3 text-center font-bold text-gray-700">$${data.effectiveRate.toFixed(2)}</td>
-              <td class="p-3 text-center text-gray-400">—</td>
-              <td class="p-3 text-center text-gray-400">—</td>
-              <td class="p-3 text-center text-gray-400">—</td>
-              <td class="p-3 text-center text-gray-400">—</td>
-              <td class="p-3 text-center text-gray-400">—</td>
-              <td class="p-3 text-center text-gray-400">—</td>
-              <td class="p-3 text-center text-gray-400">—</td>
+              <td class="p-3 text-center font-semibold text-gray-700">${data.dailyHours.sat.toFixed(2)}</td>
+<td class="p-3 text-center font-semibold text-gray-700">${data.dailyHours.sun.toFixed(2)}</td>
+<td class="p-3 text-center font-semibold text-gray-700">${data.dailyHours.mon.toFixed(2)}</td>
+<td class="p-3 text-center font-semibold text-gray-700">${data.dailyHours.tue.toFixed(2)}</td>
+<td class="p-3 text-center font-semibold text-gray-700">${data.dailyHours.wed.toFixed(2)}</td>
+<td class="p-3 text-center font-semibold text-gray-700">${data.dailyHours.thu.toFixed(2)}</td>
+<td class="p-3 text-center font-semibold text-gray-700">${data.dailyHours.fri.toFixed(2)}</td>
               <td class="p-3 text-center bg-blue-50">
   <div class="font-black text-blue-800 text-sm">${data.adjustedHours.toFixed(2)}</div>
   <input
@@ -4718,6 +4732,54 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
           </div>
         `).join("");
       },
+
+      async addPayrollNote() {
+  const input = document.getElementById("payroll-new-note");
+  const weekSelect = document.getElementById("payroll-week-select");
+
+  if (!input || !weekSelect) return;
+
+  const noteText = String(input.value || "").trim();
+  if (!noteText) return;
+
+  const state = this.getState();
+  const payrollRows = Array.isArray(state.payrollWeeklyFactView)
+    ? state.payrollWeeklyFactView
+    : [];
+
+  const selectedWeekId = weekSelect.value;
+  const selectedWeekRow = payrollRows.find(r => String(r.week_id) === String(selectedWeekId));
+
+  if (!selectedWeekRow?.week_start) {
+    alert("No payroll week selected.");
+    return;
+  }
+
+  if (typeof supaClient === "undefined" || !supaClient) {
+    alert("Database connection missing.");
+    return;
+  }
+
+  const payload = {
+    week_id: selectedWeekRow.week_start,
+    note_text: noteText,
+    created_at: new Date().toISOString()
+  };
+
+  const { error } = await supaClient
+    .from("payroll_notes")
+    .insert([payload]);
+
+  if (error) {
+    console.error("Add payroll note error:", error);
+    alert("Failed to save payroll note.");
+    return;
+  }
+
+  input.value = "";
+  await this.loadPayrollNotes(selectedWeekRow.week_start);
+}
+,
 
       bindExportCSV(weekLabel, processedAgents) {
         const btn = document.getElementById("payroll-export");
