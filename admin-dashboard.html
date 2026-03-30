@@ -4286,8 +4286,33 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
           if (tab === 'history') this.renderPayrollCharts();
       },
 
-      calculateTieredBonus() {
-  return 0;
+      calculateTieredBonus(qualified, credited) {
+  const total = qualified;
+  const cancelRate = (qualified + credited) > 0 
+    ? (credited / (qualified + credited)) * 100 
+    : 0;
+
+  const isHigh = cancelRate < 25;
+
+  let bonus = 0;
+
+  if (total >= 6) bonus += 50;
+
+  if (total >= 8) {
+    bonus += isHigh ? 50 : 30;
+  }
+
+  if (total >= 9) {
+    const count = Math.min(total, 12) - 8;
+    bonus += count * (isHigh ? 17 : 15);
+  }
+
+  if (total >= 13) {
+    const count = total - 12;
+    bonus += count * (isHigh ? 27 : 25);
+  }
+
+  return bonus;
 },
 
            async renderPayrollFinance() {
@@ -4390,17 +4415,16 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
             const adjustedHours = Number(r.adjusted_hours || 0);
             const effectiveRate = Number(r.effective_rate || 0);
             const approvedLeads = Number(r.approved_leads || 0);
-            const rejectedLeads = Number(r.rejected_leads || 0);
-            const totalLeads = Number(r.total_leads || 0);
-            const manualIncentiveDelta = Number(r.manual_incentive_delta || 0);
-            const basePay = Number(r.base_pay || 0);
-            const finalPay = Number(r.final_pay || 0);
-            const isPaid = !!r.is_paid;
-            const locked = !!r.locked;
-            const note = r.note || "";
-            const approvedBy = r.approved_by || "";
+const rejectedLeads = Number(r.rejected_leads || 0);
+const totalLeads = Number(r.total_leads || 0);
+const manualIncentiveDelta = Number(r.manual_incentive_delta || 0);
+const basePay = Number(r.base_pay || 0);
+const isPaid = !!r.is_paid;
+const locked = !!r.locked;
+const note = r.note || "";
+const approvedBy = r.approved_by || "";
 
-           const dailyHours = {
+const dailyHours = {
   sat: Number(r.hours_sat || 0),
   sun: Number(r.hours_sun || 0),
   mon: Number(r.hours_mon || 0),
@@ -4410,10 +4434,13 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
   fri: Number(r.hours_fri || 0)
 };
 
-            const creditedLeads = Math.max(totalLeads - approvedLeads - rejectedLeads, 0);
-            const cxPercent = (approvedLeads + creditedLeads) > 0
-              ? ((creditedLeads / (approvedLeads + creditedLeads)) * 100)
-              : 0;
+const creditedLeads = Math.max(totalLeads - approvedLeads - rejectedLeads, 0);
+const autoBonus = this.calculateTieredBonus(approvedLeads, creditedLeads);
+const cxPercent = (approvedLeads + creditedLeads) > 0
+  ? ((creditedLeads / (approvedLeads + creditedLeads)) * 100)
+  : 0;
+
+const finalPay = basePay + autoBonus + manualIncentiveDelta;
 
             grandTotalPayout += finalPay;
 
@@ -4423,13 +4450,15 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
               this._chartData.revenue.push(approvedLeads * 125);
             }
 
-            if (approvedLeads >= 1 || finalPay > 0 || adjustedHours > 0) {
-              notificationsHTML += `
-                <div class="p-3 bg-white border border-gray-100 rounded-xl text-xs text-gray-800 font-bold shadow-sm flex items-center gap-2">
-                  <span class="w-2 h-2 rounded-full ${cxPercent < 20 ? 'bg-emerald-500' : 'bg-yellow-500'}"></span>
-                  ${agName}: ${approvedLeads} approved leads • CX ${cxPercent.toFixed(1)}% • Final $${finalPay.toFixed(2)}
-                </div>`;
-            }
+            const qualifiesRaffle = approvedLeads >= 9 && cxPercent < 20;
+
+if (qualifiesRaffle) {
+  notificationsHTML += `
+    <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 font-bold shadow-sm flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+      🎟 ${agName} earned a raffle entry (${approvedLeads} qualified • CX ${cxPercent.toFixed(1)}%)
+    </div>`;
+}
 
             return {
               weekId: String(r.week_id),
@@ -4447,6 +4476,7 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
               creditedLeads,
               cxPercent,
               manualIncentiveDelta,
+              autoBonus,
               basePay,
               finalPay,
               isPaid,
@@ -4481,7 +4511,7 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
               <td class="p-4 text-center text-gray-500 font-bold">${data.country}</td>
               <td class="p-4 text-center font-bold text-gray-700">${data.adjustedHours.toFixed(2)}</td>
               <td class="p-4 text-center font-black text-blue-600">${data.approvedLeads}</td>
-              <td class="p-4 text-right font-black text-purple-600">$${data.manualIncentiveDelta.toFixed(2)}</td>
+              <td class="p-4 text-right font-black text-purple-600">$${(data.autoBonus + data.manualIncentiveDelta).toFixed(2)}</td>
               <td class="p-4 text-right font-black text-emerald-500 text-lg">$${data.finalPay.toFixed(2)}</td>
               <td class="p-4 text-center">
                 <button
@@ -4498,13 +4528,62 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
             <tr class="hover:bg-gray-50 border-b border-gray-50">
               <td class="p-3 font-black text-gray-900 text-sm">${data.agName}</td>
               <td class="p-3 text-center font-bold text-gray-700">$${data.effectiveRate.toFixed(2)}</td>
-              <td class="p-3 text-center font-semibold text-gray-700">${data.dailyHours.sat.toFixed(2)}</td>
-<td class="p-3 text-center font-semibold text-gray-700">${data.dailyHours.sun.toFixed(2)}</td>
-<td class="p-3 text-center font-semibold text-gray-700">${data.dailyHours.mon.toFixed(2)}</td>
-<td class="p-3 text-center font-semibold text-gray-700">${data.dailyHours.tue.toFixed(2)}</td>
-<td class="p-3 text-center font-semibold text-gray-700">${data.dailyHours.wed.toFixed(2)}</td>
-<td class="p-3 text-center font-semibold text-gray-700">${data.dailyHours.thu.toFixed(2)}</td>
-<td class="p-3 text-center font-semibold text-gray-700">${data.dailyHours.fri.toFixed(2)}</td>
+              <td class="p-3 text-center">
+  <input
+    type="number"
+    step="0.01"
+    value="${data.dailyHours.sat.toFixed(2)}"
+    onchange="Admin.saveDailyHours('${data.weekId}', '${data.workerId}', 'sat', this.value)"
+    class="w-20 text-center font-semibold border border-gray-200 bg-white text-gray-700 rounded focus:ring-2 focus:ring-blue-500 py-1 text-sm">
+</td>
+<td class="p-3 text-center">
+  <input
+    type="number"
+    step="0.01"
+    value="${data.dailyHours.sun.toFixed(2)}"
+    onchange="Admin.saveDailyHours('${data.weekId}', '${data.workerId}', 'sun', this.value)"
+    class="w-20 text-center font-semibold border border-gray-200 bg-white text-gray-700 rounded focus:ring-2 focus:ring-blue-500 py-1 text-sm">
+</td>
+<td class="p-3 text-center">
+  <input
+    type="number"
+    step="0.01"
+    value="${data.dailyHours.mon.toFixed(2)}"
+    onchange="Admin.saveDailyHours('${data.weekId}', '${data.workerId}', 'mon', this.value)"
+    class="w-20 text-center font-semibold border border-gray-200 bg-white text-gray-700 rounded focus:ring-2 focus:ring-blue-500 py-1 text-sm">
+</td>
+<td class="p-3 text-center">
+  <input
+    type="number"
+    step="0.01"
+    value="${data.dailyHours.tue.toFixed(2)}"
+    onchange="Admin.saveDailyHours('${data.weekId}', '${data.workerId}', 'tue', this.value)"
+    class="w-20 text-center font-semibold border border-gray-200 bg-white text-gray-700 rounded focus:ring-2 focus:ring-blue-500 py-1 text-sm">
+</td>
+<td class="p-3 text-center">
+  <input
+    type="number"
+    step="0.01"
+    value="${data.dailyHours.wed.toFixed(2)}"
+    onchange="Admin.saveDailyHours('${data.weekId}', '${data.workerId}', 'wed', this.value)"
+    class="w-20 text-center font-semibold border border-gray-200 bg-white text-gray-700 rounded focus:ring-2 focus:ring-blue-500 py-1 text-sm">
+</td>
+<td class="p-3 text-center">
+  <input
+    type="number"
+    step="0.01"
+    value="${data.dailyHours.thu.toFixed(2)}"
+    onchange="Admin.saveDailyHours('${data.weekId}', '${data.workerId}', 'thu', this.value)"
+    class="w-20 text-center font-semibold border border-gray-200 bg-white text-gray-700 rounded focus:ring-2 focus:ring-blue-500 py-1 text-sm">
+</td>
+<td class="p-3 text-center">
+  <input
+    type="number"
+    step="0.01"
+    value="${data.dailyHours.fri.toFixed(2)}"
+    onchange="Admin.saveDailyHours('${data.weekId}', '${data.workerId}', 'fri', this.value)"
+    class="w-20 text-center font-semibold border border-gray-200 bg-white text-gray-700 rounded focus:ring-2 focus:ring-blue-500 py-1 text-sm">
+</td>
               <td class="p-3 text-center bg-blue-50">
   <div class="font-black text-blue-800 text-sm">${data.adjustedHours.toFixed(2)}</div>
   <input
@@ -4517,7 +4596,7 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
 </td>
               <td class="p-3 text-center font-bold text-blue-500 text-sm">${data.approvedLeads}</td>
               <td class="p-3 text-center font-bold ${data.cxPercent < 20 ? 'text-emerald-500' : 'text-red-400'} text-sm">${data.cxPercent.toFixed(1)}%</td>
-              <td class="p-3 text-right font-black text-purple-600 text-sm">$0.00</td>
+              <td class="p-3 text-right font-black text-purple-600 text-sm">$${autoBonus.toFixed(2)}</td>
               <td class="p-3 text-center">
                 <input
                   type="number"
@@ -4674,6 +4753,97 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
           this.renderPayrollFinance();
         }
       },
+
+      async saveDailyHours(weekId, workerId, day, value) {
+  if (typeof supaClient === "undefined" || !supaClient) {
+    alert("Database connection missing!");
+    return;
+  }
+
+  const state = this.getState();
+  const payrollRows = Array.isArray(state.payrollWeeklyFactView)
+    ? state.payrollWeeklyFactView
+    : [];
+
+  const selectedRow = payrollRows.find(
+    r => String(r.week_id) === String(weekId) && String(r.worker_id) === String(workerId)
+  );
+
+  if (!selectedRow?.week_start) {
+    alert("Could not find payroll week start.");
+    return;
+  }
+
+  const columnMap = {
+    sat: "sat_hours_override",
+    sun: "sun_hours_override",
+    mon: "mon_hours_override",
+    tue: "tue_hours_override",
+    wed: "wed_hours_override",
+    thu: "thu_hours_override",
+    fri: "fri_hours_override"
+  };
+
+  const column = columnMap[day];
+  if (!column) {
+    alert("Invalid day selected.");
+    return;
+  }
+
+  const numericValue = Number(value || 0);
+
+  const weekStart = selectedRow.week_start;
+
+  const { data: existing, error: fetchError } = await supaClient
+    .from("payroll_weekly_overrides")
+    .select("id")
+    .eq("worker_id", workerId)
+    .eq("week_start", weekStart)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error("Fetch payroll weekly override error:", fetchError);
+    alert("Failed to check daily override row.");
+    return;
+  }
+
+  let writeError = null;
+
+  if (existing?.id) {
+    const res = await supaClient
+      .from("payroll_weekly_overrides")
+      .update({
+        [column]: numericValue,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", existing.id);
+
+    writeError = res.error;
+  } else {
+    const res = await supaClient
+      .from("payroll_weekly_overrides")
+      .insert([{
+        worker_id: workerId,
+        week_start: weekStart,
+        [column]: numericValue,
+        updated_at: new Date().toISOString()
+      }]);
+
+    writeError = res.error;
+  }
+
+  if (writeError) {
+    console.error("Save daily hours override error:", writeError);
+    alert("Failed to save daily hours.");
+    return;
+  }
+
+  if (window.portal && typeof window.portal.fetchAdminData === "function") {
+    await window.portal.fetchAdminData(true);
+  } else {
+    this.renderPayrollFinance();
+  }
+}
 
       getPayrollWeekRangeLabel(weekStartStr) {
         if (!weekStartStr) return "—";
