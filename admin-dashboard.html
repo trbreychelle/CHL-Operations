@@ -4400,7 +4400,7 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
             const note = r.note || "";
             const approvedBy = r.approved_by || "";
 
-            const dailyHours = {
+           const dailyHours = {
   sat: Number(r.hours_sat || 0),
   sun: Number(r.hours_sun || 0),
   mon: Number(r.hours_mon || 0),
@@ -4733,7 +4733,7 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
         `).join("");
       },
 
-      async addPayrollNote() {
+     async addPayrollNote() {
   const input = document.getElementById("payroll-new-note");
   const weekSelect = document.getElementById("payroll-week-select");
 
@@ -4778,8 +4778,7 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
 
   input.value = "";
   await this.loadPayrollNotes(selectedWeekRow.week_start);
-}
-,
+},
 
       bindExportCSV(weekLabel, processedAgents) {
         const btn = document.getElementById("payroll-export");
