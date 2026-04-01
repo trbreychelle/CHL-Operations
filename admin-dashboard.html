@@ -99,6 +99,60 @@
     .kpi-sub { font-size: 12px; font-weight: 600; margin-top: 2px; color: #6B7280; }
 
     .client-health-scroll { max-height: 315px; overflow-y: auto; }
+
+.client-health-card {
+  position: relative;
+  transition: all 0.25s ease;
+}
+
+.client-health-card-expanded {
+  position: fixed !important;
+  inset: 2vh 2vw;
+  z-index: 60;
+  margin: 0 !important;
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.22);
+}
+
+.client-health-card-expanded .client-health-scroll {
+  max-height: none;
+  height: 100%;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.client-health-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.45);
+  z-index: 50;
+}
+
+.client-health-expand-btn {
+  width: 38px;
+  height: 38px;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  background: white;
+  color: #4B5563;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.client-health-expand-btn:hover {
+  background: #F9FAFB;
+  color: #111827;
+  border-color: #D1D5DB;
+}
+
+body.client-health-lock {
+  overflow: hidden;
+}
     .controls-wrap { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
     .controls-wrap > * { min-width: 180px; }
     @media (max-width: 1024px) { .controls-wrap > * { min-width: 160px; } }
@@ -206,14 +260,26 @@
           </div>
         </div>
 
-        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8">
+        <div id="client-health-card" class="client-health-card bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8">
           <div class="p-5 border-b border-gray-100 flex flex-col gap-3 bg-gray-50/50 rounded-t-2xl">
             <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
-              <h3 class="font-bold text-gray-900 flex items-center gap-2">
-                <i class="fa-solid fa-heart-pulse text-red-500"></i> Client Health Monitor
-              </h3>
+  <div class="flex items-center gap-3">
+    <h3 class="font-bold text-gray-900 flex items-center gap-2">
+      <i class="fa-solid fa-heart-pulse text-red-500"></i> Client Health Monitor
+    </h3>
 
-              <div class="flex items-center gap-3">
+    <button
+      id="client-health-expand-btn"
+      type="button"
+      class="client-health-expand-btn"
+      title="Expand Client Health Monitor"
+      onclick="Admin.toggleClientHealthExpanded()"
+    >
+      <i id="client-health-expand-icon" class="fa-solid fa-expand"></i>
+    </button>
+  </div>
+
+  <div class="flex items-center gap-3">
                 <div class="status-container">
                   <span class="status-dot st-critical"></span>
                   <span class="tooltip-text"><b>CRITICAL</b><br>No lead delivered in more than 48 hours.</span>
@@ -1598,9 +1664,13 @@
     </div>
   </div>
 
+  <div id="client-health-backdrop" class="client-health-backdrop hidden" onclick="Admin.toggleClientHealthExpanded(false)"></div>
+
   <script>
     const AdminDashboard = {
       sortState: { key: null, dir: 'asc' },
+            clientHealthExpanded: false,
+      _clientHealthExpandBound: false,
 _firstLoadDone: false,
 
 _onboardingDrafts: {},
@@ -1692,6 +1762,8 @@ const packages = state.packages || [];
           this.setupFilters(this.clientHealthRaw);
           this.applyClientHealthFilters();
         } catch(e) { console.error("CHM Error:", e); }
+
+          try { this.bindClientHealthExpandUI(); } catch(e) {}
 
         // 3. Keep other dashboard modules alive
         try { this.initLeadsColumnsUI(); this.applyLeadsFilters(); } catch(e) {}
@@ -5330,6 +5402,46 @@ async saveOnboardingRow(clientCode) {
     }, 1200);
   }
 },
+
+            bindClientHealthExpandUI() {
+        if (this._clientHealthExpandBound) return;
+        this._clientHealthExpandBound = true;
+
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && this.clientHealthExpanded) {
+            this.toggleClientHealthExpanded(false);
+          }
+        });
+      },
+
+      toggleClientHealthExpanded(forceValue = null) {
+        const card = document.getElementById("client-health-card");
+        const backdrop = document.getElementById("client-health-backdrop");
+        const icon = document.getElementById("client-health-expand-icon");
+        const btn = document.getElementById("client-health-expand-btn");
+
+        if (!card || !backdrop || !icon || !btn) return;
+
+        const nextState = typeof forceValue === "boolean"
+          ? forceValue
+          : !this.clientHealthExpanded;
+
+        this.clientHealthExpanded = nextState;
+
+        if (nextState) {
+          card.classList.add("client-health-card-expanded");
+          backdrop.classList.remove("hidden");
+          document.body.classList.add("client-health-lock");
+          icon.className = "fa-solid fa-compress";
+          btn.title = "Minimize Client Health Monitor";
+        } else {
+          card.classList.remove("client-health-card-expanded");
+          backdrop.classList.add("hidden");
+          document.body.classList.remove("client-health-lock");
+          icon.className = "fa-solid fa-expand";
+          btn.title = "Expand Client Health Monitor";
+        }
+      },
       
       nav(viewId, linkEl) {
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
