@@ -2144,7 +2144,7 @@ renderHROverview() {
 
   const rows = agents.map(a => {
     const name = String(a.agent_name || a.name || "").trim();
-    const email = String(a.email || "").trim().toLowerCase();
+    const email = String(a.agent_email || a.email || "").trim().toLowerCase();
     const profile = profileByEmail.get(email) || {};
 
     let qualified = 0;
@@ -2296,7 +2296,7 @@ const rateByName = new Map(
 
   const rows = agents.map(a => {
     const name = String(a.agent_name || a.name || "").trim();
-    const email = String(a.email || "").trim().toLowerCase();
+    const email = String(a.agent_email || a.email || "").trim().toLowerCase();
     const profile = profileByEmail.get(email) || {};
 
     let total = 0;
