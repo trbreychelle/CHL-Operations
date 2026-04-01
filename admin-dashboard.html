@@ -3461,12 +3461,19 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
           );
 
         let bottom = [];
-        if (hasAnyLeadActivity && bottomPool.length > 0) {
-          const cutoffIndex = Math.min(4, bottomPool.length - 1);
-          const cutoffTotal = bottomPool[cutoffIndex].total;
-          bottom = bottomPool.filter(a => a.total <= cutoffTotal);
-        }
+if (hasAnyLeadActivity && bottomPool.length > 0) {
+  if (bottomPool.length <= 5) {
+    bottom = bottomPool.slice();
+  } else {
+    const firstFive = bottomPool.slice(0, 5);
+    const cutoffTotal = firstFive[firstFive.length - 1].total;
 
+    bottom = bottomPool.filter((a, idx) => {
+      if (idx < 5) return true;
+      return a.total === cutoffTotal;
+    });
+  }
+}
         const cancelRate = (qualified + credited) > 0
           ? Math.round((credited / (qualified + credited)) * 100)
           : 0;
