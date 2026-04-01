@@ -494,7 +494,7 @@ body.client-health-lock {
             <div>
               <div class="flex items-center justify-between mb-3">
                 <h4 class="font-bold text-gray-900 flex items-center gap-2">
-                  <i class="fa-solid fa-arrow-down-wide-short text-red-500"></i> Bottom 5 Agents (≤ 5 Total Leads)
+                  <i class="fa-solid fa-arrow-down-wide-short text-red-500"></i> Bottom Agents
                 </h4>
                 <span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider" id="bottom5-label">—</span>
               </div>
@@ -3298,96 +3298,226 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
         });
       },
 
-      updateAnalytics(period) {
+            updateAnalytics(period) {
         const state = this.getState();
-        const leads = (state && state.leads) ? state.leads : [];
+        const leads = Array.isArray(state?.leads) ? state.leads : [];
+        const agents = Array.isArray(state?.agents) ? state.agents : [];
         const { start, end, grain, label } = this.getRangeFor(period, leads);
 
         const rangeEl = document.getElementById("kpi-range");
         if (rangeEl) rangeEl.textContent = `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
-        
+
         const topLabel = document.getElementById("top10-label");
         if (topLabel) topLabel.textContent = label;
-        
+
         const botLabel = document.getElementById("bottom5-label");
         if (botLabel) botLabel.textContent = label;
-        
+
         const grainEl = document.getElementById("trend-grain");
         if (grainEl) grainEl.textContent = grain === "day" ? "Daily" : "Weekly";
 
         let total = 0, qualified = 0, rejected = 0, credited = 0, pending = 0;
-        const agentAgg = new Map();
+
         const buckets = this._buildBuckets(start, end, grain);
         const seriesMap = new Map();
         buckets.forEach(b => seriesMap.set(b, { qualified: 0, rejected: 0, credited: 0, pending: 0 }));
 
-        const agents = (state && Array.isArray(state.agents)) ? state.agents : [];
-        agents.forEach(a => {
-          const stage = this.getAgentStage(a); 
-          if (stage !== "active") return;
-          const agentName = this.pick(a, ["agent_name", "Employee Name","Name","Agent Name","Full Name","appointment_coordinator_name"], "Unknown");
-          if (!agentName || agentName === "Unknown") return;
-          agentAgg.set(agentName, { name: agentName, total: 0, qualified: 0, rejected: 0, credited: 0, pending: 0 });
+        const normalizeAgentName = (raw) => {
+          const picked = String(raw || "").trim();
+          if (!picked) return "";
+          if (typeof this.getOfficialAgentName === "function") {
+            return this.getOfficialAgentName(picked);
+          }
+          return picked;
+        };
+
+        const buildEmptyAgg = (name) => ({
+          name,
+          total: 0,
+          qualified: 0,
+          rejected: 0,
+          credited: 0,
+          pending: 0
         });
+
+        const inRangeLeads = [];
+        const leadAgentNames = new Set();
 
         leads.forEach(l => {
           const dt = this.getLeadDateObj(l);
           if (!dt || dt < start || dt > end) return;
 
-          const st = this.pick(l, ["Status", "STATUS", "status"], "");
-          const agent = String(this.pick(l, ["Appointment Coordinator Name", "appointment_coordinator_name", "Agent Name", "AGENT"], "Unknown")).trim();
-          
+          const rawAgent = this.pick(
+            l,
+            ["Appointment Coordinator Name", "appointment_coordinator_name", "agent_name", "Agent Name", "AGENT"],
+            ""
+          );
+
+          const agent = normalizeAgentName(rawAgent);
+          if (!agent) return;
+
+          const st = this.pick(l, ["Status", "STATUS", "status", "Lead_Status"], "");
+          inRangeLeads.push({ lead: l, dt, agent, status: st });
+          leadAgentNames.add(agent);
+        });
+
+        const hasAnyLeadActivity = inRangeLeads.length > 0;
+
+        // Current active roster only for current operational periods.
+        // For historical periods, rely on actual timeframe lead activity so offboarded names can still show.
+        const currentOperationalPeriods = new Set(["today", "this-week"]);
+        const useCurrentActiveRosterForBottom = currentOperationalPeriods.has(period);
+
+        const activeRoster = new Set();
+        agents.forEach(a => {
+          if (!a) return;
+          const role = String(a.role || a.Role || "").toLowerCase().trim();
+          if (role === "admin") return;
+
+          const stage = this.getAgentStage(a);
+          if (stage !== "active") return;
+
+          const name = normalizeAgentName(
+            this.pick(a, ["agent_name", "Employee Name", "Name", "Agent Name", "Full Name", "appointment_coordinator_name"], "")
+          );
+          if (name) activeRoster.add(name);
+        });
+
+        const agentAgg = new Map();
+
+        inRangeLeads.forEach(({ dt, agent, status }) => {
           total++;
 
-          const a = agentAgg.get(agent) || { name: agent, total: 0, qualified: 0, rejected: 0, credited: 0, pending: 0 };
+          const a = agentAgg.get(agent) || buildEmptyAgg(agent);
           a.total++;
 
           const bk = this._bucketKeyFor(dt, grain);
           const bRow = seriesMap.get(bk);
 
-          if (this.isQualified(st)) { qualified++; a.qualified++; if (bRow) bRow.qualified++; }
-          else if (this.isRejected(st)) { rejected++; a.rejected++; if (bRow) bRow.credited++; }
-          else if (this.isCredited(st)) { credited++; a.credited++; if (bRow) bRow.credited++; }
-          else { pending++; a.pending++; if (bRow) bRow.pending++; }
+          if (this.isQualified(status)) {
+            qualified++;
+            a.qualified++;
+            if (bRow) bRow.qualified++;
+          } else if (this.isRejected(status)) {
+            rejected++;
+            a.rejected++;
+            if (bRow) bRow.rejected++;
+          } else if (this.isCredited(status)) {
+            credited++;
+            a.credited++;
+            if (bRow) bRow.credited++;
+          } else {
+            pending++;
+            a.pending++;
+            if (bRow) bRow.pending++;
+          }
 
           agentAgg.set(agent, a);
         });
 
-        const labelEl = document.getElementById("pulse-label");
-        if (labelEl) labelEl.textContent = "EST. VALUE";
+        // Build Top list from agents with actual lead activity only
+        const topPool = Array.from(agentAgg.values())
+          .map(a => ({
+            ...a,
+            cancelRate: (a.qualified + a.credited) > 0
+              ? Math.round((a.credited / (a.qualified + a.credited)) * 100)
+              : 0
+          }))
+          .filter(a => a.total > 0)
+          .sort((a, b) =>
+            (b.total - a.total) ||
+            (b.qualified - a.qualified) ||
+            (a.rejected - b.rejected) ||
+            a.name.localeCompare(b.name)
+          );
 
-        const profitEl = document.getElementById("pulse-profit");
-        const estValue = qualified * 125;
-        if (profitEl) {
-           profitEl.textContent = estValue.toLocaleString("en-US", { style: "currency", currency: "USD" });
+        const top = topPool.slice(0, 10);
+
+        // Build Bottom pool
+        let bottomPoolNames = new Set();
+
+        if (useCurrentActiveRosterForBottom) {
+          activeRoster.forEach(name => bottomPoolNames.add(name));
+          leadAgentNames.forEach(name => bottomPoolNames.add(name));
+        } else {
+          leadAgentNames.forEach(name => bottomPoolNames.add(name));
         }
 
-        const pendingEl = document.getElementById("pulse-pending");
-        if (pendingEl) pendingEl.textContent = pending;
+        const bottomPool = Array.from(bottomPoolNames)
+          .map(name => {
+            const base = agentAgg.get(name) || buildEmptyAgg(name);
+            return {
+              ...base,
+              cancelRate: (base.qualified + base.credited) > 0
+                ? Math.round((base.credited / (base.qualified + base.credited)) * 100)
+                : 0
+            };
+          })
+          .sort((a, b) =>
+            (a.total - b.total) ||
+            (a.qualified - b.qualified) ||
+            (b.rejected - a.rejected) ||
+            a.name.localeCompare(b.name)
+          );
 
-        document.getElementById("kpi-total").textContent = total;
-        document.getElementById("kpi-qualified").textContent = qualified;
-        document.getElementById("kpi-qc-rejected").textContent = rejected;
-        document.getElementById("kpi-credited").textContent = credited;
-        document.getElementById("kpi-pending").textContent = pending;
-        document.getElementById("kpi-cancel").textContent = `${(qualified + credited > 0) ? Math.round((credited / (qualified + credited)) * 100) : 0}%`;
+        let bottom = [];
+        if (hasAnyLeadActivity && bottomPool.length > 0) {
+          const cutoffIndex = Math.min(4, bottomPool.length - 1);
+          const cutoffTotal = bottomPool[cutoffIndex].total;
+          bottom = bottomPool.filter(a => a.total <= cutoffTotal);
+        }
 
-        const top = Array.from(agentAgg.values())
-          .sort((a,b) => (b.qualified - a.qualified) || (b.total - a.total))
-          .slice(0, 10);
+        const cancelRate = (qualified + credited) > 0
+          ? Math.round((credited / (qualified + credited)) * 100)
+          : 0;
 
-        const bottom = Array.from(agentAgg.values())
-          .filter(a => a.total <= 5)
-          .sort((a,b) => (a.total - b.total) || (a.qualified - b.qualified) || a.name.localeCompare(b.name))
-          .slice(0, 5);
+        const setText = (id, val) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = val;
+        };
+
+        setText("kpi-total-leads", total);
+        setText("kpi-qc-rejected", rejected);
+        setText("kpi-qualified", qualified);
+        setText("kpi-credited", credited);
+        setText("kpi-pending", pending);
+        setText("kpi-cancel-rate", `${cancelRate}%`);
 
         const renderRow = (a) => {
           const d = a.qualified + a.credited;
-          return `<tr><td class="p-4 font-bold text-gray-900">${a.name}</td><td class="p-4 text-center text-gray-600 font-semibold">${a.total}</td><td class="p-4 text-center text-red-500 font-bold">${a.rejected}</td><td class="p-4 text-center text-blue-500 font-bold">${a.qualified}</td><td class="p-4 text-center text-purple-500 font-bold">${a.credited}</td><td class="p-4 text-center text-yellow-600 font-bold">${a.pending}</td><td class="p-4 text-center text-gray-600 font-semibold">${d > 0 ? Math.round((a.credited/d)*100) : 0}%</td></tr>`;
+          return `<tr>
+            <td class="p-4 font-bold text-gray-900">${a.name}</td>
+            <td class="p-4 text-center text-gray-600 font-semibold">${a.total}</td>
+            <td class="p-4 text-center text-red-500 font-bold">${a.rejected}</td>
+            <td class="p-4 text-center text-blue-500 font-bold">${a.qualified}</td>
+            <td class="p-4 text-center text-purple-500 font-bold">${a.credited}</td>
+            <td class="p-4 text-center text-yellow-600 font-bold">${a.pending}</td>
+            <td class="p-4 text-center text-gray-600 font-semibold">${d > 0 ? Math.round((a.credited / d) * 100) : 0}%</td>
+          </tr>`;
         };
 
-        document.getElementById("top10-body").innerHTML = top.map(renderRow).join("") || '<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No data</td></tr>';
-        document.getElementById("bottom5-body").innerHTML = bottom.map(renderRow).join("") || '<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No agents with ≤ 5 leads</td></tr>';
+        const topBody = document.getElementById("top10-body");
+        const bottomBody = document.getElementById("bottom5-body");
+
+        if (topBody) {
+          if (!hasAnyLeadActivity) {
+            topBody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No lead activity yet for this timeframe.</td></tr>';
+          } else if (!top.length) {
+            topBody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No agents with lead activity.</td></tr>';
+          } else {
+            topBody.innerHTML = top.map(renderRow).join("");
+          }
+        }
+
+        if (bottomBody) {
+          if (!hasAnyLeadActivity) {
+            bottomBody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No lead activity yet for this timeframe.</td></tr>';
+          } else if (!bottom.length) {
+            bottomBody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No bottom performers for this timeframe.</td></tr>';
+          } else {
+            bottomBody.innerHTML = bottom.map(renderRow).join("");
+          }
+        }
 
         this._renderAnalyticsChart(buckets, {
           qualified: buckets.map(b => seriesMap.get(b).qualified),
