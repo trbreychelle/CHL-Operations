@@ -3368,7 +3368,7 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
         const currentOperationalPeriods = new Set(["today", "this-week"]);
         const useCurrentActiveRosterForBottom = currentOperationalPeriods.has(period);
 
-        const activeRoster = new Set();
+                const activeRoster = new Set();
         agents.forEach(a => {
           if (!a) return;
           const role = String(a.role || a.Role || "").toLowerCase().trim();
@@ -3483,12 +3483,12 @@ if (hasAnyLeadActivity && bottomPool.length > 0) {
           if (el) el.textContent = val;
         };
 
-        setText("kpi-total-leads", total);
+                setText("kpi-total", total);
         setText("kpi-qc-rejected", rejected);
         setText("kpi-qualified", qualified);
         setText("kpi-credited", credited);
         setText("kpi-pending", pending);
-        setText("kpi-cancel-rate", `${cancelRate}%`);
+        setText("kpi-cancel", `${cancelRate}%`);
 
         const renderRow = (a) => {
           const d = a.qualified + a.credited;
@@ -3915,6 +3915,29 @@ if (hasAnyLeadActivity && bottomPool.length > 0) {
         this.renderTeam();
       },
 
+            isSetterAnalyticsAgent(agent) {
+        if (!agent) return false;
+
+        const employmentStatus = String(agent.employment_status || "").toLowerCase().trim();
+        const role = String(agent.role || agent.Role || "").toLowerCase().trim();
+        const position = String(agent.position || "").toLowerCase().trim();
+        const name = String(agent.agent_name || agent.name || "").trim().toLowerCase();
+
+        // Exclude obvious non-setter system/admin records
+        if (!name) return false;
+        if (role === "admin") return false;
+        if (role === "team_leader") return false;
+
+        // Only active setters belong in Team / Team Performance
+        if (employmentStatus !== "active") return false;
+
+        // Exclude non-setter functional groups if they were accidentally left active
+        if (["backend", "sales", "admin", "operations", "operation", "management"].includes(employmentStatus)) return false;
+        if (["admin", "team lead", "team_leader", "sales", "manager", "operations manager", "backend"].includes(position)) return false;
+
+        return true;
+      },
+
       // --- SMART NAME MATCHER ---
       getOfficialAgentName(rawName) {
           const agents = window.portal?.adminState?.agents || [];
@@ -3971,19 +3994,19 @@ if (hasAnyLeadActivity && bottomPool.length > 0) {
         const warnedFilter = document.getElementById("team-warned-filter")?.value || "all";
 
         // ONLY SHOW ACTIVE AGENTS (Exclude Admin, Offboarded, Resigned)
-        const uniqueAgentNames = new Set();
-agents.forEach(a => {
-  if (!a) return;
+                const uniqueAgentNames = new Set();
+        agents.forEach(a => {
+          if (!a) return;
 
-  const role = String(a.role || a.Role || "").toLowerCase().trim();
-  const stage = this.getAgentStage(a);
+          const stage = this.getAgentStage(a);
+          if (stageFilter !== "all" && stage !== stageFilter) return;
 
-  if (role === "admin") return;
-  if (stageFilter !== "all" && stage !== stageFilter) return;
+          // Team tab should only show setter/tracker workforce
+          if (!this.isSetterAnalyticsAgent(a) && stage === "active") return;
 
-  const name = String(a.name || a.agent_name || "").trim();
-  if (name) uniqueAgentNames.add(name);
-});
+          const name = String(a.name || a.agent_name || "").trim();
+          if (name) uniqueAgentNames.add(name);
+        });
 
         let rows = Array.from(uniqueAgentNames).map(agentName => {
           const dbAgent = agents.find(a => a && String(a.name || a.agent_name || "").trim() === agentName) || {};
