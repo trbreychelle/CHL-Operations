@@ -1873,11 +1873,16 @@ if (packageStatus === "ACTIVE") packageStatus = "ONGOING";
 
 const rawPkgStatus = String(pkg.status || "").toUpperCase().trim();
 
-// raw package status should override allocation status for manual package control
-if (rawPkgStatus.startsWith("PAUS")) packageStatus = "PAUSE";
-else if (rawPkgStatus.includes("REFUND")) packageStatus = "REFUNDED";
-else if (rawPkgStatus.includes("COMPLET")) packageStatus = "COMPLETED";
-else if (rawPkgStatus.includes("ACTIVE") || rawPkgStatus.includes("ONGOING")) packageStatus = "ONGOING";
+/*
+  Use backend allocation truth for ONGOING vs COMPLETED.
+  Only allow raw package status to override for explicit admin controls:
+  PAUSE and REFUNDED.
+*/
+if (rawPkgStatus.startsWith("PAUS")) {
+  packageStatus = "PAUSE";
+} else if (rawPkgStatus.includes("REFUND")) {
+  packageStatus = "REFUNDED";
+}
 
 // deal status still wins for refunded
 if (dealStatus === "REFUNDED") packageStatus = "REFUNDED";
