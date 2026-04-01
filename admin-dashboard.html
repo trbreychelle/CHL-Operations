@@ -3368,18 +3368,14 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
         const currentOperationalPeriods = new Set(["today", "this-week"]);
         const useCurrentActiveRosterForBottom = currentOperationalPeriods.has(period);
 
-                const activeRoster = new Set();
+                        const activeRoster = new Set();
         agents.forEach(a => {
-          if (!a) return;
-          const role = String(a.role || a.Role || "").toLowerCase().trim();
-          if (role === "admin") return;
-
-          const stage = this.getAgentStage(a);
-          if (stage !== "active") return;
+          if (!this.isSetterAnalyticsAgent(a)) return;
 
           const name = normalizeAgentName(
             this.pick(a, ["agent_name", "Employee Name", "Name", "Agent Name", "Full Name", "appointment_coordinator_name"], "")
           );
+
           if (name) activeRoster.add(name);
         });
 
