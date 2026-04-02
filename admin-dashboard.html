@@ -4835,7 +4835,7 @@ if (qualifiesRaffle) {
                   type="number"
                   step="0.01"
                   value="${data.manualIncentiveDelta.toFixed(2)}"
-                  onchange="Admin.savePayrollAdjustment('${data.weekId}', '${data.workerId}', ${data.manualHoursDelta}, this.value)"
+                  onchange="Admin.saveManualSpiff('${data.weekId}', '${data.workerId}', this.value)"
                   class="w-24 text-center font-bold border border-purple-200 bg-purple-50 text-purple-700 rounded focus:ring-2 focus:ring-purple-500 py-1.5 text-sm">
               </td>
               <td class="p-3 text-right font-black text-emerald-500 text-lg">$${data.finalPay.toFixed(2)}</td>
@@ -4925,6 +4925,80 @@ if (qualifiesRaffle) {
           this.renderPayrollFinance();
         }
       },
+
+      async saveManualSpiff(weekId, workerId, value) {
+  if (typeof supaClient === "undefined" || !supaClient) {
+    alert("Database connection missing!");
+    return;
+  }
+
+  const state = this.getState();
+  const payrollRows = Array.isArray(state.payrollWeeklyFactView)
+    ? state.payrollWeeklyFactView
+    : [];
+
+  const selectedRow = payrollRows.find(
+    r => String(r.week_id) === String(weekId) && String(r.worker_id) === String(workerId)
+  );
+
+  if (!selectedRow?.week_start) {
+    alert("Could not find payroll week start.");
+    return;
+  }
+
+  const numericValue = Number(value || 0);
+  const weekStart = selectedRow.week_start;
+
+  const { data: existing, error: fetchError } = await supaClient
+    .from("payroll_weekly_overrides")
+    .select("id")
+    .eq("worker_id", workerId)
+    .eq("week_start", weekStart)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error("Fetch payroll weekly override error:", fetchError);
+    alert("Failed to check manual spiff row.");
+    return;
+  }
+
+  let writeError = null;
+
+  if (existing?.id) {
+    const res = await supaClient
+      .from("payroll_weekly_overrides")
+      .update({
+        manual_spiff: numericValue,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", existing.id);
+
+    writeError = res.error;
+  } else {
+    const res = await supaClient
+      .from("payroll_weekly_overrides")
+      .insert([{
+        worker_id: workerId,
+        week_start: weekStart,
+        manual_spiff: numericValue,
+        updated_at: new Date().toISOString()
+      }]);
+
+    writeError = res.error;
+  }
+
+  if (writeError) {
+    console.error("Save manual spiff error:", writeError);
+    alert("Failed to save manual spiff.");
+    return;
+  }
+
+  if (window.portal && typeof window.portal.fetchAdminData === "function") {
+    await window.portal.fetchAdminData(true);
+  } else {
+    this.renderPayrollFinance();
+  }
+}
 
       async savePayrollAdjustment(weekId, workerId, hoursDelta, incentiveDelta) {
         if (typeof supaClient === "undefined" || !supaClient) {
