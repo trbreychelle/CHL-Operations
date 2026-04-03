@@ -3528,7 +3528,41 @@ if (hasAnyLeadActivity && bottomPool.length > 0) {
           credited: buckets.map(b => seriesMap.get(b).credited),
           pending: buckets.map(b => seriesMap.get(b).pending),
         });
+              this.updateOverviewTopCardsFromAnalyticsCounts(qualified, pending, period, leads);
       },
+
+      updateOverviewTopCardsFromAnalyticsCounts(qualifiedCount, pendingCount, period, leads) {
+  const pulseProfit = document.getElementById("pulse-profit");
+  const pulsePending = document.getElementById("pulse-pending");
+
+  let estValue = 0;
+
+  const { start, end } = this.getRangeFor(period, leads || []);
+  const cutoff = new Date("2026-03-09T00:00:00");
+
+  (Array.isArray(leads) ? leads : []).forEach(l => {
+    const dt = this.getLeadDateObj(l);
+    if (!dt || dt < start || dt > end) return;
+
+    const st = String(this.pick(l, ["Status", "STATUS", "status", "Lead_Status"], "")).toLowerCase();
+
+    const isQualified = st.includes("confirm") || st.includes("approve");
+    if (!isQualified) return;
+
+    estValue += (dt >= cutoff ? 135 : 125);
+  });
+
+  if (pulseProfit) {
+    pulseProfit.textContent = estValue.toLocaleString("en-US", {
+      style: "currency",
+      currency: "USD"
+    });
+  }
+
+  if (pulsePending) {
+    pulsePending.textContent = String(Number(pendingCount || 0));
+  }
+},
 
       renderClientCards(clients) {
         const container = document.getElementById('client-cards-container');
