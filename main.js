@@ -443,6 +443,121 @@ class CallHammerPortal {
     return 'admin_management';
   }
 
+  async deleteCommandCenterNote(noteId) {
+  if (!supaClient || !noteId) return false;
+
+  try {
+    const { error } = await supaClient
+      .from('command_center_notes')
+      .delete()
+      .eq('id', noteId);
+
+    if (error) {
+      console.error('deleteCommandCenterNote failed:', error);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('deleteCommandCenterNote exception:', err);
+    return false;
+  }
+}
+
+  cleanupCommandCenterRealtime() {
+  try {
+    if (this._ccRealtimeChannel) {
+      supaClient.removeChannel(this._ccRealtimeChannel);
+      this._ccRealtimeChannel = null;
+    }
+
+    if (this._adminRealtimeChannel) {
+      supaClient.removeChannel(this._adminRealtimeChannel);
+      this._adminRealtimeChannel = null;
+    }
+  } catch (err) {
+    console.warn('cleanupCommandCenterRealtime failed:', err);
+  }
+}
+
+setupCommandCenterRealtime() {
+  if (!supaClient) return;
+  if (!this.currentUser) return;
+
+  const organizationId = this.getCurrentOrganizationId();
+  const teamKey = this.getCommandCenterTeamKey();
+
+  if (!organizationId || !teamKey) return;
+
+  this.cleanupCommandCenterRealtime();
+
+  // Notifications + notes realtime
+  this._ccRealtimeChannel = supaClient
+    .channel(`cc-live:${organizationId}:${teamKey}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'command_center_team_state',
+        filter: `team_key=eq.${teamKey}`
+      },
+      async () => {
+        try {
+          if (window.Admin?.currentView === 'notifications') {
+            await window.Admin.loadNotifications(true);
+          } else {
+            // lightweight unread refresh even when not on tab
+            await window.Admin.loadNotifications(true);
+          }
+        } catch (err) {
+          console.error('Realtime notifications refresh failed:', err);
+        }
+      }
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'command_center_notes',
+        filter: `organization_id=eq.${organizationId}`
+      },
+      async () => {
+        try {
+          if (window.Admin?.currentView === 'notifications') {
+            await window.Admin.loadNotes();
+          } else {
+            await window.Admin.loadNotes();
+          }
+        } catch (err) {
+          console.error('Realtime notes refresh failed:', err);
+        }
+      }
+    )
+    .subscribe((status) => {
+      console.log('Command Center realtime status:', status);
+    });
+
+  // Debounced admin data refresh for live operational updates
+  const debouncedRefresh = () => {
+    clearTimeout(this._adminRealtimeRefreshTimer);
+    this._adminRealtimeRefreshTimer = setTimeout(() => {
+      this.fetchAdminData(true);
+    }, 500);
+  };
+
+  this._adminRealtimeChannel = supaClient
+    .channel(`admin-live:${organizationId}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, debouncedRefresh)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'packages' }, debouncedRefresh)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'client_onboarding' }, debouncedRefresh)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'leads_raw' }, debouncedRefresh)
+    .subscribe((status) => {
+      console.log('Admin dashboard realtime status:', status);
+    });
+}
+
   // ------------------------
   // Init / Routing
   // ------------------------
@@ -486,16 +601,17 @@ class CallHammerPortal {
 
     // Load Admin OR Sales Dashboard
     if (isCommandCenter) {
-      console.log("🟢 Command Center Detected! Fetching Master Data...");
-      document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
-      
-      setTimeout(() => {
-        this.fetchAdminData(false);
-        // this.loadPayrollData(false); 
-      }, 300);
+  console.log("🟢 Command Center Detected! Fetching Master Data...");
+  document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+  
+  setTimeout(() => {
+    this.fetchAdminData(false);
+    this.setupCommandCenterRealtime();
+    // this.loadPayrollData(false); 
+  }, 300);
 
-      this.startAdminAutoRefresh();
-    }
+  this.startAdminAutoRefresh();
+}
   }
 
   enforceRoleRouting() {
