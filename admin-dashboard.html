@@ -5618,6 +5618,31 @@ async saveOnboardingRow(clientCode) {
     rowBtn.classList.add("opacity-70", "cursor-not-allowed");
   }
 
+  const supa = supaClient;
+  if (!supa) {
+    if (rowBtn) {
+      rowBtn.disabled = false;
+      rowBtn.textContent = originalBtnText;
+      rowBtn.classList.remove("opacity-70", "cursor-not-allowed");
+    }
+    alert("Supabase is not available.");
+    return;
+  }
+
+  // 1. fetch old onboarding row first
+  const { data: existingRows, error: existingErr } = await supa
+    .from("client_onboarding")
+    .select("*")
+    .eq("client_code", clientCode)
+    .limit(1);
+
+  if (existingErr) {
+    console.error("Failed to load existing onboarding row:", existingErr);
+  }
+
+  const oldRow = (existingRows && existingRows[0]) ? existingRows[0] : {};
+
+  // 2. build payload from UI
   const payload = {
     client_code: clientCode,
     company_name: client.company_name || client.roofing_company || null,
@@ -5630,17 +5655,7 @@ async saveOnboardingRow(clientCode) {
     payload[field] = el.type === "checkbox" ? !!el.checked : el.value;
   });
 
-  const supa = supaClient;
-  if (!supa) {
-    if (rowBtn) {
-      rowBtn.disabled = false;
-      rowBtn.textContent = originalBtnText;
-      rowBtn.classList.remove("opacity-70", "cursor-not-allowed");
-    }
-    alert("Supabase is not available.");
-    return;
-  }
-
+  // 3. save
   const { error } = await supa
     .from("client_onboarding")
     .upsert([payload], { onConflict: "client_code" });
@@ -5656,8 +5671,41 @@ async saveOnboardingRow(clientCode) {
     return;
   }
 
+  // 4. fetch fresh row after save
+  const { data: updatedRows, error: updatedErr } = await supa
+    .from("client_onboarding")
+    .select("*")
+    .eq("client_code", clientCode)
+    .limit(1);
+
+  if (updatedErr) {
+    console.error("Failed to reload onboarding row:", updatedErr);
+  }
+
+  const newRow = (updatedRows && updatedRows[0]) ? updatedRows[0] : payload;
+
+  const trackedFields = window.portal.getOnboardingTrackedFields();
+  const fieldChanges = window.portal.buildFieldChanges(oldRow, newRow, trackedFields);
+
+  if (fieldChanges.length > 0) {
+    await window.portal.createCommandCenterEvent({
+      moduleKey: 'onboarding',
+      entityType: 'onboarding_record',
+      entityId: String(newRow.id || clientCode),
+      entityCode: clientCode,
+      entityLabel: newRow.company_name || client.company_name || clientCode,
+      eventType: 'updated',
+      summaryText: `${window.portal.currentUser?.name || 'User'} updated onboarding for ${newRow.company_name || clientCode}.`,
+      fieldChanges,
+      oldData: oldRow,
+      newData: newRow,
+      severity: 'normal',
+      teamKeys: ['admin_management']
+    });
+  }
+
   delete this._onboardingDrafts[clientCode];
-    await window.portal.fetchAdminData(true);
+  await window.portal.fetchAdminData(true);
 
   const freshBtn = document.querySelector(`button[data-ob-save="${clientCode}"]`);
   if (freshBtn) {
