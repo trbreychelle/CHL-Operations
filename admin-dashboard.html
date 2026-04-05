@@ -6256,8 +6256,11 @@ async saveOnboardingRow(clientCode) {
     try { this.renderPayrollFinance(); } catch(e) {}
   }
 
-  if (viewId === "notifications") {
-    try { this.loadNotifications(); } catch(e) { console.error("Notifications load error:", e); }
+ if (viewId === "notifications") {
+  try {
+    this.loadNotifications(true);
+  } catch(e) {
+    console.error("Notifications load error:", e);
   }
 }
     };
