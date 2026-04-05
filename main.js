@@ -878,7 +878,7 @@ class CallHammerPortal {
     return changes;
   }
 
-    async createCommandCenterEvent({
+      async createCommandCenterEvent({
     moduleKey,
     entityType,
     entityId,
@@ -894,51 +894,40 @@ class CallHammerPortal {
   }) {
     if (!supaClient) {
       console.warn('Command center event skipped: supaClient missing.');
-      alert('DEBUG: supaClient missing');
       return null;
     }
 
     const organizationId = this.getCurrentOrganizationId();
     if (!organizationId) {
       console.warn('Command center event skipped: organization_id missing.');
-      alert('DEBUG: organization_id missing');
       return null;
     }
 
-    const payload = {
-      p_organization_id: organizationId,
-      p_module_key: moduleKey,
-      p_entity_type: entityType,
-      p_entity_id: String(entityId || ''),
-      p_entity_code: entityCode,
-      p_entity_label: entityLabel,
-      p_event_type: eventType,
-      p_summary_text: summaryText,
-      p_field_changes: fieldChanges || [],
-      p_old_data: oldData,
-      p_new_data: newData,
-      p_severity: severity,
-      p_team_keys: teamKeys
-    };
-
-    console.log('🚨 command_center_create_event payload:', payload);
-
     try {
-      const { data, error } = await supaClient.rpc('command_center_create_event', payload);
-
-      console.log('🚨 command_center_create_event response:', { data, error });
+      const { data, error } = await supaClient.rpc('command_center_create_event', {
+        p_organization_id: organizationId,
+        p_module_key: moduleKey,
+        p_entity_type: entityType,
+        p_entity_id: String(entityId || ''),
+        p_entity_code: entityCode,
+        p_entity_label: entityLabel,
+        p_event_type: eventType,
+        p_summary_text: summaryText,
+        p_field_changes: fieldChanges || [],
+        p_old_data: oldData,
+        p_new_data: newData,
+        p_severity: severity,
+        p_team_keys: teamKeys
+      });
 
       if (error) {
         console.error('❌ command_center_create_event failed:', error);
-        alert(`DEBUG RPC ERROR: ${error.message || JSON.stringify(error)}`);
         return null;
       }
 
-      alert(`DEBUG SUCCESS EVENT ID: ${data}`);
       return data || null;
     } catch (err) {
       console.error('❌ createCommandCenterEvent exception:', err);
-      alert(`DEBUG EXCEPTION: ${err.message || err}`);
       return null;
     }
   }
