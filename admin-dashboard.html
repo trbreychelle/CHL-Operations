@@ -3735,20 +3735,46 @@ async toggleNotificationDone(eventId, currentValue) {
   await this.loadNotifications(true);
 },
 
+      async cycleNotificationState(eventId, isFlagged, isDone) {
+  const teamKey = window.portal.getCommandCenterTeamKey();
+
+  // neutral -> flagged
+  if (!isFlagged && !isDone) {
+    await window.portal.setCommandCenterFlagged(eventId, teamKey, true);
+  }
+  // flagged -> done
+  else if (isFlagged && !isDone) {
+    await window.portal.setCommandCenterFlagged(eventId, teamKey, false);
+    await window.portal.setCommandCenterDone(eventId, teamKey, true);
+  }
+  // done -> neutral
+  else {
+    await window.portal.setCommandCenterDone(eventId, teamKey, false);
+  }
+
+  await this.loadNotifications(true);
+},
+
 async openNotification(item) {
   if (!item || !item.command_center_events) return;
 
   const event = item.command_center_events;
   this.selectedNotificationId = event.id;
 
-  // mark reviewed first
+  const feed = document.getElementById('notifications-feed');
+  const savedScrollTop = feed ? feed.scrollTop : 0;
+
   const teamKey = window.portal.getCommandCenterTeamKey();
   await window.portal.markCommandCenterReviewed(event.id, teamKey);
 
-  // route/highlight hook
   this.handleNotificationNavigation?.(item);
 
   await this.loadNotifications(true);
+
+  requestAnimationFrame(() => {
+    const newFeed = document.getElementById('notifications-feed');
+    if (newFeed) newFeed.scrollTop = savedScrollTop;
+  });
 },
 
       async _fetchAndRenderPassbookClient(codeName) {
@@ -4603,7 +4629,7 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
         poolEl.innerHTML = poolHtml;
       },
 
-     refreshNotificationsTab() {
+    refreshNotificationsTab() {
   const wrap = document.getElementById('notifications-feed');
   const badge = document.getElementById('notifications-unread-count');
   if (!wrap) return;
@@ -4641,6 +4667,26 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
 
     const companyLabel = event.entity_label || event.entity_code || 'Record';
 
+    const fieldChanges = Array.isArray(event.field_changes) ? event.field_changes : [];
+
+    const previewHtml = fieldChanges.slice(0, 2).map(fc => {
+      const field = String(fc.field || 'Field');
+      const oldVal = String(fc.old_value ?? '—');
+      const newVal = String(fc.new_value ?? '—');
+
+      const shortOld = oldVal.length > 40 ? oldVal.slice(0, 40) + '…' : oldVal;
+      const shortNew = newVal.length > 40 ? newVal.slice(0, 40) + '…' : newVal;
+
+      return `
+        <div class="text-xs text-gray-500 mt-1" title="${field}: ${oldVal} → ${newVal}">
+          <span class="font-bold text-gray-700">${field}</span>:
+          <span class="line-through text-gray-400">${shortOld}</span>
+          <span class="mx-1">→</span>
+          <span class="font-semibold text-emerald-700">${shortNew}</span>
+        </div>
+      `;
+    }).join('');
+
     return `
       <div class="rounded-3xl border-l-4 ${leftBar} border border-gray-100 ${bgTone} p-5 shadow-sm hover:shadow-md transition-all">
         <div class="flex items-start justify-between gap-4">
@@ -4665,6 +4711,8 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
               <span class="font-black text-blue-700">${companyLabel}</span>.
             </div>
 
+            ${previewHtml ? `<div class="mt-2">${previewHtml}</div>` : ``}
+
             <div class="mt-2 text-xs text-gray-500 flex items-center gap-2 flex-wrap">
               <span>${timeText}</span>
               <span>•</span>
@@ -4674,19 +4722,29 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
 
           <div class="flex items-center gap-2 shrink-0 pt-1">
             <button
-              onclick="Admin.toggleNotificationFlag('${event.id}', ${isFlagged ? 'true' : 'false'})"
-              class="w-11 h-11 rounded-2xl ${isFlagged ? 'bg-amber-500 text-white shadow-md' : 'bg-amber-100 text-amber-700'} text-lg font-black hover:scale-105 transition"
-              title="Flag / Unflag"
+              onclick="Admin.cycleNotificationState('${event.id}', ${isFlagged ? 'true' : 'false'}, ${isDone ? 'true' : 'false'})"
+              class="w-11 h-11 rounded-2xl ${
+                isDone
+                  ? 'bg-emerald-500 text-white shadow-md'
+                  : isFlagged
+                    ? 'bg-amber-500 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-600'
+              } text-lg font-black hover:scale-105 transition"
+              title="${
+                isDone
+                  ? 'Done'
+                  : isFlagged
+                    ? 'Flagged'
+                    : 'Open'
+              }"
             >
-              🚩
-            </button>
-
-            <button
-              onclick="Admin.toggleNotificationDone('${event.id}', ${isDone ? 'true' : 'false'})"
-              class="w-11 h-11 rounded-2xl ${isDone ? 'bg-emerald-500 text-white shadow-md' : 'bg-emerald-100 text-emerald-700'} text-lg font-black hover:scale-105 transition"
-              title="Done / Undo"
-            >
-              ✓
+              ${
+                isDone
+                  ? '✓'
+                  : isFlagged
+                    ? '🚩'
+                    : '•'
+              }
             </button>
           </div>
         </div>
@@ -4735,13 +4793,23 @@ refreshNotesTab() {
             </div>
           </div>
 
-          <button
-            onclick="Admin.toggleNoteDone('${note.id}', ${done ? 'true' : 'false'})"
-            class="w-10 h-10 rounded-2xl ${done ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-700'} text-lg font-black"
-            title="Mark done"
-          >
-            ✓
-          </button>
+<div class="flex items-center gap-2">
+  <button
+    onclick="Admin.toggleNoteDone('${note.id}', ${done ? 'true' : 'false'})"
+    class="w-10 h-10 rounded-2xl ${done ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-700'} text-lg font-black"
+    title="Mark done"
+  >
+    ✓
+  </button>
+
+  <button
+    onclick="Admin.deleteNote('${note.id}')"
+    class="w-10 h-10 rounded-2xl bg-red-100 text-red-600 text-base font-black hover:bg-red-500 hover:text-white transition"
+    title="Delete note"
+  >
+    🗑
+  </button>
+</div>
         </div>
       </div>
     `;
@@ -4774,6 +4842,22 @@ async saveQuickNote() {
 
 async toggleNoteDone(noteId, currentValue) {
   await window.portal.setCommandCenterNoteDone(noteId, !currentValue);
+  await this.loadNotes();
+},
+
+      async deleteNote(noteId) {
+  if (!noteId) return;
+
+  const ok = confirm("Delete this note?");
+  if (!ok) return;
+
+  const deleted = await window.portal.deleteCommandCenterNote(noteId);
+
+  if (!deleted) {
+    alert("Failed to delete note.");
+    return;
+  }
+
   await this.loadNotes();
 },
 
