@@ -2131,32 +2131,115 @@ document.addEventListener('DOMContentLoaded', () => {
 // INTERACTIVE LEADS TRACKER (SUPABASE DIRECT + GSHEET SYNC)
 // ==========================================
 
-async function updateLeadStatus(leadId, newStatus) {
+async function updateLeadStatus(leadId, newStatus, rejectionReason = null) {
     if (!supaClient) return alert("Database connection missing.");
     if (!leadId || leadId === "unknown") return alert("Cannot update: Lead ID is missing.");
 
-    // 1. UPDATE SUPABASE INSTANTLY (For Dashboard Speed)
+    const normalizedStatus = String(newStatus || "").trim().toUpperCase();
+    const normalizedReason = rejectionReason === null
+        ? null
+        : String(rejectionReason || "").trim();
+
+    const updatePayload = { status: normalizedStatus };
+
+    if (normalizedStatus.includes("REJECT")) {
+        updatePayload.rejection_reason = normalizedReason || "";
+    } else {
+        updatePayload.rejection_reason = "";
+    }
+
+    const { data: oldLead, error: oldLeadError } = await supaClient
+        .from('leads_raw')
+        .select('*')
+        .eq('lead_id', leadId)
+        .limit(1)
+        .maybeSingle();
+
+    if (oldLeadError) {
+        console.error("Failed to load lead before update:", oldLeadError);
+    }
+
     const { error } = await supaClient
-        .from('leads_raw') 
-        .update({ status: newStatus })
+        .from('leads_raw')
+        .update(updatePayload)
         .eq('lead_id', leadId);
 
     if (error) {
         console.error("Failed to update lead status:", error);
         alert("Failed to update status in Supabase.");
-    } else {
-        console.log(`Success! Lead ${leadId} is now ${newStatus}`);
-        window.portal.fetchAdminData(true); 
+        return;
     }
 
-    // 2. BACKGROUND SYNC TO GOOGLE SHEETS (For Clients)
+    try {
+        const trackedFields = ["status", "rejection_reason"];
+        const newLead = { ...(oldLead || {}), ...updatePayload };
+
+        await window.portal?.createCommandCenterEvent?.({
+            moduleKey: 'leads_tracker',
+            entityType: 'lead',
+            entityId: String(leadId),
+            entityCode: String(leadId),
+            entityLabel: oldLead?.homeowner_names || oldLead?.homeowner_name || String(leadId),
+            eventType: 'updated',
+            summaryText: `${window.portal?.currentUser?.name || 'User'} updated lead ${leadId}.`,
+            fieldChanges: window.portal?.buildFieldChanges
+                ? window.portal.buildFieldChanges(oldLead || {}, newLead, trackedFields)
+                : [],
+            oldData: oldLead || null,
+            newData: newLead,
+            severity: 'normal',
+            teamKeys: ['admin_management']
+        });
+    } catch (evtErr) {
+        console.error("Command center event failed for lead update:", evtErr);
+    }
+
+    console.log(`Success! Lead ${leadId} is now ${normalizedStatus}`);
+    window.portal.fetchAdminData(true);
+
     try {
         fetch('https://automate.callhammerleads.com/webhook/update-lead-sheet', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ lead_id: leadId, status: newStatus })
+            body: JSON.stringify({
+                lead_id: leadId,
+                status: normalizedStatus
+            })
         });
-    } catch (e) { console.error("Sheet sync failed", e); }
+    } catch (e) {
+        console.error("Sheet sync failed", e);
+    }
+}
+
+function handleLeadStatusChange(selectEl, leadId, existingReason = "") {
+    const nextStatus = String(selectEl?.value || "").trim().toUpperCase();
+    const previousStatus = String(selectEl?.dataset?.previousValue || "").trim().toUpperCase();
+    const safeExistingReason = String(existingReason || "").trim();
+
+    if (!leadId || leadId === "unknown") {
+        alert("Cannot update: Lead ID is missing.");
+        if (selectEl) selectEl.value = previousStatus || "PENDING REVIEW";
+        return;
+    }
+
+    if (nextStatus.includes("REJECT")) {
+        if (selectEl) {
+            selectEl.value = previousStatus || "PENDING REVIEW";
+        }
+
+        if (window.Admin?.openRejectionReasonModal) {
+            window.Admin.openRejectionReasonModal(leadId, nextStatus, safeExistingReason);
+        } else {
+            alert("Rejection modal is not available.");
+        }
+        return;
+    }
+
+    if (selectEl) {
+        selectEl.dataset.previousValue = nextStatus;
+    }
+
+    updateLeadStatus(leadId, nextStatus, "");
 }
 
 async function deleteLead(leadId) {
@@ -2166,7 +2249,17 @@ async function deleteLead(leadId) {
     const confirmDelete = confirm(`Are you sure you want to permanently delete Lead ID: ${leadId}?`);
     if (!confirmDelete) return;
 
-    // 1. DELETE FROM SUPABASE INSTANTLY
+    const { data: oldLead, error: oldLeadError } = await supaClient
+        .from('leads_raw')
+        .select('*')
+        .eq('lead_id', leadId)
+        .limit(1)
+        .maybeSingle();
+
+    if (oldLeadError) {
+        console.error("Failed to load lead before delete:", oldLeadError);
+    }
+
     const { error } = await supaClient
         .from('leads_raw')
         .delete()
@@ -2175,19 +2268,40 @@ async function deleteLead(leadId) {
     if (error) {
         console.error("Failed to delete lead:", error);
         alert("Failed to delete lead from Supabase.");
-    } else {
-        console.log(`Success! Lead ${leadId} deleted.`);
-        window.portal.fetchAdminData(true);
+        return;
     }
 
-    // 2. BACKGROUND SYNC TO GOOGLE SHEETS
+    try {
+        await window.portal?.createCommandCenterEvent?.({
+            moduleKey: 'leads_tracker',
+            entityType: 'lead',
+            entityId: String(leadId),
+            entityCode: String(leadId),
+            entityLabel: oldLead?.homeowner_names || oldLead?.homeowner_name || String(leadId),
+            eventType: 'deleted',
+            summaryText: `${window.portal?.currentUser?.name || 'User'} deleted lead ${leadId}.`,
+            fieldChanges: [],
+            oldData: oldLead || null,
+            newData: null,
+            severity: 'high',
+            teamKeys: ['admin_management']
+        });
+    } catch (evtErr) {
+        console.error("Command center event failed for lead delete:", evtErr);
+    }
+
+    console.log(`Success! Lead ${leadId} deleted.`);
+    window.portal.fetchAdminData(true);
+
     try {
         fetch('https://automate.callhammerleads.com/webhook/delete-lead-sheet', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ lead_id: leadId })
         }).then(res => console.log("Google Sheets sync triggered:", res.status));
-    } catch (e) { console.error("Sheet sync failed", e); }
+    } catch (e) {
+        console.error("Sheet sync failed", e);
+    }
 }
 
 // ==========================================
