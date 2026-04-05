@@ -742,6 +742,142 @@ class CallHammerPortal {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
+    // ------------------------
+  // ✅ COMMAND CENTER HELPERS
+  // ------------------------
+  getCurrentOrganizationId() {
+    return this.currentUser?.organization_id || null;
+  }
+
+  getCurrentProfileId() {
+    return this.currentUser?.id || null;
+  }
+
+  buildFieldChanges(oldObj = {}, newObj = {}, allowedKeys = []) {
+    const changes = [];
+
+    for (const key of allowedKeys) {
+      const oldVal = oldObj?.[key] ?? null;
+      const newVal = newObj?.[key] ?? null;
+
+      const oldStr = oldVal === null ? null : String(oldVal);
+      const newStr = newVal === null ? null : String(newVal);
+
+      if (oldStr !== newStr) {
+        changes.push({
+          field: key,
+          old_value: oldVal,
+          new_value: newVal
+        });
+      }
+    }
+
+    return changes;
+  }
+
+  async createCommandCenterEvent({
+    moduleKey,
+    entityType,
+    entityId,
+    entityCode = null,
+    entityLabel = null,
+    eventType = 'updated',
+    summaryText = '',
+    fieldChanges = [],
+    oldData = null,
+    newData = null,
+    severity = 'normal',
+    teamKeys = ['admin_management']
+  }) {
+    if (!supaClient) {
+      console.warn('Command center event skipped: supaClient missing.');
+      return null;
+    }
+
+    const organizationId = this.getCurrentOrganizationId();
+    if (!organizationId) {
+      console.warn('Command center event skipped: organization_id missing.');
+      return null;
+    }
+
+    try {
+      const { data, error } = await supaClient.rpc('command_center_create_event', {
+        p_organization_id: organizationId,
+        p_module_key: moduleKey,
+        p_entity_type: entityType,
+        p_entity_id: String(entityId || ''),
+        p_entity_code: entityCode,
+        p_entity_label: entityLabel,
+        p_event_type: eventType,
+        p_summary_text: summaryText,
+        p_field_changes: fieldChanges || [],
+        p_old_data: oldData,
+        p_new_data: newData,
+        p_severity: severity,
+        p_team_keys: teamKeys
+      });
+
+      if (error) {
+        console.error('❌ command_center_create_event failed:', error);
+        return null;
+      }
+
+      return data || null;
+    } catch (err) {
+      console.error('❌ createCommandCenterEvent exception:', err);
+      return null;
+    }
+  }
+
+  getPassbookTeamKeys(clientRow = {}, updates = {}) {
+    const shared = (updates.shared_with_sales ?? clientRow.shared_with_sales) === true;
+    return shared ? ['admin_management', 'sales'] : ['admin_management'];
+  }
+
+  getPassbookTrackedFields() {
+    return [
+      'client_code',
+      'company_name',
+      'phone',
+      'contact_person',
+      'area',
+      'area_codes_to_use',
+      'email',
+      'website',
+      'client_status',
+      'company_address',
+      'sales_rep_count',
+      'regions',
+      'days_of_operation',
+      'hours_of_operation',
+      'appointment_interval',
+      'roof_types',
+      'leads_per_day_limit',
+      'double_bookings',
+      'additional_notes',
+      'shared_with_sales',
+      'is_serving',
+      'daily_agents',
+      'daily_goal'
+    ];
+  }
+
+  getOnboardingTrackedFields() {
+    return [
+      'client_paid',
+      'contract_sent',
+      'contract_completed',
+      'onboarding_link_sent',
+      'onboarding_link_completed',
+      'ghl_account_created',
+      'client_portal_created',
+      'live_lead_tracker_created',
+      'client_portal_demo_completed',
+      'ready_to_receive_leads',
+      'notes'
+    ];
+  }
+
   // ------------------------
   // ✅ ADMIN: Fetch + Normalize
   // ------------------------
@@ -1086,44 +1222,91 @@ if (form) {
     return { codeName: originalCodeName, originalCodeName, updates };
   }
 
-  async submitPassbookClientUpdate(payload) {
+    async submitPassbookClientUpdate(payload) {
     if (typeof supaClient === 'undefined' || !supaClient) throw new Error("Database connection missing.");
-    
+
     const newClientCode = payload.updates['client_code'];
     const originalCode = payload.originalCodeName || payload.codeName;
 
-    // 1. UPDATE THE CLIENT PROFILE
+    // 1. Load old row first for diff tracking
+    const { data: existingClient, error: fetchErr } = await supaClient
+      .from('clients')
+      .select('*')
+      .eq('client_code', originalCode)
+      .single();
+
+    if (fetchErr) {
+      console.error("Failed to fetch existing client before update:", fetchErr);
+      throw new Error(fetchErr.message || "Failed to load existing client before update.");
+    }
+
+    // 2. Update client profile
     const { error } = await supaClient
-        .from('clients')
-        .update(payload.updates)
-        .eq('client_code', originalCode);
+      .from('clients')
+      .update(payload.updates)
+      .eq('client_code', originalCode);
 
     if (error) {
-        console.error("Supabase Update Error:", error);
-        if (error.code === 'PGRST204' || error.message.includes('column')) {
-            throw new Error("One of the form fields is missing a matching column in your Supabase table!");
-        }
-        throw new Error(error.message || "Failed to update client in database.");
+      console.error("Supabase Update Error:", error);
+      if (error.code === 'PGRST204' || error.message.includes('column')) {
+        throw new Error("One of the form fields is missing a matching column in your Supabase table!");
+      }
+      throw new Error(error.message || "Failed to update client in database.");
     }
 
-    // 2. SMART LINK: IF THE CODE CHANGED, UPDATE THE SALES PIPELINE TOO!
+    // 3. If client code changed, sync packages too
     if (newClientCode && newClientCode !== originalCode) {
-        const { error: pkgErr } = await supaClient
-            .from('packages')
-            .update({ client_code: newClientCode })
-            .eq('client_code', originalCode);
-            
-        if (pkgErr) console.error("Failed to update related sales packages:", pkgErr);
+      const { error: pkgErr } = await supaClient
+        .from('packages')
+        .update({ client_code: newClientCode })
+        .eq('client_code', originalCode);
+
+      if (pkgErr) console.error("Failed to update related sales packages:", pkgErr);
     }
 
-    // 3. Instantly sync the background dashboard tables
+    // 4. Read fresh row after update
+    const finalClientCode = newClientCode || originalCode;
+    const { data: updatedClient, error: updatedFetchErr } = await supaClient
+      .from('clients')
+      .select('*')
+      .eq('client_code', finalClientCode)
+      .single();
+
+    if (updatedFetchErr) {
+      console.error("Failed to fetch updated client after save:", updatedFetchErr);
+    }
+
+    const oldRow = existingClient || {};
+    const newRow = updatedClient || { ...oldRow, ...payload.updates };
+
+    const trackedFields = this.getPassbookTrackedFields();
+    const fieldChanges = this.buildFieldChanges(oldRow, newRow, trackedFields);
+
+    if (fieldChanges.length > 0) {
+      await this.createCommandCenterEvent({
+        moduleKey: 'passbook_clients',
+        entityType: 'client',
+        entityId: String(newRow.id || oldRow.id || finalClientCode),
+        entityCode: newRow.client_code || finalClientCode,
+        entityLabel: newRow.company_name || oldRow.company_name || finalClientCode,
+        eventType: 'updated',
+        summaryText: `${this.currentUser?.name || 'User'} updated passbook client ${newRow.company_name || finalClientCode}.`,
+        fieldChanges,
+        oldData: oldRow,
+        newData: newRow,
+        severity: 'normal',
+        teamKeys: this.getPassbookTeamKeys(oldRow, newRow)
+      });
+    }
+
+    // 5. Refresh dashboard views
     if (window.portal && typeof window.portal.fetchAdminData === 'function') {
-        window.portal.fetchAdminData(true);
+      window.portal.fetchAdminData(true);
     }
     if (typeof fetchAdminClients === 'function') {
-        fetchAdminClients('All'); 
+      fetchAdminClients('All');
     }
-    
+
     return { success: true };
   }
 
@@ -1314,19 +1497,45 @@ window.fetchSalesPipeline = function() {
 // Opens confirm dialog to delete a deal
 window.deleteDeal = async function(pkgId, companyName) {
     if (!supaClient) return alert("Database connection missing.");
-    
+
     const confirmed = confirm(`Are you sure you want to permanently delete the deal for ${companyName}? This cannot be undone.`);
     if (!confirmed) return;
 
+    const { data: existingPkg, error: fetchErr } = await supaClient
+        .from('packages')
+        .select('*')
+        .eq('id', pkgId)
+        .single();
+
+    if (fetchErr) {
+        console.error("Delete fetch package error:", fetchErr);
+    }
+
     const { error } = await supaClient.from('packages').delete().eq('id', pkgId);
-    
+
     if (error) {
         console.error("Delete Deal Error:", error);
         alert("Failed to delete deal.");
     } else {
-        window.portal.fetchAdminData(true); // Refresh dashboard instantly
+        await window.portal.createCommandCenterEvent({
+            moduleKey: 'sales_pipeline',
+            entityType: 'package',
+            entityId: String(pkgId),
+            entityCode: existingPkg?.client_code || null,
+            entityLabel: companyName || existingPkg?.client_code || 'Deleted deal',
+            eventType: 'deleted',
+            summaryText: `${window.portal.currentUser?.name || 'User'} deleted a sales deal for ${companyName}.`,
+            fieldChanges: [],
+            oldData: existingPkg || null,
+            newData: null,
+            severity: 'high',
+            teamKeys: ['admin_management', 'sales']
+        });
+
+        window.portal.fetchAdminData(true);
     }
-}
+};
+
 window.openAddDealModal = function() {
     document.getElementById('add-sale-form').reset();
     document.getElementById('sale-package-id').value = ""; 
@@ -1439,23 +1648,46 @@ window.submitNewSale = async function(e) {
 
     if (!companyName) {
         alert("Roofing Company name is required.");
-        btn.innerText = "Save Deal"; btn.disabled = false; return;
+        btn.innerText = "Save Deal";
+        btn.disabled = false;
+        return;
     }
 
-    // IF NEW CLIENT: Auto-create in the Passbook database first
+    let oldPackage = null;
+
+    if (pkgId) {
+        const { data: existingPkg, error: existingPkgErr } = await supaClient
+            .from('packages')
+            .select('*')
+            .eq('id', pkgId)
+            .single();
+
+        if (existingPkgErr) {
+            console.error("Failed to fetch existing package:", existingPkgErr);
+        } else {
+            oldPackage = existingPkg;
+        }
+    }
+
+    // Auto-create new client if needed
     if (!clientCode) {
-        clientCode = "NEW-" + Math.floor(Date.now() / 1000); // Generate a unique ID
+        clientCode = "NEW-" + Math.floor(Date.now() / 1000);
+
         const newClientPayload = {
             client_code: clientCode,
             company_name: companyName,
             contact_person: poc,
             client_status: "Active"
         };
+
         const { error: cErr } = await supaClient.from('clients').insert([newClientPayload]);
+
         if (cErr) {
             console.error("Auto-Client Creation Error:", cErr);
             alert("Failed to auto-create client profile.");
-            btn.innerText = "Save Deal"; btn.disabled = false; return;
+            btn.innerText = "Save Deal";
+            btn.disabled = false;
+            return;
         }
     }
 
@@ -1466,32 +1698,83 @@ window.submitNewSale = async function(e) {
         commission_per_lead: parseFloat(document.getElementById('sale-commission').value) || 0,
         purchase_date: document.getElementById('sale-date').value,
         external_package_id: document.getElementById('sale-transaction-id').value,
-        status: "Active", // Default background package status to Active
+        status: "Active",
         deal_status: document.getElementById('sale-deal-status').value,
         deal_type: document.getElementById('sale-deal-type').value,
         sales_category: document.getElementById('sale-category').value
     };
 
     let error;
+    let savedPackage = null;
+    let actionType = pkgId ? 'updated' : 'created';
+
     if (pkgId) {
-        const res = await supaClient.from('packages').update(payload).eq('id', pkgId);
+        const res = await supaClient
+            .from('packages')
+            .update(payload)
+            .eq('id', pkgId)
+            .select()
+            .single();
+
         error = res.error;
+        savedPackage = res.data || null;
     } else {
-        const res = await supaClient.from('packages').insert([payload]);
+        const res = await supaClient
+            .from('packages')
+            .insert([payload])
+            .select()
+            .single();
+
         error = res.error;
+        savedPackage = res.data || null;
     }
-    
+
     if (error) {
         console.error("Sale Save Error:", error);
         alert("Failed to save deal.");
     } else {
+        const trackedFields = [
+            'client_code',
+            'purchased_leads',
+            'amount',
+            'commission_per_lead',
+            'purchase_date',
+            'external_package_id',
+            'status',
+            'deal_status',
+            'deal_type',
+            'sales_category'
+        ];
+
+        const oldRow = oldPackage || {};
+        const newRow = savedPackage || payload;
+        const fieldChanges = window.portal.buildFieldChanges(oldRow, newRow, trackedFields);
+
+        await window.portal.createCommandCenterEvent({
+            moduleKey: 'sales_pipeline',
+            entityType: 'package',
+            entityId: String(newRow.id || pkgId || newRow.external_package_id || clientCode),
+            entityCode: clientCode,
+            entityLabel: companyName,
+            eventType: actionType,
+            summaryText: pkgId
+                ? `${window.portal.currentUser?.name || 'User'} updated a sales deal for ${companyName}.`
+                : `${window.portal.currentUser?.name || 'User'} added a new sales deal for ${companyName}.`,
+            fieldChanges,
+            oldData: oldRow,
+            newData: newRow,
+            severity: 'normal',
+            teamKeys: ['admin_management', 'sales']
+        });
+
         document.getElementById('add-sale-modal').classList.add('hidden');
-        window.portal.fetchAdminData(true); 
+        window.portal.fetchAdminData(true);
     }
-    
+
     btn.innerText = pkgId ? "Update Deal" : "Save Deal";
     btn.disabled = false;
-}
+};
+
 // ==========================================
 // GLOBAL EVENT LISTENERS
 // ==========================================
