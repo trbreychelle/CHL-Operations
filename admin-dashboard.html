@@ -4757,7 +4757,7 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
   const rows = await window.portal.fetchCommandCenterNotes(50);
   this.notes = Array.isArray(rows) ? rows : [];
   this.refreshNotesTab();
-}
+},
 
 refreshNotesTab() {
   const wrap = document.getElementById('notifications-notes-feed');
@@ -4818,6 +4818,21 @@ async saveQuickNote() {
   const body = String(textarea.value || '').trim();
   if (!body) return;
 
+  const tempNote = {
+    id: 'temp-' + Date.now(),
+    body,
+    created_at: new Date().toISOString(),
+    created_by_name: window.portal?.currentUser?.name || 'You',
+    status: 'open',
+    title: 'Team Note',
+    note_type: 'note'
+  };
+
+  this.notes.unshift(tempNote);
+  this.refreshNotesTab();
+
+  textarea.value = '';
+
   const created = await window.portal.createCommandCenterNote({
     body,
     noteType: 'note',
@@ -4828,10 +4843,10 @@ async saveQuickNote() {
 
   if (!created) {
     alert('Failed to save note.');
+    await this.loadNotes();
     return;
   }
 
-  textarea.value = '';
   await this.loadNotes();
 },
 
@@ -4847,7 +4862,7 @@ async toggleNoteDone(noteId, currentValue) {
 
   // background sync
   await window.portal.setCommandCenterNoteDone(noteId, !currentValue);
-}
+},
 
       async deleteNote(noteId) {
   if (!noteId) return;
@@ -4855,52 +4870,16 @@ async toggleNoteDone(noteId, currentValue) {
   const ok = confirm("Delete this note?");
   if (!ok) return;
 
-  // ✅ OPTIMISTIC REMOVE (instant UI)
   this.notes = this.notes.filter(n => n.id !== noteId);
   this.refreshNotesTab();
 
-  // ✅ Background delete
   const deleted = await window.portal.deleteCommandCenterNote(noteId);
 
   if (!deleted) {
     alert("Failed to delete note.");
-
-    // rollback (only if needed)
-    async saveQuickNote() {
-  const textarea = document.getElementById('command-center-note-draft');
-  if (!textarea) return;
-
-  const body = String(textarea.value || '').trim();
-  if (!body) return;
-
-  // optimistic add
-  const tempNote = {
-    id: 'temp-' + Date.now(),
-    body,
-    created_at: new Date().toISOString(),
-    created_by_name: window.portal?.currentUser?.name || 'You',
-    status: 'open'
-  };
-
-  this.notes.unshift(tempNote);
-  this.refreshNotesTab();
-
-  textarea.value = '';
-
-  // real save
-  const created = await window.portal.createCommandCenterNote({
-    body,
-    noteType: 'note',
-    title: 'Team Note',
-    moduleKey: 'notes',
-    assignedTeamKey: 'admin_management'
-  });
-
-  if (!created) {
-    alert('Failed to save note.');
     await this.loadNotes();
   }
-}
+},
 
 openNotificationById(eventId) {
   const item = (this.notifications || []).find(x => x?.command_center_events?.id === eventId);
