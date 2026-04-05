@@ -4691,7 +4691,7 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
       <div class="rounded-3xl border-l-4 ${leftBar} border border-gray-100 ${bgTone} p-5 shadow-sm hover:shadow-md transition-all">
         <div class="flex items-start justify-between gap-4">
           <button
-            onclick="Admin.openNotificationById('${event.id}')"
+  onclick="Admin.openNotification(${JSON.stringify(item).replace(/"/g, '&quot;')})"
             class="flex-1 text-left group"
           >
             <div class="flex items-center gap-3 flex-wrap">
