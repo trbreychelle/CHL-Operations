@@ -4754,15 +4754,10 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
 },
 
       async loadNotes() {
-  this.notesLoading = true;
-  this.refreshNotesTab?.();
-
   const rows = await window.portal.fetchCommandCenterNotes(50);
   this.notes = Array.isArray(rows) ? rows : [];
-
-  this.notesLoading = false;
-  this.refreshNotesTab?.();
-},
+  this.refreshNotesTab();
+}
 
 refreshNotesTab() {
   const wrap = document.getElementById('notifications-notes-feed');
@@ -4841,9 +4836,18 @@ async saveQuickNote() {
 },
 
 async toggleNoteDone(noteId, currentValue) {
+  // optimistic update
+  this.notes = this.notes.map(n =>
+    n.id === noteId
+      ? { ...n, status: currentValue ? 'open' : 'done' }
+      : n
+  );
+
+  this.refreshNotesTab();
+
+  // background sync
   await window.portal.setCommandCenterNoteDone(noteId, !currentValue);
-  await this.loadNotes();
-},
+}
 
       async deleteNote(noteId) {
   if (!noteId) return;
@@ -4851,15 +4855,52 @@ async toggleNoteDone(noteId, currentValue) {
   const ok = confirm("Delete this note?");
   if (!ok) return;
 
+  // ✅ OPTIMISTIC REMOVE (instant UI)
+  this.notes = this.notes.filter(n => n.id !== noteId);
+  this.refreshNotesTab();
+
+  // ✅ Background delete
   const deleted = await window.portal.deleteCommandCenterNote(noteId);
 
   if (!deleted) {
     alert("Failed to delete note.");
-    return;
-  }
 
-  await this.loadNotes();
-},
+    // rollback (only if needed)
+    async saveQuickNote() {
+  const textarea = document.getElementById('command-center-note-draft');
+  if (!textarea) return;
+
+  const body = String(textarea.value || '').trim();
+  if (!body) return;
+
+  // optimistic add
+  const tempNote = {
+    id: 'temp-' + Date.now(),
+    body,
+    created_at: new Date().toISOString(),
+    created_by_name: window.portal?.currentUser?.name || 'You',
+    status: 'open'
+  };
+
+  this.notes.unshift(tempNote);
+  this.refreshNotesTab();
+
+  textarea.value = '';
+
+  // real save
+  const created = await window.portal.createCommandCenterNote({
+    body,
+    noteType: 'note',
+    title: 'Team Note',
+    moduleKey: 'notes',
+    assignedTeamKey: 'admin_management'
+  });
+
+  if (!created) {
+    alert('Failed to save note.');
+    await this.loadNotes();
+  }
+}
 
 openNotificationById(eventId) {
   const item = (this.notifications || []).find(x => x?.command_center_events?.id === eventId);
