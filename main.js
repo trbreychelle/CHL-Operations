@@ -221,6 +221,109 @@ class CallHammerPortal {
     window.location.href = 'index.html';
   }
 
+    async fetchCommandCenterNotifications(teamKey = 'admin_management', limit = 50) {
+    if (!supaClient) return [];
+
+    try {
+      const { data, error } = await supaClient
+        .from('command_center_team_state')
+        .select(`
+          event_id,
+          team_key,
+          is_unread,
+          is_flagged,
+          is_done,
+          is_reviewed,
+          status,
+          updated_at,
+          command_center_events (
+            id,
+            module_key,
+            entity_type,
+            entity_id,
+            entity_code,
+            entity_label,
+            event_type,
+            summary_text,
+            field_changes,
+            actor_name,
+            actor_role,
+            severity,
+            created_at
+          )
+        `)
+        .eq('team_key', teamKey)
+        .order('updated_at', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        console.error('Failed to fetch notifications:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (err) {
+      console.error('fetchCommandCenterNotifications exception:', err);
+      return [];
+    }
+  }
+
+  async markCommandCenterReviewed(eventId, teamKey = 'admin_management') {
+    if (!supaClient || !eventId) return false;
+
+    const { data, error } = await supaClient.rpc('command_center_mark_reviewed', {
+      p_event_id: eventId,
+      p_team_key: teamKey
+    });
+
+    if (error) {
+      console.error('markCommandCenterReviewed failed:', error);
+      return false;
+    }
+
+    return !!data;
+  }
+
+  async setCommandCenterFlagged(eventId, teamKey = 'admin_management', isFlagged = true) {
+    if (!supaClient || !eventId) return false;
+
+    const { data, error } = await supaClient.rpc('command_center_set_flagged', {
+      p_event_id: eventId,
+      p_team_key: teamKey,
+      p_is_flagged: !!isFlagged
+    });
+
+    if (error) {
+      console.error('setCommandCenterFlagged failed:', error);
+      return false;
+    }
+
+    return !!data;
+  }
+
+  async setCommandCenterDone(eventId, teamKey = 'admin_management', isDone = true) {
+    if (!supaClient || !eventId) return false;
+
+    const { data, error } = await supaClient.rpc('command_center_set_done', {
+      p_event_id: eventId,
+      p_team_key: teamKey,
+      p_is_done: !!isDone
+    });
+
+    if (error) {
+      console.error('setCommandCenterDone failed:', error);
+      return false;
+    }
+
+    return !!data;
+  }
+
+  getCommandCenterTeamKey() {
+    const role = String(this.currentUser?.role || '').toLowerCase();
+    if (role === 'sales') return 'sales';
+    return 'admin_management';
+  }
+
   // ------------------------
   // Init / Routing
   // ------------------------
