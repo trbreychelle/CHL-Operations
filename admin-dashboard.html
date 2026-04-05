@@ -6242,27 +6242,28 @@ async saveOnboardingRow(clientCode) {
   this.nav(viewId, linkEl);
 },
       
-      nav(viewId, linkEl) {
-  document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-  const target = document.getElementById('view-' + viewId);
-  if (target) target.classList.add('active');
+            nav(viewId, linkEl) {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        const target = document.getElementById('view-' + viewId);
+        if (target) target.classList.add('active');
 
-  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-  if (linkEl) linkEl.classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        if (linkEl) linkEl.classList.add('active');
 
-  this.currentView = viewId;
+        this.currentView = viewId;
 
-  if (viewId === "payroll") {
-    try { this.renderPayrollFinance(); } catch(e) {}
-  }
+        if (viewId === "payroll") {
+          try { this.renderPayrollFinance(); } catch(e) {}
+        }
 
- if (viewId === "notifications") {
-  try {
-    this.loadNotifications(true);
-  } catch(e) {
-    console.error("Notifications load error:", e);
-  }
-}
+        if (viewId === "notifications") {
+          try {
+            this.loadNotifications(true);
+          } catch(e) {
+            console.error("Notifications load error:", e);
+          }
+        }
+      }
     };
 
     window.adminDashboard = AdminDashboard;
