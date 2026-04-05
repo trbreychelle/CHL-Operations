@@ -318,6 +318,125 @@ class CallHammerPortal {
     return !!data;
   }
 
+    formatMSTDateTimeShort(value) {
+    if (!value) return '—';
+    try {
+      const dt = new Date(value);
+      if (isNaN(dt.getTime())) return '—';
+
+      return new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Denver',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      }).format(dt) + ' MST';
+    } catch (e) {
+      return '—';
+    }
+  }
+
+  async fetchCommandCenterNotes(limit = 50) {
+    if (!supaClient) return [];
+
+    const organizationId = this.getCurrentOrganizationId();
+    if (!organizationId) return [];
+
+    try {
+      const { data, error } = await supaClient
+        .from('command_center_notes')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .order('is_pinned', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        console.error('fetchCommandCenterNotes failed:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (err) {
+      console.error('fetchCommandCenterNotes exception:', err);
+      return [];
+    }
+  }
+
+  async createCommandCenterNote({
+    body,
+    noteType = 'note',
+    title = null,
+    moduleKey = 'notes',
+    entityType = null,
+    entityId = null,
+    entityLabel = null,
+    assignedTeamKey = 'admin_management'
+  }) {
+    if (!supaClient) return null;
+
+    const organizationId = this.getCurrentOrganizationId();
+    if (!organizationId) return null;
+
+    try {
+      const { data, error } = await supaClient
+        .from('command_center_notes')
+        .insert([{
+          organization_id: organizationId,
+          note_type: noteType,
+          module_key: moduleKey,
+          entity_type: entityType,
+          entity_id: entityId,
+          entity_label: entityLabel,
+          title,
+          body,
+          created_by_profile_id: this.currentUser?.id || null,
+          created_by_name: this.currentUser?.name || this.currentUser?.email || 'Unknown',
+          created_by_role: this.currentUser?.role || null,
+          assigned_team_key: assignedTeamKey,
+          status: 'open'
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('createCommandCenterNote failed:', error);
+        return null;
+      }
+
+      return data || null;
+    } catch (err) {
+      console.error('createCommandCenterNote exception:', err);
+      return null;
+    }
+  }
+
+  async setCommandCenterNoteDone(noteId, isDone = true) {
+    if (!supaClient || !noteId) return false;
+
+    try {
+      const { error } = await supaClient
+        .from('command_center_notes')
+        .update({
+          status: isDone ? 'done' : 'open',
+          done_by_profile_id: isDone ? (this.currentUser?.id || null) : null,
+          done_at: isDone ? new Date().toISOString() : null
+        })
+        .eq('id', noteId);
+
+      if (error) {
+        console.error('setCommandCenterNoteDone failed:', error);
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      console.error('setCommandCenterNoteDone exception:', err);
+      return false;
+    }
+  }
+
   getCommandCenterTeamKey() {
     const role = String(this.currentUser?.role || '').toLowerCase();
     if (role === 'sales') return 'sales';
