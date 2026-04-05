@@ -1699,6 +1699,55 @@ body.client-health-lock {
       </div>
     </div>
   </main>
+
+    <div id="rejection-reason-modal" class="hidden fixed inset-0 z-[120] flex items-center justify-center">
+    <div class="absolute inset-0 bg-black/40" onclick="Admin.closeRejectionReasonModal()"></div>
+
+    <div class="relative bg-white rounded-2xl shadow-xl w-[92%] max-w-lg p-6 border border-gray-100">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="text-xl font-bold text-gray-900">Add Rejection Reason</h3>
+          <p class="text-sm text-gray-500 mt-1">This note will be saved for QC and shared later with the agent dashboard.</p>
+        </div>
+        <button
+          type="button"
+          onclick="Admin.closeRejectionReasonModal()"
+          class="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <input type="hidden" id="rejection-modal-lead-id" />
+      <input type="hidden" id="rejection-modal-next-status" />
+
+      <div class="mb-4">
+        <label class="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-2">
+          Rejection Reason
+        </label>
+        <textarea
+          id="rejection-modal-text"
+          rows="5"
+          placeholder="Enter the reason why this lead is rejected..."
+          class="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+        ></textarea>
+      </div>
+
+      <div class="flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onclick="Admin.closeRejectionReasonModal()"
+          class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
+          Cancel
+        </button>
+        <button
+          type="button"
+          onclick="Admin.saveRejectionReasonModal()"
+          class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-extrabold hover:bg-red-700">
+          Save
+        </button>
+      </div>
+    </div>
+  </div>
   
   <div id="add-client-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
     <div class="bg-white rounded-lg shadow-xl w-[400px] p-6 relative">
@@ -2928,7 +2977,7 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
         return this.pick(l, keys, fallback);
       },
 
-      getLeadsColumns() {
+           getLeadsColumns() {
         return [
           { key: "date_submitted", label: "Date Submitted", keys: ["Date Submitted", "date_submitted"] },
           { key: "lead_id", label: "LEAD ID", keys: ["LEAD ID", "lead_id"] },
@@ -2942,12 +2991,20 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
           { key: "age_of_roof", label: "Age of Roof", keys: ["Age of Roof", "age_of_roof"] },
           { key: "insurance_company", label: "Insurance Company", keys: ["Insurance Company", "insurance_company"] },
           { key: "additional_notes", label: "Additional Notes", keys: ["Additional Notes", "additional_notes"] },
+          { key: "rejection_reason", label: "Rejection Reason", keys: ["rejection_reason", "Rejection Reason"] },
           { key: "status", label: "Status", keys: ["Status", "status"] },
         ];
       },
 
-      getLeadsDefaultVisibleCols() {
-        return new Set(["date_submitted","homeowner_name","appointment_coordinator","roofing_company","status"]);
+            getLeadsDefaultVisibleCols() {
+        return new Set([
+          "date_submitted",
+          "homeowner_name",
+          "appointment_coordinator",
+          "roofing_company",
+          "rejection_reason",
+          "status"
+        ]);
       },
 
       getLeadDateObj(l) {
@@ -3708,6 +3765,61 @@ if (hasAnyLeadActivity && bottomPool.length > 0) {
         document.getElementById("passbook-modal").classList.add("hidden"); 
       },
 
+            openRejectionReasonModal(leadId, nextStatus, existingReason = "") {
+        const modal = document.getElementById("rejection-reason-modal");
+        const leadIdEl = document.getElementById("rejection-modal-lead-id");
+        const statusEl = document.getElementById("rejection-modal-next-status");
+        const textEl = document.getElementById("rejection-modal-text");
+
+        if (!modal || !leadIdEl || !statusEl || !textEl) return;
+
+        leadIdEl.value = leadId || "";
+        statusEl.value = nextStatus || "REJECTED";
+        textEl.value = existingReason || "";
+
+        modal.classList.remove("hidden");
+
+        setTimeout(() => {
+          textEl.focus();
+          textEl.setSelectionRange(textEl.value.length, textEl.value.length);
+        }, 30);
+      },
+
+      closeRejectionReasonModal() {
+        const modal = document.getElementById("rejection-reason-modal");
+        const leadIdEl = document.getElementById("rejection-modal-lead-id");
+        const statusEl = document.getElementById("rejection-modal-next-status");
+        const textEl = document.getElementById("rejection-modal-text");
+
+        if (modal) modal.classList.add("hidden");
+        if (leadIdEl) leadIdEl.value = "";
+        if (statusEl) statusEl.value = "";
+        if (textEl) textEl.value = "";
+      },
+
+      async saveRejectionReasonModal() {
+        const leadId = document.getElementById("rejection-modal-lead-id")?.value || "";
+        const nextStatus = document.getElementById("rejection-modal-next-status")?.value || "REJECTED";
+        const reason = String(document.getElementById("rejection-modal-text")?.value || "").trim();
+
+        if (!leadId) {
+          alert("Missing lead ID.");
+          return;
+        }
+
+        if (!reason) {
+          alert("Rejection reason is required.");
+          return;
+        }
+
+        await updateLeadStatus(leadId, nextStatus, reason);
+        this.closeRejectionReasonModal();
+      },
+
+      editRejectionReason(leadId, currentReason = "", currentStatus = "REJECTED") {
+        this.openRejectionReasonModal(leadId, currentStatus, currentReason);
+      },
+
       async loadNotifications(force = false) {
   if (!window.portal) return;
 
@@ -3906,31 +4018,63 @@ async openNotification(item) {
         document.getElementById("passbook-form-body").innerHTML = html;
       },
 
-      renderLeads(leads) {
+            renderLeads(leads) {
         const tbody = document.getElementById('leads-table-body');
         const thead = document.getElementById('leads-table-head');
-        if(!tbody || !thead) return;
-        
+        if (!tbody || !thead) return;
+
         this.initLeadsColumnsUI();
         const visibleCols = this._leadsCols.filter(c => this._leadsVisibleCols.has(c.key));
-        
+
         thead.innerHTML = `<tr>${visibleCols.map(c => `<th class="p-4">${c.label}</th>`).join("")}<th class="p-4 text-center">Actions</th></tr>`;
-        
+
         tbody.innerHTML = leads.map(l => {
           const leadId = this.getLeadField(l, ["LEAD ID", "lead_id", "ID"], "unknown");
-          
+          const currentStatusRaw = this.getLeadField(l, ["status", "Status", "STATUS", "Lead_Status"], "");
+          const safeVal = String(currentStatusRaw).toUpperCase();
+          const rejectionReason = this.getLeadField(l, ["rejection_reason", "Rejection Reason"], "");
+
           return `<tr class="hover:bg-gray-50 transition-colors">
             ${visibleCols.map(c => {
               const rawVal = this.getLeadField(l, c.keys);
-              
+
+              if (c.key === "rejection_reason") {
+                const safeReason = String(rawVal || "");
+                const safeLeadId = String(leadId).replace(/'/g, "\\'");
+                const safeReasonHtml = safeReason
+                  ? safeReason.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+                  : "";
+                const safeStatusHtml = String(safeVal || "")
+                  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+                return `<td class="p-4">
+                  <button
+                    type="button"
+                    onclick="Admin.editRejectionReason('${safeLeadId}', '${safeReasonHtml}', '${safeStatusHtml}')"
+                    class="text-left w-full ${safeReason ? 'text-gray-700' : 'text-gray-400 italic'} hover:underline"
+                    title="Edit rejection reason"
+                  >
+                    ${safeReason ? safeReasonHtml : "No rejection reason"}
+                  </button>
+                </td>`;
+              }
+
               if (c.key === "status") {
-                const safeVal = String(rawVal).toUpperCase();
                 let bg = "bg-gray-100 text-gray-700";
                 if (safeVal.includes("APPROV") || safeVal.includes("CONFIRM")) bg = "bg-emerald-100 text-emerald-800 border-emerald-200";
-                if (safeVal.includes("REJECT") || safeVal.includes("CREDIT")) bg = "bg-red-100 text-red-800 border-red-200";
-                
+                if (safeVal.includes("REJECT")) bg = "bg-red-100 text-red-800 border-red-200";
+                if (safeVal.includes("CREDIT")) bg = "bg-purple-100 text-purple-800 border-purple-200";
+                if (safeVal.includes("PENDING")) bg = "bg-yellow-100 text-yellow-800 border-yellow-200";
+
+                const safeLeadId = String(leadId).replace(/'/g, "\\'");
+                const safeReasonHtml = String(rejectionReason || "")
+                  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
                 return `<td class="p-4">
-                  <select onchange="updateLeadStatus('${leadId}', this.value)" class="px-2 py-1 rounded-full text-xs font-extrabold border outline-none cursor-pointer hover:shadow-md transition-all ${bg}">
+                  <select
+                    data-previous-value="${safeVal}"
+                    onchange="handleLeadStatusChange(this, '${safeLeadId}', '${safeReasonHtml}')"
+                    class="px-2 py-1 rounded-full text-xs font-extrabold border outline-none cursor-pointer hover:shadow-md transition-all ${bg}">
                     <option value="PENDING REVIEW" ${safeVal.includes("PENDING") ? "selected" : ""}>PENDING REVIEW</option>
                     <option value="APPROVED" ${safeVal.includes("APPROV") || safeVal.includes("CONFIRM") ? "selected" : ""}>APPROVED</option>
                     <option value="REJECTED" ${safeVal.includes("REJECT") ? "selected" : ""}>REJECTED</option>
@@ -3938,12 +4082,12 @@ async openNotification(item) {
                   </select>
                 </td>`;
               }
-              
-              return `<td class="p-4">${rawVal}</td>`;
+
+              return `<td class="p-4">${rawVal || "—"}</td>`;
             }).join("")}
-            
+
             <td class="p-4 text-center">
-              <button onclick="deleteLead('${leadId}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Lead">
+              <button onclick="deleteLead('${String(leadId).replace(/'/g, "\\'")}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Lead">
                 <i class="fa-solid fa-trash-can"></i>
               </button>
             </td>
