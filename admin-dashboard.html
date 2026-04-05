@@ -523,6 +523,22 @@ body.client-health-lock {
           </div>
         </div>
       </div>
+
+      <div id="view-notifications" class="view-section">
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="text-2xl font-bold text-gray-900">Notifications</h2>
+        <p class="text-sm text-gray-500">Command center activity feed and shared workflow status.</p>
+      </div>
+      <div class="text-sm font-bold text-blue-600">
+        Unread: <span id="notifications-unread-count">0</span>
+      </div>
+    </div>
+
+    <div id="notifications-feed"></div>
+  </div>
+</div>
       
       <div id="view-daily" class="view-section">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
@@ -542,22 +558,6 @@ body.client-health-lock {
                 <div class="text-sm text-blue-400 italic text-center py-4 col-span-full">Drag or add clients here from the pool below.</div>
               </div>
             </div>
-
-            <div id="view-notifications" class="view-section">
-  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-    <div class="flex items-center justify-between mb-4">
-      <div>
-        <h2 class="text-2xl font-bold text-gray-900">Notifications</h2>
-        <p class="text-sm text-gray-500">Command center activity feed and shared workflow status.</p>
-      </div>
-      <div class="text-sm font-bold text-blue-600">
-        Unread: <span id="notifications-unread-count">0</span>
-      </div>
-    </div>
-
-    <div id="notifications-feed"></div>
-  </div>
-</div>
 
             <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
@@ -5922,7 +5922,7 @@ async saveOnboardingRow(clientCode) {
       setView(viewId) {
   const linkEl = document.querySelector(`.nav-item[href="#${viewId}"]`);
   this.nav(viewId, linkEl);
-}
+},
       
       nav(viewId, linkEl) {
   document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
