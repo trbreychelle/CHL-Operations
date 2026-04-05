@@ -179,6 +179,9 @@ body.client-health-lock {
           <a href="#overview" class="nav-item active flex items-center px-6 py-3 text-sm" onclick="Admin.nav('overview', this)">
             <i class="fa-solid fa-satellite-dish w-5 text-center"></i> Overview
           </a>
+          <a href="#notifications" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('notifications', this)">
+  <i class="fa-solid fa-bell w-5 text-center"></i> Notifications
+</a>
           <a href="#sales" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('sales', this)">
             <i class="fa-solid fa-handshake w-5 text-center"></i> Sales Pipeline
           </a>
@@ -336,7 +339,7 @@ body.client-health-lock {
               </button>
             </div>
           </div>
-
+          
           <div class="client-health-scroll">
             <table class="w-full text-left border-collapse">
               <thead class="bg-white sticky top-0 z-10 shadow-sm">
@@ -520,6 +523,7 @@ body.client-health-lock {
           </div>
         </div>
       </div>
+      
       <div id="view-daily" class="view-section">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
           <div>
@@ -538,6 +542,22 @@ body.client-health-lock {
                 <div class="text-sm text-blue-400 italic text-center py-4 col-span-full">Drag or add clients here from the pool below.</div>
               </div>
             </div>
+
+            <div id="view-notifications" class="view-section">
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="text-2xl font-bold text-gray-900">Notifications</h2>
+        <p class="text-sm text-gray-500">Command center activity feed and shared workflow status.</p>
+      </div>
+      <div class="text-sm font-bold text-blue-600">
+        Unread: <span id="notifications-unread-count">0</span>
+      </div>
+    </div>
+
+    <div id="notifications-feed"></div>
+  </div>
+</div>
 
             <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
@@ -1728,6 +1748,10 @@ hrSubtab: 'overview',
       _passbookFiltersBound: false,
       _owedKpiBound: false,
 
+      notifications: [],
+notificationsLoading: false,
+selectedNotificationId: null,
+
       getState() { return window.portal?.adminState || {}; },
 
       refreshDashboard() {
@@ -1883,6 +1907,7 @@ if (rawPkgStatus.startsWith("PAUS")) {
 } else if (rawPkgStatus.includes("REFUND")) {
   packageStatus = "REFUNDED";
 }
+
 
 // deal status still wins for refunded
 if (dealStatus === "REFUNDED") packageStatus = "REFUNDED";
@@ -3626,6 +3651,48 @@ if (hasAnyLeadActivity && bottomPool.length > 0) {
         document.getElementById("passbook-modal").classList.add("hidden"); 
       },
 
+      async loadNotifications(force = false) {
+  if (!window.portal) return;
+
+  this.notificationsLoading = true;
+  this.refreshNotificationsTab?.();
+
+  const teamKey = window.portal.getCommandCenterTeamKey();
+  const rows = await window.portal.fetchCommandCenterNotifications(teamKey, 100);
+
+  this.notifications = Array.isArray(rows) ? rows : [];
+  this.notificationsLoading = false;
+  this.refreshNotificationsTab?.();
+},
+
+async toggleNotificationFlag(eventId, currentValue) {
+  const teamKey = window.portal.getCommandCenterTeamKey();
+  await window.portal.setCommandCenterFlagged(eventId, teamKey, !currentValue);
+  await this.loadNotifications(true);
+},
+
+async toggleNotificationDone(eventId, currentValue) {
+  const teamKey = window.portal.getCommandCenterTeamKey();
+  await window.portal.setCommandCenterDone(eventId, teamKey, !currentValue);
+  await this.loadNotifications(true);
+},
+
+async openNotification(item) {
+  if (!item || !item.command_center_events) return;
+
+  const event = item.command_center_events;
+  this.selectedNotificationId = event.id;
+
+  // mark reviewed first
+  const teamKey = window.portal.getCommandCenterTeamKey();
+  await window.portal.markCommandCenterReviewed(event.id, teamKey);
+
+  // route/highlight hook
+  this.handleNotificationNavigation?.(item);
+
+  await this.loadNotifications(true);
+},
+
       async _fetchAndRenderPassbookClient(codeName) {
         try {
           // 1. Fix the connection check
@@ -4478,6 +4545,58 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
         poolEl.innerHTML = poolHtml;
       },
 
+      refreshNotificationsTab() {
+  const wrap = document.getElementById('notifications-feed');
+  const badge = document.getElementById('notifications-unread-count');
+  if (!wrap) return;
+
+  const rows = Array.isArray(this.notifications) ? this.notifications : [];
+  const unreadCount = rows.filter(x => x.is_unread).length;
+  if (badge) badge.textContent = unreadCount;
+
+  if (this.notificationsLoading) {
+    wrap.innerHTML = `<div class="p-4 text-sm text-gray-500">Loading notifications...</div>`;
+    return;
+  }
+
+  if (!rows.length) {
+    wrap.innerHTML = `<div class="p-4 text-sm text-gray-500">No notifications yet.</div>`;
+    return;
+  }
+
+  wrap.innerHTML = rows.map(item => {
+    const event = item.command_center_events || {};
+    const unreadClass = item.is_unread ? 'border-l-4 border-blue-500 bg-blue-50' : 'border-l-4 border-transparent bg-white';
+    const flagged = item.is_flagged ? '🚩' : '⚑';
+    const done = item.is_done ? '✅' : '☑';
+
+    return `
+      <div class="rounded-xl border border-gray-200 p-4 mb-3 shadow-sm ${unreadClass}">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex-1 cursor-pointer" onclick="Admin.openNotificationById('${event.id}')">
+            <div class="text-sm font-bold text-gray-900">${event.summary_text || 'Notification'}</div>
+            <div class="text-xs text-gray-500 mt-1">
+              ${event.module_key || 'module'} • ${event.entity_label || event.entity_code || 'record'} • ${event.created_at || ''}
+            </div>
+            <div class="text-xs text-gray-400 mt-1">
+              By: ${event.actor_name || 'Unknown'} ${event.actor_role ? `(${event.actor_role})` : ''}
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="Admin.toggleNotificationFlag('${event.id}', ${item.is_flagged ? 'true' : 'false'})" class="px-2 py-1 rounded bg-amber-100 text-amber-800 text-xs font-bold">${flagged}</button>
+            <button onclick="Admin.toggleNotificationDone('${event.id}', ${item.is_done ? 'true' : 'false'})" class="px-2 py-1 rounded bg-emerald-100 text-emerald-800 text-xs font-bold">${done}</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+},
+
+openNotificationById(eventId) {
+  const item = (this.notifications || []).find(x => x?.command_center_events?.id === eventId);
+  if (item) this.openNotification(item);
+},
+
       async dailyAdd(code) {
           const client = this.clientHealthRaw.find(c => c.code === code);
           if (client) {
@@ -4580,6 +4699,46 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
   }
 
   return bonus;
+},
+
+      handleNotificationNavigation(item) {
+  const event = item?.command_center_events;
+  if (!event) return;
+
+  const fieldChanges = Array.isArray(event.field_changes) ? event.field_changes : [];
+  const changedFields = fieldChanges.map(x => x.field).filter(Boolean);
+
+  this.notificationFocus = {
+    eventId: event.id,
+    moduleKey: event.module_key,
+    entityType: event.entity_type,
+    entityId: event.entity_id,
+    entityCode: event.entity_code,
+    changedFields
+  };
+
+  if (event.module_key === 'passbook_clients') {
+    this.setView?.('clients');
+  } else if (event.module_key === 'sales_pipeline') {
+    this.setView?.('sales');
+  } else if (event.module_key === 'onboarding') {
+    this.setView?.('onboarding');
+  }
+
+  setTimeout(() => {
+    this.applyNotificationFocus?.();
+  }, 250);
+},
+
+      applyNotificationFocus() {
+  const focus = this.notificationFocus;
+  if (!focus) return;
+
+  console.log('Notification focus:', focus);
+
+  // Phase 1 simple behavior:
+  // we log it first so we can confirm navigation works.
+  // next step we add green outlines and field highlights.
 },
 
            async renderPayrollFinance() {
@@ -5759,17 +5918,30 @@ async saveOnboardingRow(clientCode) {
           btn.title = "Expand Client Health Monitor";
         }
       },
+
+      setView(viewId) {
+  const linkEl = document.querySelector(`.nav-item[href="#${viewId}"]`);
+  this.nav(viewId, linkEl);
+}
       
       nav(viewId, linkEl) {
-        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-        document.getElementById('view-' + viewId).classList.add('active');
-        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        linkEl.classList.add('active');
-        
-        if (viewId === "payroll") {
-          try { this.renderPayrollFinance(); } catch(e) {}
-        }
-      }
+  document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+  const target = document.getElementById('view-' + viewId);
+  if (target) target.classList.add('active');
+
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  if (linkEl) linkEl.classList.add('active');
+
+  this.currentView = viewId;
+
+  if (viewId === "payroll") {
+    try { this.renderPayrollFinance(); } catch(e) {}
+  }
+
+  if (viewId === "notifications") {
+    try { this.loadNotifications(); } catch(e) { console.error("Notifications load error:", e); }
+  }
+}
     };
 
     window.adminDashboard = AdminDashboard;
