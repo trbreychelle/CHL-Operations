@@ -158,6 +158,22 @@ body.client-health-lock {
     @media (max-width: 1024px) { .controls-wrap > * { min-width: 160px; } }
     .table-scroll { overflow-x: auto; }
     .table-min { min-width: 1100px; }
+
+    .cc-focus-ring {
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.28), 0 10px 25px rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.7) !important;
+}
+
+.cc-focus-pulse {
+  animation: ccPulseGlow 1.25s ease-in-out 3;
+}
+
+@keyframes ccPulseGlow {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.012); }
+  100% { transform: scale(1); }
+}
+    
   </style>
 </head>
 
@@ -524,19 +540,55 @@ body.client-health-lock {
         </div>
       </div>
 
-      <div id="view-notifications" class="view-section">
-  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-    <div class="flex items-center justify-between mb-4">
-      <div>
-        <h2 class="text-2xl font-bold text-gray-900">Notifications</h2>
-        <p class="text-sm text-gray-500">Command center activity feed and shared workflow status.</p>
-      </div>
-      <div class="text-sm font-bold text-blue-600">
-        Unread: <span id="notifications-unread-count">0</span>
+     <div id="view-notifications" class="view-section">
+  <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+    
+    <div class="xl:col-span-7">
+      <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-start justify-between gap-4 mb-5">
+          <div>
+            <h2 class="text-2xl font-black text-gray-900">Notifications</h2>
+            <p class="text-sm text-gray-500 mt-1">Command center activity feed and shared workflow status.</p>
+          </div>
+          <div class="px-4 py-2 rounded-2xl bg-blue-50 text-blue-700 text-sm font-extrabold shadow-sm">
+            Unread: <span id="notifications-unread-count">0</span>
+          </div>
+        </div>
+
+        <div id="notifications-feed" class="space-y-4"></div>
       </div>
     </div>
 
-    <div id="notifications-feed"></div>
+    <div class="xl:col-span-5">
+      <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 sticky top-6">
+        <div class="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h3 class="text-xl font-black text-gray-900">Notes & To-Do</h3>
+            <p class="text-sm text-gray-500 mt-1">Quick notes for admins and shared checklist items.</p>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <textarea
+            id="command-center-note-draft"
+            class="w-full min-h-[110px] px-4 py-3 rounded-2xl border border-gray-200 bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+            placeholder="Add a quick team note or to-do..."
+          ></textarea>
+
+          <div class="flex justify-end mt-3">
+            <button
+              onclick="Admin.saveQuickNote()"
+              class="px-5 py-2.5 rounded-2xl bg-gray-900 text-white text-sm font-extrabold hover:bg-blue-600 transition-colors shadow-sm"
+            >
+              Add Note
+            </button>
+          </div>
+        </div>
+
+        <div id="notifications-notes-feed" class="space-y-3"></div>
+      </div>
+    </div>
+
   </div>
 </div>
       
@@ -1752,6 +1804,11 @@ hrSubtab: 'overview',
 notificationsLoading: false,
 selectedNotificationId: null,
 
+      notificationFocus: null,
+notes: [],
+notesLoading: false,
+noteDraft: '',
+
       getState() { return window.portal?.adminState || {}; },
 
       refreshDashboard() {
@@ -2572,7 +2629,7 @@ const isNegotiating = ds === "NEGOTIATING";
       })();
 
       html += `
-        <tr class="hover:bg-gray-50 border-b border-gray-50">
+        <tr class="hover:bg-gray-50 border-b border-gray-50 transition-colors" data-sales-package-id="${r.id}">
           <td class="p-4 font-bold text-gray-700">${purchaseDateDisplay}</td>
           <td class="p-4 text-xs font-mono text-gray-400">${txn}</td>
           <td class="p-4 font-black text-gray-900">${company} <span class="text-[10px] text-gray-400 font-normal ml-1">(${code || "—"})</span></td>
@@ -3663,6 +3720,7 @@ if (hasAnyLeadActivity && bottomPool.length > 0) {
   this.notifications = Array.isArray(rows) ? rows : [];
   this.notificationsLoading = false;
   this.refreshNotificationsTab?.();
+  await this.loadNotes?.();
 },
 
 async toggleNotificationFlag(eventId, currentValue) {
@@ -3863,7 +3921,7 @@ async openNotification(item) {
       },
 
       renderPassbookList(clients) {
-        document.getElementById("passbook-list-body").innerHTML = (clients || []).map(client => `<tr class="hover:bg-gray-50"><td class="p-4">${this.extractCode(client)}</td><td class="p-4 font-bold">${this.extractRoofingCompany(client)}</td><td class="p-4">${this.extractCityState(client)}</td><td class="p-4">${this.extractClientName(client)}</td><td class="p-4 text-right"><div style="display:inline-flex; align-items:center; gap:8px; margin-right:15px;">
+        document.getElementById("passbook-list-body").innerHTML = (clients || []).map(client => `<tr class="hover:bg-gray-50 transition-all" data-passbook-code="${this.extractCode(client)}" data-passbook-client-code="${this.extractCode(client)}"><td class="p-4">${this.extractCode(client)}</td><td class="p-4 font-bold">${this.extractRoofingCompany(client)}</td><td class="p-4">${this.extractCityState(client)}</td><td class="p-4">${this.extractClientName(client)}</td><td class="p-4 text-right"><div style="display:inline-flex; align-items:center; gap:8px; margin-right:15px;">
 <select id="status-select-${client.id}" 
         onchange="updateClientStatus('${client.id}', this.value)" 
         class="px-2 py-1 rounded-full text-[10px] font-extrabold border outline-none cursor-pointer transition-all shadow-sm ${window.getClientStatusColor ? getClientStatusColor(client.client_status) : ''}">
@@ -4545,7 +4603,7 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
         poolEl.innerHTML = poolHtml;
       },
 
-      refreshNotificationsTab() {
+     refreshNotificationsTab() {
   const wrap = document.getElementById('notifications-feed');
   const badge = document.getElementById('notifications-unread-count');
   if (!wrap) return;
@@ -4555,41 +4613,168 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
   if (badge) badge.textContent = unreadCount;
 
   if (this.notificationsLoading) {
-    wrap.innerHTML = `<div class="p-4 text-sm text-gray-500">Loading notifications...</div>`;
+    wrap.innerHTML = `<div class="p-5 text-sm text-gray-500">Loading notifications...</div>`;
     return;
   }
 
   if (!rows.length) {
-    wrap.innerHTML = `<div class="p-4 text-sm text-gray-500">No notifications yet.</div>`;
+    wrap.innerHTML = `<div class="p-5 text-sm text-gray-400 italic">No notifications yet.</div>`;
     return;
   }
 
   wrap.innerHTML = rows.map(item => {
     const event = item.command_center_events || {};
-    const unreadClass = item.is_unread ? 'border-l-4 border-blue-500 bg-blue-50' : 'border-l-4 border-transparent bg-white';
-    const flagged = item.is_flagged ? '🚩' : '⚑';
-    const done = item.is_done ? '✅' : '☑';
+    const timeText = window.portal?.formatMSTDateTimeShort(event.created_at) || '—';
+
+    const isUnread = !!item.is_unread;
+    const isFlagged = !!item.is_flagged;
+    const isDone = !!item.is_done;
+
+    const leftBar = isUnread ? 'border-blue-500' : 'border-transparent';
+    const bgTone = isUnread ? 'bg-blue-50/70' : 'bg-white';
+
+    const moduleLabel =
+      event.module_key === 'passbook_clients' ? 'Passbook Client' :
+      event.module_key === 'sales_pipeline' ? 'Sales Pipeline' :
+      event.module_key === 'onboarding' ? 'Onboarding' :
+      'Notification';
+
+    const companyLabel = event.entity_label || event.entity_code || 'Record';
 
     return `
-      <div class="rounded-xl border border-gray-200 p-4 mb-3 shadow-sm ${unreadClass}">
-        <div class="flex items-start justify-between gap-3">
-          <div class="flex-1 cursor-pointer" onclick="Admin.openNotificationById('${event.id}')">
-            <div class="text-sm font-bold text-gray-900">${event.summary_text || 'Notification'}</div>
-            <div class="text-xs text-gray-500 mt-1">
-              ${event.module_key || 'module'} • ${event.entity_label || event.entity_code || 'record'} • ${event.created_at || ''}
+      <div class="rounded-3xl border-l-4 ${leftBar} border border-gray-100 ${bgTone} p-5 shadow-sm hover:shadow-md transition-all">
+        <div class="flex items-start justify-between gap-4">
+          <button
+            onclick="Admin.openNotificationById('${event.id}')"
+            class="flex-1 text-left group"
+          >
+            <div class="flex items-center gap-3 flex-wrap">
+              <span class="inline-flex px-3 py-1 rounded-full bg-gray-900 text-white text-[11px] font-extrabold uppercase tracking-wide">
+                ${moduleLabel}
+              </span>
+              ${isUnread ? `<span class="inline-flex px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 text-[11px] font-extrabold">New</span>` : ``}
+              ${isDone ? `<span class="inline-flex px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-extrabold">Done</span>` : ``}
+              ${isFlagged ? `<span class="inline-flex px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-[11px] font-extrabold">Flagged</span>` : ``}
             </div>
-            <div class="text-xs text-gray-400 mt-1">
-              By: ${event.actor_name || 'Unknown'} ${event.actor_role ? `(${event.actor_role})` : ''}
+
+            <div class="mt-3 text-[15px] leading-6 text-gray-900">
+              <span class="font-black">${event.actor_name || 'Unknown'}</span>
+              <span class="font-semibold text-gray-700"> updated </span>
+              <span class="font-black">${moduleLabel}</span>
+              <span class="font-semibold text-gray-700"> for </span>
+              <span class="font-black text-blue-700">${companyLabel}</span>.
             </div>
-          </div>
-          <div class="flex items-center gap-2">
-            <button onclick="Admin.toggleNotificationFlag('${event.id}', ${item.is_flagged ? 'true' : 'false'})" class="px-2 py-1 rounded bg-amber-100 text-amber-800 text-xs font-bold">${flagged}</button>
-            <button onclick="Admin.toggleNotificationDone('${event.id}', ${item.is_done ? 'true' : 'false'})" class="px-2 py-1 rounded bg-emerald-100 text-emerald-800 text-xs font-bold">${done}</button>
+
+            <div class="mt-2 text-xs text-gray-500 flex items-center gap-2 flex-wrap">
+              <span>${timeText}</span>
+              <span>•</span>
+              <span>${event.actor_role || 'user'}</span>
+            </div>
+          </button>
+
+          <div class="flex items-center gap-2 shrink-0 pt-1">
+            <button
+              onclick="Admin.toggleNotificationFlag('${event.id}', ${isFlagged ? 'true' : 'false'})"
+              class="w-11 h-11 rounded-2xl ${isFlagged ? 'bg-amber-500 text-white shadow-md' : 'bg-amber-100 text-amber-700'} text-lg font-black hover:scale-105 transition"
+              title="Flag / Unflag"
+            >
+              🚩
+            </button>
+
+            <button
+              onclick="Admin.toggleNotificationDone('${event.id}', ${isDone ? 'true' : 'false'})"
+              class="w-11 h-11 rounded-2xl ${isDone ? 'bg-emerald-500 text-white shadow-md' : 'bg-emerald-100 text-emerald-700'} text-lg font-black hover:scale-105 transition"
+              title="Done / Undo"
+            >
+              ✓
+            </button>
           </div>
         </div>
       </div>
     `;
   }).join('');
+},
+
+      async loadNotes() {
+  this.notesLoading = true;
+  this.refreshNotesTab?.();
+
+  const rows = await window.portal.fetchCommandCenterNotes(50);
+  this.notes = Array.isArray(rows) ? rows : [];
+
+  this.notesLoading = false;
+  this.refreshNotesTab?.();
+},
+
+refreshNotesTab() {
+  const wrap = document.getElementById('notifications-notes-feed');
+  if (!wrap) return;
+
+  if (this.notesLoading) {
+    wrap.innerHTML = `<div class="p-4 text-sm text-gray-500">Loading notes...</div>`;
+    return;
+  }
+
+  if (!Array.isArray(this.notes) || !this.notes.length) {
+    wrap.innerHTML = `<div class="p-4 text-sm text-gray-400 italic">No notes yet.</div>`;
+    return;
+  }
+
+  wrap.innerHTML = this.notes.map(note => {
+    const done = note.status === 'done';
+    const timeText = window.portal?.formatMSTDateTimeShort(note.created_at) || '—';
+
+    return `
+      <div class="rounded-2xl border border-gray-100 p-4 ${done ? 'bg-emerald-50' : 'bg-gray-50'}">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex-1">
+            <div class="text-sm font-bold text-gray-900">${note.title || (note.note_type === 'task' ? 'Task' : 'Note')}</div>
+            <div class="text-sm text-gray-700 mt-1 whitespace-pre-wrap">${note.body || ''}</div>
+            <div class="text-xs text-gray-400 mt-2">
+              ${note.created_by_name || 'Unknown'} • ${timeText}
+            </div>
+          </div>
+
+          <button
+            onclick="Admin.toggleNoteDone('${note.id}', ${done ? 'true' : 'false'})"
+            class="w-10 h-10 rounded-2xl ${done ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-700'} text-lg font-black"
+            title="Mark done"
+          >
+            ✓
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+},
+
+async saveQuickNote() {
+  const textarea = document.getElementById('command-center-note-draft');
+  if (!textarea) return;
+
+  const body = String(textarea.value || '').trim();
+  if (!body) return;
+
+  const created = await window.portal.createCommandCenterNote({
+    body,
+    noteType: 'note',
+    title: 'Team Note',
+    moduleKey: 'notes',
+    assignedTeamKey: 'admin_management'
+  });
+
+  if (!created) {
+    alert('Failed to save note.');
+    return;
+  }
+
+  textarea.value = '';
+  await this.loadNotes();
+},
+
+async toggleNoteDone(noteId, currentValue) {
+  await window.portal.setCommandCenterNoteDone(noteId, !currentValue);
+  await this.loadNotes();
 },
 
 openNotificationById(eventId) {
@@ -4734,11 +4919,60 @@ openNotificationById(eventId) {
   const focus = this.notificationFocus;
   if (!focus) return;
 
-  console.log('Notification focus:', focus);
+  // clear old temporary highlights
+  document.querySelectorAll('.cc-focus-ring').forEach(el => {
+    el.classList.remove('cc-focus-ring', 'cc-focus-pulse', 'bg-emerald-50');
+  });
 
-  // Phase 1 simple behavior:
-  // we log it first so we can confirm navigation works.
-  // next step we add green outlines and field highlights.
+  // PASSBOOK
+  if (focus.moduleKey === 'passbook_clients') {
+    const code = String(focus.entityCode || '').trim();
+
+    const card =
+      document.querySelector(`[data-passbook-code="${code}"]`) ||
+      document.querySelector(`[data-passbook-client-code="${code}"]`);
+
+    if (card) {
+      card.classList.add('cc-focus-ring', 'cc-focus-pulse', 'bg-emerald-50');
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      setTimeout(() => {
+        try { card.click(); } catch (e) {}
+      }, 250);
+    }
+    return;
+  }
+
+  // SALES
+  if (focus.moduleKey === 'sales_pipeline') {
+    const row =
+      document.querySelector(`[data-sales-package-id="${focus.entityId}"]`);
+
+    if (row) {
+      row.classList.add('cc-focus-ring', 'cc-focus-pulse', 'bg-emerald-50');
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    return;
+  }
+
+  // ONBOARDING
+  if (focus.moduleKey === 'onboarding') {
+    const code = String(focus.entityCode || '').trim();
+    const row = document.querySelector(`[data-onboarding-code="${code}"]`);
+
+    if (row) {
+      row.classList.add('cc-focus-ring', 'cc-focus-pulse', 'bg-emerald-50');
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      const changedFields = Array.isArray(focus.changedFields) ? focus.changedFields : [];
+      changedFields.forEach(field => {
+        const fieldEl = row.querySelector(`[data-ob-field="${field}"]`);
+        if (fieldEl) {
+          fieldEl.classList.add('cc-focus-ring', 'bg-emerald-50');
+        }
+      });
+    }
+  }
 },
 
            async renderPayrollFinance() {
@@ -5682,7 +5916,7 @@ renderOnboardingTab() {
 const rows = this.getFilteredOnboardingRows();
 
   tbody.innerHTML = rows.map(row => `
-  <tr class="border-b border-gray-100 hover:bg-gray-50">
+  <tr class="border-b border-gray-100 hover:bg-gray-50 transition-all" data-onboarding-code="${row.client_code}">
     <td class="p-3 font-semibold text-gray-700">${row.client_code}</td>
     <td class="p-3 text-gray-800">${row.company_name}</td>
 
