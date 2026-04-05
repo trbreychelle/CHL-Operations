@@ -3735,24 +3735,51 @@ async toggleNotificationDone(eventId, currentValue) {
   await this.loadNotifications(true);
 },
 
-      async cycleNotificationState(eventId, isFlagged, isDone) {
+     async cycleNotificationState(eventId, isFlagged, isDone) {
   const teamKey = window.portal.getCommandCenterTeamKey();
 
-  // neutral -> flagged
+  // optimistic local update first so the card stays in place
+  this.notifications = (this.notifications || []).map(item => {
+    const event = item?.command_center_events || {};
+    if (event.id !== eventId) return item;
+
+    // neutral -> flagged
+    if (!isFlagged && !isDone) {
+      return {
+        ...item,
+        is_flagged: true,
+        is_done: false
+      };
+    }
+
+    // flagged -> done
+    if (isFlagged && !isDone) {
+      return {
+        ...item,
+        is_flagged: false,
+        is_done: true
+      };
+    }
+
+    // done -> neutral
+    return {
+      ...item,
+      is_flagged: false,
+      is_done: false
+    };
+  });
+
+  this.refreshNotificationsTab();
+
+  // background sync to Supabase
   if (!isFlagged && !isDone) {
     await window.portal.setCommandCenterFlagged(eventId, teamKey, true);
-  }
-  // flagged -> done
-  else if (isFlagged && !isDone) {
+  } else if (isFlagged && !isDone) {
     await window.portal.setCommandCenterFlagged(eventId, teamKey, false);
     await window.portal.setCommandCenterDone(eventId, teamKey, true);
-  }
-  // done -> neutral
-  else {
+  } else {
     await window.portal.setCommandCenterDone(eventId, teamKey, false);
   }
-
-  await this.loadNotifications(true);
 },
 
 async openNotification(item) {
@@ -3764,12 +3791,22 @@ async openNotification(item) {
   const feed = document.getElementById('notifications-feed');
   const savedScrollTop = feed ? feed.scrollTop : 0;
 
+  // optimistic local unread update so list stays stable
+  this.notifications = (this.notifications || []).map(n => {
+    const ev = n?.command_center_events || {};
+    if (ev.id !== event.id) return n;
+    return {
+      ...n,
+      is_unread: false
+    };
+  });
+
+  this.refreshNotificationsTab();
+
   const teamKey = window.portal.getCommandCenterTeamKey();
   await window.portal.markCommandCenterReviewed(event.id, teamKey);
 
   this.handleNotificationNavigation?.(item);
-
-  await this.loadNotifications(true);
 
   requestAnimationFrame(() => {
     const newFeed = document.getElementById('notifications-feed');
@@ -4656,8 +4693,17 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
     const isFlagged = !!item.is_flagged;
     const isDone = !!item.is_done;
 
-    const leftBar = isUnread ? 'border-blue-500' : 'border-transparent';
-    const bgTone = isUnread ? 'bg-blue-50/70' : 'bg-white';
+    const leftBar =
+  isUnread ? 'border-blue-500' :
+  isDone ? 'border-emerald-400' :
+  isFlagged ? 'border-amber-400' :
+  'border-transparent';
+
+const bgTone =
+  isDone ? 'bg-emerald-50' :
+  isFlagged ? 'bg-amber-50' :
+  isUnread ? 'bg-blue-50/70' :
+  'bg-white';
 
     const moduleLabel =
       event.module_key === 'passbook_clients' ? 'Passbook Client' :
