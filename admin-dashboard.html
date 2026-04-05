@@ -2629,7 +2629,7 @@ const isNegotiating = ds === "NEGOTIATING";
       })();
 
       html += `
-        <tr class="hover:bg-gray-50 border-b border-gray-50 transition-colors" data-sales-package-id="${r.id}">
+        <tr class="hover:bg-gray-50 border-b border-gray-50 transition-colors" data-sales-package-id="${p.id}">
           <td class="p-4 font-bold text-gray-700">${purchaseDateDisplay}</td>
           <td class="p-4 text-xs font-mono text-gray-400">${txn}</td>
           <td class="p-4 font-black text-gray-900">${company} <span class="text-[10px] text-gray-400 font-normal ml-1">(${code || "—"})</span></td>
@@ -3651,7 +3651,7 @@ if (hasAnyLeadActivity && bottomPool.length > 0) {
         if (!container) return;
         container.innerHTML = (clients || []).map(client => {
           const code = this.extractCode(client);
-          return `<div class="text-left bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition relative">
+          return `<div class="text-left bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition relative" data-passbook-code="${code}" data-passbook-client-code="${code}">
 
             <div onclick="Admin.openPassbookClient('${String(code).replace(/'/g, "\\'")}')" class="cursor-pointer">
                 <div class="flex items-center justify-between">
@@ -4925,23 +4925,23 @@ openNotificationById(eventId) {
   });
 
   // PASSBOOK
-  if (focus.moduleKey === 'passbook_clients') {
-    const code = String(focus.entityCode || '').trim();
+ if (focus.moduleKey === 'passbook_clients') {
+  const code = String(focus.entityCode || '').trim();
 
-    const card =
-      document.querySelector(`[data-passbook-code="${code}"]`) ||
-      document.querySelector(`[data-passbook-client-code="${code}"]`);
+  const card =
+    document.querySelector(`[data-passbook-code="${code}"]`) ||
+    document.querySelector(`[data-passbook-client-code="${code}"]`);
 
-    if (card) {
-      card.classList.add('cc-focus-ring', 'cc-focus-pulse', 'bg-emerald-50');
-      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  if (card) {
+    card.classList.add('cc-focus-ring', 'cc-focus-pulse', 'bg-emerald-50');
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-      setTimeout(() => {
-        try { card.click(); } catch (e) {}
-      }, 250);
-    }
-    return;
+    setTimeout(() => {
+      try { this.openPassbookClient(code); } catch (e) {}
+    }, 250);
   }
+  return;
+}
 
   // SALES
   if (focus.moduleKey === 'sales_pipeline') {
