@@ -706,12 +706,12 @@ if (isCommandCenter) {
 
   // STATUS FILTER (LEADS TAB)
   const statusFilter = document.getElementById('status-filter');
-  if (statusFilter && !statusFilter.dataset.bound) {
-    statusFilter.addEventListener('change', async (e) => {
-      await this.loadAgentLeads(e.target.value || 'all');
-    });
-    statusFilter.dataset.bound = 'true';
-  }
+if (statusFilter && !statusFilter.dataset.bound) {
+  statusFilter.addEventListener('change', async () => {
+    await this.loadAgentLeadsWithFilters();
+  });
+  statusFilter.dataset.bound = 'true';
+}
 
    // CUSTOM RANGE APPLY
 const applyBtn = document.getElementById('apply-custom-range');
