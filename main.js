@@ -598,10 +598,10 @@ const isOldAgentDash = isAgentPage && document.getElementById('stat-appointments
 
     // Load Agent Dashboard
     if (this.currentUser && isOldAgentDash && !isCommandCenter) {
-     this.fetchAllData?.();
-     this.startMSTClock();
-     this.loadTimeOffHistory?.();
-    }
+  await this.fetchAllData();
+  this.startMSTClock();
+  await this.loadTimeOffHistory();
+}
 
     // Load Admin OR Sales Dashboard
     if (isCommandCenter) {
@@ -679,8 +679,31 @@ const isOldAgentDash = isAgentPage && document.getElementById('stat-appointments
   }
 }
 
-  bindEvents() {}
+ bindEvents() {
+  const pathName = (window.location.pathname || '').toLowerCase();
+  const isAgentPage = pathName.includes('agent-dashboard');
 
+  if (!isAgentPage) return;
+
+  // TIMEFRAME FILTER
+  const timeframeFilter = document.getElementById('timeframe-filter');
+  if (timeframeFilter && !timeframeFilter.dataset.bound) {
+    timeframeFilter.addEventListener('change', async () => {
+      await this.fetchAllData();
+    });
+    timeframeFilter.dataset.bound = 'true';
+  }
+
+  // STATUS FILTER (LEADS TAB)
+  const statusFilter = document.getElementById('status-filter');
+  if (statusFilter && !statusFilter.dataset.bound) {
+    statusFilter.addEventListener('change', async (e) => {
+      await this.loadAgentLeads(e.target.value || 'all');
+    });
+    statusFilter.dataset.bound = 'true';
+  }
+}
+  
   // ------------------------
   // Helpers
   // ------------------------
@@ -938,18 +961,24 @@ const isOldAgentDash = isAgentPage && document.getElementById('stat-appointments
   // ------------------------
   // ✅ AGENT DATA FETCHING
   // ------------------------
-  async fetchAllData() {
+ async fetchAllData() {
   if (!this.currentUser) return;
 
   try {
     const timeframe = document.getElementById('timeframe-filter')?.value || 'this-week';
+    const selectedStatus = document.getElementById('status-filter')?.value || 'all';
 
     // =========================
     // OVERVIEW
     // =========================
-    const { data: overview } = await this.supabase.rpc('get_my_agent_overview', {
+    const { data: overview, error: overviewError } = await this.supabase.rpc('get_my_agent_overview', {
       p_period: timeframe
     });
+
+    if (overviewError) {
+      console.error('❌ Agent overview load failed:', overviewError);
+      return;
+    }
 
     const ov = overview?.[0] || {};
 
@@ -959,35 +988,40 @@ const isOldAgentDash = isAgentPage && document.getElementById('stat-appointments
     };
 
     setText('stat-appointments', ov.total_appointments || 0);
-    setText('stat-cancel-rate', (ov.cancellation_rate || 0) + '%');
+    setText('stat-cancel-rate', `${ov.cancellation_rate || 0}%`);
     setText('stat-incentives', this.formatCurrency(ov.total_incentives || 0));
     setText('stat-hours', ov.weekly_hours || 0);
 
-    setText('monthly-incentive-status-ov', ov.monthly_incentive_status || '');
-    setText('monthly-raffle-status-ov', ov.monthly_raffle_status || '');
+    setText('monthly-incentive-status-ov', ov.monthly_incentive_status || 'Not qualified yet');
+    setText('monthly-raffle-status-ov', ov.monthly_raffle_status || 'No raffle entry yet');
+
+    // =========================
+    // TIER PROGRESS
+    // =========================
+    const approvedCount = Number(ov.total_appointments || 0);
+    const tierMax = 6;
+    const percentage = Math.min(100, (approvedCount / tierMax) * 100);
+
+    setText('tier-count-display', `${approvedCount} / ${tierMax} approved appointments`);
+    setText('tier-status-text', approvedCount >= 6 ? 'Tier 1 Reached' : 'Tier 1 Progress');
+
+    const progressBar = document.getElementById('tier-progress-bar');
+    if (progressBar) progressBar.style.width = `${percentage}%`;
 
     // =========================
     // LEADS
     // =========================
-    const { data: leads } = await this.supabase.rpc('get_my_agent_leads', {
-      p_status: 'all',
-      p_limit: 200,
-      p_offset: 0
-    });
-
-    this.renderLeadsTable(
-  (leads || []).map(l => ({
-    date: l.date_submitted,
-    homeowner: l.homeowner_names,
-    status: l.status,
-    rejectionReason: l.rejection_reason || ''
-  }))
-);
+    await this.loadAgentLeads(selectedStatus);
 
     // =========================
     // PROFILE
     // =========================
-    const { data: profile } = await this.supabase.rpc('get_my_agent_profile_snapshot');
+    const { data: profile, error: profileError } = await this.supabase.rpc('get_my_agent_profile_snapshot');
+
+    if (profileError) {
+      console.error('❌ Agent profile load failed:', profileError);
+    }
+
     const p = profile?.[0] || {};
 
     this.updateProfileUI({
@@ -995,7 +1029,9 @@ const isOldAgentDash = isAgentPage && document.getElementById('stat-appointments
       email: p.email,
       role: p.agent_position,
       baseRate: p.base_rate,
-      weeklyHours: p.weekly_hours
+      weeklyHours: p.weekly_hours,
+      monthlyIncentiveStatus: ov.monthly_incentive_status || 'Not qualified yet',
+      raffleStatus: ov.monthly_raffle_status || 'No raffle entry yet'
     });
 
     const startDateEl = document.getElementById('profileStartDate');
@@ -1004,14 +1040,29 @@ const isOldAgentDash = isAgentPage && document.getElementById('stat-appointments
     const rateEl = document.getElementById('effective-hourly-rate');
     if (rateEl) rateEl.innerText = this.formatCurrency(p.current_rate || 0);
 
+    const milestoneEl = document.getElementById('milestone-hourly-increase');
+    if (milestoneEl) {
+      const currentRate = Number(p.current_rate || 0);
+      const baseRate = this.toNumberSafe(p.base_rate || 0, 0);
+      const diff = Math.max(0, currentRate - baseRate);
+      milestoneEl.innerText = diff > 0 ? this.formatCurrency(diff) : '$0.00';
+    }
+
+    const navRoleEl = document.getElementById('nav-user-role');
+    if (navRoleEl) navRoleEl.innerText = p.agent_position || 'Agent';
+
     // =========================
     // TRENDS
     // =========================
-    const { data: trends } = await this.supabase.rpc('get_my_agent_weekly_trends', {
+    const { data: trends, error: trendsError } = await this.supabase.rpc('get_my_agent_weekly_trends', {
       p_period: timeframe
     });
 
-    const labels = (trends || []).map(t => t.week_start);
+    if (trendsError) {
+      console.error('❌ Agent trends load failed:', trendsError);
+    }
+
+    const labels = (trends || []).map(t => this.formatDate(t.week_start));
     const appts = (trends || []).map(t => t.approved_appointments);
     const earnings = (trends || []).map(t => t.incentive_amount);
 
@@ -1024,15 +1075,47 @@ const isOldAgentDash = isAgentPage && document.getElementById('stat-appointments
     // =========================
     // LEADERBOARD
     // =========================
-    const { data: leaderboard } = await this.supabase.rpc('get_agent_leaderboard', {
+    const { data: leaderboard, error: leaderboardError } = await this.supabase.rpc('get_agent_leaderboard', {
       p_period: timeframe,
       p_limit: 10
     });
+
+    if (leaderboardError) {
+      console.error('❌ Agent leaderboard load failed:', leaderboardError);
+    }
 
     this.renderLeaderboard(leaderboard || []);
 
   } catch (err) {
     console.error('❌ Agent dashboard load failed:', err);
+  }
+}
+
+  async loadAgentLeads(selectedStatus = 'all') {
+  if (!this.currentUser) return;
+
+  try {
+    const { data: leads, error } = await this.supabase.rpc('get_my_agent_leads', {
+      p_status: selectedStatus,
+      p_limit: 200,
+      p_offset: 0
+    });
+
+    if (error) {
+      console.error('❌ Agent leads load failed:', error);
+      return;
+    }
+
+    this.renderLeadsTable(
+      (leads || []).map(l => ({
+        date: l.date_submitted,
+        homeowner: l.homeowner_names,
+        status: l.status,
+        rejectionReason: l.rejection_reason || ''
+      }))
+    );
+  } catch (err) {
+    console.error('❌ Agent leads load failed:', err);
   }
 }
 
