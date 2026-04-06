@@ -4863,7 +4863,16 @@ const bgTone =
    let timeOffDetails = '';
 
 if (event.module_key === 'time_off') {
-  const data = event.new_data || {};
+  let data = event.new_data || {};
+
+  if (typeof data === 'string') {
+    try {
+      data = JSON.parse(data);
+    } catch (e) {
+      data = {};
+    }
+  }
+
   const submittedAt = window.portal?.formatMSTDateTimeShort(event.created_at) || '—';
 
   timeOffDetails = `
@@ -6527,7 +6536,7 @@ async saveOnboardingRow(clientCode) {
     .from('time_off_requests')
     .update({
       status: 'approved',
-      reviewed_at: new Date().toISOString()
+      updated_at: new Date().toISOString()
     })
     .eq('id', requestId);
 
@@ -6541,6 +6550,29 @@ async saveOnboardingRow(clientCode) {
   await this.loadNotifications(true);
 };
 
+AdminDashboard.declineTimeOff = async function(requestId) {
+  if (!requestId) {
+    alert('Missing time off request ID.');
+    return;
+  }
+
+  const { error } = await supaClient
+    .from('time_off_requests')
+    .update({
+      status: 'declined',
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', requestId);
+
+  if (error) {
+    console.error('declineTimeOff failed:', error);
+    alert(`Decline failed: ${error.message || 'Unknown error'}`);
+    return;
+  }
+
+  alert('Time off request declined.');
+  await this.loadNotifications(true);
+};
 AdminDashboard.declineTimeOff = async function(requestId) {
   if (!requestId) {
     alert('Missing time off request ID.');
