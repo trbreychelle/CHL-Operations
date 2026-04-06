@@ -611,10 +611,11 @@ const isOldAgentDash = isAgentPage;
   }
 
   setTimeout(async () => {
-    await this.fetchAllData();
-    this.startMSTClock();
-    await this.loadTimeOffHistory();
-  }, 300);
+  await this.fetchAllData();
+  await this.loadAgentLeadsWithFilters();
+  this.startMSTClock();
+  await this.loadTimeOffHistory();
+}, 300);
 }
    // Load Admin OR Sales Dashboard
 if (isCommandCenter) {
@@ -698,14 +699,14 @@ if (isCommandCenter) {
 
   if (!isAgentPage) return;
 
-  // TIMEFRAME FILTER
-  const timeframeFilter = document.getElementById('timeframe-filter');
-  if (timeframeFilter && !timeframeFilter.dataset.bound) {
-    timeframeFilter.addEventListener('change', async () => {
-      await this.fetchAllData();
-    });
-    timeframeFilter.dataset.bound = 'true';
-  }
+  // LEADS TIMEFRAME FILTER
+const leadsTimeframeFilter = document.getElementById('leads-timeframe');
+if (leadsTimeframeFilter && !leadsTimeframeFilter.dataset.bound) {
+  leadsTimeframeFilter.addEventListener('change', async () => {
+    await this.loadAgentLeadsWithFilters();
+  });
+  leadsTimeframeFilter.dataset.bound = 'true';
+}
 
   // STATUS FILTER (LEADS TAB)
   const statusFilter = document.getElementById('status-filter');
@@ -717,39 +718,40 @@ if (statusFilter && !statusFilter.dataset.bound) {
 }
 
    // CUSTOM RANGE APPLY
-const applyBtn = document.getElementById('apply-custom-range');
+// LEADS CUSTOM RANGE / CLEAR
+const applyBtn = document.getElementById('apply-leads-range');
 if (applyBtn && !applyBtn.dataset.bound) {
   applyBtn.addEventListener('click', async () => {
-    const timeframeEl = document.getElementById('timeframe-filter');
-    const customStartEl = document.getElementById('custom-start');
-    const customEndEl = document.getElementById('custom-end');
+    const leadsTimeframeEl = document.getElementById('leads-timeframe');
+    const leadsStartEl = document.getElementById('leads-start');
+    const leadsEndEl = document.getElementById('leads-end');
 
-    if (timeframeEl) timeframeEl.value = 'this-week';
-    if (customStartEl) customStartEl.value = '';
-    if (customEndEl) customEndEl.value = '';
+    if (leadsTimeframeEl) leadsTimeframeEl.value = 'this-week';
+    if (leadsStartEl) leadsStartEl.value = '';
+    if (leadsEndEl) leadsEndEl.value = '';
 
-    await this.fetchAllData();
+    await this.loadAgentLeadsWithFilters();
   });
   applyBtn.dataset.bound = 'true';
 }
 
-   const customStartEl = document.getElementById('custom-start');
-const customEndEl = document.getElementById('custom-end');
+const leadsStartEl = document.getElementById('leads-start');
+const leadsEndEl = document.getElementById('leads-end');
 
-const maybeAutoLoadOverviewCustom = async () => {
-  if (customStartEl?.value && customEndEl?.value) {
-    await this.fetchAllData();
+const maybeAutoLoadLeadsCustom = async () => {
+  if (leadsStartEl?.value && leadsEndEl?.value) {
+    await this.loadAgentLeadsWithFilters();
   }
 };
 
-if (customStartEl && !customStartEl.dataset.bound) {
-  customStartEl.addEventListener('change', maybeAutoLoadOverviewCustom);
-  customStartEl.dataset.bound = 'true';
+if (leadsStartEl && !leadsStartEl.dataset.bound) {
+  leadsStartEl.addEventListener('change', maybeAutoLoadLeadsCustom);
+  leadsStartEl.dataset.bound = 'true';
 }
 
-if (customEndEl && !customEndEl.dataset.bound) {
-  customEndEl.addEventListener('change', maybeAutoLoadOverviewCustom);
-  customEndEl.dataset.bound = 'true';
+if (leadsEndEl && !leadsEndEl.dataset.bound) {
+  leadsEndEl.addEventListener('change', maybeAutoLoadLeadsCustom);
+  leadsEndEl.dataset.bound = 'true';
 }
 
 // AVATAR UPLOAD
