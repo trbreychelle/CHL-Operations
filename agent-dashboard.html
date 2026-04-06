@@ -59,9 +59,10 @@
     <div class="sidebar w-64 min-h-screen text-white p-6 hidden lg:block relative">
       <nav class="space-y-2">
         <a href="#overview" class="nav-item active flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Performance Overview</span></a>
-        <a href="#leads" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>My Leads</span></a>
-        <a href="#profile" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Profile Info</span></a>
-        <a href="#timeoff" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Request Time Off</span></a>
+<a href="#leads" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>My Leads</span></a>
+<a href="#profile" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Profile Info</span></a>
+<a href="#payroll" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Payroll</span></a>
+<a href="#timeoff" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Request Time Off</span></a>
       </nav>
 
       <div class="absolute bottom-4 left-6">
@@ -232,84 +233,177 @@
         </div>
       </div>
 
-      <div id="view-profile" class="dashboard-view">
-        <h2 class="text-3xl font-bold text-gray-900 mb-8">Profile Information</h2>
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-            <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Full Name</h3><p class="text-xl font-bold text-gray-900" id="profileName">Loading...</p></div>
-            <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Position</h3><p class="text-xl font-bold text-gray-900" id="profilePosition">Loading...</p></div>
-            <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Email Address</h3><p class="text-xl font-bold text-gray-900" id="profileEmail">Loading...</p></div>
-            <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Base Rate</h3><p class="text-xl font-bold text-yellow-600" id="profileRate">Loading...</p></div>
-            <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Weekly Hours</h3><p class="text-xl font-bold text-gray-900" id="profileHours">Loading...</p></div>
-            <div><h3 class="text-xs font-bold text-gray-400 uppercase mb-2 tracking-tighter">Start Date</h3><p class="text-xl font-bold text-gray-900" id="profileStartDate">Loading...</p></div>
-          </div>
+     <div id="view-profile" class="dashboard-view">
+  <div class="space-y-6">
+    <h2 class="text-3xl font-bold text-gray-900">Profile Information</h2>
 
-          <div class="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="bg-gray-50 border border-gray-100 rounded-2xl p-6">
-              <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Hourly Increase (Milestones)</h3>
-              <p class="text-2xl font-bold text-gray-900" id="milestone-hourly-increase">Loading...</p>
-              <p class="text-xs text-gray-500 mt-2" id="milestone-grace-status"></p>
-            </div>
-            <div class="bg-gray-50 border border-gray-100 rounded-2xl p-6">
-              <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Effective Hourly Rate</h3>
-              <p class="text-2xl font-bold text-yellow-600" id="effective-hourly-rate">Loading...</p>
-              <p class="text-xs text-gray-500 mt-2">Base Rate + Milestone Increase</p>
-            </div>
-            <div class="bg-gray-50 border border-gray-100 rounded-2xl p-6">
-              <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Monthly Incentives Snapshot</h3>
-              <p class="text-sm font-bold text-gray-900" id="monthly-incentive-status-prof">Loading...</p>
-              <p class="text-sm font-bold text-gray-900 mt-2" id="monthly-raffle-status-prof">Loading...</p>
-            </div>
-          </div>
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <div class="flex flex-col md:flex-row md:items-center gap-6">
+        <div class="flex flex-col items-center gap-3">
+          <img id="profile-avatar-preview"
+               src=""
+               alt="Profile Picture"
+               class="w-28 h-28 rounded-full object-cover border border-gray-200 bg-gray-100" />
+          <label class="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm cursor-pointer">
+            Upload Photo
+            <input id="profile-avatar-input" type="file" accept="image/*" class="hidden" />
+          </label>
+        </div>
 
-          <div class="mt-16 border-t border-gray-100 pt-10">
-            <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
-              <svg class="w-6 h-6 mr-3 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138z" />
-              </svg>
-              Incentive Structure Reference
-            </h3>
-            
-            <div class="mb-6 p-4 rounded-xl bg-yellow-50 border border-yellow-100">
-              <p class="text-sm font-semibold text-gray-900">Incentives are counted ONLY for <span class="font-bold text-yellow-700">qualified appointments</span>.</p>
-            </div>
-
-            <div class="overflow-hidden rounded-2xl border border-gray-200 shadow-sm bg-white mb-12">
-              <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Appointment Range</th>
-                    <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Standard Bonus</th>
-                    <th class="px-6 py-4 text-left text-[10px] font-bold text-yellow-700 uppercase tracking-widest bg-yellow-50">High Perf. (<25% Cancel)</th>
-                  </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-100">
-                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">6th Qualified Apt</td><td class="px-6 py-4 text-sm text-gray-600">$50 (Flat)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$50 (Flat)</td></tr>
-                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">7th Qualified Apt</td><td class="px-6 py-4 text-sm text-gray-600">$0 (No Bonus)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$0 (No Bonus)</td></tr>
-                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">8th Qualified Apt</td><td class="px-6 py-4 text-sm text-gray-600">$30 (Flat)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$50 (Flat)</td></tr>
-                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">9th - 12th Qualified</td><td class="px-6 py-4 text-sm text-gray-600">$15 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$17 (Per Apt)</td></tr>
-                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">13th+ Qualified</td><td class="px-6 py-4 text-sm text-gray-600">$25 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$27 (Per Apt)</td></tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div class="overflow-hidden rounded-2xl border border-gray-200 shadow-sm bg-white">
-              <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Milestone</th>
-                    <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Increase</th>
-                  </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-100">
-                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">90 Days</td><td class="px-6 py-4 text-sm text-gray-600">+$0.50/hr (Standard) or +$0.75/hr (High)</td></tr>
-                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">1 Year</td><td class="px-6 py-4 text-sm text-gray-600">+$0.75/hr (Standard) or +$1.50/hr (High)</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
+          <div><p class="text-xs uppercase text-gray-500">Name</p><p id="profile-full-name" class="font-semibold text-gray-900">—</p></div>
+          <div><p class="text-xs uppercase text-gray-500">Email</p><p id="profile-email" class="font-semibold text-gray-900">—</p></div>
+          <div><p class="text-xs uppercase text-gray-500">Position</p><p id="profile-position" class="font-semibold text-gray-900">—</p></div>
+          <div><p class="text-xs uppercase text-gray-500">Employment Status</p><p id="profile-employment-status" class="font-semibold text-gray-900">—</p></div>
+          <div><p class="text-xs uppercase text-gray-500">Base Rate</p><p id="profile-base-rate" class="font-semibold text-gray-900">—</p></div>
+          <div><p class="text-xs uppercase text-gray-500">Weekly Hours</p><p id="profile-weekly-hours" class="font-semibold text-gray-900">—</p></div>
+          <div><p class="text-xs uppercase text-gray-500">Start Date</p><p id="profile-start-date" class="font-semibold text-gray-900">—</p></div>
         </div>
       </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <h3 class="text-lg font-bold text-gray-900 mb-4">Performance-Based Tier Increase</h3>
+      <div class="space-y-4">
+        <div class="p-4 rounded-xl bg-yellow-50 border border-yellow-100">
+          <p class="text-sm font-semibold text-gray-900 mb-1">90-Day Milestone</p>
+          <p id="milestone-90-day" class="text-sm text-gray-700">Loading...</p>
+        </div>
+        <div class="p-4 rounded-xl bg-blue-50 border border-blue-100">
+          <p class="text-sm font-semibold text-gray-900 mb-1">1-Year Milestone</p>
+          <p id="milestone-1-year" class="text-sm text-gray-700">Loading...</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <h3 class="text-xl font-bold text-gray-900 mb-6">Incentive Structure Reference</h3>
+
+      <div class="mb-6 p-4 rounded-xl bg-yellow-50 border border-yellow-100">
+        <p class="text-sm font-semibold text-gray-900">
+          Incentives are counted ONLY for <span class="font-bold text-yellow-700">qualified appointments</span>.
+        </p>
+      </div>
+
+      <div class="overflow-hidden rounded-2xl border border-gray-200 shadow-sm bg-white mb-12">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Appointment Range</th>
+              <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Standard Bonus</th>
+              <th class="px-6 py-4 text-left text-[10px] font-bold text-yellow-700 uppercase tracking-widest bg-yellow-50">High Perf. (&lt;25% Cancel)</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-100">
+            <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">6th Qualified Apt</td><td class="px-6 py-4 text-sm text-gray-600">$50 (Flat)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$50 (Flat)</td></tr>
+            <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">7th Qualified Apt</td><td class="px-6 py-4 text-sm text-gray-600">$0 (No Bonus)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$0 (No Bonus)</td></tr>
+            <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">8th Qualified Apt</td><td class="px-6 py-4 text-sm text-gray-600">$30 (Flat)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$50 (Flat)</td></tr>
+            <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">9th - 12th Qualified</td><td class="px-6 py-4 text-sm text-gray-600">$15 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$17 (Per Apt)</td></tr>
+            <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">13th+ Qualified</td><td class="px-6 py-4 text-sm text-gray-600">$25 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$27 (Per Apt)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="overflow-hidden rounded-2xl border border-gray-200 shadow-sm bg-white">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Milestone</th>
+              <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Increase</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-100">
+            <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">90 Days</td><td class="px-6 py-4 text-sm text-gray-600">+$0.50/hr (Standard) or +$0.75/hr (High)</td></tr>
+            <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">1 Year</td><td class="px-6 py-4 text-sm text-gray-600">+$0.75/hr (Standard) or +$1.50/hr (High)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+        <div id="view-payroll" class="dashboard-view">
+  <div class="space-y-6">
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+      <h2 class="text-3xl font-bold text-gray-900">Payroll</h2>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <select id="payroll-timeframe"
+          class="p-2.5 border border-gray-200 rounded-xl bg-white text-sm outline-none">
+          <option value="today">Today</option>
+          <option value="this-week">Current Week</option>
+          <option value="previous-week">Previous Week</option>
+          <option value="30-days">Last 30 Days</option>
+          <option value="4-weeks" selected>Last 4 Weeks</option>
+          <option value="6-weeks">Last 6 Weeks</option>
+          <option value="all-time">All Time</option>
+        </select>
+
+        <input type="date" id="payroll-start" class="p-2 border border-gray-200 rounded-lg text-sm" />
+        <input type="date" id="payroll-end" class="p-2 border border-gray-200 rounded-lg text-sm" />
+        <button id="apply-payroll-range" class="px-3 py-2 bg-gray-900 text-white text-sm rounded-lg">Apply</button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <p class="text-xs uppercase text-gray-500">Weekly Rows</p>
+        <p id="payroll-week-count" class="text-2xl font-bold text-gray-900 mt-2">0</p>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <p class="text-xs uppercase text-gray-500">Hours Worked</p>
+        <p id="payroll-total-hours" class="text-2xl font-bold text-gray-900 mt-2">0</p>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <p class="text-xs uppercase text-gray-500">Auto Incentives</p>
+        <p id="payroll-total-bonus" class="text-2xl font-bold text-yellow-700 mt-2">$0.00</p>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <p class="text-xs uppercase text-gray-500">Final Pay Total</p>
+        <p id="payroll-final-pay" class="text-2xl font-bold text-green-700 mt-2">$0.00</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <h3 class="text-lg font-bold text-gray-900 mb-4">Weekly Payroll Summary</h3>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500 border-b">
+              <th class="py-3 pr-4">Week</th>
+              <th class="py-3 pr-4">Hours</th>
+              <th class="py-3 pr-4">Qualified</th>
+              <th class="py-3 pr-4">Rejected</th>
+              <th class="py-3 pr-4">Implied Credited</th>
+              <th class="py-3 pr-4">Auto Bonus</th>
+              <th class="py-3 pr-4">Manual Adj.</th>
+              <th class="py-3 pr-4">Final Pay</th>
+              <th class="py-3 pr-4">Paid</th>
+            </tr>
+          </thead>
+          <tbody id="payroll-weekly-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <h3 class="text-lg font-bold text-gray-900 mb-4">Daily Time Logs</h3>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500 border-b">
+              <th class="py-3 pr-4">Date</th>
+              <th class="py-3 pr-4">First In</th>
+              <th class="py-3 pr-4">Last Out</th>
+              <th class="py-3 pr-4">Hours</th>
+              <th class="py-3 pr-4">Sessions</th>
+            </tr>
+          </thead>
+          <tbody id="payroll-daily-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
 
       <div id="view-timeoff" class="dashboard-view">
         <div class="max-w-6xl mx-auto">
