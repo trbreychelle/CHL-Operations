@@ -1475,50 +1475,14 @@ if (countEl) {
       return name && name !== 'call hammer leads';
     })
     .map(a => ({
+      rank_no: Number(a.rank_no || 0),
       agent_name: a.agent_name || 'Unknown',
-      approved_appointments: Number(a.approved_appointments || 0),
+      total_leads: Number(a.total_leads || 0),
       qc_rejected: Number(a.qc_rejected || 0),
+      approved_appointments: Number(a.approved_appointments || 0),
+      credited_leads: Number(a.credited_leads || 0),
       cancellation_rate: Number(a.cancellation_rate || 0)
-    }))
-    .sort((a, b) => {
-      if (b.approved_appointments !== a.approved_appointments) {
-        return b.approved_appointments - a.approved_appointments;
-      }
-      if (a.cancellation_rate !== b.cancellation_rate) {
-        return a.cancellation_rate - b.cancellation_rate;
-      }
-      if (a.qc_rejected !== b.qc_rejected) {
-        return a.qc_rejected - b.qc_rejected;
-      }
-      return a.agent_name.localeCompare(b.agent_name);
-    });
-
-  const ranked = [];
-  let lastRank = 0;
-  let lastApproved = null;
-  let lastCancel = null;
-  let lastRejected = null;
-
-  cleaned.forEach((a, index) => {
-    const sameAsPrev =
-      lastApproved === a.approved_appointments &&
-      lastCancel === a.cancellation_rate &&
-      lastRejected === a.qc_rejected;
-
-    const rank = sameAsPrev ? lastRank : index + 1;
-
-    ranked.push({
-      ...a,
-      rank_no: rank
-    });
-
-    lastRank = rank;
-    lastApproved = a.approved_appointments;
-    lastCancel = a.cancellation_rate;
-    lastRejected = a.qc_rejected;
-  });
-
-  const top10 = ranked.filter(a => a.rank_no <= 10);
+    }));
 
   const getRankLabel = (rank) => {
     if (rank === 1) return '🥇 1st Place';
@@ -1542,21 +1506,33 @@ if (countEl) {
 
     <div class="overflow-hidden rounded-2xl border border-gray-100">
       <div class="grid grid-cols-12 gap-2 px-4 py-3 bg-gray-50 text-[10px] font-bold uppercase tracking-widest text-gray-400">
-        <div class="col-span-6">Placement</div>
-        <div class="col-span-3 text-right">Qualified</div>
-        <div class="col-span-3 text-right">Cancel Rate</div>
+        <div class="col-span-4">Placement</div>
+        <div class="col-span-1 text-right">Total</div>
+        <div class="col-span-2 text-right">QC Rejected</div>
+        <div class="col-span-2 text-right">Qualified</div>
+        <div class="col-span-1 text-right">Credited</div>
+        <div class="col-span-2 text-right">Cancel Rate</div>
       </div>
 
       <div class="divide-y divide-gray-100">
-        ${top10.length ? top10.map(a => `
+        ${cleaned.length ? cleaned.map(a => `
           <div class="grid grid-cols-12 gap-2 px-4 py-4 text-sm">
-            <div class="col-span-6 font-semibold text-gray-900">
+            <div class="col-span-4 font-semibold text-gray-900">
               ${getRankLabel(a.rank_no)} — ${a.agent_name}
             </div>
-            <div class="col-span-3 text-right text-blue-600 font-bold">
+            <div class="col-span-1 text-right text-gray-700 font-semibold">
+              ${a.total_leads}
+            </div>
+            <div class="col-span-2 text-right text-red-500 font-bold">
+              ${a.qc_rejected}
+            </div>
+            <div class="col-span-2 text-right text-blue-600 font-bold">
               ${a.approved_appointments}
             </div>
-            <div class="col-span-3 text-right text-gray-600 font-semibold">
+            <div class="col-span-1 text-right text-purple-500 font-bold">
+              ${a.credited_leads}
+            </div>
+            <div class="col-span-2 text-right text-gray-600 font-semibold">
               ${a.cancellation_rate}%
             </div>
           </div>
