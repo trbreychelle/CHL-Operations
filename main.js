@@ -717,17 +717,62 @@ if (isCommandCenter) {
 const applyBtn = document.getElementById('apply-custom-range');
 if (applyBtn && !applyBtn.dataset.bound) {
   applyBtn.addEventListener('click', async () => {
+    const timeframeEl = document.getElementById('timeframe-filter');
+    const customStartEl = document.getElementById('custom-start');
+    const customEndEl = document.getElementById('custom-end');
+
+    if (timeframeEl) timeframeEl.value = 'this-week';
+    if (customStartEl) customStartEl.value = '';
+    if (customEndEl) customEndEl.value = '';
+
     await this.fetchAllData();
   });
   applyBtn.dataset.bound = 'true';
 }
 
+   const customStartEl = document.getElementById('custom-start');
+const customEndEl = document.getElementById('custom-end');
+
+const maybeAutoLoadOverviewCustom = async () => {
+  if (customStartEl?.value && customEndEl?.value) {
+    await this.fetchAllData();
+  }
+};
+
+if (customStartEl && !customStartEl.dataset.bound) {
+  customStartEl.addEventListener('change', maybeAutoLoadOverviewCustom);
+  customStartEl.dataset.bound = 'true';
+}
+
+if (customEndEl && !customEndEl.dataset.bound) {
+  customEndEl.addEventListener('change', maybeAutoLoadOverviewCustom);
+  customEndEl.dataset.bound = 'true';
+}
+
 // AVATAR UPLOAD
 const avatarInput = document.getElementById('profile-avatar-input');
+const avatarSaveBtn = document.getElementById('profile-avatar-save');
 
 if (avatarInput && !avatarInput.dataset.bound) {
   avatarInput.addEventListener('change', async (e) => {
     const file = e.target.files?.[0];
+    if (!file) return;
+
+    this._pendingAvatarFile = file;
+
+    const previewUrl = URL.createObjectURL(file);
+    const avatarEl = document.getElementById('profile-avatar-preview');
+    if (avatarEl) avatarEl.src = previewUrl;
+
+    if (avatarSaveBtn) avatarSaveBtn.classList.remove('hidden');
+  });
+
+  avatarInput.dataset.bound = 'true';
+}
+
+if (avatarSaveBtn && !avatarSaveBtn.dataset.bound) {
+  avatarSaveBtn.addEventListener('click', async () => {
+    const file = this._pendingAvatarFile;
     if (!file) return;
 
     const userId = this.currentUser?.auth_user_id;
@@ -756,11 +801,12 @@ if (avatarInput && !avatarInput.dataset.bound) {
       .update({ avatar_url: publicUrl })
       .eq('auth_user_id', userId);
 
-    const avatarEl = document.getElementById('profile-avatar-preview');
-    if (avatarEl) avatarEl.src = publicUrl;
+    this._pendingAvatarFile = null;
+    avatarSaveBtn.classList.add('hidden');
+    alert('Profile photo saved.');
   });
 
-  avatarInput.dataset.bound = 'true';
+  avatarSaveBtn.dataset.bound = 'true';
 }
 
 // ===== MY LEADS FILTERS =====
@@ -778,8 +824,41 @@ if (leadsTimeframe && !leadsTimeframe.dataset.bound) {
   leadsTimeframe.dataset.bound = 'true';
 }
 
+   const leadsStart = document.getElementById('leads-start');
+const leadsEnd = document.getElementById('leads-end');
+
+const maybeAutoLoadLeadsCustom = () => {
+  if (leadsStart?.value && leadsEnd?.value) {
+    this.loadAgentLeadsWithFilters();
+  }
+};
+
+if (leadsStart && !leadsStart.dataset.bound) {
+  leadsStart.addEventListener('change', maybeAutoLoadLeadsCustom);
+  leadsStart.dataset.bound = 'true';
+}
+
+if (leadsEnd && !leadsEnd.dataset.bound) {
+  leadsEnd.addEventListener('change', maybeAutoLoadLeadsCustom);
+  leadsEnd.dataset.bound = 'true';
+}
+
 if (leadsApply && !leadsApply.dataset.bound) {
-  leadsApply.addEventListener('click', () => this.loadAgentLeadsWithFilters());
+  leadsApply.addEventListener('click', () => {
+    const leadsSearchEl = document.getElementById('leads-search');
+    const leadsStatusEl = document.getElementById('status-filter');
+    const leadsTimeframeEl = document.getElementById('leads-timeframe');
+    const leadsStartEl = document.getElementById('leads-start');
+    const leadsEndEl = document.getElementById('leads-end');
+
+    if (leadsSearchEl) leadsSearchEl.value = '';
+    if (leadsStatusEl) leadsStatusEl.value = 'all';
+    if (leadsTimeframeEl) leadsTimeframeEl.value = 'this-week';
+    if (leadsStartEl) leadsStartEl.value = '';
+    if (leadsEndEl) leadsEndEl.value = '';
+
+    this.loadAgentLeadsWithFilters();
+  });
   leadsApply.dataset.bound = 'true';
 }
    // ===== PAYROLL FILTERS =====
@@ -792,8 +871,36 @@ if (payrollTimeframe && !payrollTimeframe.dataset.bound) {
 }
 
 if (payrollApply && !payrollApply.dataset.bound) {
-  payrollApply.addEventListener('click', () => this.loadAgentPayroll());
+  payrollApply.addEventListener('click', () => {
+    const payrollTimeframeEl = document.getElementById('payroll-timeframe');
+    const payrollStartEl = document.getElementById('payroll-start');
+    const payrollEndEl = document.getElementById('payroll-end');
+
+    if (payrollTimeframeEl) payrollTimeframeEl.value = '4-weeks';
+    if (payrollStartEl) payrollStartEl.value = '';
+    if (payrollEndEl) payrollEndEl.value = '';
+
+    this.loadAgentPayroll();
+  });
   payrollApply.dataset.bound = 'true';
+}
+   const payrollStart = document.getElementById('payroll-start');
+const payrollEnd = document.getElementById('payroll-end');
+
+const maybeAutoLoadPayrollCustom = () => {
+  if (payrollStart?.value && payrollEnd?.value) {
+    this.loadAgentPayroll();
+  }
+};
+
+if (payrollStart && !payrollStart.dataset.bound) {
+  payrollStart.addEventListener('change', maybeAutoLoadPayrollCustom);
+  payrollStart.dataset.bound = 'true';
+}
+
+if (payrollEnd && !payrollEnd.dataset.bound) {
+  payrollEnd.addEventListener('change', maybeAutoLoadPayrollCustom);
+  payrollEnd.dataset.bound = 'true';
 }
 }
   
@@ -1104,14 +1211,20 @@ if ((customStart && !customEnd) || (!customStart && customEnd)) {
     // TIER PROGRESS
     // =========================
     const approvedCount = Number(ov.total_appointments || 0);
-    const tierMax = 6;
-    const percentage = Math.min(100, (approvedCount / tierMax) * 100);
+const cancelRate = Number(ov.cancellation_rate || 0);
+const isHighPerf = approvedCount >= 6 && cancelRate < 25;
+const percentage = approvedCount >= 6 ? 100 : Math.min(100, (approvedCount / 6) * 100);
 
-    setText('tier-count-display', `${approvedCount} / ${tierMax} approved appointments`);
-    setText('tier-status-text', approvedCount >= 6 ? 'Tier 1 Reached' : 'Tier 1 Progress');
+setText('tier-count-display', `${approvedCount} qualified appointments`);
+setText(
+  'tier-status-text',
+  approvedCount < 6
+    ? 'Not yet on incentive tier'
+    : (isHighPerf ? 'High Performance Tier' : 'Standard Tier')
+);
 
-    const progressBar = document.getElementById('tier-progress-bar');
-    if (progressBar) progressBar.style.width = `${percentage}%`;
+const progressBar = document.getElementById('tier-progress-bar');
+if (progressBar) progressBar.style.width = `${percentage}%`;
 
     // =========================
     // LEADS
@@ -1223,13 +1336,13 @@ this.renderLeaderboard(leaderboard || []);
     }
 
     this.renderLeadsTable(
-      (leads || []).map(l => ({
-        date: l.date_submitted,
-        homeowner: l.homeowner_names,
-        status: l.status,
-        rejectionReason: l.rejection_reason || ''
-      }))
-    );
+  (leads || []).map(l => ({
+    date: l.date_submitted,
+    homeowner: l.homeowner_names,
+    status: l.status,
+    feedback: l.feedback || l.rejection_reason || ''
+  }))
+);
 
   } catch (err) {
     console.error('Leads filter failed:', err);
@@ -1267,7 +1380,7 @@ this.renderLeaderboard(leaderboard || []);
     if (!tbody) return;
 
     if (leads.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="3" class="px-6 py-4 text-center text-sm text-gray-500">No leads found for this period.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-4 text-center text-sm text-gray-500">No leads found for this period.</td></tr>`;
       return;
     }
 
@@ -1280,23 +1393,17 @@ this.renderLeaderboard(leaderboard || []);
       else if (status.includes('pending')) badgeClass = 'bg-yellow-100 text-yellow-800';
 
       return `
-        <tr>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${this.formatDate(lead.date)}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${lead.homeowner || 'Unknown'}</td>
-          <td class="px-6 py-4 whitespace-nowrap">
-  <div class="flex flex-col items-start gap-1">
-    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeClass}">
-      ${lead.status || 'Pending'}
-    </span>
-    ${
-      String(lead.status || '').toLowerCase().includes('reject') && lead.rejectionReason
-        ? `<span class="text-[11px] text-red-500 italic">${lead.rejectionReason}</span>`
-        : ''
-    }
-  </div>
-</td>
-        </tr>
-      `;
+  <tr>
+    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${this.formatDate(lead.date)}</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${lead.homeowner || 'Unknown'}</td>
+    <td class="px-6 py-4 whitespace-nowrap">
+      <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeClass}">
+        ${lead.status || 'Pending'}
+      </span>
+    </td>
+    <td class="px-6 py-4 text-sm text-gray-600">${lead.feedback || '—'}</td>
+  </tr>
+`;
     }).join('');
   }
 
@@ -1340,21 +1447,27 @@ this.renderLeaderboard(leaderboard || []);
     const chartsSection = document.querySelectorAll('#view-overview .grid')[2];
 
     if (chartsSection) {
-  chartsSection.parentNode.insertBefore(container, chartsSection);
-} else {
-  document.getElementById('view-overview').appendChild(container);
-}
+      chartsSection.parentNode.insertBefore(container, chartsSection);
+    } else {
+      document.getElementById('view-overview').appendChild(container);
+    }
   }
 
   if (!container) return;
 
+  const timeframeEl = document.getElementById('timeframe-filter');
+  const timeframeText = timeframeEl?.options?.[timeframeEl.selectedIndex]?.text || 'Selected Range';
+
   container.innerHTML = `
-    <h3 class="text-lg font-bold mb-4">Top 10 Agents</h3>
-    <div class="space-y-2">
-      ${data.map(a => `
-        <div class="flex justify-between text-sm">
-          <span class="font-semibold">${a.rank_no}. ${a.agent_name}</span>
-          <span>${a.approved_appointments} appts</span>
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-bold text-gray-900">Top 10 Agents</h3>
+      <span class="text-xs font-medium text-gray-500">${timeframeText}</span>
+    </div>
+    <div class="space-y-3">
+      ${(data || []).map(a => `
+        <div class="flex items-center justify-between text-sm border-b border-gray-100 pb-2">
+          <span class="font-semibold text-gray-900">${a.rank_no}. ${a.agent_name}</span>
+          <span class="text-gray-600">${a.approved_appointments} appts</span>
         </div>
       `).join('')}
     </div>
