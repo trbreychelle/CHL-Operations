@@ -713,6 +713,47 @@ if (applyBtn && !applyBtn.dataset.bound) {
 }
 }
 
+  // AVATAR UPLOAD
+const avatarInput = document.getElementById('profile-avatar-input');
+
+if (avatarInput && !avatarInput.dataset.bound) {
+  avatarInput.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const userId = this.currentUser?.auth_user_id;
+    if (!userId) return alert('User not found');
+
+    const filePath = `${userId}/${Date.now()}_${file.name}`;
+
+    const { error: uploadError } = await this.supabase.storage
+      .from('profile-pictures')
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+      console.error(uploadError);
+      alert('Upload failed');
+      return;
+    }
+
+    const { data } = this.supabase.storage
+      .from('profile-pictures')
+      .getPublicUrl(filePath);
+
+    const publicUrl = data?.publicUrl;
+
+    await this.supabase
+      .from('profiles')
+      .update({ avatar_url: publicUrl })
+      .eq('auth_user_id', userId);
+
+    const avatarEl = document.getElementById('profile-avatar-preview');
+    if (avatarEl) avatarEl.src = publicUrl;
+  });
+
+  avatarInput.dataset.bound = 'true';
+}
+
   // ===== MY LEADS FILTERS =====
 const leadsSearch = document.getElementById('leads-search');
 const leadsTimeframe = document.getElementById('leads-timeframe');
@@ -1066,28 +1107,17 @@ if ((customStart && !customEnd) || (!customStart && customEnd)) {
     const p = profile?.[0] || {};
 
     this.updateProfileUI({
-      name: p.display_name,
-      email: p.email,
-      role: p.agent_position,
-      baseRate: p.base_rate,
-      weeklyHours: p.weekly_hours,
-      monthlyIncentiveStatus: ov.monthly_incentive_status || 'Not qualified yet',
-      raffleStatus: ov.monthly_raffle_status || 'No raffle entry yet'
-    });
-
-    const startDateEl = document.getElementById('profileStartDate');
-    if (startDateEl) startDateEl.innerText = p.start_date || '—';
-
-    const rateEl = document.getElementById('effective-hourly-rate');
-    if (rateEl) rateEl.innerText = this.formatCurrency(p.current_rate || 0);
-
-    const milestoneEl = document.getElementById('milestone-hourly-increase');
-    if (milestoneEl) {
-      const currentRate = Number(p.current_rate || 0);
-      const baseRate = this.toNumberSafe(p.base_rate || 0, 0);
-      const diff = Math.max(0, currentRate - baseRate);
-      milestoneEl.innerText = diff > 0 ? this.formatCurrency(diff) : '$0.00';
-    }
+  name: p.display_name,
+  email: p.email,
+  role: p.agent_position,
+  employmentStatus: p.employment_status,
+  baseRate: p.base_rate,
+  weeklyHours: p.weekly_hours,
+  startDate: p.start_date,
+  avatar_url: p.avatar_url,
+  monthlyIncentiveStatus: ov.monthly_incentive_status,
+  raffleStatus: ov.monthly_raffle_status
+});
 
     const navRoleEl = document.getElementById('nav-user-role');
     if (navRoleEl) navRoleEl.innerText = p.agent_position || 'Agent';
@@ -1334,23 +1364,37 @@ this.renderLeaderboard(leaderboard || []);
 }
 
   updateProfileUI(profile) {
-    if (!profile) return;
-    const setText = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
-      
-    setText('nav-user-name', profile.name || this.currentUser.name || 'Agent');
-    setText('profileName', profile.name || this.currentUser.name);
-    setText('profileEmail', profile.email || this.currentUser.email);
-    setText('profilePosition', profile.role || 'Agent');
-    setText('profileRate', this.formatCurrency(profile.baseRate || 0));
-    setText('profileHours', profile.weeklyHours || 0);
+  if (!profile) return;
 
-    setText('monthly-incentive-status-prof', profile.monthlyIncentiveStatus || 'Not qualified yet');
-    setText('monthly-raffle-status-prof', profile.raffleStatus || '0 / 4 weeks qualified');
-      
-    if (profile.hourlyIncrease) {
-        setText('milestone-hourly-increase', this.formatCurrency(profile.hourlyIncrease));
-        setText('effective-hourly-rate', this.formatCurrency((profile.baseRate || 0) + profile.hourlyIncrease));
-    }
+  const setText = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.innerText = val ?? '—';
+  };
+
+  // NAV
+  setText('nav-user-name', profile.name || this.currentUser.name);
+
+  // NEW PROFILE IDS (IMPORTANT)
+  setText('profile-full-name', profile.name);
+  setText('profile-email', profile.email);
+  setText('profile-position', profile.role || 'Agent');
+  setText('profile-employment-status', profile.employmentStatus || 'Active');
+
+  setText('profile-base-rate', this.formatCurrency(profile.baseRate || 0));
+  setText('profile-weekly-hours', profile.weeklyHours || 0);
+
+  setText('profile-start-date', profile.startDate || '—');
+
+  // AVATAR
+  const avatarEl = document.getElementById('profile-avatar-preview');
+  if (avatarEl) {
+    avatarEl.src = profile.avatar_url || 'https://placehold.co/200x200?text=Avatar';
+  }
+
+  // MONTHLY STATUS
+  setText('monthly-incentive-status-prof', profile.monthlyIncentiveStatus || 'Not qualified yet');
+  setText('monthly-raffle-status-prof', profile.raffleStatus || 'No raffle entry yet');
+}
   }
 
   formatDate(dateString) {
