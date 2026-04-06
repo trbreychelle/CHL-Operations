@@ -1339,10 +1339,24 @@ if (this.adminState.clientHealthView.length > 0) {
   }
 
   triggerAdminRefresh() {
-    if (window.adminDashboard && typeof window.adminDashboard.refreshDashboard === 'function') {
-      window.adminDashboard.refreshDashboard();
-    }
+  console.log('triggerAdminRefresh called');
+  console.log('window.adminDashboard exists:', !!window.adminDashboard);
+  console.log('window.Admin exists:', !!window.Admin);
+
+  if (window.adminDashboard && typeof window.adminDashboard.refreshDashboard === 'function') {
+    console.log('Refreshing via window.adminDashboard.refreshDashboard()');
+    window.adminDashboard.refreshDashboard();
+    return;
   }
+
+  if (window.Admin && typeof window.Admin.refreshDashboard === 'function') {
+    console.log('Refreshing via window.Admin.refreshDashboard()');
+    window.Admin.refreshDashboard();
+    return;
+  }
+
+  console.warn('No admin refresh handler found.');
+}
 
   normalizeAdminFromHealthMonitor(rows) {
   const list = Array.isArray(rows) ? rows : [];
