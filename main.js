@@ -598,24 +598,30 @@ const isOldAgentDash = isAgentPage;
 
     // Load Agent Dashboard
    if (this.currentUser && isOldAgentDash && !isCommandCenter) {
-  console.log("🔥 AGENT DASHBOARD LOADING...");
-  
+  console.log("🔥 AGENT DASHBOARD ONLY");
+
+  const isAgentDOM = document.getElementById('stat-appointments');
+
+  if (!isAgentDOM) {
+    console.log("⛔ Not agent DOM, skipping agent load");
+    return;
+  }
+
   setTimeout(async () => {
     await this.fetchAllData();
     this.startMSTClock();
     await this.loadTimeOffHistory();
   }, 300);
 }
-
-    // Load Admin OR Sales Dashboard
-    if (isCommandCenter) {
-  console.log("🟢 Command Center Detected! Fetching Master Data...");
+   // Load Admin OR Sales Dashboard
+if (isCommandCenter) {
+  console.log("🟢 ADMIN DASHBOARD LOADING SAFE MODE");
   document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
-  
+
   setTimeout(() => {
     this.fetchAdminData(false);
     this.setupCommandCenterRealtime();
-    // this.loadPayrollData(false); 
+    // this.loadPayrollData(false);
   }, 300);
 
   this.startAdminAutoRefresh();
@@ -1312,19 +1318,18 @@ this.renderLeaderboard(leaderboard || []);
   renderLeaderboard(data) {
   let container = document.getElementById('leaderboard-container');
 
- if (!container) {
-  container = document.createElement('div');
-  container.id = 'leaderboard-container';
-  container.className = 'bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8';
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'leaderboard-container';
+    container.className = 'bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8';
 
-  const chartsSection = document.querySelector('#view-overview .grid');
+    const chartsSection = document.querySelector('#view-overview .grid');
 
-  if (chartsSection) {
-    chartsSection.parentNode.insertBefore(container, chartsSection);
-  } else {
-    document.getElementById('view-overview').appendChild(container);
-  }
-}
+    if (chartsSection) {
+      chartsSection.parentNode.insertBefore(container, chartsSection);
+    } else {
+      document.getElementById('view-overview').appendChild(container);
+    }
   }
 
   if (!container) return;
