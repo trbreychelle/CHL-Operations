@@ -980,6 +980,9 @@ const customStart = document.getElementById('custom-start')?.value || null;
 const customEnd = document.getElementById('custom-end')?.value || null;
 
 const useCustom = customStart && customEnd;
+    if (useCustom) {
+  document.getElementById('timeframe-filter').value = 'custom';
+}
 
 if ((customStart && !customEnd) || (!customStart && customEnd)) {
   alert('Please select both start and end date.');
