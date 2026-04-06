@@ -594,13 +594,17 @@ const isAgentPage = pathName.includes('agent-dashboard');
 const isAdminPage = pathName.includes('admin-dashboard');
 const isSalesPage = pathName.includes('salesdashboard');
 const isCommandCenter = isAdminPage || isSalesPage;
-const isOldAgentDash = isAgentPage && document.getElementById('stat-appointments') !== null;
+const isOldAgentDash = isAgentPage;
 
     // Load Agent Dashboard
-    if (this.currentUser && isOldAgentDash && !isCommandCenter) {
-  await this.fetchAllData();
-  this.startMSTClock();
-  await this.loadTimeOffHistory();
+   if (this.currentUser && isOldAgentDash && !isCommandCenter) {
+  console.log("🔥 AGENT DASHBOARD LOADING...");
+  
+  setTimeout(async () => {
+    await this.fetchAllData();
+    this.startMSTClock();
+    await this.loadTimeOffHistory();
+  }, 300);
 }
 
     // Load Admin OR Sales Dashboard
@@ -1308,20 +1312,19 @@ this.renderLeaderboard(leaderboard || []);
   renderLeaderboard(data) {
   let container = document.getElementById('leaderboard-container');
 
-  if (!container) {
-    const overview = document.getElementById('view-overview');
+ if (!container) {
+  container = document.createElement('div');
+  container.id = 'leaderboard-container';
+  container.className = 'bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8';
 
-    container = document.createElement('div');
-    container.id = 'leaderboard-container';
-    container.className = 'bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8';
+  const chartsSection = document.querySelector('#view-overview .grid');
 
-    if (overview) {
-      if (overview.children[2]) {
-        overview.insertBefore(container, overview.children[2]);
-      } else {
-        overview.appendChild(container);
-      }
-    }
+  if (chartsSection) {
+    chartsSection.parentNode.insertBefore(container, chartsSection);
+  } else {
+    document.getElementById('view-overview').appendChild(container);
+  }
+}
   }
 
   if (!container) return;
