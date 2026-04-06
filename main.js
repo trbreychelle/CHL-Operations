@@ -1337,13 +1337,13 @@ this.renderLeaderboard(leaderboard || []);
     container.id = 'leaderboard-container';
     container.className = 'bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8';
 
-    const chartsSection = document.querySelector('#view-overview .grid');
+    const chartsSection = document.querySelectorAll('#view-overview .grid')[2];
 
     if (chartsSection) {
-      chartsSection.parentNode.insertBefore(container, chartsSection);
-    } else {
-      document.getElementById('view-overview').appendChild(container);
-    }
+  chartsSection.parentNode.insertBefore(container, chartsSection);
+} else {
+  document.getElementById('view-overview').appendChild(container);
+}
   }
 
   if (!container) return;
