@@ -170,11 +170,12 @@
               <div class="flex items-center justify-between gap-3">
                 <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Owed Leads</p>
                 <select id="owed-package-filter" class="text-[10px] font-extrabold border border-gray-200 rounded-lg px-2 py-1 bg-white">
-                  <option value="all" selected>ALL</option>
-                  <option value="ACTIVE">ACTIVE</option>
-                  <option value="PAUSE">PAUSE</option>
-                  <option value="REFUNDED">REFUNDED</option>
-                </select>
+  <option value="all" selected>ALL</option>
+  <option value="ONGOING">ONGOING</option>
+  <option value="PAUSE">PAUSE</option>
+  <option value="COMPLETED">COMPLETED</option>
+  <option value="REFUNDED">REFUNDED</option>
+</select>
               </div>
               <p class="text-lg font-bold text-gray-900 mt-1" id="pulse-owed">0</p>
               <p class="text-[11px] font-semibold text-gray-500" id="pulse-owed-sub">All package statuses</p>
@@ -2576,14 +2577,6 @@ async saveOnboardingRow(clientCode) {
     }, 1200);
   }
 },
-
-      nav(viewId, linkEl) {
-        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-        const view = document.getElementById('view-' + viewId);
-        if(view) view.classList.add('active');
-        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        if(linkEl) linkEl.classList.add('active');
-      }
     };
 
     window.adminDashboard = AdminDashboard;
