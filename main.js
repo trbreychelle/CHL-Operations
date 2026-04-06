@@ -1467,18 +1467,103 @@ if (countEl) {
   const timeframeEl = document.getElementById('timeframe-filter');
   const timeframeText = timeframeEl?.options?.[timeframeEl.selectedIndex]?.text || 'Selected Range';
 
+  const raw = Array.isArray(data) ? data : [];
+
+  const cleaned = raw
+    .filter(a => {
+      const name = String(a.agent_name || '').trim().toLowerCase();
+      return name && name !== 'call hammer leads';
+    })
+    .map(a => ({
+      agent_name: a.agent_name || 'Unknown',
+      approved_appointments: Number(a.approved_appointments || 0),
+      qc_rejected: Number(a.qc_rejected || 0),
+      cancellation_rate: Number(a.cancellation_rate || 0)
+    }))
+    .sort((a, b) => {
+      if (b.approved_appointments !== a.approved_appointments) {
+        return b.approved_appointments - a.approved_appointments;
+      }
+      if (a.cancellation_rate !== b.cancellation_rate) {
+        return a.cancellation_rate - b.cancellation_rate;
+      }
+      if (a.qc_rejected !== b.qc_rejected) {
+        return a.qc_rejected - b.qc_rejected;
+      }
+      return a.agent_name.localeCompare(b.agent_name);
+    });
+
+  const ranked = [];
+  let lastRank = 0;
+  let lastApproved = null;
+  let lastCancel = null;
+  let lastRejected = null;
+
+  cleaned.forEach((a, index) => {
+    const sameAsPrev =
+      lastApproved === a.approved_appointments &&
+      lastCancel === a.cancellation_rate &&
+      lastRejected === a.qc_rejected;
+
+    const rank = sameAsPrev ? lastRank : index + 1;
+
+    ranked.push({
+      ...a,
+      rank_no: rank
+    });
+
+    lastRank = rank;
+    lastApproved = a.approved_appointments;
+    lastCancel = a.cancellation_rate;
+    lastRejected = a.qc_rejected;
+  });
+
+  const top10 = ranked.filter(a => a.rank_no <= 10);
+
+  const getRankLabel = (rank) => {
+    if (rank === 1) return '🥇 1st Place';
+    if (rank === 2) return '🥈 2nd Place';
+    if (rank === 3) return '🥉 3rd Place';
+    if (rank === 4) return '4th Place';
+    if (rank === 5) return '5th Place';
+    if (rank === 6) return '6th Place';
+    if (rank === 7) return '7th Place';
+    if (rank === 8) return '8th Place';
+    if (rank === 9) return '9th Place';
+    if (rank === 10) return '10th Place';
+    return `${rank}th Place`;
+  };
+
   container.innerHTML = `
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-lg font-bold text-gray-900">Top 10 Agents</h3>
       <span class="text-xs font-medium text-gray-500">${timeframeText}</span>
     </div>
-    <div class="space-y-3">
-      ${(data || []).map(a => `
-        <div class="flex items-center justify-between text-sm border-b border-gray-100 pb-2">
-          <span class="font-semibold text-gray-900">${a.rank_no}. ${a.agent_name}</span>
-          <span class="text-gray-600">${a.approved_appointments} appts</span>
-        </div>
-      `).join('')}
+
+    <div class="overflow-hidden rounded-2xl border border-gray-100">
+      <div class="grid grid-cols-12 gap-2 px-4 py-3 bg-gray-50 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+        <div class="col-span-6">Placement</div>
+        <div class="col-span-3 text-right">Qualified</div>
+        <div class="col-span-3 text-right">Cancel Rate</div>
+      </div>
+
+      <div class="divide-y divide-gray-100">
+        ${top10.length ? top10.map(a => `
+          <div class="grid grid-cols-12 gap-2 px-4 py-4 text-sm">
+            <div class="col-span-6 font-semibold text-gray-900">
+              ${getRankLabel(a.rank_no)} — ${a.agent_name}
+            </div>
+            <div class="col-span-3 text-right text-blue-600 font-bold">
+              ${a.approved_appointments}
+            </div>
+            <div class="col-span-3 text-right text-gray-600 font-semibold">
+              ${a.cancellation_rate}%
+            </div>
+          </div>
+        `).join('') : `
+          <div class="px-4 py-6 text-sm text-gray-500">No leaderboard data found.</div>
+        `}
+      </div>
     </div>
   `;
 }
