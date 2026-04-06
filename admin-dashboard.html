@@ -4860,15 +4860,17 @@ const bgTone =
 
     const fieldChanges = Array.isArray(event.field_changes) ? event.field_changes : [];
 
-    let timeOffDetails = '';
+   let timeOffDetails = '';
 
 if (event.module_key === 'time_off') {
   const data = event.new_data || {};
+  const submittedAt = window.portal?.formatMSTDateTimeShort(event.created_at) || '—';
 
   timeOffDetails = `
-    <div class="mt-2 text-sm text-gray-700">
-      <div><span class="font-bold">Type:</span> ${data.reason || '—'}</div>
-      <div><span class="font-bold">Dates:</span> ${data.start_date || '—'} → ${data.end_date || '—'}</div>
+    <div class="mt-2 text-sm text-gray-700 space-y-1">
+      <div><span class="font-bold">Request Type:</span> ${data.reason || '—'}</div>
+      <div><span class="font-bold">Submitted:</span> ${submittedAt}</div>
+      <div><span class="font-bold">Leave Dates:</span> ${data.start_date || '—'} → ${data.end_date || '—'}</div>
       <div><span class="font-bold">Status:</span> ${data.status || 'Pending'}</div>
     </div>
   `;
@@ -6515,8 +6517,13 @@ async saveOnboardingRow(clientCode) {
 
     window.adminDashboard = AdminDashboard;
 
-    AdminDashboard.approveTimeOff = async function(requestId) {
-  await supaClient
+   AdminDashboard.approveTimeOff = async function(requestId) {
+  if (!requestId) {
+    alert('Missing time off request ID.');
+    return;
+  }
+
+  const { error } = await supaClient
     .from('time_off_requests')
     .update({
       status: 'approved',
@@ -6524,11 +6531,23 @@ async saveOnboardingRow(clientCode) {
     })
     .eq('id', requestId);
 
-  await window.portal.fetchAdminData(true);
+  if (error) {
+    console.error('approveTimeOff failed:', error);
+    alert(`Approve failed: ${error.message || 'Unknown error'}`);
+    return;
+  }
+
+  alert('Time off request approved.');
+  await this.loadNotifications(true);
 };
 
 AdminDashboard.declineTimeOff = async function(requestId) {
-  await supaClient
+  if (!requestId) {
+    alert('Missing time off request ID.');
+    return;
+  }
+
+  const { error } = await supaClient
     .from('time_off_requests')
     .update({
       status: 'declined',
@@ -6536,8 +6555,16 @@ AdminDashboard.declineTimeOff = async function(requestId) {
     })
     .eq('id', requestId);
 
-  await window.portal.fetchAdminData(true);
+  if (error) {
+    console.error('declineTimeOff failed:', error);
+    alert(`Decline failed: ${error.message || 'Unknown error'}`);
+    return;
+  }
+
+  alert('Time off request declined.');
+  await this.loadNotifications(true);
 };
+    
     window.Admin = AdminDashboard;
 
     window.openAddDealModal = function(e) {
