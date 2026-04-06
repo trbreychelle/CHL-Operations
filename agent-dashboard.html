@@ -74,18 +74,30 @@
         <div class="flex justify-between items-center mb-8">
           <h1 class="text-3xl font-bold text-gray-900">Performance Overview</h1>
           <div class="flex items-center space-x-3">
-            <a href="#profile" onclick="document.querySelector('a[href=\'#profile\']').click()" class="px-4 py-2.5 rounded-xl bg-yellow-500 text-gray-900 text-sm font-bold hover:bg-yellow-600 transition-all shadow-sm">
-              View Incentives & Milestones
-            </a>
-            <select id="timeframe-filter" class="p-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-sm focus:ring-2 focus:ring-yellow-400 outline-none">
-              <option value="this-week">Current Week</option>
-              <option value="previous-week">Previous Week</option>
-              <option value="30-days">Last 30 Days</option>
-              <option value="4-weeks">Last 4 Weeks</option>
-              <option value="6-weeks">Last 6 Weeks</option>
-              <option value="all-time">All Time Records</option>
-            </select>
-          </div>
+
+  <select id="timeframe-filter"
+    class="p-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-sm focus:ring-2 focus:ring-yellow-400 outline-none">
+    <option value="today">Today</option>
+    <option value="this-week">Current Week</option>
+    <option value="previous-week">Previous Week</option>
+    <option value="30-days">Last 30 Days</option>
+    <option value="4-weeks">Last 4 Weeks</option>
+    <option value="6-weeks">Last 6 Weeks</option>
+    <option value="all-time">All Time Records</option>
+  </select>
+
+  <input type="date" id="custom-start"
+    class="p-2 border border-gray-200 rounded-lg text-sm" />
+
+  <input type="date" id="custom-end"
+    class="p-2 border border-gray-200 rounded-lg text-sm" />
+
+  <button id="apply-custom-range"
+    class="px-3 py-2 bg-gray-900 text-white text-sm rounded-lg">
+    Apply
+  </button>
+
+</div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
