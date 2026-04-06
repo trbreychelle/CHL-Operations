@@ -589,8 +589,12 @@ setupCommandCenterRealtime() {
       setTimeout(() => this.loadPassbookClientsList(true), 300);
     }
 
-    const isCommandCenter = document.getElementById('view-overview') !== null;
-    const isOldAgentDash = document.getElementById('stat-appointments') !== null;
+    const pathName = (window.location.pathname || '').toLowerCase();
+const isAgentPage = pathName.includes('agent-dashboard');
+const isAdminPage = pathName.includes('admin-dashboard');
+const isSalesPage = pathName.includes('salesdashboard');
+const isCommandCenter = isAdminPage || isSalesPage;
+const isOldAgentDash = isAgentPage && document.getElementById('stat-appointments') !== null;
 
     // Load Agent Dashboard
     if (this.currentUser && isOldAgentDash && !isCommandCenter) {
