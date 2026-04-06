@@ -1447,7 +1447,7 @@ if (countEl) {
 
   if (!container) return;
 
-  const timeframeEl = document.getElementById('timeframe-filter');
+  const timeframeEl = document.getElementById('leads-timeframe');
   const timeframeText = timeframeEl?.options?.[timeframeEl.selectedIndex]?.text || 'Selected Range';
 
   const raw = Array.isArray(data) ? data : [];
