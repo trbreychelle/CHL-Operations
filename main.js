@@ -699,6 +699,47 @@ if (isCommandCenter) {
 
   if (!isAgentPage) return;
 
+   // OVERVIEW FILTERS
+const overviewTimeframe = document.getElementById('timeframe-filter');
+if (overviewTimeframe && !overviewTimeframe.dataset.bound) {
+  overviewTimeframe.addEventListener('change', async () => {
+    const customStartEl = document.getElementById('custom-start');
+    const customEndEl = document.getElementById('custom-end');
+
+    if (overviewTimeframe.value !== 'custom') {
+      if (customStartEl) customStartEl.value = '';
+      if (customEndEl) customEndEl.value = '';
+    }
+
+    await this.fetchAllData();
+  });
+  overviewTimeframe.dataset.bound = 'true';
+}
+
+const overviewStart = document.getElementById('custom-start');
+const overviewEnd = document.getElementById('custom-end');
+
+const maybeAutoLoadOverviewCustom = async () => {
+  const timeframeEl = document.getElementById('timeframe-filter');
+  if (timeframeEl && timeframeEl.value !== 'custom') {
+    timeframeEl.value = 'custom';
+  }
+
+  if (overviewStart?.value && overviewEnd?.value) {
+    await this.fetchAllData();
+  }
+};
+
+if (overviewStart && !overviewStart.dataset.bound) {
+  overviewStart.addEventListener('change', maybeAutoLoadOverviewCustom);
+  overviewStart.dataset.bound = 'true';
+}
+
+if (overviewEnd && !overviewEnd.dataset.bound) {
+  overviewEnd.addEventListener('change', maybeAutoLoadOverviewCustom);
+  overviewEnd.dataset.bound = 'true';
+}
+
   // LEADS TIMEFRAME FILTER
 const leadsTimeframeFilter = document.getElementById('leads-timeframe');
 if (leadsTimeframeFilter && !leadsTimeframeFilter.dataset.bound) {
