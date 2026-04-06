@@ -594,9 +594,9 @@ setupCommandCenterRealtime() {
 
     // Load Agent Dashboard
     if (this.currentUser && isOldAgentDash && !isCommandCenter) {
-      this.fetchAllData?.();
-      this.updateProfileUI?.();
-      this.startMSTClock();
+     this.fetchAllData?.();
+     this.startMSTClock();
+     this.loadTimeOffHistory?.();
     }
 
     // Load Admin OR Sales Dashboard
@@ -972,12 +972,13 @@ setupCommandCenterRealtime() {
     });
 
     this.renderLeadsTable(
-      (leads || []).map(l => ({
-        date: l.date_submitted,
-        homeowner: l.homeowner_names,
-        status: l.status
-      }))
-    );
+  (leads || []).map(l => ({
+    date: l.date_submitted,
+    homeowner: l.homeowner_names,
+    status: l.status,
+    rejectionReason: l.rejection_reason || ''
+  }))
+);
 
     // =========================
     // PROFILE
@@ -1079,10 +1080,17 @@ setupCommandCenterRealtime() {
           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${this.formatDate(lead.date)}</td>
           <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${lead.homeowner || 'Unknown'}</td>
           <td class="px-6 py-4 whitespace-nowrap">
-            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeClass}">
-              ${lead.status || 'Pending'}
-            </span>
-          </td>
+  <div class="flex flex-col items-start gap-1">
+    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeClass}">
+      ${lead.status || 'Pending'}
+    </span>
+    ${
+      String(lead.status || '').toLowerCase().includes('reject') && lead.rejectionReason
+        ? `<span class="text-[11px] text-red-500 italic">${lead.rejectionReason}</span>`
+        : ''
+    }
+  </div>
+</td>
         </tr>
       `;
     }).join('');
@@ -1127,8 +1135,16 @@ setupCommandCenterRealtime() {
     container.id = 'leaderboard-container';
     container.className = 'bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8';
 
-    overview.insertBefore(container, overview.children[2]);
+    if (overview) {
+      if (overview.children[2]) {
+        overview.insertBefore(container, overview.children[2]);
+      } else {
+        overview.appendChild(container);
+      }
+    }
   }
+
+  if (!container) return;
 
   container.innerHTML = `
     <h3 class="text-lg font-bold mb-4">Top 10 Agents</h3>
@@ -1141,6 +1157,30 @@ setupCommandCenterRealtime() {
       `).join('')}
     </div>
   `;
+}
+
+  async loadTimeOffHistory() {
+  const { data } = await this.supabase
+    .from('time_off_requests')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  const container = document.getElementById('timeoff-history-list');
+
+  if (!container) return;
+
+  if (!data || data.length === 0) {
+    container.innerHTML = `<p class="text-xs text-gray-400 italic">No history found.</p>`;
+    return;
+  }
+
+  container.innerHTML = data.map(r => `
+    <div class="text-xs border p-2 rounded">
+      <div class="font-bold">${r.reason}</div>
+      <div>${r.start_date} → ${r.end_date}</div>
+      <div class="text-gray-400">${r.status}</div>
+    </div>
+  `).join('');
 }
 
   updateProfileUI(profile) {
@@ -2524,3 +2564,46 @@ window.updateClientPackageStatus = async function(packageId, newPackageStatus) {
         alert("An error occurred while updating.");
     }
 };
+
+document.getElementById('btn-submit-timeoff')?.addEventListener('click', async () => {
+  const startInput =
+    document.getElementById('timeoff-start-date') ||
+    document.getElementById('start-date');
+
+  const endInput =
+    document.getElementById('timeoff-end-date') ||
+    document.getElementById('end-date');
+
+  const reasonInput = document.getElementById('timeoff-reason');
+
+  const startDate = startInput?.value || '';
+  const endDate = endInput?.value || '';
+  const reason = reasonInput?.value?.trim() || '';
+
+  if (!startDate || !endDate) {
+    alert('Select start and end date first.');
+    return;
+  }
+
+  if (!reason) {
+    alert('Please enter a reason.');
+    return;
+  }
+
+  try {
+    await portal.supabase.rpc('submit_my_time_off_request', {
+      p_reason: reason,
+      p_start_date: startDate,
+      p_end_date: endDate,
+      p_notes: ''
+    });
+
+    alert('Time off request submitted!');
+    if (typeof portal.loadTimeOffHistory === 'function') {
+      await portal.loadTimeOffHistory();
+    }
+  } catch (err) {
+    console.error('Time off request failed:', err);
+    alert('Failed to submit request');
+  }
+});
