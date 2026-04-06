@@ -1335,6 +1335,12 @@ this.renderLeaderboard(leaderboard || []);
       return;
     }
 
+    const countEl = document.getElementById('leads-count-display');
+if (countEl) {
+  const count = (leads || []).length;
+  countEl.innerText = `${count} lead${count === 1 ? '' : 's'}`;
+}
+
     this.renderLeadsTable(
   (leads || []).map(l => ({
     date: l.date_submitted,
@@ -1531,12 +1537,24 @@ if (error) {
 }
 
 formatDate(dateString) {
-    if(!dateString) return '-';
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString;
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  if (!dateString) return '-';
+
+  const raw = String(dateString).trim();
+
+  const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    const y = parseInt(isoMatch[1], 10);
+    const m = parseInt(isoMatch[2], 10) - 1;
+    const d = parseInt(isoMatch[3], 10);
+    const safeDate = new Date(y, m, d, 12, 0, 0);
+    return safeDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
+  const date = new Date(raw);
+  if (isNaN(date.getTime())) return dateString;
+
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
   getAgentPayrollRange() {
   const timeframe = document.getElementById('payroll-timeframe')?.value || '4-weeks';
   const customStart = document.getElementById('payroll-start')?.value || null;
@@ -1695,7 +1713,9 @@ renderAgentPayrollWeekly(rows) {
     const approved = this.toNumberSafe(row.approved_leads, 0);
     const rejected = this.toNumberSafe(row.rejected_leads, 0);
     const total = this.toNumberSafe(row.total_leads, 0);
-    const impliedCredited = Math.max(0, total - approved - rejected);
+    const credited = row.credited_leads !== undefined && row.credited_leads !== null
+  ? this.toNumberSafe(row.credited_leads, 0)
+  : Math.max(0, total - approved - rejected);
     const paidBadge = row.is_paid
       ? '<span class="px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">Paid</span>'
       : '<span class="px-2 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600">Unpaid</span>';
@@ -1706,7 +1726,7 @@ renderAgentPayrollWeekly(rows) {
         <td class="py-3 pr-4 text-gray-700">${this.toNumberSafe(row.adjusted_hours, 0).toFixed(2)}</td>
         <td class="py-3 pr-4 text-gray-700">${approved}</td>
         <td class="py-3 pr-4 text-gray-700">${rejected}</td>
-        <td class="py-3 pr-4 text-gray-700">${impliedCredited}</td>
+        <td class="py-3 pr-4 text-gray-700">${credited}</td>
         <td class="py-3 pr-4 text-yellow-700 font-bold">${this.formatCurrency(row.auto_incentive_delta || 0)}</td>
         <td class="py-3 pr-4 text-blue-700 font-bold">${this.formatCurrency(row.manual_incentive_delta || 0)}</td>
         <td class="py-3 pr-4 text-green-700 font-bold">${this.formatCurrency(row.final_pay || 0)}</td>
