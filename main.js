@@ -586,8 +586,7 @@ setupCommandCenterRealtime() {
 
     this.enforceRoleRouting();
     this.bindEvents();
-this.bindPassbookUpdateButton();
-this.bindPassbookUpdateDelegated();
+    this.bindPassbookUpdateButton();
 
     if (path.includes('passbook') || document.querySelector('[data-page="passbook-clients"]')) {
       setTimeout(() => this.loadPassbookClientsList(true), 300);
@@ -1940,8 +1939,9 @@ renderAgentPayrollDaily(rows) {
   }
 
   getPassbookTeamKeys(clientRow = {}, updates = {}) {
-  return ['admin_management', 'sales'];
-}
+    const shared = (updates.shared_with_sales ?? clientRow.shared_with_sales) === true;
+    return shared ? ['admin_management', 'sales'] : ['admin_management'];
+  }
 
   getPassbookTrackedFields() {
     return [
@@ -2327,51 +2327,6 @@ if (form) {
     } 
   }
 
-  // 🔥 GLOBAL FALLBACK FOR PASSBOOK SAVE (CRITICAL)
-bindPassbookUpdateDelegated() {
-  if (this._passbookDelegatedBound) return;
-  this._passbookDelegatedBound = true;
-
-  document.addEventListener('click', async (e) => {
-    const btn = e.target.closest(
-      '#passbookSaveButton, #saveClientButton, button[data-action="passbook-save"], button[data-action="save-client"], button[data-passbook-save="true"]'
-    );
-
-    if (!btn) return;
-
-    e.preventDefault();
-
-    try {
-      const form =
-        btn.closest('form') ||
-        document.querySelector('#passbookClientForm') ||
-        document;
-
-      const payload = this.collectPassbookUpdatePayloadFromForm(form);
-
-      if (!payload.codeName) {
-        alert('Missing client code.');
-        return;
-      }
-
-      if (!payload.updates || Object.keys(payload.updates).length === 0) {
-        alert('No fields to update.');
-        return;
-      }
-
-      console.log("🔥 FORCE PASSBOOK SAVE TRIGGERED");
-
-      await this.submitPassbookClientUpdate(payload);
-      await this.refreshPassbookClientDetails(payload.codeName);
-
-      alert('Client updated successfully.');
-    } catch (err) {
-      console.error('❌ Delegated passbook update failed:', err);
-      alert(err?.message || 'Update failed.');
-    }
-  }, true);
-}
-
   collectPassbookUpdatePayloadFromForm(rootEl) {
     const root = rootEl || document;
     // We grab the ORIGINAL code from the hidden input before it was changed
@@ -2448,32 +2403,24 @@ bindPassbookUpdateDelegated() {
     const newRow = updatedClient || { ...oldRow, ...payload.updates };
 
     const trackedFields = this.getPassbookTrackedFields();
-const fieldChanges = this.buildFieldChanges(oldRow, newRow, trackedFields);
+    const fieldChanges = this.buildFieldChanges(oldRow, newRow, trackedFields);
 
-console.log('🔥 PASSBOOK UPDATE PAYLOAD', {
-  originalCode,
-  finalClientCode,
-  oldRow,
-  newRow,
-  fieldChanges
-});
-
-const eventResult = await this.createCommandCenterEvent({
-  moduleKey: 'passbook_clients',
-  entityType: 'client',
-  entityId: String(newRow.id || oldRow.id || finalClientCode),
-  entityCode: newRow.client_code || finalClientCode,
-  entityLabel: newRow.company_name || oldRow.company_name || finalClientCode,
-  eventType: 'updated',
-  summaryText: `${this.currentUser?.name || 'User'} updated passbook client ${newRow.company_name || finalClientCode}.`,
-  fieldChanges,
-  oldData: oldRow,
-  newData: newRow,
-  severity: 'normal',
-  teamKeys: this.getPassbookTeamKeys(oldRow, newRow)
-});
-
-console.log('🔥 PASSBOOK EVENT RESULT:', eventResult);
+    if (fieldChanges.length > 0) {
+      await this.createCommandCenterEvent({
+        moduleKey: 'passbook_clients',
+        entityType: 'client',
+        entityId: String(newRow.id || oldRow.id || finalClientCode),
+        entityCode: newRow.client_code || finalClientCode,
+        entityLabel: newRow.company_name || oldRow.company_name || finalClientCode,
+        eventType: 'updated',
+        summaryText: `${this.currentUser?.name || 'User'} updated passbook client ${newRow.company_name || finalClientCode}.`,
+        fieldChanges,
+        oldData: oldRow,
+        newData: newRow,
+        severity: 'normal',
+        teamKeys: this.getPassbookTeamKeys(oldRow, newRow)
+      });
+    }
 
     // 5. Refresh dashboard views
     if (window.portal && typeof window.portal.fetchAdminData === 'function') {
@@ -3166,32 +3113,6 @@ async function updateClientStatus(clientId, newStatus) {
     if (error) {
         console.error("Failed to update status:", error);
         alert("Failed to update client status in database.");
-        return;
-    }
-
-    try {
-      const { data: updatedClient } = await supaClient
-        .from('clients')
-        .select('*')
-        .eq('id', clientId)
-        .single();
-
-      await window.portal?.createCommandCenterEvent?.({
-        moduleKey: 'passbook_clients',
-        entityType: 'client',
-        entityId: String(updatedClient?.id || clientId),
-        entityCode: updatedClient?.client_code || null,
-        entityLabel: updatedClient?.company_name || 'Client',
-        eventType: 'updated',
-        summaryText: `${window.portal?.currentUser?.name || 'User'} updated passbook client ${updatedClient?.company_name || ''}.`,
-        fieldChanges: [],
-        oldData: null,
-        newData: updatedClient,
-        severity: 'normal',
-        teamKeys: ['admin_management', 'sales']
-      });
-    } catch (err) {
-      console.error('Fallback passbook event failed:', err);
     }
 }
 
