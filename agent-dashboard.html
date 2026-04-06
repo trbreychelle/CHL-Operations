@@ -146,8 +146,8 @@
           <h3 class="text-lg font-bold text-gray-900 mb-4">Incentive Tier Progress</h3>
           <div class="space-y-4">
             <div class="flex justify-between items-center">
-              <span class="text-sm font-medium text-gray-500" id="tier-status-text">Tier 1 Loading...</span>
-              <span class="text-sm font-bold text-gray-900" id="tier-count-display">0 / 6 approved appointments</span>
+              <span class="text-sm font-medium text-gray-500" id="tier-status-text">Loading tier...</span>
+<span class="text-sm font-bold text-gray-900" id="tier-count-display">0 qualified appointments</span>
             </div>
             <div class="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
               <div id="tier-progress-bar" class="progress-bar h-full rounded-full" style="width: 0%"></div>
@@ -185,13 +185,13 @@
 
     <!-- STATUS -->
     <select id="status-filter"
-      class="p-2.5 border border-gray-200 rounded-xl bg-white text-sm outline-none">
-      <option value="all">All Statuses</option>
-      <option value="confirmed">Confirmed</option>
-      <option value="approved">Approved</option>
-      <option value="pending review">Pending Review</option>
-      <option value="rejected">Rejected</option>
-    </select>
+  class="p-2.5 border border-gray-200 rounded-xl bg-white text-sm outline-none">
+  <option value="all">All Status</option>
+  <option value="approved">Approved</option>
+  <option value="rejected">Rejected</option>
+  <option value="credited">Credited</option>
+  <option value="pending review">Pending Review</option>
+</select>
 
     <!-- TIMEFRAME -->
     <select id="leads-timeframe"
