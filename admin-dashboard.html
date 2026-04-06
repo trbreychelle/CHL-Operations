@@ -3552,21 +3552,24 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
 
         // Build Top list from agents with actual lead activity only
         const topPool = Array.from(agentAgg.values())
-          .map(a => ({
-            ...a,
-            cancelRate: (a.qualified + a.credited) > 0
-              ? Math.round((a.credited / (a.qualified + a.credited)) * 100)
-              : 0
-          }))
-          .filter(a => a.total > 0)
-          .sort((a, b) =>
-            (b.total - a.total) ||
-            (b.qualified - a.qualified) ||
-            (a.rejected - b.rejected) ||
-            a.name.localeCompare(b.name)
-          );
+  .map(a => ({
+    ...a,
+    cancelRate: (a.qualified + a.credited) > 0
+      ? Math.round((a.credited / (a.qualified + a.credited)) * 100)
+      : 0
+  }))
+  .filter(a =>
+    a.total > 0 &&
+    String(a.name || '').trim().toLowerCase() !== 'call hammer leads'
+  )
+  .sort((a, b) =>
+    (b.qualified - a.qualified) ||
+    (a.cancelRate - b.cancelRate) ||
+    (a.rejected - b.rejected) ||
+    a.name.localeCompare(b.name)
+  );
 
-        const top = topPool.slice(0, 10);
+const top = topPool.slice(0, 10);
 
         // Build Bottom pool
         let bottomPoolNames = new Set();
@@ -3579,15 +3582,17 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
         }
 
         const bottomPool = Array.from(bottomPoolNames)
-          .map(name => {
-            const base = agentAgg.get(name) || buildEmptyAgg(name);
-            return {
-              ...base,
-              cancelRate: (base.qualified + base.credited) > 0
-                ? Math.round((base.credited / (base.qualified + base.credited)) * 100)
-                : 0
-            };
-          })
+  .filter(name => String(name || '').trim().toLowerCase() !== 'call hammer leads')
+  .map(name => {
+    const base = agentAgg.get(name) || buildEmptyAgg(name);
+    return {
+      ...base,
+      cancelRate: (base.qualified + base.credited) > 0
+        ? Math.round((base.credited / (base.qualified + base.credited)) * 100)
+        : 0
+    };
+  })
+          
           .sort((a, b) =>
             (a.total - b.total) ||
             (a.qualified - b.qualified) ||
