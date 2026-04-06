@@ -1469,20 +1469,56 @@ if (countEl) {
 
   const raw = Array.isArray(data) ? data : [];
 
-  const cleaned = raw
+  const sorted = raw
     .filter(a => {
       const name = String(a.agent_name || '').trim().toLowerCase();
       return name && name !== 'call hammer leads';
     })
     .map(a => ({
-      rank_no: Number(a.rank_no || 0),
       agent_name: a.agent_name || 'Unknown',
       total_leads: Number(a.total_leads || 0),
       qc_rejected: Number(a.qc_rejected || 0),
       approved_appointments: Number(a.approved_appointments || 0),
       credited_leads: Number(a.credited_leads || 0),
       cancellation_rate: Number(a.cancellation_rate || 0)
-    }));
+    }))
+    .sort((a, b) =>
+      (b.approved_appointments - a.approved_appointments) ||
+      (b.total_leads - a.total_leads) ||
+      (a.cancellation_rate - b.cancellation_rate) ||
+      (a.qc_rejected - b.qc_rejected) ||
+      a.agent_name.localeCompare(b.agent_name)
+    );
+
+  const ranked = [];
+  let lastRank = 0;
+  let lastQualified = null;
+  let lastTotal = null;
+  let lastCancel = null;
+  let lastRejected = null;
+
+  sorted.forEach((a, index) => {
+    const sameAsPrev =
+      lastQualified === a.approved_appointments &&
+      lastTotal === a.total_leads &&
+      lastCancel === a.cancellation_rate &&
+      lastRejected === a.qc_rejected;
+
+    const rank_no = sameAsPrev ? lastRank : index + 1;
+
+    ranked.push({
+      ...a,
+      rank_no
+    });
+
+    lastRank = rank_no;
+    lastQualified = a.approved_appointments;
+    lastTotal = a.total_leads;
+    lastCancel = a.cancellation_rate;
+    lastRejected = a.qc_rejected;
+  });
+
+  const cleaned = ranked.filter(a => a.rank_no <= 10);
 
   const getRankLabel = (rank) => {
     if (rank === 1) return '🥇 1st Place';
