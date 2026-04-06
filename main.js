@@ -1151,10 +1151,10 @@ if (payrollEnd && !payrollEnd.dataset.bound) {
   if (!this.currentUser) return;
 
   try {
-    const timeframe = document.getElementById('leads-timeframe')?.value || 'this-week';
+    const timeframe = document.getElementById('timeframe-filter')?.value || 'this-week';
 
-const customStart = document.getElementById('leads-start')?.value || null;
-const customEnd = document.getElementById('leads-end')?.value || null;
+const customStart = document.getElementById('custom-start')?.value || null;
+const customEnd = document.getElementById('custom-end')?.value || null;
 
 const useCustom = customStart && customEnd;
 
@@ -1447,7 +1447,7 @@ if (countEl) {
 
   if (!container) return;
 
-  const timeframeEl = document.getElementById('leads-timeframe');
+  const timeframeEl = document.getElementById('timeframe-filter');
   const timeframeText = timeframeEl?.options?.[timeframeEl.selectedIndex]?.text || 'Selected Range';
 
   const raw = Array.isArray(data) ? data : [];
