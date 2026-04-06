@@ -702,6 +702,15 @@ const isOldAgentDash = isAgentPage && document.getElementById('stat-appointments
     });
     statusFilter.dataset.bound = 'true';
   }
+
+   // CUSTOM RANGE APPLY
+const applyBtn = document.getElementById('apply-custom-range');
+if (applyBtn && !applyBtn.dataset.bound) {
+  applyBtn.addEventListener('click', async () => {
+    await this.fetchAllData();
+  });
+  applyBtn.dataset.bound = 'true';
+}
 }
   
   // ------------------------
@@ -966,14 +975,21 @@ const isOldAgentDash = isAgentPage && document.getElementById('stat-appointments
 
   try {
     const timeframe = document.getElementById('timeframe-filter')?.value || 'this-week';
+
+const customStart = document.getElementById('custom-start')?.value || null;
+const customEnd = document.getElementById('custom-end')?.value || null;
+
+const useCustom = customStart && customEnd;
     const selectedStatus = document.getElementById('status-filter')?.value || 'all';
 
     // =========================
     // OVERVIEW
     // =========================
     const { data: overview, error: overviewError } = await this.supabase.rpc('get_my_agent_overview', {
-      p_period: timeframe
-    });
+  p_period: useCustom ? 'custom' : timeframe,
+  p_custom_start: customStart,
+  p_custom_end: customEnd
+});
 
     if (overviewError) {
       console.error('❌ Agent overview load failed:', overviewError);
@@ -990,7 +1006,7 @@ const isOldAgentDash = isAgentPage && document.getElementById('stat-appointments
     setText('stat-appointments', ov.total_appointments || 0);
     setText('stat-cancel-rate', `${ov.cancellation_rate || 0}%`);
     setText('stat-incentives', this.formatCurrency(ov.total_incentives || 0));
-    setText('stat-hours', ov.weekly_hours || 0);
+    setText('stat-hours', ov.hours_worked || 0);
 
     setText('monthly-incentive-status-ov', ov.monthly_incentive_status || 'Not qualified yet');
     setText('monthly-raffle-status-ov', ov.monthly_raffle_status || 'No raffle entry yet');
@@ -1055,8 +1071,10 @@ const isOldAgentDash = isAgentPage && document.getElementById('stat-appointments
     // TRENDS
     // =========================
     const { data: trends, error: trendsError } = await this.supabase.rpc('get_my_agent_weekly_trends', {
-      p_period: timeframe
-    });
+  p_period: useCustom ? 'custom' : timeframe,
+  p_custom_start: customStart,
+  p_custom_end: customEnd
+});
 
     if (trendsError) {
       console.error('❌ Agent trends load failed:', trendsError);
@@ -1075,10 +1093,12 @@ const isOldAgentDash = isAgentPage && document.getElementById('stat-appointments
     // =========================
     // LEADERBOARD
     // =========================
-    const { data: leaderboard, error: leaderboardError } = await this.supabase.rpc('get_agent_leaderboard', {
-      p_period: timeframe,
-      p_limit: 10
-    });
+   const { data: leaderboard, error: leaderboardError } = await this.supabase.rpc('get_agent_leaderboard', {
+  p_period: useCustom ? 'custom' : timeframe,
+  p_custom_start: customStart,
+  p_custom_end: customEnd,
+  p_limit: 10
+});
 
     if (leaderboardError) {
       console.error('❌ Agent leaderboard load failed:', leaderboardError);
