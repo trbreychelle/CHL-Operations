@@ -1475,10 +1475,16 @@ this.renderLeaderboard(leaderboard || []);
 }
 
   async loadTimeOffHistory() {
-  const { data } = await this.supabase
-    .from('time_off_requests')
-    .select('*')
-    .order('created_at', { ascending: false });
+ const { data, error } = await this.supabase
+  .from('time_off_requests')
+  .select('*')
+  .eq('profile_id', this.currentUser.id)
+  .order('created_at', { ascending: false });
+
+if (error) {
+  console.error('Time off history load failed:', error);
+  return;
+}
 
   const container = document.getElementById('timeoff-history-list');
 
@@ -1573,20 +1579,17 @@ formatDate(dateString) {
       start = startOfDay(today);
       break;
     case 'this-week': {
-      const day = today.getDay();
-      const monday = addDays(startOfDay(today), day === 0 ? -6 : 1 - day);
-      start = monday;
-      break;
-    }
-    case 'previous-week': {
-      const day = today.getDay();
-      const thisMonday = addDays(startOfDay(today), day === 0 ? -6 : 1 - day);
-      const prevMonday = addDays(thisMonday, -7);
-      const prevSunday = addDays(prevMonday, 6);
-      start = prevMonday;
-      end = endOfDay(prevSunday);
-      break;
-    }
+  const week = this.getPayrollWeekRange(today);
+  start = week.start;
+  end = week.end;
+  break;
+}
+case 'previous-week': {
+  const prevWeek = this.getPreviousPayrollWeekRange(today);
+  start = prevWeek.start;
+  end = prevWeek.end;
+  break;
+}
     case '30-days':
       start = addDays(startOfDay(today), -30);
       break;
@@ -3125,14 +3128,21 @@ document.getElementById('btn-submit-timeoff')?.addEventListener('click', async (
   }
 
   try {
-    await portal.supabase.rpc('submit_my_time_off_request', {
-      p_reason: reason,
-      p_start_date: startDate,
-      p_end_date: endDate,
-      p_notes: ''
-    });
+    const { data, error } = await portal.supabase.rpc('submit_my_time_off_request', {
+  p_reason: reason,
+  p_start_date: startDate,
+  p_end_date: endDate,
+  p_notes: ''
+});
 
-    alert('Time off request submitted!');
+if (error) {
+  console.error('Time off RPC error:', error);
+  alert(`Failed to submit request: ${error.message || 'Unknown error'}`);
+  return;
+}
+
+console.log('Time off RPC success:', data);
+alert('Time off request submitted!');
 
     if (typeof portal.loadTimeOffHistory === 'function') {
       await portal.loadTimeOffHistory();
