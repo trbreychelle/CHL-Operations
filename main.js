@@ -2448,24 +2448,32 @@ bindPassbookUpdateDelegated() {
     const newRow = updatedClient || { ...oldRow, ...payload.updates };
 
     const trackedFields = this.getPassbookTrackedFields();
-    const fieldChanges = this.buildFieldChanges(oldRow, newRow, trackedFields);
+const fieldChanges = this.buildFieldChanges(oldRow, newRow, trackedFields);
 
-    if (fieldChanges.length > 0) {
-      await this.createCommandCenterEvent({
-        moduleKey: 'passbook_clients',
-        entityType: 'client',
-        entityId: String(newRow.id || oldRow.id || finalClientCode),
-        entityCode: newRow.client_code || finalClientCode,
-        entityLabel: newRow.company_name || oldRow.company_name || finalClientCode,
-        eventType: 'updated',
-        summaryText: `${this.currentUser?.name || 'User'} updated passbook client ${newRow.company_name || finalClientCode}.`,
-        fieldChanges,
-        oldData: oldRow,
-        newData: newRow,
-        severity: 'normal',
-        teamKeys: this.getPassbookTeamKeys(oldRow, newRow)
-      });
-    }
+console.log('🔥 PASSBOOK UPDATE PAYLOAD', {
+  originalCode,
+  finalClientCode,
+  oldRow,
+  newRow,
+  fieldChanges
+});
+
+const eventResult = await this.createCommandCenterEvent({
+  moduleKey: 'passbook_clients',
+  entityType: 'client',
+  entityId: String(newRow.id || oldRow.id || finalClientCode),
+  entityCode: newRow.client_code || finalClientCode,
+  entityLabel: newRow.company_name || oldRow.company_name || finalClientCode,
+  eventType: 'updated',
+  summaryText: `${this.currentUser?.name || 'User'} updated passbook client ${newRow.company_name || finalClientCode}.`,
+  fieldChanges,
+  oldData: oldRow,
+  newData: newRow,
+  severity: 'normal',
+  teamKeys: this.getPassbookTeamKeys(oldRow, newRow)
+});
+
+console.log('🔥 PASSBOOK EVENT RESULT:', eventResult);
 
     // 5. Refresh dashboard views
     if (window.portal && typeof window.portal.fetchAdminData === 'function') {
