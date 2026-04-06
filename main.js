@@ -585,8 +585,8 @@ setupCommandCenterRealtime() {
 }
 
     this.enforceRoleRouting();
-    this.bindEvents();
-    this.bindPassbookUpdateButton();
+this.bindEvents();
+this.bindPassbookUpdateButton();
 
     if (path.includes('passbook') || document.querySelector('[data-page="passbook-clients"]')) {
       setTimeout(() => this.loadPassbookClientsList(true), 300);
@@ -1939,9 +1939,8 @@ renderAgentPayrollDaily(rows) {
   }
 
   getPassbookTeamKeys(clientRow = {}, updates = {}) {
-    const shared = (updates.shared_with_sales ?? clientRow.shared_with_sales) === true;
-    return shared ? ['admin_management', 'sales'] : ['admin_management'];
-  }
+  return ['admin_management', 'sales'];
+}
 
   getPassbookTrackedFields() {
     return [
@@ -3113,6 +3112,32 @@ async function updateClientStatus(clientId, newStatus) {
     if (error) {
         console.error("Failed to update status:", error);
         alert("Failed to update client status in database.");
+        return;
+    }
+
+    try {
+      const { data: updatedClient } = await supaClient
+        .from('clients')
+        .select('*')
+        .eq('id', clientId)
+        .single();
+
+      await window.portal?.createCommandCenterEvent?.({
+        moduleKey: 'passbook_clients',
+        entityType: 'client',
+        entityId: String(updatedClient?.id || clientId),
+        entityCode: updatedClient?.client_code || null,
+        entityLabel: updatedClient?.company_name || 'Client',
+        eventType: 'updated',
+        summaryText: `${window.portal?.currentUser?.name || 'User'} updated passbook client ${updatedClient?.company_name || ''}.`,
+        fieldChanges: [],
+        oldData: null,
+        newData: updatedClient,
+        severity: 'normal',
+        teamKeys: ['admin_management', 'sales']
+      });
+    } catch (err) {
+      console.error('Fallback passbook event failed:', err);
     }
 }
 
