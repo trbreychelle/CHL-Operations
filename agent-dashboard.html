@@ -114,7 +114,7 @@
             <p class="text-3xl font-bold text-yellow-600" id="stat-incentives">$0.00</p>
           </div>
           <div class="metric-card bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Weekly Hours</h3>
+            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Hours Worked</h3>
             <p class="text-3xl font-bold text-gray-900" id="stat-hours">0</p>
           </div>
         </div>
@@ -122,14 +122,14 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
             <h3 class="text-lg font-bold text-gray-900 mb-2">Monthly Incentive ($100)</h3>
-            <p class="text-xs text-gray-500 mb-4">Rolling 4-week criteria: ≥8 Confirmed + &lt;25% cancellation in 3/4 weeks.</p>
+            <p class="text-xs text-gray-500 mb-4">Consistency incentive: 8 qualified appointments for 4 consecutive weeks.</p>
             <div class="p-4 rounded-xl bg-gray-50 border border-gray-100">
               <p class="text-sm font-bold text-gray-900" id="monthly-incentive-status-ov">Loading...</p>
             </div>
           </div>
           <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
             <h3 class="text-lg font-bold text-gray-900 mb-2">Monthly Raffle ($250)</h3>
-            <p class="text-xs text-gray-500 mb-4">Entry after 4 eligible weeks (≥8 Confirmed + &lt;20% cancellation).</p>
+            <p class="text-xs text-gray-500 mb-4">Earn 1 raffle entry for any week with 9 qualified appointments. Monthly cancellation must stay under 20%.</p>
             <div class="p-4 rounded-xl bg-gray-50 border border-gray-100">
               <p class="text-sm font-bold text-gray-900" id="monthly-raffle-status-ov">Loading...</p>
             </div>
@@ -226,7 +226,7 @@
             </h3>
             
             <div class="mb-6 p-4 rounded-xl bg-yellow-50 border border-yellow-100">
-              <p class="text-sm font-semibold text-gray-900">Incentives are counted ONLY for appointments with status <span class="font-bold text-yellow-700">Confirmed</span>.</p>
+              <p class="text-sm font-semibold text-gray-900">Incentives are counted ONLY for <span class="font-bold text-yellow-700">qualified appointments</span>.</p>
             </div>
 
             <div class="overflow-hidden rounded-2xl border border-gray-200 shadow-sm bg-white mb-12">
@@ -239,11 +239,11 @@
                   </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-100">
-                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">6th Confirmed Apt</td><td class="px-6 py-4 text-sm text-gray-600">$50 (Flat)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$50 (Flat)</td></tr>
-                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">7th Confirmed Apt</td><td class="px-6 py-4 text-sm text-gray-600">$0 (No Bonus)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$0 (No Bonus)</td></tr>
-                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">8th Confirmed Apt</td><td class="px-6 py-4 text-sm text-gray-600">$30 (Flat)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$50 (Flat)</td></tr>
-                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">9th - 12th Confirmed</td><td class="px-6 py-4 text-sm text-gray-600">$15 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$17 (Per Apt)</td></tr>
-                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">13th+ Confirmed</td><td class="px-6 py-4 text-sm text-gray-600">$25 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$27 (Per Apt)</td></tr>
+                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">6th Qualified Apt</td><td class="px-6 py-4 text-sm text-gray-600">$50 (Flat)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$50 (Flat)</td></tr>
+                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">7th Qualified Apt</td><td class="px-6 py-4 text-sm text-gray-600">$0 (No Bonus)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$0 (No Bonus)</td></tr>
+                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">8th Qualified Apt</td><td class="px-6 py-4 text-sm text-gray-600">$30 (Flat)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$50 (Flat)</td></tr>
+                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">9th - 12th Qualified</td><td class="px-6 py-4 text-sm text-gray-600">$15 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$17 (Per Apt)</td></tr>
+                  <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">13th+ Qualified</td><td class="px-6 py-4 text-sm text-gray-600">$25 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$27 (Per Apt)</td></tr>
                 </tbody>
               </table>
             </div>
