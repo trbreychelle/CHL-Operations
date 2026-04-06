@@ -98,9 +98,9 @@
     class="p-2 border border-gray-200 rounded-lg text-sm" />
 
   <button id="apply-custom-range"
-    class="px-3 py-2 bg-gray-900 text-white text-sm rounded-lg">
-    Apply
-  </button>
+  class="px-3 py-2 bg-gray-900 text-white text-sm rounded-lg">
+  Clear
+</button>
 
 </div>
         </div>
@@ -214,8 +214,8 @@
 
     <button id="apply-leads-range"
       class="px-3 py-2 bg-gray-900 text-white text-sm rounded-lg">
-      Apply
-    </button>
+  Clear
+</button>
 
   </div>
 
@@ -224,10 +224,11 @@
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
-                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Date Submitted</th>
-                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Homeowner Name</th>
-                <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
-              </tr>
+  <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Date Submitted</th>
+  <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Homeowner Name</th>
+  <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
+  <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Feedback</th>
+</tr>
             </thead>
             <tbody id="leads-table-body" class="bg-white divide-y divide-gray-100"></tbody>
           </table>
@@ -249,6 +250,10 @@
             Upload Photo
             <input id="profile-avatar-input" type="file" accept="image/*" class="hidden" />
           </label>
+          <button id="profile-avatar-save"
+  class="px-4 py-2 bg-yellow-500 text-gray-900 rounded-lg text-sm font-semibold hidden">
+  Save Photo
+</button>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
@@ -268,11 +273,11 @@
       <div class="space-y-4">
         <div class="p-4 rounded-xl bg-yellow-50 border border-yellow-100">
           <p class="text-sm font-semibold text-gray-900 mb-1">90-Day Milestone</p>
-          <p id="milestone-90-day" class="text-sm text-gray-700">Loading...</p>
+          <p id="milestone-90-day" class="text-sm text-gray-700">Not evaluated yet.</p>
         </div>
         <div class="p-4 rounded-xl bg-blue-50 border border-blue-100">
           <p class="text-sm font-semibold text-gray-900 mb-1">1-Year Milestone</p>
-          <p id="milestone-1-year" class="text-sm text-gray-700">Loading...</p>
+          <p id="milestone-1-year" class="text-sm text-gray-700">Not evaluated yet.</p>
         </div>
       </div>
     </div>
@@ -341,7 +346,7 @@
 
         <input type="date" id="payroll-start" class="p-2 border border-gray-200 rounded-lg text-sm" />
         <input type="date" id="payroll-end" class="p-2 border border-gray-200 rounded-lg text-sm" />
-        <button id="apply-payroll-range" class="px-3 py-2 bg-gray-900 text-white text-sm rounded-lg">Apply</button>
+        <button id="apply-payroll-range" class="px-3 py-2 bg-gray-900 text-white text-sm rounded-lg">Clear</button>
       </div>
     </div>
 
@@ -388,7 +393,7 @@
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
       <h3 class="text-lg font-bold text-gray-900 mb-4">Daily Time Logs</h3>
-      <div class="overflow-x-auto">
+      <div class="overflow-x-auto overflow-y-auto max-h-[420px] pr-2">
         <table class="min-w-full text-sm">
           <thead>
             <tr class="text-left text-gray-500 border-b">
