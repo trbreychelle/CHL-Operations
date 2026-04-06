@@ -980,6 +980,11 @@ const customStart = document.getElementById('custom-start')?.value || null;
 const customEnd = document.getElementById('custom-end')?.value || null;
 
 const useCustom = customStart && customEnd;
+
+if ((customStart && !customEnd) || (!customStart && customEnd)) {
+  alert('Please select both start and end date.');
+  return;
+}
     const selectedStatus = document.getElementById('status-filter')?.value || 'all';
 
     // =========================
@@ -1027,7 +1032,7 @@ const useCustom = customStart && customEnd;
     // =========================
     // LEADS
     // =========================
-    await this.loadAgentLeads(selectedStatus);
+    await this.loadAgentLeads(selectedStatus, timeframe, customStart, customEnd);
 
     // =========================
     // PROFILE
@@ -1104,19 +1109,23 @@ const useCustom = customStart && customEnd;
       console.error('❌ Agent leaderboard load failed:', leaderboardError);
     }
 
-    this.renderLeaderboard(leaderboard || []);
+    console.log('Leaderboard data:', leaderboard);
+this.renderLeaderboard(leaderboard || []);
 
   } catch (err) {
     console.error('❌ Agent dashboard load failed:', err);
   }
 }
 
-  async loadAgentLeads(selectedStatus = 'all') {
+  async loadAgentLeads(selectedStatus = 'all', timeframe = 'this-week', customStart = null, customEnd = null) {
   if (!this.currentUser) return;
 
   try {
     const { data: leads, error } = await this.supabase.rpc('get_my_agent_leads', {
       p_status: selectedStatus,
+      p_period: (customStart && customEnd) ? 'custom' : timeframe,
+      p_custom_start: customStart,
+      p_custom_end: customEnd,
       p_limit: 200,
       p_offset: 0
     });
