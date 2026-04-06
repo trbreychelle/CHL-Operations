@@ -2570,19 +2570,18 @@ window.updateClientPackageStatus = async function(packageId, newPackageStatus) {
 };
 
 document.getElementById('btn-submit-timeoff')?.addEventListener('click', async () => {
-  const startInput =
-    document.getElementById('timeoff-start-date') ||
-    document.getElementById('start-date');
-
-  const endInput =
-    document.getElementById('timeoff-end-date') ||
-    document.getElementById('end-date');
-
   const reasonInput = document.getElementById('timeoff-reason');
-
-  const startDate = startInput?.value || '';
-  const endDate = endInput?.value || '';
   const reason = reasonInput?.value?.trim() || '';
+
+  const startDate =
+    typeof rangeStart !== 'undefined' && rangeStart
+      ? rangeStart.toISOString().split('T')[0]
+      : '';
+
+  const endDate =
+    typeof rangeEnd !== 'undefined' && rangeEnd
+      ? rangeEnd.toISOString().split('T')[0]
+      : '';
 
   if (!startDate || !endDate) {
     alert('Select start and end date first.');
@@ -2603,8 +2602,16 @@ document.getElementById('btn-submit-timeoff')?.addEventListener('click', async (
     });
 
     alert('Time off request submitted!');
+
     if (typeof portal.loadTimeOffHistory === 'function') {
       await portal.loadTimeOffHistory();
+    }
+
+    if (typeof updateRangeUI === 'function') {
+      rangeStart = null;
+      rangeEnd = null;
+      updateRangeUI();
+      if (typeof renderCalendar === 'function') renderCalendar();
     }
   } catch (err) {
     console.error('Time off request failed:', err);
