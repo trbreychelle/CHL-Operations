@@ -586,7 +586,8 @@ setupCommandCenterRealtime() {
 
     this.enforceRoleRouting();
     this.bindEvents();
-    this.bindPassbookUpdateButton();
+this.bindPassbookUpdateButton();
+this.bindPassbookUpdateDelegated();
 
     if (path.includes('passbook') || document.querySelector('[data-page="passbook-clients"]')) {
       setTimeout(() => this.loadPassbookClientsList(true), 300);
@@ -2325,6 +2326,51 @@ if (form) {
   form.onsubmit = handler;
     } 
   }
+
+  // 🔥 GLOBAL FALLBACK FOR PASSBOOK SAVE (CRITICAL)
+bindPassbookUpdateDelegated() {
+  if (this._passbookDelegatedBound) return;
+  this._passbookDelegatedBound = true;
+
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest(
+      '#passbookSaveButton, #saveClientButton, button[data-action="passbook-save"], button[data-action="save-client"], button[data-passbook-save="true"]'
+    );
+
+    if (!btn) return;
+
+    e.preventDefault();
+
+    try {
+      const form =
+        btn.closest('form') ||
+        document.querySelector('#passbookClientForm') ||
+        document;
+
+      const payload = this.collectPassbookUpdatePayloadFromForm(form);
+
+      if (!payload.codeName) {
+        alert('Missing client code.');
+        return;
+      }
+
+      if (!payload.updates || Object.keys(payload.updates).length === 0) {
+        alert('No fields to update.');
+        return;
+      }
+
+      console.log("🔥 FORCE PASSBOOK SAVE TRIGGERED");
+
+      await this.submitPassbookClientUpdate(payload);
+      await this.refreshPassbookClientDetails(payload.codeName);
+
+      alert('Client updated successfully.');
+    } catch (err) {
+      console.error('❌ Delegated passbook update failed:', err);
+      alert(err?.message || 'Update failed.');
+    }
+  }, true);
+}
 
   collectPassbookUpdatePayloadFromForm(rootEl) {
     const root = rootEl || document;
