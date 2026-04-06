@@ -226,27 +226,39 @@ class CallHammerPortal {
 
     try {
       const { data, error } = await supaClient
-        .from('command_center_events (
-  id,
-  module_key,
-  entity_type,
-  entity_id,
-  entity_code,
-  entity_label,
-  event_type,
-  summary_text,
-  field_changes,
-  old_data,
-  new_data,
-  actor_name,
-  actor_role,
-  severity,
-  created_at
-)
-        `)
-        .eq('team_key', teamKey)
-        .order('updated_at', { ascending: false })
-        .limit(limit);
+        const { data, error } = await supaClient
+  .from('command_center_team_state')
+  .select(`
+    id,
+    event_id,
+    team_key,
+    is_unread,
+    is_flagged,
+    is_done,
+    is_reviewed,
+    status,
+    updated_at,
+    command_center_events (
+      id,
+      module_key,
+      entity_type,
+      entity_id,
+      entity_code,
+      entity_label,
+      event_type,
+      summary_text,
+      field_changes,
+      old_data,
+      new_data,
+      actor_name,
+      actor_role,
+      severity,
+      created_at
+    )
+  `)
+  .eq('team_key', teamKey)
+  .order('updated_at', { ascending: false })
+  .limit(limit);
 
       if (error) {
         console.error('Failed to fetch notifications:', error);
