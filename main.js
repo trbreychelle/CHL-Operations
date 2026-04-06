@@ -935,37 +935,101 @@ setupCommandCenterRealtime() {
   // ✅ AGENT DATA FETCHING
   // ------------------------
   async fetchAllData() {
-    if (!this.currentUser || !this.currentUser.email) return;
+  if (!this.currentUser) return;
 
-    const stats = ['stat-appointments', 'stat-cancel-rate', 'stat-incentives', 'stat-hours'];
-    stats.forEach(id => {
-      const el = document.getElementById(id);
-      if(el) el.innerText = '...';
+  try {
+    const timeframe = document.getElementById('timeframe-filter')?.value || 'this-week';
+
+    // =========================
+    // OVERVIEW
+    // =========================
+    const { data: overview } = await this.supabase.rpc('get_my_agent_overview', {
+      p_period: timeframe
     });
 
-    try {
-      const response = await fetch(this.webhooks.fetchData, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email: this.currentUser.email,
-          range: document.getElementById('timeframe-filter')?.value || 'this-week'
-        })
-      });
+    const ov = overview?.[0] || {};
 
-      if (!response.ok) throw new Error('Failed to fetch agent data');
+    const setText = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.innerText = val;
+    };
 
-      const result = await response.json();
-      const data = result.data || result; 
+    setText('stat-appointments', ov.total_appointments || 0);
+    setText('stat-cancel-rate', (ov.cancellation_rate || 0) + '%');
+    setText('stat-incentives', this.formatCurrency(ov.total_incentives || 0));
+    setText('stat-hours', ov.weekly_hours || 0);
 
-      this.updateAgentDashboard(data);
-      this.renderLeadsTable(data.leads || []);
-      this.renderCharts(data.charts || {});
-      this.updateProfileUI(data.profile || this.currentUser);
-    } catch (error) {
-      console.error('❌ Error fetching agent data:', error);
-    }
+    setText('monthly-incentive-status-ov', ov.monthly_incentive_status || '');
+    setText('monthly-raffle-status-ov', ov.monthly_raffle_status || '');
+
+    // =========================
+    // LEADS
+    // =========================
+    const { data: leads } = await this.supabase.rpc('get_my_agent_leads', {
+      p_status: 'all',
+      p_limit: 200,
+      p_offset: 0
+    });
+
+    this.renderLeadsTable(
+      (leads || []).map(l => ({
+        date: l.date_submitted,
+        homeowner: l.homeowner_names,
+        status: l.status
+      }))
+    );
+
+    // =========================
+    // PROFILE
+    // =========================
+    const { data: profile } = await this.supabase.rpc('get_my_agent_profile_snapshot');
+    const p = profile?.[0] || {};
+
+    this.updateProfileUI({
+      name: p.display_name,
+      email: p.email,
+      role: p.agent_position,
+      baseRate: p.base_rate,
+      weeklyHours: p.weekly_hours
+    });
+
+    const startDateEl = document.getElementById('profileStartDate');
+    if (startDateEl) startDateEl.innerText = p.start_date || '—';
+
+    const rateEl = document.getElementById('effective-hourly-rate');
+    if (rateEl) rateEl.innerText = this.formatCurrency(p.current_rate || 0);
+
+    // =========================
+    // TRENDS
+    // =========================
+    const { data: trends } = await this.supabase.rpc('get_my_agent_weekly_trends', {
+      p_period: timeframe
+    });
+
+    const labels = (trends || []).map(t => t.week_start);
+    const appts = (trends || []).map(t => t.approved_appointments);
+    const earnings = (trends || []).map(t => t.incentive_amount);
+
+    this.renderCharts({
+      labels,
+      appointments: appts,
+      earnings
+    });
+
+    // =========================
+    // LEADERBOARD
+    // =========================
+    const { data: leaderboard } = await this.supabase.rpc('get_agent_leaderboard', {
+      p_period: timeframe,
+      p_limit: 10
+    });
+
+    this.renderLeaderboard(leaderboard || []);
+
+  } catch (err) {
+    console.error('❌ Agent dashboard load failed:', err);
   }
+}
 
   updateAgentDashboard(data) {
     const setText = (id, val) => {
@@ -1052,6 +1116,32 @@ setupCommandCenterRealtime() {
       this.charts.incentives.setOption(option);
     }
   }
+
+  renderLeaderboard(data) {
+  let container = document.getElementById('leaderboard-container');
+
+  if (!container) {
+    const overview = document.getElementById('view-overview');
+
+    container = document.createElement('div');
+    container.id = 'leaderboard-container';
+    container.className = 'bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8';
+
+    overview.insertBefore(container, overview.children[2]);
+  }
+
+  container.innerHTML = `
+    <h3 class="text-lg font-bold mb-4">Top 10 Agents</h3>
+    <div class="space-y-2">
+      ${data.map(a => `
+        <div class="flex justify-between text-sm">
+          <span class="font-semibold">${a.rank_no}. ${a.agent_name}</span>
+          <span>${a.approved_appointments} appts</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
 
   updateProfileUI(profile) {
     if (!profile) return;
