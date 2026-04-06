@@ -711,9 +711,8 @@ if (applyBtn && !applyBtn.dataset.bound) {
   });
   applyBtn.dataset.bound = 'true';
 }
-}
 
-  // AVATAR UPLOAD
+// AVATAR UPLOAD
 const avatarInput = document.getElementById('profile-avatar-input');
 
 if (avatarInput && !avatarInput.dataset.bound) {
@@ -754,7 +753,7 @@ if (avatarInput && !avatarInput.dataset.bound) {
   avatarInput.dataset.bound = 'true';
 }
 
-  // ===== MY LEADS FILTERS =====
+// ===== MY LEADS FILTERS =====
 const leadsSearch = document.getElementById('leads-search');
 const leadsTimeframe = document.getElementById('leads-timeframe');
 const leadsApply = document.getElementById('apply-leads-range');
@@ -772,6 +771,7 @@ if (leadsTimeframe && !leadsTimeframe.dataset.bound) {
 if (leadsApply && !leadsApply.dataset.bound) {
   leadsApply.addEventListener('click', () => this.loadAgentLeadsWithFilters());
   leadsApply.dataset.bound = 'true';
+}
 }
   
   // ------------------------
@@ -1371,33 +1371,25 @@ this.renderLeaderboard(leaderboard || []);
     if (el) el.innerText = val ?? '—';
   };
 
-  // NAV
   setText('nav-user-name', profile.name || this.currentUser.name);
-
-  // NEW PROFILE IDS (IMPORTANT)
   setText('profile-full-name', profile.name);
   setText('profile-email', profile.email);
   setText('profile-position', profile.role || 'Agent');
   setText('profile-employment-status', profile.employmentStatus || 'Active');
-
   setText('profile-base-rate', this.formatCurrency(profile.baseRate || 0));
   setText('profile-weekly-hours', profile.weeklyHours || 0);
-
   setText('profile-start-date', profile.startDate || '—');
 
-  // AVATAR
   const avatarEl = document.getElementById('profile-avatar-preview');
   if (avatarEl) {
     avatarEl.src = profile.avatar_url || 'https://placehold.co/200x200?text=Avatar';
   }
 
-  // MONTHLY STATUS
   setText('monthly-incentive-status-prof', profile.monthlyIncentiveStatus || 'Not qualified yet');
   setText('monthly-raffle-status-prof', profile.raffleStatus || 'No raffle entry yet');
 }
-  }
 
-  formatDate(dateString) {
+formatDate(dateString) {
     if(!dateString) return '-';
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return dateString;
