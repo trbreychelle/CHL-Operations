@@ -225,8 +225,7 @@ class CallHammerPortal {
     if (!supaClient) return [];
 
     try {
-      const { data, error } = await supaClient
-        const { data, error } = await supaClient
+     const { data, error } = await supaClient
   .from('command_center_team_state')
   .select(`
     id,
