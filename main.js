@@ -782,6 +782,19 @@ if (leadsApply && !leadsApply.dataset.bound) {
   leadsApply.addEventListener('click', () => this.loadAgentLeadsWithFilters());
   leadsApply.dataset.bound = 'true';
 }
+   // ===== PAYROLL FILTERS =====
+const payrollTimeframe = document.getElementById('payroll-timeframe');
+const payrollApply = document.getElementById('apply-payroll-range');
+
+if (payrollTimeframe && !payrollTimeframe.dataset.bound) {
+  payrollTimeframe.addEventListener('change', () => this.loadAgentPayroll());
+  payrollTimeframe.dataset.bound = 'true';
+}
+
+if (payrollApply && !payrollApply.dataset.bound) {
+  payrollApply.addEventListener('click', () => this.loadAgentPayroll());
+  payrollApply.dataset.bound = 'true';
+}
 }
   
   // ------------------------
@@ -1081,7 +1094,7 @@ if ((customStart && !customEnd) || (!customStart && customEnd)) {
 
     setText('stat-appointments', ov.total_appointments || 0);
     setText('stat-cancel-rate', `${ov.cancellation_rate || 0}%`);
-    setText('stat-incentives', this.formatCurrency(ov.total_incentives || 0));
+    setText('stat-incentives', this.formatCurrency(ov.total_incentives ?? ov.auto_incentive_total ?? 0));
     setText('stat-hours', ov.hours_worked || 0);
 
     setText('monthly-incentive-status-ov', ov.monthly_incentive_status || 'Not qualified yet');
@@ -1171,6 +1184,7 @@ if ((customStart && !customEnd) || (!customStart && customEnd)) {
 
     console.log('Leaderboard data:', leaderboard);
 this.renderLeaderboard(leaderboard || []);
+    await this.loadAgentPayroll();
 
   } catch (err) {
     console.error('❌ Agent dashboard load failed:', err);
@@ -1403,6 +1417,220 @@ formatDate(dateString) {
     if (isNaN(date.getTime())) return dateString;
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
+
+  getAgentPayrollRange() {
+  const timeframe = document.getElementById('payroll-timeframe')?.value || '4-weeks';
+  const customStart = document.getElementById('payroll-start')?.value || null;
+  const customEnd = document.getElementById('payroll-end')?.value || null;
+
+  if ((customStart && !customEnd) || (!customStart && customEnd)) {
+    alert('Please select both payroll start and end date.');
+    return null;
+  }
+
+  const today = new Date();
+  const startOfDay = (d) => {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    return x;
+  };
+  const endOfDay = (d) => {
+    const x = new Date(d);
+    x.setHours(23, 59, 59, 999);
+    return x;
+  };
+  const addDays = (d, n) => {
+    const x = new Date(d);
+    x.setDate(x.getDate() + n);
+    return x;
+  };
+
+  if (customStart && customEnd) {
+    return {
+      start: customStart,
+      end: customEnd
+    };
+  }
+
+  let start;
+  let end = endOfDay(today);
+
+  switch (timeframe) {
+    case 'today':
+      start = startOfDay(today);
+      break;
+    case 'this-week': {
+      const day = today.getDay();
+      const monday = addDays(startOfDay(today), day === 0 ? -6 : 1 - day);
+      start = monday;
+      break;
+    }
+    case 'previous-week': {
+      const day = today.getDay();
+      const thisMonday = addDays(startOfDay(today), day === 0 ? -6 : 1 - day);
+      const prevMonday = addDays(thisMonday, -7);
+      const prevSunday = addDays(prevMonday, 6);
+      start = prevMonday;
+      end = endOfDay(prevSunday);
+      break;
+    }
+    case '30-days':
+      start = addDays(startOfDay(today), -30);
+      break;
+    case '4-weeks':
+      start = addDays(startOfDay(today), -28);
+      break;
+    case '6-weeks':
+      start = addDays(startOfDay(today), -42);
+      break;
+    case 'all-time':
+      start = new Date(2000, 0, 1);
+      break;
+    default:
+      start = addDays(startOfDay(today), -28);
+      break;
+  }
+
+  return {
+    start: start.toISOString().split('T')[0],
+    end: end.toISOString().split('T')[0]
+  };
+}
+
+async loadAgentPayroll() {
+  if (!this.currentUser?.email || !this.supabase) return;
+
+  const range = this.getAgentPayrollRange();
+  if (!range) return;
+
+  try {
+    const { data: weeklyRows, error: weeklyError } = await this.supabase
+      .from('payroll_weekly_fact_v2')
+      .select('*')
+      .eq('worker_email', this.currentUser.email)
+      .gte('week_start', range.start)
+      .lte('week_start', range.end)
+      .order('week_start', { ascending: false });
+
+    if (weeklyError) {
+      console.error('❌ Agent weekly payroll load failed:', weeklyError);
+      return;
+    }
+
+    const weekly = weeklyRows || [];
+
+    const totalHours = weekly.reduce((sum, row) => sum + this.toNumberSafe(row.adjusted_hours, 0), 0);
+    const totalBonus = weekly.reduce((sum, row) => sum + this.toNumberSafe(row.auto_incentive_delta, 0), 0);
+    const totalFinalPay = weekly.reduce((sum, row) => sum + this.toNumberSafe(row.final_pay, 0), 0);
+
+    const setText = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.innerText = val;
+    };
+
+    setText('payroll-week-count', weekly.length);
+    setText('payroll-total-hours', totalHours.toFixed(2));
+    setText('payroll-total-bonus', this.formatCurrency(totalBonus));
+    setText('payroll-final-pay', this.formatCurrency(totalFinalPay));
+
+    this.renderAgentPayrollWeekly(weekly);
+
+    // Daily logs fallback-safe
+    let dailyRows = [];
+    try {
+      const { data: dailyData, error: dailyError } = await this.supabase
+        .from('payroll_daily_hours_view')
+        .select('*')
+        .eq('worker_email', this.currentUser.email)
+        .gte('work_date', range.start)
+        .lte('work_date', range.end)
+        .order('work_date', { ascending: false });
+
+      if (!dailyError) {
+        dailyRows = dailyData || [];
+      } else {
+        console.warn('⚠️ Daily payroll view not loaded:', dailyError);
+      }
+    } catch (dailyErr) {
+      console.warn('⚠️ Daily payroll fetch skipped:', dailyErr);
+    }
+
+    this.renderAgentPayrollDaily(dailyRows);
+
+  } catch (err) {
+    console.error('❌ Agent payroll load crashed:', err);
+  }
+}
+
+renderAgentPayrollWeekly(rows) {
+  const tbody = document.getElementById('payroll-weekly-body');
+  if (!tbody) return;
+
+  if (!rows || rows.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="9" class="py-4 text-sm text-gray-400 italic">No payroll records found for this range.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(row => {
+    const approved = this.toNumberSafe(row.approved_leads, 0);
+    const rejected = this.toNumberSafe(row.rejected_leads, 0);
+    const total = this.toNumberSafe(row.total_leads, 0);
+    const impliedCredited = Math.max(0, total - approved - rejected);
+    const paidBadge = row.is_paid
+      ? '<span class="px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">Paid</span>'
+      : '<span class="px-2 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600">Unpaid</span>';
+
+    return `
+      <tr class="border-b border-gray-100">
+        <td class="py-3 pr-4 font-medium text-gray-900">${this.formatDate(row.week_start)} - ${this.formatDate(row.week_end)}</td>
+        <td class="py-3 pr-4 text-gray-700">${this.toNumberSafe(row.adjusted_hours, 0).toFixed(2)}</td>
+        <td class="py-3 pr-4 text-gray-700">${approved}</td>
+        <td class="py-3 pr-4 text-gray-700">${rejected}</td>
+        <td class="py-3 pr-4 text-gray-700">${impliedCredited}</td>
+        <td class="py-3 pr-4 text-yellow-700 font-bold">${this.formatCurrency(row.auto_incentive_delta || 0)}</td>
+        <td class="py-3 pr-4 text-blue-700 font-bold">${this.formatCurrency(row.manual_incentive_delta || 0)}</td>
+        <td class="py-3 pr-4 text-green-700 font-bold">${this.formatCurrency(row.final_pay || 0)}</td>
+        <td class="py-3 pr-4">${paidBadge}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+renderAgentPayrollDaily(rows) {
+  const tbody = document.getElementById('payroll-daily-body');
+  if (!tbody) return;
+
+  if (!rows || rows.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" class="py-4 text-sm text-gray-400 italic">No daily time logs found for this range.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(row => {
+    const workDate = this.getAny(row, ['work_date', 'date', 'day'], '');
+    const firstIn = this.getAny(row, ['first_in', 'first_clock_in', 'clock_in_at'], '—');
+    const lastOut = this.getAny(row, ['last_out', 'last_clock_out', 'clock_out_at'], '—');
+    const hours = this.toNumberSafe(this.getAny(row, ['total_hours', 'hours_worked', 'hours'], 0), 0);
+    const sessions = this.toNumberSafe(this.getAny(row, ['sessions', 'session_count'], 0), 0);
+
+    return `
+      <tr class="border-b border-gray-100">
+        <td class="py-3 pr-4 font-medium text-gray-900">${this.formatDate(workDate)}</td>
+        <td class="py-3 pr-4 text-gray-700">${firstIn || '—'}</td>
+        <td class="py-3 pr-4 text-gray-700">${lastOut || '—'}</td>
+        <td class="py-3 pr-4 text-gray-700">${hours.toFixed(2)}</td>
+        <td class="py-3 pr-4 text-gray-700">${sessions}</td>
+      </tr>
+    `;
+  }).join('');
+}
 
     // ------------------------
   // ✅ COMMAND CENTER HELPERS
