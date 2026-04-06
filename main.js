@@ -712,6 +712,26 @@ if (applyBtn && !applyBtn.dataset.bound) {
   applyBtn.dataset.bound = 'true';
 }
 }
+
+  // ===== MY LEADS FILTERS =====
+const leadsSearch = document.getElementById('leads-search');
+const leadsTimeframe = document.getElementById('leads-timeframe');
+const leadsApply = document.getElementById('apply-leads-range');
+
+if (leadsSearch && !leadsSearch.dataset.bound) {
+  leadsSearch.addEventListener('input', () => this.loadAgentLeadsWithFilters());
+  leadsSearch.dataset.bound = 'true';
+}
+
+if (leadsTimeframe && !leadsTimeframe.dataset.bound) {
+  leadsTimeframe.addEventListener('change', () => this.loadAgentLeadsWithFilters());
+  leadsTimeframe.dataset.bound = 'true';
+}
+
+if (leadsApply && !leadsApply.dataset.bound) {
+  leadsApply.addEventListener('click', () => this.loadAgentLeadsWithFilters());
+  leadsApply.dataset.bound = 'true';
+}
   
   // ------------------------
   // Helpers
@@ -1035,7 +1055,7 @@ if ((customStart && !customEnd) || (!customStart && customEnd)) {
     // =========================
     // LEADS
     // =========================
-    await this.loadAgentLeads(selectedStatus, timeframe, customStart, customEnd);
+    await this.loadAgentLeadsWithFilters();
 
     // =========================
     // PROFILE
@@ -1120,21 +1140,34 @@ this.renderLeaderboard(leaderboard || []);
   }
 }
 
-  async loadAgentLeads(selectedStatus = 'all', timeframe = 'this-week', customStart = null, customEnd = null) {
-  if (!this.currentUser) return;
+  async loadAgentLeadsWithFilters() {
+  const status = document.getElementById('status-filter')?.value || 'all';
+  const timeframe = document.getElementById('leads-timeframe')?.value || 'this-week';
+  const search = document.getElementById('leads-search')?.value || '';
+
+  const start = document.getElementById('leads-start')?.value || null;
+  const end = document.getElementById('leads-end')?.value || null;
+
+  const useCustom = start && end;
+
+  if ((start && !end) || (!start && end)) {
+    alert('Select both start and end date.');
+    return;
+  }
 
   try {
     const { data: leads, error } = await this.supabase.rpc('get_my_agent_leads', {
-      p_status: selectedStatus,
-      p_period: (customStart && customEnd) ? 'custom' : timeframe,
-      p_custom_start: customStart,
-      p_custom_end: customEnd,
+      p_status: status,
+      p_search: search,
+      p_period: useCustom ? 'custom' : timeframe,
+      p_custom_start: start,
+      p_custom_end: end,
       p_limit: 200,
       p_offset: 0
     });
 
     if (error) {
-      console.error('❌ Agent leads load failed:', error);
+      console.error('Leads filter error:', error);
       return;
     }
 
@@ -1146,8 +1179,9 @@ this.renderLeaderboard(leaderboard || []);
         rejectionReason: l.rejection_reason || ''
       }))
     );
+
   } catch (err) {
-    console.error('❌ Agent leads load failed:', err);
+    console.error('Leads filter failed:', err);
   }
 }
 
