@@ -75,6 +75,9 @@
           <h1 class="text-3xl font-bold text-gray-900">Performance Overview</h1>
           <div class="flex items-center space-x-3">
 
+  <div class="flex flex-wrap items-center gap-2">
+
+  <!-- TIMEFRAME -->
   <select id="timeframe-filter"
     class="p-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-sm focus:ring-2 focus:ring-yellow-400 outline-none">
     <option value="today">Today</option>
@@ -86,6 +89,7 @@
     <option value="all-time">All Time Records</option>
   </select>
 
+  <!-- CUSTOM RANGE -->
   <input type="date" id="custom-start"
     class="p-2 border border-gray-200 rounded-lg text-sm" />
 
@@ -163,16 +167,57 @@
       </div>
 
       <div id="view-leads" class="dashboard-view">
-        <div class="flex justify-between items-center mb-8">
-          <h2 class="text-3xl font-bold text-gray-900">My Submitted Leads</h2>
-          <select id="status-filter" class="p-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-sm focus:ring-2 focus:ring-yellow-400 outline-none">
-            <option value="all">All Statuses</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="approved">Approved</option>
-            <option value="pending review">Pending Review</option>
-            <option value="rejected">Rejected</option>
-          </select>
-        </div>
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8 gap-3">
+
+  <h2 class="text-3xl font-bold text-gray-900">My Submitted Leads</h2>
+
+  <div class="flex flex-wrap items-center gap-2">
+
+    <!-- SEARCH -->
+    <input
+      id="leads-search"
+      type="text"
+      placeholder="Search homeowner..."
+      class="p-2.5 border border-gray-200 rounded-xl text-sm outline-none w-56"
+    />
+
+    <!-- STATUS -->
+    <select id="status-filter"
+      class="p-2.5 border border-gray-200 rounded-xl bg-white text-sm outline-none">
+      <option value="all">All Statuses</option>
+      <option value="confirmed">Confirmed</option>
+      <option value="approved">Approved</option>
+      <option value="pending review">Pending Review</option>
+      <option value="rejected">Rejected</option>
+    </select>
+
+    <!-- TIMEFRAME -->
+    <select id="leads-timeframe"
+      class="p-2.5 border border-gray-200 rounded-xl bg-white text-sm outline-none">
+      <option value="today">Today</option>
+      <option value="this-week" selected>Current Week</option>
+      <option value="previous-week">Previous Week</option>
+      <option value="30-days">Last 30 Days</option>
+      <option value="4-weeks">Last 4 Weeks</option>
+      <option value="6-weeks">Last 6 Weeks</option>
+      <option value="all-time">All Time</option>
+    </select>
+
+    <!-- CUSTOM RANGE -->
+    <input type="date" id="leads-start"
+      class="p-2 border border-gray-200 rounded-lg text-sm" />
+
+    <input type="date" id="leads-end"
+      class="p-2 border border-gray-200 rounded-lg text-sm" />
+
+    <button id="apply-leads-range"
+      class="px-3 py-2 bg-gray-900 text-white text-sm rounded-lg">
+      Apply
+    </button>
+
+  </div>
+
+</div>
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
