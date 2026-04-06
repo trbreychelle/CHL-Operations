@@ -3114,6 +3114,31 @@ async function updateClientStatus(clientId, newStatus) {
         console.error("Failed to update status:", error);
         alert("Failed to update client status in database.");
     }
+
+  try {
+  const { data: updatedClient } = await supaClient
+    .from('clients')
+    .select('*')
+    .eq('id', clientId)
+    .single();
+
+  await window.portal?.createCommandCenterEvent?.({
+    moduleKey: 'passbook_clients',
+    entityType: 'client',
+    entityId: String(updatedClient?.id || clientId),
+    entityCode: updatedClient?.client_code || null,
+    entityLabel: updatedClient?.company_name || 'Client',
+    eventType: 'updated',
+    summaryText: `${window.portal?.currentUser?.name || 'User'} updated passbook client ${updatedClient?.company_name || ''}.`,
+    fieldChanges: [],
+    oldData: null,
+    newData: updatedClient,
+    severity: 'normal',
+    teamKeys: ['admin_management', 'sales']
+  });
+} catch (err) {
+  console.error('Fallback passbook event failed:', err);
+}
 }
 
 async function deletePassbookClient(clientId, companyName) {
