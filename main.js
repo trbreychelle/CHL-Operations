@@ -829,25 +829,6 @@ if (leadsTimeframe && !leadsTimeframe.dataset.bound) {
   leadsTimeframe.dataset.bound = 'true';
 }
 
-   const leadsStart = document.getElementById('leads-start');
-const leadsEnd = document.getElementById('leads-end');
-
-const maybeAutoLoadLeadsCustom = () => {
-  if (leadsStart?.value && leadsEnd?.value) {
-    this.loadAgentLeadsWithFilters();
-  }
-};
-
-if (leadsStart && !leadsStart.dataset.bound) {
-  leadsStart.addEventListener('change', maybeAutoLoadLeadsCustom);
-  leadsStart.dataset.bound = 'true';
-}
-
-if (leadsEnd && !leadsEnd.dataset.bound) {
-  leadsEnd.addEventListener('change', maybeAutoLoadLeadsCustom);
-  leadsEnd.dataset.bound = 'true';
-}
-
 if (leadsApply && !leadsApply.dataset.bound) {
   leadsApply.addEventListener('click', () => {
     const leadsSearchEl = document.getElementById('leads-search');
@@ -1170,10 +1151,10 @@ if (payrollEnd && !payrollEnd.dataset.bound) {
   if (!this.currentUser) return;
 
   try {
-    const timeframe = document.getElementById('timeframe-filter')?.value || 'this-week';
+    const timeframe = document.getElementById('leads-timeframe')?.value || 'this-week';
 
-const customStart = document.getElementById('custom-start')?.value || null;
-const customEnd = document.getElementById('custom-end')?.value || null;
+const customStart = document.getElementById('leads-start')?.value || null;
+const customEnd = document.getElementById('leads-end')?.value || null;
 
 const useCustom = customStart && customEnd;
 
