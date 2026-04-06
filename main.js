@@ -1484,7 +1484,7 @@ if (countEl) {
  const { data, error } = await this.supabase
   .from('time_off_requests')
   .select('*')
-  .eq('profile_id', this.currentUser.id)
+  .eq('requester_profile_id', this.currentUser.id)
   .order('created_at', { ascending: false });
 
 if (error) {
