@@ -4850,16 +4850,30 @@ const bgTone =
   'bg-white';
 
     const moduleLabel =
-      event.module_key === 'passbook_clients' ? 'Passbook Client' :
-      event.module_key === 'sales_pipeline' ? 'Sales Pipeline' :
-      event.module_key === 'onboarding' ? 'Onboarding' :
-      'Notification';
+  event.module_key === 'time_off' ? 'Time Off Request' :
+  event.module_key === 'passbook_clients' ? 'Passbook Client' :
+  event.module_key === 'sales_pipeline' ? 'Sales Pipeline' :
+  event.module_key === 'onboarding' ? 'Onboarding' :
+  'Notification';
 
     const companyLabel = event.entity_label || event.entity_code || 'Record';
 
     const fieldChanges = Array.isArray(event.field_changes) ? event.field_changes : [];
 
     const previewHtml = fieldChanges.slice(0, 2).map(fc => {
+      let timeOffDetails = '';
+
+if (event.module_key === 'time_off') {
+  const data = event.new_data || {};
+
+  timeOffDetails = `
+    <div class="mt-2 text-sm text-gray-700">
+      <div><span class="font-bold">Type:</span> ${data.reason || '—'}</div>
+      <div><span class="font-bold">Dates:</span> ${data.start_date || '—'} → ${data.end_date || '—'}</div>
+      <div><span class="font-bold">Status:</span> ${data.status || 'Pending'}</div>
+    </div>
+  `;
+}
       const field = String(fc.field || 'Field');
       const oldVal = String(fc.old_value ?? '—');
       const newVal = String(fc.new_value ?? '—');
@@ -4876,6 +4890,8 @@ const bgTone =
         </div>
       `;
     }).join('');
+
+    
 
     return `
       <div class="rounded-3xl border-l-4 ${leftBar} border border-gray-100 ${bgTone} p-5 shadow-sm hover:shadow-md transition-all">
@@ -4901,7 +4917,10 @@ const bgTone =
               <span class="font-black text-blue-700">${companyLabel}</span>.
             </div>
 
-            ${previewHtml ? `<div class="mt-2">${previewHtml}</div>` : ``}
+            ${event.module_key === 'time_off'
+  ? timeOffDetails
+  : (previewHtml ? `<div class="mt-2">${previewHtml}</div>` : ``)
+}
 
             <div class="mt-2 text-xs text-gray-500 flex items-center gap-2 flex-wrap">
               <span>${timeText}</span>
@@ -4936,6 +4955,21 @@ const bgTone =
                     : '•'
               }
             </button>
+
+            ${event.module_key === 'time_off' ? `
+  <div class="flex flex-col gap-2 mt-2">
+    <button
+      onclick="Admin.approveTimeOff('${event.entity_id}')"
+      class="px-3 py-2 bg-green-500 text-white text-xs font-bold rounded-lg">
+      Approve
+    </button>
+    <button
+      onclick="Admin.declineTimeOff('${event.entity_id}')"
+      class="px-3 py-2 bg-red-500 text-white text-xs font-bold rounded-lg">
+      Decline
+    </button>
+  </div>
+` : ''}
           </div>
         </div>
       </div>
@@ -5202,6 +5236,9 @@ openNotificationById(eventId) {
     this.setView?.('sales');
   } else if (event.module_key === 'onboarding') {
     this.setView?.('onboarding');
+    else if (event.module_key === 'time_off') {
+  this.setView?.('hr');
+}
   }
 
   setTimeout(() => {
@@ -6477,6 +6514,30 @@ async saveOnboardingRow(clientCode) {
     };
 
     window.adminDashboard = AdminDashboard;
+
+    AdminDashboard.approveTimeOff = async function(requestId) {
+  await supaClient
+    .from('time_off_requests')
+    .update({
+      status: 'approved',
+      reviewed_at: new Date().toISOString()
+    })
+    .eq('id', requestId);
+
+  await window.portal.fetchAdminData(true);
+};
+
+AdminDashboard.declineTimeOff = async function(requestId) {
+  await supaClient
+    .from('time_off_requests')
+    .update({
+      status: 'declined',
+      reviewed_at: new Date().toISOString()
+    })
+    .eq('id', requestId);
+
+  await window.portal.fetchAdminData(true);
+};
     window.Admin = AdminDashboard;
 
     window.openAddDealModal = function(e) {
