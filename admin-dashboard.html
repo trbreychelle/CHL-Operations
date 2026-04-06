@@ -3564,12 +3564,41 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
   )
   .sort((a, b) =>
     (b.qualified - a.qualified) ||
+    (b.total - a.total) ||
     (a.cancelRate - b.cancelRate) ||
     (a.rejected - b.rejected) ||
     a.name.localeCompare(b.name)
   );
 
-const top = topPool.slice(0, 10);
+const rankedTop = [];
+let lastRank = 0;
+let lastQualified = null;
+let lastTotal = null;
+let lastCancel = null;
+let lastRejected = null;
+
+topPool.forEach((a, index) => {
+  const sameAsPrev =
+    lastQualified === a.qualified &&
+    lastTotal === a.total &&
+    lastCancel === a.cancelRate &&
+    lastRejected === a.rejected;
+
+  const rankNo = sameAsPrev ? lastRank : index + 1;
+
+  rankedTop.push({
+    ...a,
+    rankNo
+  });
+
+  lastRank = rankNo;
+  lastQualified = a.qualified;
+  lastTotal = a.total;
+  lastCancel = a.cancelRate;
+  lastRejected = a.rejected;
+});
+
+const top = rankedTop.filter(a => a.rankNo <= 10);
 
         // Build Bottom pool
         let bottomPoolNames = new Set();
@@ -3630,10 +3659,24 @@ if (hasAnyLeadActivity && bottomPool.length > 0) {
         setText("kpi-pending", pending);
         setText("kpi-cancel", `${cancelRate}%`);
 
+              const getPlaceLabel = (rank) => {
+  if (rank === 1) return '🥇 1st Place';
+  if (rank === 2) return '🥈 2nd Place';
+  if (rank === 3) return '🥉 3rd Place';
+  if (rank === 4) return '4th Place';
+  if (rank === 5) return '5th Place';
+  if (rank === 6) return '6th Place';
+  if (rank === 7) return '7th Place';
+  if (rank === 8) return '8th Place';
+  if (rank === 9) return '9th Place';
+  if (rank === 10) return '10th Place';
+  return `${rank}th Place`;
+};
+
         const renderRow = (a) => {
           const d = a.qualified + a.credited;
           return `<tr>
-            <td class="p-4 font-bold text-gray-900">${a.name}</td>
+            <td class="p-4 font-bold text-gray-900">${getPlaceLabel(a.rankNo)} — ${a.name}</td>
             <td class="p-4 text-center text-gray-600 font-semibold">${a.total}</td>
             <td class="p-4 text-center text-red-500 font-bold">${a.rejected}</td>
             <td class="p-4 text-center text-blue-500 font-bold">${a.qualified}</td>
