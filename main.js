@@ -231,13 +231,10 @@ class CallHammerPortal {
     async fetchCommandCenterNotifications(teamKey = 'admin_management', limit = 50) {
   if (!supaClient) return [];
 
-  const allowedModules = [
-    'sales_pipeline',
-    'overview',
-    'onboarding',
-    'time_off',
-    'passbook_clients'
-  ];
+  const allowedModules =
+  teamKey === 'admin_management'
+    ? ['sales_pipeline', 'overview', 'onboarding', 'time_off', 'passbook_clients']
+    : ['sales_pipeline', 'overview', 'onboarding', 'passbook_clients'];
 
   try {
     const { data, error } = await supaClient
