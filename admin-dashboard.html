@@ -3947,7 +3947,7 @@ async toggleNotificationDone(eventId, currentValue) {
     try { data = JSON.parse(data); } catch (e) { data = {}; }
   }
 
-  const timeOffStatus = String(data.status || '').toLowerCase();
+  const timeOffStatus = String(data.decision_status || data.status || '').toLowerCase();
   const isResolvedTimeOff =
     event.module_key === 'time_off' &&
     (timeOffStatus === 'approved' || timeOffStatus === 'declined');
@@ -6767,8 +6767,8 @@ const decisionAt = new Date().toISOString();
 const mergedData = {
   ...existingData,
   ...updatedRequest,
-  status: 'declined',
-  decision_status: 'declined',
+  status: 'approved',
+  decision_status: 'approved',
   decision_by_name: decisionByName,
   decision_by_role: decisionByRole,
   decision_at: decisionAt
@@ -6777,8 +6777,8 @@ const mergedData = {
 const { error: eventUpdateError } = await supaClient
   .from('command_center_events')
   .update({
-    event_type: 'declined',
-    summary_text: `${decisionByName} declined time off request for ${updatedRequest?.requester_name || 'Agent'}.`,
+    event_type: 'updated',
+    summary_text: `${decisionByName} approved time off request for ${updatedRequest?.requester_name || 'Agent'}.`,
     actor_name: decisionByName,
     actor_role: decisionByRole,
     new_data: mergedData
@@ -6786,8 +6786,8 @@ const { error: eventUpdateError } = await supaClient
   .eq('id', existingEvent.id);
 
 if (eventUpdateError) {
-  console.error('declineTimeOff event update failed:', eventUpdateError);
-  alert(`Declined the request, but failed to sync notification: ${eventUpdateError.message || 'Unknown error'}`);
+  console.error('approveTimeOff event update failed:', eventUpdateError);
+  alert(`Approved the request, but failed to sync notification: ${eventUpdateError.message || 'Unknown error'}`);
 }
 
     if (existingEvent.id) {
@@ -6844,15 +6844,15 @@ if (!updatedRequest) {
       try { existingData = JSON.parse(existingData); } catch (e) { existingData = {}; }
     }
 
-    const decisionByName = window.portal?.currentUser?.name || 'Admin';
+  const decisionByName = window.portal?.currentUser?.name || 'Admin';
 const decisionByRole = window.portal?.currentUser?.role || 'admin';
 const decisionAt = new Date().toISOString();
 
 const mergedData = {
   ...existingData,
   ...updatedRequest,
-  status: 'approved',
-  decision_status: 'approved',
+  status: 'declined',
+  decision_status: 'declined',
   decision_by_name: decisionByName,
   decision_by_role: decisionByRole,
   decision_at: decisionAt
@@ -6861,8 +6861,8 @@ const mergedData = {
 const { error: eventUpdateError } = await supaClient
   .from('command_center_events')
   .update({
-    event_type: 'approved',
-    summary_text: `${decisionByName} approved time off request for ${updatedRequest?.requester_name || 'Agent'}.`,
+    event_type: 'updated',
+    summary_text: `${decisionByName} declined time off request for ${updatedRequest?.requester_name || 'Agent'}.`,
     actor_name: decisionByName,
     actor_role: decisionByRole,
     new_data: mergedData
@@ -6870,8 +6870,8 @@ const { error: eventUpdateError } = await supaClient
   .eq('id', existingEvent.id);
 
 if (eventUpdateError) {
-  console.error('approveTimeOff event update failed:', eventUpdateError);
-  alert(`Approved the request, but failed to sync notification: ${eventUpdateError.message || 'Unknown error'}`);
+  console.error('declineTimeOff event update failed:', eventUpdateError);
+  alert(`Declined the request, but failed to sync notification: ${eventUpdateError.message || 'Unknown error'}`);
 }
 
     if (existingEvent.id) {
