@@ -3331,6 +3331,33 @@ if (error) {
 console.log('Time off RPC success:', data);
 alert('Time off request submitted!');
 
+    try {
+  const requestRow = Array.isArray(data) ? data[0] : data;
+
+  await window.portal?.createCommandCenterEvent?.({
+    moduleKey: 'time_off',
+    entityType: 'time_off_request',
+    entityId: String(requestRow?.id || ''),
+    entityCode: requestRow?.id ? String(requestRow.id) : null,
+    entityLabel: window.portal?.currentUser?.name || window.portal?.currentUser?.email || 'Agent',
+    eventType: 'submitted',
+    summaryText: `${window.portal?.currentUser?.name || 'Agent'} submitted a time off request.`,
+    fieldChanges: [],
+    oldData: null,
+    newData: {
+      id: requestRow?.id || null,
+      reason,
+      start_date: startDate,
+      end_date: endDate,
+      status: requestRow?.status || 'pending'
+    },
+    severity: 'normal',
+    teamKeys: ['admin_management']
+  });
+} catch (eventErr) {
+  console.error('Time off notification event failed:', eventErr);
+}
+
     if (typeof portal.loadTimeOffHistory === 'function') {
       await portal.loadTimeOffHistory();
     }
