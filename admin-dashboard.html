@@ -5030,20 +5030,41 @@ if (event.module_key === 'time_off') {
               }
             </button>
 
-            ${event.module_key === 'time_off' ? `
-  <div class="flex flex-col gap-2 mt-2">
-    <button
-      onclick="Admin.approveTimeOff('${event.entity_id}')"
-      class="px-3 py-2 bg-green-500 text-white text-xs font-bold rounded-lg">
-      Approve
-    </button>
-    <button
-      onclick="Admin.declineTimeOff('${event.entity_id}')"
-      class="px-3 py-2 bg-red-500 text-white text-xs font-bold rounded-lg">
-      Decline
-    </button>
-  </div>
-` : ''}
+           ${event.module_key === 'time_off' ? (() => {
+  let data = event.new_data || {};
+  if (typeof data === 'string') {
+    try { data = JSON.parse(data); } catch (e) { data = {}; }
+  }
+
+  const currentStatus = String(data.status || '').toLowerCase();
+
+  if (currentStatus === 'approved' || currentStatus === 'declined') {
+    return `
+      <div class="px-3 py-2 text-xs font-bold rounded-lg ${
+        currentStatus === 'approved'
+          ? 'bg-emerald-100 text-emerald-700'
+          : 'bg-red-100 text-red-700'
+      }">
+        ${currentStatus === 'approved' ? 'Approved' : 'Declined'}
+      </div>
+    `;
+  }
+
+  return `
+    <div class="flex flex-col gap-2 mt-2">
+      <button
+        onclick="Admin.approveTimeOff('${event.entity_id}')"
+        class="px-3 py-2 bg-green-500 text-white text-xs font-bold rounded-lg">
+        Approve
+      </button>
+      <button
+        onclick="Admin.declineTimeOff('${event.entity_id}')"
+        class="px-3 py-2 bg-red-500 text-white text-xs font-bold rounded-lg">
+        Decline
+      </button>
+    </div>
+  `;
+})() : ''}
           </div>
         </div>
       </div>
@@ -6499,7 +6520,7 @@ async saveOnboardingRow(clientCode) {
       oldData: oldRow,
       newData: newRow,
       severity: 'normal',
-      teamKeys: ['admin_management']
+      teamKeys: ['admin_management', 'sales']
     });
   }
 
@@ -6596,13 +6617,15 @@ async saveOnboardingRow(clientCode) {
     return;
   }
 
-  const { error } = await supaClient
+  const { data: updatedRequest, error } = await supaClient
     .from('time_off_requests')
     .update({
       status: 'approved',
       updated_at: new Date().toISOString()
     })
-    .eq('id', requestId);
+    .eq('id', requestId)
+    .select()
+    .single();
 
   if (error) {
     console.error('approveTimeOff failed:', error);
@@ -6610,31 +6633,43 @@ async saveOnboardingRow(clientCode) {
     return;
   }
 
+  try {
+    const existingItem = (this.notifications || []).find(item => {
+      const ev = item?.command_center_events || {};
+      return ev.module_key === 'time_off' && String(ev.entity_id || '') === String(requestId);
+    });
+
+    const existingEvent = existingItem?.command_center_events || {};
+    let existingData = existingEvent.new_data || {};
+
+    if (typeof existingData === 'string') {
+      try { existingData = JSON.parse(existingData); } catch (e) { existingData = {}; }
+    }
+
+    const mergedData = {
+      ...existingData,
+      ...updatedRequest,
+      status: 'approved'
+    };
+
+    await supaClient
+      .from('command_center_events')
+      .update({
+        event_type: 'approved',
+        summary_text: `${window.portal?.currentUser?.name || 'Admin'} approved time off request for ${updatedRequest?.requester_name || 'Agent'}.`,
+        new_data: mergedData
+      })
+      .eq('id', existingEvent.id);
+
+    if (existingEvent.id) {
+      await window.portal.setCommandCenterDone(existingEvent.id, 'admin_management', true);
+      await window.portal.markCommandCenterReviewed(existingEvent.id, 'admin_management');
+    }
+  } catch (evtErr) {
+    console.error('approveTimeOff notification sync failed:', evtErr);
+  }
+
   alert('Time off request approved.');
-  await this.loadNotifications(true);
-};
-
-AdminDashboard.declineTimeOff = async function(requestId) {
-  if (!requestId) {
-    alert('Missing time off request ID.');
-    return;
-  }
-
-  const { error } = await supaClient
-    .from('time_off_requests')
-    .update({
-      status: 'declined',
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', requestId);
-
-  if (error) {
-    console.error('declineTimeOff failed:', error);
-    alert(`Decline failed: ${error.message || 'Unknown error'}`);
-    return;
-  }
-
-  alert('Time off request declined.');
   await this.loadNotifications(true);
 };
     
