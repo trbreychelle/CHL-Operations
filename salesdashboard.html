@@ -166,25 +166,31 @@
           </div>
           
           <div class="flex gap-4 flex-wrap">
-            <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm min-w-[220px]">
-              <div class="flex items-center justify-between gap-3">
-                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Owed Leads</p>
-                <select id="owed-package-filter" class="text-[10px] font-extrabold border border-gray-200 rounded-lg px-2 py-1 bg-white">
-  <option value="all" selected>ALL</option>
-  <option value="ONGOING">ONGOING</option>
-  <option value="PAUSE">PAUSE</option>
-  <option value="COMPLETED">COMPLETED</option>
-  <option value="REFUNDED">REFUNDED</option>
-</select>
-              </div>
-              <p class="text-lg font-bold text-gray-900 mt-1" id="pulse-owed">0</p>
-              <p class="text-[11px] font-semibold text-gray-500" id="pulse-owed-sub">All package statuses</p>
-            </div>
-            <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
-              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pending Leads</p>
-              <p class="text-lg font-bold text-yellow-500 mt-1" id="pulse-pending">0</p>
-            </div>
-          </div>
+  <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
+    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider" id="pulse-label">EST. VALUE</p>
+    <p class="text-lg font-bold text-emerald-600 mt-1" id="pulse-profit">$0.00</p>
+  </div>
+
+  <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm min-w-[220px]">
+    <div class="flex items-center justify-between gap-3">
+      <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Owed Leads</p>
+      <select id="owed-package-filter" class="text-[10px] font-extrabold border border-gray-200 rounded-lg px-2 py-1 bg-white">
+        <option value="all" selected>ALL</option>
+        <option value="ONGOING">ONGOING</option>
+        <option value="PAUSE">PAUSE</option>
+        <option value="COMPLETED">COMPLETED</option>
+        <option value="REFUNDED">REFUNDED</option>
+      </select>
+    </div>
+    <p class="text-lg font-bold text-gray-900 mt-1" id="pulse-owed">0</p>
+    <p class="text-[11px] font-semibold text-gray-500" id="pulse-owed-sub">All package statuses</p>
+  </div>
+
+  <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
+    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pending Leads</p>
+    <p class="text-lg font-bold text-yellow-500 mt-1" id="pulse-pending">0</p>
+  </div>
+</div>
         </div>
 
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8">
@@ -1287,6 +1293,38 @@ async deleteQuickNote(noteId) {
         });
       },
 
+            updateOverviewTopCardsFromAnalyticsCounts(qualifiedCount, pendingCount, period, leads) {
+        const pulseProfit = document.getElementById("pulse-profit");
+        const pulsePending = document.getElementById("pulse-pending");
+
+        let estValue = 0;
+
+        const { start, end } = this.getRangeFor(period, leads || []);
+        const cutoff = new Date("2026-03-09T00:00:00");
+
+        (Array.isArray(leads) ? leads : []).forEach(l => {
+          const dt = this.getLeadDateObj(l);
+          if (!dt || dt < start || dt > end) return;
+
+          const st = String(this.pick(l, ["Status", "STATUS", "status", "Lead_Status"], "")).toLowerCase();
+          const isQualified = st.includes("confirm") || st.includes("approve");
+          if (!isQualified) return;
+
+          estValue += (dt >= cutoff ? 135 : 125);
+        });
+
+        if (pulseProfit) {
+          pulseProfit.textContent = estValue.toLocaleString("en-US", {
+            style: "currency",
+            currency: "USD"
+          });
+        }
+
+        if (pulsePending) {
+          pulsePending.textContent = String(Number(pendingCount || 0));
+        }
+      },
+
       updateAnalytics(period) {
         const state = this.getState();
         const leads = (state && state.leads) ? state.leads : [];
@@ -1322,6 +1360,7 @@ async deleteQuickNote(noteId) {
         const kpiCred = document.getElementById("kpi-credited"); if(kpiCred) kpiCred.textContent = credited;
         const kpiPend = document.getElementById("kpi-pending"); if(kpiPend) kpiPend.textContent = pending;
         const kpiCanc = document.getElementById("kpi-cancel"); if(kpiCanc) kpiCanc.textContent = `${(qualified + credited > 0) ? Math.round((credited / (qualified + credited)) * 100) : 0}%`;
+                this.updateOverviewTopCardsFromAnalyticsCounts(qualified, pending, period, leads);
 
         this._renderAnalyticsChart(buckets, {
           qualified: buckets.map(b => seriesMap.get(b).qualified),
@@ -1826,10 +1865,18 @@ async deleteQuickNote(noteId) {
             // Fixed the search bar to look for external_package_id instead of transaction_id
             if (q && !`${company} ${code} ${p.external_package_id || ''}`.toLowerCase().includes(q)) return;
 
-            const rawAmt = p.amount ? String(p.amount).replace(/[^0-9.-]+/g,"") : "0";
+                        const rawAmt = p.amount ? String(p.amount).replace(/[^0-9.-]+/g,"") : "0";
             const dealVal = parseFloat(rawAmt) || 0;
-            const commVal = Number(p.commission_per_lead) || 0; 
-            
+            const purchasedAmount = Number(p.purchased_leads) || 0;
+
+            const purchaseDateObj = p.purchase_date ? new Date(String(p.purchase_date).trim() + "T00:00:00") : null;
+            const ratePerLead = purchaseDateObj && purchaseDateObj >= new Date("2026-03-09T00:00:00")
+              ? 135
+              : 125;
+
+            const totalLeadCost = purchasedAmount * ratePerLead;
+            const commVal = Math.max(0, dealVal - totalLeadCost);
+
             totalSales += dealVal;
             totalCommissions += commVal;
 
@@ -2285,42 +2332,51 @@ async deleteQuickNote(noteId) {
   }
 },
 
-      getOnboardingRows() {
-  const state = this.getState();
-  const clients = Array.isArray(state?.rawClients) ? state.rawClients : [];
-  const onboarding = Array.isArray(state?.clientOnboarding) ? state.clientOnboarding : [];
-  const drafts = this._onboardingDrafts || {};
+          getOnboardingRows() {
+        const state = this.getState();
+        const clients = Array.isArray(state?.rawClients) ? state.rawClients : [];
+        const onboarding = Array.isArray(state?.clientOnboarding) ? state.clientOnboarding : [];
+        const packages = Array.isArray(state?.packages) ? state.packages : [];
 
-  const byCode = new Map(
-    onboarding.map(row => [String(row.client_code || "").trim(), row])
-  );
+        const packageClientCodes = new Set(
+          packages
+            .map(p => String(p.client_code || "").trim().toLowerCase())
+            .filter(Boolean)
+        );
 
-  return clients
-    .filter(c => String(c.client_code || "").trim())
-    .map(c => {
-      const clientCode = String(c.client_code || "").trim();
-      const saved = byCode.get(clientCode) || {};
-      const draft = drafts[clientCode] || {};
+        const onboardingByCode = new Map(
+          onboarding.map(row => [String(row.client_code || "").trim().toLowerCase(), row])
+        );
 
-      return {
-        client_code: clientCode,
-        company_name: c.company_name || c.roofing_company || "—",
+        return clients
+          .filter(client => {
+            const code = String(client.client_code || client.code_name || "").trim().toLowerCase();
+            return code && packageClientCodes.has(code);
+          })
+          .map(client => {
+            const code = String(client.client_code || client.code_name || "").trim();
+            const onboardingRow = onboardingByCode.get(code.toLowerCase()) || {};
+            const draft = this._onboardingDrafts?.[code] || {};
 
-        client_paid: draft.client_paid ?? !!saved.client_paid,
-        contract_sent: draft.contract_sent ?? !!saved.contract_sent,
-        contract_completed: draft.contract_completed ?? !!saved.contract_completed,
-        onboarding_link_sent: draft.onboarding_link_sent ?? !!saved.onboarding_link_sent,
-        onboarding_link_completed: draft.onboarding_link_completed ?? !!saved.onboarding_link_completed,
-        client_portal_created: draft.client_portal_created ?? !!saved.client_portal_created,
-        live_lead_tracker_created: draft.live_lead_tracker_created ?? !!saved.live_lead_tracker_created,
-        client_portal_demo_completed: draft.client_portal_demo_completed ?? !!saved.client_portal_demo_completed,
-        ready_to_receive_leads: draft.ready_to_receive_leads ?? !!saved.ready_to_receive_leads,
+            return {
+              client_code: code,
+              company_name: client.company_name || client.roofing_company || "—",
 
-        notes: draft.notes ?? (saved.notes || "")
-      };
-    })
-    .sort((a, b) => a.company_name.localeCompare(b.company_name));
-},
+              client_paid: draft.client_paid ?? !!onboardingRow.client_paid,
+              contract_sent: draft.contract_sent ?? !!onboardingRow.contract_sent,
+              contract_completed: draft.contract_completed ?? !!onboardingRow.contract_completed,
+              onboarding_link_sent: draft.onboarding_link_sent ?? !!onboardingRow.onboarding_link_sent,
+              onboarding_link_completed: draft.onboarding_link_completed ?? !!onboardingRow.onboarding_link_completed,
+              ghl_account_created: draft.ghl_account_created ?? !!onboardingRow.ghl_account_created,
+              client_portal_created: draft.client_portal_created ?? !!onboardingRow.client_portal_created,
+              live_lead_tracker_created: draft.live_lead_tracker_created ?? !!onboardingRow.live_lead_tracker_created,
+              client_portal_demo_completed: draft.client_portal_demo_completed ?? !!onboardingRow.client_portal_demo_completed,
+              ready_to_receive_leads: draft.ready_to_receive_leads ?? !!onboardingRow.ready_to_receive_leads,
+              notes: draft.notes ?? onboardingRow.notes ?? ""
+            };
+          })
+          .sort((a, b) => a.company_name.localeCompare(b.company_name));
+      },
 
 getFilteredOnboardingRows() {
   let rows = this.getOnboardingRows();
