@@ -6617,15 +6617,28 @@ async saveOnboardingRow(clientCode) {
     return;
   }
 
-  const { data: updatedRequest, error } = await supaClient
-    .from('time_off_requests')
-    .update({
-      status: 'approved',
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', requestId)
-    .select()
-    .single();
+ const { data: updatedRows, error } = await supaClient
+  .from('time_off_requests')
+  .update({
+    status: 'approved',
+    updated_at: new Date().toISOString()
+  })
+  .eq('id', requestId)
+  .select();
+
+const updatedRequest = Array.isArray(updatedRows) ? updatedRows[0] : null;
+
+if (error) {
+  console.error('approveTimeOff failed:', error);
+  alert(`Approve failed: ${error.message || 'Unknown error'}`);
+  return;
+}
+
+if (!updatedRequest) {
+  console.error('approveTimeOff: no matching time_off_requests row found for requestId:', requestId);
+  alert('Approve failed: no matching time off request record was found.');
+  return;
+}
 
   if (error) {
     console.error('approveTimeOff failed:', error);
@@ -6679,16 +6692,29 @@ async saveOnboardingRow(clientCode) {
     return;
   }
 
-  const { data: updatedRequest, error } = await supaClient
-    .from('time_off_requests')
-    .update({
-      status: 'declined',
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', requestId)
-    .select()
-    .single();
+ const { data: updatedRows, error } = await supaClient
+  .from('time_off_requests')
+  .update({
+    status: 'declined',
+    updated_at: new Date().toISOString()
+  })
+  .eq('id', requestId)
+  .select();
 
+const updatedRequest = Array.isArray(updatedRows) ? updatedRows[0] : null;
+
+if (error) {
+  console.error('declineTimeOff failed:', error);
+  alert(`Decline failed: ${error.message || 'Unknown error'}`);
+  return;
+}
+
+if (!updatedRequest) {
+  console.error('declineTimeOff: no matching time_off_requests row found for requestId:', requestId);
+  alert('Decline failed: no matching time off request record was found.');
+  return;
+}
+      
   if (error) {
     console.error('declineTimeOff failed:', error);
     alert(`Decline failed: ${error.message || 'Unknown error'}`);
