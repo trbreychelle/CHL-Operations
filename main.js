@@ -229,54 +229,65 @@ class CallHammerPortal {
   window.location.href = 'index.html';
 }
     async fetchCommandCenterNotifications(teamKey = 'admin_management', limit = 50) {
-    if (!supaClient) return [];
+  if (!supaClient) return [];
 
-    try {
-     const { data, error } = await supaClient
-  .from('command_center_team_state')
-  .select(`
-    id,
-    event_id,
-    team_key,
-    is_unread,
-    is_flagged,
-    is_done,
-    is_reviewed,
-    status,
-    updated_at,
-    command_center_events (
-      id,
-      module_key,
-      entity_type,
-      entity_id,
-      entity_code,
-      entity_label,
-      event_type,
-      summary_text,
-      field_changes,
-      old_data,
-      new_data,
-      actor_name,
-      actor_role,
-      severity,
-      created_at
-    )
-  `)
-  .eq('team_key', teamKey)
-  .order('updated_at', { ascending: false })
-  .limit(limit);
+  const allowedModules = [
+    'sales_pipeline',
+    'overview',
+    'onboarding',
+    'time_off',
+    'passbook_clients'
+  ];
 
-      if (error) {
-        console.error('Failed to fetch notifications:', error);
-        return [];
-      }
+  try {
+    const { data, error } = await supaClient
+      .from('command_center_team_state')
+      .select(`
+        id,
+        event_id,
+        team_key,
+        is_unread,
+        is_flagged,
+        is_done,
+        is_reviewed,
+        status,
+        updated_at,
+        command_center_events (
+          id,
+          module_key,
+          entity_type,
+          entity_id,
+          entity_code,
+          entity_label,
+          event_type,
+          summary_text,
+          field_changes,
+          old_data,
+          new_data,
+          actor_name,
+          actor_role,
+          severity,
+          created_at
+        )
+      `)
+      .eq('team_key', teamKey)
+      .order('updated_at', { ascending: false })
+      .limit(limit);
 
-      return data || [];
-    } catch (err) {
-      console.error('fetchCommandCenterNotifications exception:', err);
+    if (error) {
+      console.error('Failed to fetch notifications:', error);
       return [];
     }
+
+    return (data || []).filter(row => {
+      const moduleKey = String(row?.command_center_events?.module_key || '').trim().toLowerCase();
+      return allowedModules.includes(moduleKey);
+    });
+  } catch (err) {
+    console.error('fetchCommandCenterNotifications exception:', err);
+    return [];
   }
+}
 
   async markCommandCenterReviewed(eventId, teamKey = 'admin_management') {
     if (!supaClient || !eventId) return false;
