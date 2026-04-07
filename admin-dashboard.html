@@ -4969,16 +4969,14 @@ if (event.module_key === 'time_off') {
 
 const leftBar =
   isUnread ? 'border-blue-500' :
-  (isDone && resolvedStatus === 'approved') ? 'border-emerald-400' :
-  (isDone && resolvedStatus === 'declined') ? 'border-red-400' :
-  isDone ? 'border-emerald-400' :
+  (resolvedStatus === 'approved') ? 'border-emerald-400' :
+  (resolvedStatus === 'declined') ? 'border-red-400' :
   isFlagged ? 'border-amber-400' :
   'border-transparent';
 
 const bgTone =
-  (isDone && resolvedStatus === 'approved') ? 'bg-emerald-50' :
-  (isDone && resolvedStatus === 'declined') ? 'bg-red-50' :
-  isDone ? 'bg-emerald-50' :
+  (resolvedStatus === 'approved') ? 'bg-emerald-50' :
+  (resolvedStatus === 'declined') ? 'bg-red-50' :
   isFlagged ? 'bg-amber-50' :
   isUnread ? 'bg-blue-50/70' :
   'bg-white';
@@ -5010,14 +5008,26 @@ if (event.module_key === 'time_off') {
 
   const submittedAt = window.portal?.formatMSTDateTimeShort(event.created_at) || '—';
 
-  timeOffDetails = `
-    <div class="mt-2 text-sm text-gray-700 space-y-1">
-      <div><span class="font-bold">Request Type:</span> ${data.reason || '—'}</div>
-      <div><span class="font-bold">Submitted:</span> ${submittedAt}</div>
-      <div><span class="font-bold">Leave Dates:</span> ${data.start_date || '—'} → ${data.end_date || '—'}</div>
-      <div><span class="font-bold">Status:</span> ${data.status || 'Pending'}</div>
-    </div>
-  `;
+  const decisionStatus = String(data.decision_status || data.status || 'pending').toLowerCase();
+const decisionByName = data.decision_by_name || '';
+const decisionByRole = data.decision_by_role || '';
+const decisionAtText = data.decision_at
+  ? (window.portal?.formatMSTDateTimeShort(data.decision_at) || data.decision_at)
+  : '';
+
+timeOffDetails = `
+  <div class="mt-2 text-sm text-gray-700 space-y-1">
+    <div><span class="font-bold">Request Type:</span> ${data.reason || '—'}</div>
+    <div><span class="font-bold">Submitted:</span> ${submittedAt}</div>
+    <div><span class="font-bold">Leave Dates:</span> ${data.start_date || '—'} → ${data.end_date || '—'}</div>
+    <div><span class="font-bold">Status:</span> ${decisionStatus}</div>
+    ${
+      decisionStatus === 'approved' || decisionStatus === 'declined'
+        ? `<div><span class="font-bold">Decision:</span> ${decisionStatus} by ${decisionByName || '—'}${decisionByRole ? ` (${decisionByRole})` : ''}${decisionAtText ? ` • ${decisionAtText}` : ''}</div>`
+        : ''
+    }
+  </div>
+`;
 }
 
     const previewHtml = fieldChanges.slice(0, 2).map(fc => {
@@ -5109,7 +5119,7 @@ if (event.module_key === 'time_off') {
     try { data = JSON.parse(data); } catch (e) { data = {}; }
   }
 
-  const currentStatus = String(data.status || '').toLowerCase();
+  const currentStatus = String(data.decision_status || data.status || '').toLowerCase();
   const showResolvedBadge =
     isDone && (currentStatus === 'approved' || currentStatus === 'declined');
 
@@ -6750,20 +6760,35 @@ if (!updatedRequest) {
       try { existingData = JSON.parse(existingData); } catch (e) { existingData = {}; }
     }
 
-    const mergedData = {
-      ...existingData,
-      ...updatedRequest,
-      status: 'approved'
-    };
+    const decisionByName = window.portal?.currentUser?.name || 'Admin';
+const decisionByRole = window.portal?.currentUser?.role || 'admin';
+const decisionAt = new Date().toISOString();
 
-    await supaClient
-      .from('command_center_events')
-      .update({
-        event_type: 'approved',
-        summary_text: `${window.portal?.currentUser?.name || 'Admin'} approved time off request for ${updatedRequest?.requester_name || 'Agent'}.`,
-        new_data: mergedData
-      })
-      .eq('id', existingEvent.id);
+const mergedData = {
+  ...existingData,
+  ...updatedRequest,
+  status: 'declined',
+  decision_status: 'declined',
+  decision_by_name: decisionByName,
+  decision_by_role: decisionByRole,
+  decision_at: decisionAt
+};
+
+const { error: eventUpdateError } = await supaClient
+  .from('command_center_events')
+  .update({
+    event_type: 'declined',
+    summary_text: `${decisionByName} declined time off request for ${updatedRequest?.requester_name || 'Agent'}.`,
+    actor_name: decisionByName,
+    actor_role: decisionByRole,
+    new_data: mergedData
+  })
+  .eq('id', existingEvent.id);
+
+if (eventUpdateError) {
+  console.error('declineTimeOff event update failed:', eventUpdateError);
+  alert(`Declined the request, but failed to sync notification: ${eventUpdateError.message || 'Unknown error'}`);
+}
 
     if (existingEvent.id) {
       await window.portal.setCommandCenterDone(existingEvent.id, 'admin_management', true);
@@ -6819,20 +6844,35 @@ if (!updatedRequest) {
       try { existingData = JSON.parse(existingData); } catch (e) { existingData = {}; }
     }
 
-    const mergedData = {
-      ...existingData,
-      ...updatedRequest,
-      status: 'declined'
-    };
+    const decisionByName = window.portal?.currentUser?.name || 'Admin';
+const decisionByRole = window.portal?.currentUser?.role || 'admin';
+const decisionAt = new Date().toISOString();
 
-    await supaClient
-      .from('command_center_events')
-      .update({
-        event_type: 'declined',
-        summary_text: `${window.portal?.currentUser?.name || 'Admin'} declined time off request for ${updatedRequest?.requester_name || 'Agent'}.`,
-        new_data: mergedData
-      })
-      .eq('id', existingEvent.id);
+const mergedData = {
+  ...existingData,
+  ...updatedRequest,
+  status: 'approved',
+  decision_status: 'approved',
+  decision_by_name: decisionByName,
+  decision_by_role: decisionByRole,
+  decision_at: decisionAt
+};
+
+const { error: eventUpdateError } = await supaClient
+  .from('command_center_events')
+  .update({
+    event_type: 'approved',
+    summary_text: `${decisionByName} approved time off request for ${updatedRequest?.requester_name || 'Agent'}.`,
+    actor_name: decisionByName,
+    actor_role: decisionByRole,
+    new_data: mergedData
+  })
+  .eq('id', existingEvent.id);
+
+if (eventUpdateError) {
+  console.error('approveTimeOff event update failed:', eventUpdateError);
+  alert(`Approved the request, but failed to sync notification: ${eventUpdateError.message || 'Unknown error'}`);
+}
 
     if (existingEvent.id) {
       await window.portal.setCommandCenterDone(existingEvent.id, 'admin_management', true);
