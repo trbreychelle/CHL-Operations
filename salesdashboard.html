@@ -907,7 +907,7 @@ try {
   this.notificationsLoading = true;
   this.refreshNotificationsTab?.();
 
-  const teamKey = 'admin_management';
+  const teamKey = window.portal?.getCommandCenterTeamKey?.() || 'sales';
   const rows = await window.portal.fetchCommandCenterNotifications(teamKey, 100);
 
   this.notifications = Array.isArray(rows) ? rows : [];
@@ -1046,7 +1046,7 @@ refreshNotesTab() {
 },
 
 async cycleNotificationState(eventId, isFlagged, isDone) {
-  const teamKey = 'admin_management';
+  const teamKey = window.portal?.getCommandCenterTeamKey?.() || 'sales';
 
   this.notifications = (this.notifications || []).map(item => {
     const event = item?.command_center_events || {};
@@ -1081,15 +1081,15 @@ async saveQuickNote() {
   if (!body) return;
 
   await window.portal.createCommandCenterNote({
-    body,
-    noteType: 'note',
-    title: null,
-    moduleKey: 'notes',
-    entityType: null,
-    entityId: null,
-    entityLabel: null,
-    assignedTeamKey: 'admin_management'
-  });
+  body,
+  noteType: 'note',
+  title: null,
+  moduleKey: 'notes',
+  entityType: null,
+  entityId: null,
+  entityLabel: null,
+  assignedTeamKey: window.portal?.getCommandCenterTeamKey?.() || 'sales'
+});
 
   if (textarea) textarea.value = '';
   await this.loadNotes();
