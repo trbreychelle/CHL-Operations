@@ -5334,7 +5334,7 @@ if (event.module_key === 'overview') {
 } else if (event.module_key === 'onboarding') {
   this.setView?.('onboarding');
 } else if (event.module_key === 'time_off') {
-  this.setView?.('hr');
+  this.setView?.('notifications');
 }
 
   setTimeout(() => {
@@ -6670,6 +6670,68 @@ async saveOnboardingRow(clientCode) {
   }
 
   alert('Time off request approved.');
+  await this.loadNotifications(true);
+};
+
+    AdminDashboard.declineTimeOff = async function(requestId) {
+  if (!requestId) {
+    alert('Missing time off request ID.');
+    return;
+  }
+
+  const { data: updatedRequest, error } = await supaClient
+    .from('time_off_requests')
+    .update({
+      status: 'declined',
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', requestId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('declineTimeOff failed:', error);
+    alert(`Decline failed: ${error.message || 'Unknown error'}`);
+    return;
+  }
+
+  try {
+    const existingItem = (this.notifications || []).find(item => {
+      const ev = item?.command_center_events || {};
+      return ev.module_key === 'time_off' && String(ev.entity_id || '') === String(requestId);
+    });
+
+    const existingEvent = existingItem?.command_center_events || {};
+    let existingData = existingEvent.new_data || {};
+
+    if (typeof existingData === 'string') {
+      try { existingData = JSON.parse(existingData); } catch (e) { existingData = {}; }
+    }
+
+    const mergedData = {
+      ...existingData,
+      ...updatedRequest,
+      status: 'declined'
+    };
+
+    await supaClient
+      .from('command_center_events')
+      .update({
+        event_type: 'declined',
+        summary_text: `${window.portal?.currentUser?.name || 'Admin'} declined time off request for ${updatedRequest?.requester_name || 'Agent'}.`,
+        new_data: mergedData
+      })
+      .eq('id', existingEvent.id);
+
+    if (existingEvent.id) {
+      await window.portal.setCommandCenterDone(existingEvent.id, 'admin_management', true);
+      await window.portal.markCommandCenterReviewed(existingEvent.id, 'admin_management');
+    }
+  } catch (evtErr) {
+    console.error('declineTimeOff notification sync failed:', evtErr);
+  }
+
+  alert('Time off request declined.');
   await this.loadNotifications(true);
 };
     
