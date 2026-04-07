@@ -555,7 +555,31 @@ body.client-health-lock {
           </div>
         </div>
 
-        <div id="notifications-feed" class="space-y-4"></div>
+        <div class="flex items-center gap-2 mb-4">
+  <button
+    id="notifications-tab-open"
+    onclick="Admin.setNotificationsTab('open')"
+    class="px-4 py-2 rounded-2xl bg-gray-900 text-white text-xs font-extrabold"
+  >
+    Open
+  </button>
+  <button
+    id="notifications-tab-done"
+    onclick="Admin.setNotificationsTab('done')"
+    class="px-4 py-2 rounded-2xl bg-white border border-gray-200 text-gray-600 text-xs font-extrabold"
+  >
+    Done
+  </button>
+  <button
+    id="notifications-tab-all"
+    onclick="Admin.setNotificationsTab('all')"
+    class="px-4 py-2 rounded-2xl bg-white border border-gray-200 text-gray-600 text-xs font-extrabold"
+  >
+    All
+  </button>
+</div>
+
+<div id="notifications-feed" class="space-y-4"></div>
       </div>
     </div>
 
@@ -1852,6 +1876,7 @@ hrSubtab: 'overview',
       notifications: [],
 notificationsLoading: false,
 selectedNotificationId: null,
+notificationsTab: 'open',
 
       notificationFocus: null,
 notes: [],
@@ -3910,13 +3935,35 @@ async toggleNotificationDone(eventId, currentValue) {
 
      async cycleNotificationState(eventId, isFlagged, isDone) {
   const teamKey = window.portal.getCommandCenterTeamKey();
+  const existingItem = (this.notifications || []).find(item => {
+    const ev = item?.command_center_events || {};
+    return ev.id === eventId;
+  });
 
-  // optimistic local update first so the card stays in place
+  const event = existingItem?.command_center_events || {};
+  let data = event.new_data || {};
+
+  if (typeof data === 'string') {
+    try { data = JSON.parse(data); } catch (e) { data = {}; }
+  }
+
+  const timeOffStatus = String(data.status || '').toLowerCase();
+  const isResolvedTimeOff =
+    event.module_key === 'time_off' &&
+    (timeOffStatus === 'approved' || timeOffStatus === 'declined');
+
   this.notifications = (this.notifications || []).map(item => {
-    const event = item?.command_center_events || {};
-    if (event.id !== eventId) return item;
+    const ev = item?.command_center_events || {};
+    if (ev.id !== eventId) return item;
 
-    // neutral -> flagged
+    if (isResolvedTimeOff) {
+      return {
+        ...item,
+        is_flagged: false,
+        is_done: !isDone
+      };
+    }
+
     if (!isFlagged && !isDone) {
       return {
         ...item,
@@ -3925,7 +3972,6 @@ async toggleNotificationDone(eventId, currentValue) {
       };
     }
 
-    // flagged -> done
     if (isFlagged && !isDone) {
       return {
         ...item,
@@ -3934,7 +3980,6 @@ async toggleNotificationDone(eventId, currentValue) {
       };
     }
 
-    // done -> neutral
     return {
       ...item,
       is_flagged: false,
@@ -3944,7 +3989,14 @@ async toggleNotificationDone(eventId, currentValue) {
 
   this.refreshNotificationsTab();
 
-  // background sync to Supabase
+  if (isResolvedTimeOff) {
+    await window.portal.setCommandCenterDone(eventId, teamKey, !isDone);
+    if (!isDone) {
+      await window.portal.markCommandCenterReviewed(eventId, teamKey);
+    }
+    return;
+  }
+
   if (!isFlagged && !isDone) {
     await window.portal.setCommandCenterFlagged(eventId, teamKey, true);
   } else if (isFlagged && !isDone) {
@@ -3954,7 +4006,7 @@ async toggleNotificationDone(eventId, currentValue) {
     await window.portal.setCommandCenterDone(eventId, teamKey, false);
   }
 },
-
+      
 async openNotification(item) {
   if (!item || !item.command_center_events) return;
 
@@ -4876,7 +4928,15 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
   const badge = document.getElementById('notifications-unread-count');
   if (!wrap) return;
 
-  const rows = Array.isArray(this.notifications) ? this.notifications : [];
+  const allRows = Array.isArray(this.notifications) ? this.notifications : [];
+let rows = [...allRows];
+
+if (this.notificationsTab === 'open') {
+  rows = rows.filter(x => !x.is_done);
+} else if (this.notificationsTab === 'done') {
+  rows = rows.filter(x => !!x.is_done);
+}
+      
   const unreadCount = rows.filter(x => x.is_unread).length;
   if (badge) badge.textContent = unreadCount;
 
@@ -4898,13 +4958,26 @@ if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return
     const isFlagged = !!item.is_flagged;
     const isDone = !!item.is_done;
 
-    const leftBar =
+  let resolvedStatus = '';
+if (event.module_key === 'time_off') {
+  let parsed = event.new_data || {};
+  if (typeof parsed === 'string') {
+    try { parsed = JSON.parse(parsed); } catch (e) { parsed = {}; }
+  }
+  resolvedStatus = String(parsed.status || '').toLowerCase();
+}
+
+const leftBar =
   isUnread ? 'border-blue-500' :
+  (isDone && resolvedStatus === 'approved') ? 'border-emerald-400' :
+  (isDone && resolvedStatus === 'declined') ? 'border-red-400' :
   isDone ? 'border-emerald-400' :
   isFlagged ? 'border-amber-400' :
   'border-transparent';
 
 const bgTone =
+  (isDone && resolvedStatus === 'approved') ? 'bg-emerald-50' :
+  (isDone && resolvedStatus === 'declined') ? 'bg-red-50' :
   isDone ? 'bg-emerald-50' :
   isFlagged ? 'bg-amber-50' :
   isUnread ? 'bg-blue-50/70' :
@@ -5030,22 +5103,25 @@ if (event.module_key === 'time_off') {
               }
             </button>
 
-           ${event.module_key === 'time_off' ? (() => {
+          ${event.module_key === 'time_off' ? (() => {
   let data = event.new_data || {};
   if (typeof data === 'string') {
     try { data = JSON.parse(data); } catch (e) { data = {}; }
   }
 
   const currentStatus = String(data.status || '').toLowerCase();
+  const showResolvedBadge =
+    isDone && (currentStatus === 'approved' || currentStatus === 'declined');
 
-  if (currentStatus === 'approved' || currentStatus === 'declined') {
+  if (showResolvedBadge) {
     return `
-      <div class="px-3 py-2 text-xs font-bold rounded-lg ${
+      <div class="px-3 py-2 text-xs font-black rounded-lg flex items-center gap-2 ${
         currentStatus === 'approved'
           ? 'bg-emerald-100 text-emerald-700'
           : 'bg-red-100 text-red-700'
       }">
-        ${currentStatus === 'approved' ? 'Approved' : 'Declined'}
+        <span>✓</span>
+        <span>${currentStatus === 'approved' ? 'Approved' : 'Declined'}</span>
       </div>
     `;
   }
@@ -5065,6 +5141,7 @@ if (event.module_key === 'time_off') {
     </div>
   `;
 })() : ''}
+
           </div>
         </div>
       </div>
@@ -6609,6 +6686,26 @@ async saveOnboardingRow(clientCode) {
       }
     };
 
+    AdminDashboard.setNotificationsTab = function(tab) {
+  this.notificationsTab = tab || 'open';
+
+  const tabs = ['open', 'done', 'all'];
+  tabs.forEach(key => {
+    const btn = document.getElementById(`notifications-tab-${key}`);
+    if (!btn) return;
+
+    if (key === this.notificationsTab) {
+      btn.classList.remove('bg-white', 'border', 'border-gray-200', 'text-gray-600');
+      btn.classList.add('bg-gray-900', 'text-white');
+    } else {
+      btn.classList.remove('bg-gray-900', 'text-white');
+      btn.classList.add('bg-white', 'border', 'border-gray-200', 'text-gray-600');
+    }
+  });
+
+  this.refreshNotificationsTab();
+};
+
     window.adminDashboard = AdminDashboard;
 
    AdminDashboard.approveTimeOff = async function(requestId) {
@@ -6639,13 +6736,7 @@ if (!updatedRequest) {
   alert('Approve failed: no matching time off request record was found.');
   return;
 }
-
-  if (error) {
-    console.error('approveTimeOff failed:', error);
-    alert(`Approve failed: ${error.message || 'Unknown error'}`);
-    return;
-  }
-
+     
   try {
     const existingItem = (this.notifications || []).find(item => {
       const ev = item?.command_center_events || {};
@@ -6714,12 +6805,6 @@ if (!updatedRequest) {
   alert('Decline failed: no matching time off request record was found.');
   return;
 }
-      
-  if (error) {
-    console.error('declineTimeOff failed:', error);
-    alert(`Decline failed: ${error.message || 'Unknown error'}`);
-    return;
-  }
 
   try {
     const existingItem = (this.notifications || []).find(item => {
