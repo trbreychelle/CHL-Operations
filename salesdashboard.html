@@ -965,7 +965,14 @@ refreshNotificationsTab() {
               <span>•</span>
               <span>${event.actor_role || 'user'}</span>
               <span>•</span>
-              <span>${event.module_key || 'module'}</span>
+              <span>${
+  event.module_key === 'time_off' ? 'Time Off Request' :
+  event.module_key === 'passbook_clients' ? 'Passbook Client' :
+  event.module_key === 'sales_pipeline' ? 'Sales Pipeline' :
+  event.module_key === 'overview' ? 'Overview' :
+  event.module_key === 'onboarding' ? 'Onboarding' :
+  (event.module_key || 'Notification')
+}</span>
             </div>
           </div>
 
