@@ -3265,11 +3265,21 @@ window.updateClientPackageStatus = async function(packageId, newPackageStatus) {
     console.log("Updating package status", { packageId: cleanId, newPackageStatus });
 
     try {
-        const { data, error: updateErr } = await supaClient
-            .from('packages')
-            .update({ status: newPackageStatus })
-            .eq('id', cleanId)
-            .select();
+        const { data: oldPackageRows } = await supaClient
+  .from('packages')
+  .select('*')
+  .eq('id', cleanId)
+  .limit(1);
+
+const oldPackage = (oldPackageRows && oldPackageRows[0]) ? oldPackageRows[0] : null;
+
+const { data, error: updateErr } = await supaClient
+  .from('packages')
+  .update({ status: newPackageStatus })
+  .eq('id', cleanId)
+  .select();
+
+const updatedPackage = (data && data[0]) ? data[0] : null;
 
         if (updateErr) {
             console.error("Status Update Error:", updateErr);
@@ -3279,11 +3289,35 @@ window.updateClientPackageStatus = async function(packageId, newPackageStatus) {
 
         console.log("Package status updated:", data);
 
-        if (window.portal && typeof window.portal.fetchAdminData === 'function') {
-            await window.portal.fetchAdminData(true);
-        } else {
-            location.reload();
-        }
+       try {
+  if (oldPackage && updatedPackage) {
+    await window.portal?.createCommandCenterEvent?.({
+      moduleKey: 'overview',
+      entityType: 'package',
+      entityId: String(updatedPackage.id || cleanId),
+      entityCode: updatedPackage.client_code || null,
+      entityLabel: updatedPackage.client_code || 'Package',
+      eventType: 'updated',
+      summaryText: `${window.portal?.currentUser?.name || 'User'} changed package status for ${updatedPackage.client_code || 'client'}.`,
+      fieldChanges: window.portal?.buildFieldChanges
+        ? window.portal.buildFieldChanges(oldPackage, updatedPackage, ['status'])
+        : [],
+      oldData: oldPackage,
+      newData: updatedPackage,
+      severity: 'normal',
+      teamKeys: ['admin_management', 'sales']
+    });
+  }
+} catch (evtErr) {
+  console.error('Overview notification event failed:', evtErr);
+}
+
+if (window.portal && typeof window.portal.fetchAdminData === 'function') {
+  await window.portal.fetchAdminData(true);
+} else {
+  location.reload();
+}
+      
     } catch (error) {
         console.error("Status Update Error:", error);
         alert("An error occurred while updating.");
