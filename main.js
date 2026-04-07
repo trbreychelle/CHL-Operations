@@ -3328,38 +3328,81 @@ if (error) {
   return;
 }
 
-console.log('Time off RPC success:', data);
-alert('Time off request submitted!');
+document.getElementById('btn-submit-timeoff')?.addEventListener('click', async () => {
+  const reasonInput = document.getElementById('timeoff-reason');
+  const reason = reasonInput?.value?.trim() || '';
+
+  const startDate =
+    typeof rangeStart !== 'undefined' && rangeStart
+      ? rangeStart.toISOString().split('T')[0]
+      : '';
+
+  const endDate =
+    typeof rangeEnd !== 'undefined' && rangeEnd
+      ? rangeEnd.toISOString().split('T')[0]
+      : '';
+
+  if (!startDate || !endDate) {
+    alert('Select start and end date first.');
+    return;
+  }
+
+  if (!reason) {
+    alert('Please enter a reason.');
+    return;
+  }
+
+  try {
+    const { data, error } = await portal.supabase.rpc('submit_my_time_off_request', {
+      p_reason: reason,
+      p_start_date: startDate,
+      p_end_date: endDate,
+      p_notes: ''
+    });
+
+    if (error) {
+      console.error('Time off RPC error:', error);
+      alert(`Failed to submit request: ${error.message || 'Unknown error'}`);
+      return;
+    }
+
+    console.log('Time off RPC success:', data);
+
+    const requestId = data;
 
     try {
-  const requestRow = Array.isArray(data) ? data[0] : data;
+      await window.portal?.createCommandCenterEvent?.({
+        moduleKey: 'time_off',
+        entityType: 'time_off_request',
+        entityId: String(requestId),
+        entityCode: String(requestId),
+        entityLabel: window.portal?.currentUser?.name || window.portal?.currentUser?.email || 'Agent',
+        eventType: 'submitted',
+        summaryText: `${window.portal?.currentUser?.name || 'Agent'} submitted a time off request.`,
+        fieldChanges: [],
+        oldData: null,
+        newData: {
+          id: requestId,
+          requester_profile_id: window.portal?.currentUser?.id || null,
+          requester_name: window.portal?.currentUser?.name || null,
+          requester_email: window.portal?.currentUser?.email || null,
+          reason,
+          start_date: startDate,
+          end_date: endDate,
+          notes: null,
+          status: 'pending'
+        },
+        severity: 'normal',
+        teamKeys: ['admin_management']
+      });
+    } catch (eventErr) {
+      console.error('Time off notification event failed:', eventErr);
+    }
 
-  await window.portal?.createCommandCenterEvent?.({
-    moduleKey: 'time_off',
-    entityType: 'time_off_request',
-    entityId: String(requestRow?.id || ''),
-    entityCode: requestRow?.id ? String(requestRow.id) : null,
-    entityLabel: window.portal?.currentUser?.name || window.portal?.currentUser?.email || 'Agent',
-    eventType: 'submitted',
-    summaryText: `${window.portal?.currentUser?.name || 'Agent'} submitted a time off request.`,
-    fieldChanges: [],
-    oldData: null,
-    newData: {
-      id: requestRow?.id || null,
-      reason,
-      start_date: startDate,
-      end_date: endDate,
-      status: requestRow?.status || 'pending'
-    },
-    severity: 'normal',
-    teamKeys: ['admin_management']
-  });
-} catch (eventErr) {
-  console.error('Time off notification event failed:', eventErr);
-}
+    alert('Time off request submitted!');
 
-    if (typeof portal.loadTimeOffHistory === 'function') {
-      await portal.loadTimeOffHistory();
+    if (typeof window.portal?.loadTimeOffHistory === 'function') {
+      await window.portal.loadTimeOffHistory();
     }
 
     if (typeof updateRangeUI === 'function') {
