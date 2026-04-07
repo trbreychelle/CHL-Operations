@@ -216,11 +216,18 @@ class CallHammerPortal {
     if (btn) btn.addEventListener('click', run);
   }
 
-  logout() {
-    this.clearSession();
-    window.location.href = 'index.html';
+  async logout() {
+  try {
+    if (this.supabase) {
+      await this.supabase.auth.signOut(); // ✅ THIS IS THE REAL FIX
+    }
+  } catch (err) {
+    console.error('Supabase logout failed:', err);
   }
 
+  this.clearSession(); // keep your local cleanup
+  window.location.href = 'index.html';
+}
     async fetchCommandCenterNotifications(teamKey = 'admin_management', limit = 50) {
     if (!supaClient) return [];
 
