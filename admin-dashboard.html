@@ -5304,7 +5304,9 @@ openNotificationById(eventId) {
     changedFields
   };
 
- if (event.module_key === 'passbook_clients') {
+if (event.module_key === 'overview') {
+  this.setView?.('overview');
+} else if (event.module_key === 'passbook_clients') {
   this.setView?.('clients');
 } else if (event.module_key === 'sales_pipeline') {
   this.setView?.('sales');
