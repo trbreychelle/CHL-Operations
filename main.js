@@ -3316,44 +3316,6 @@ document.getElementById('btn-submit-timeoff')?.addEventListener('click', async (
 
   try {
     const { data, error } = await portal.supabase.rpc('submit_my_time_off_request', {
-  p_reason: reason,
-  p_start_date: startDate,
-  p_end_date: endDate,
-  p_notes: ''
-});
-
-if (error) {
-  console.error('Time off RPC error:', error);
-  alert(`Failed to submit request: ${error.message || 'Unknown error'}`);
-  return;
-}
-
-document.getElementById('btn-submit-timeoff')?.addEventListener('click', async () => {
-  const reasonInput = document.getElementById('timeoff-reason');
-  const reason = reasonInput?.value?.trim() || '';
-
-  const startDate =
-    typeof rangeStart !== 'undefined' && rangeStart
-      ? rangeStart.toISOString().split('T')[0]
-      : '';
-
-  const endDate =
-    typeof rangeEnd !== 'undefined' && rangeEnd
-      ? rangeEnd.toISOString().split('T')[0]
-      : '';
-
-  if (!startDate || !endDate) {
-    alert('Select start and end date first.');
-    return;
-  }
-
-  if (!reason) {
-    alert('Please enter a reason.');
-    return;
-  }
-
-  try {
-    const { data, error } = await portal.supabase.rpc('submit_my_time_off_request', {
       p_reason: reason,
       p_start_date: startDate,
       p_end_date: endDate,
