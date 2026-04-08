@@ -3259,24 +3259,55 @@ window.updateClientPackageStatus = async function(packageId, newPackageStatus) {
         return;
     }
 
-    console.log("Updating package status", { packageId: cleanId, newPackageStatus });
+    const normalized = String(newPackageStatus || "").trim().toUpperCase();
+    console.log("Updating package status", { packageId: cleanId, newPackageStatus: normalized });
 
     try {
-        const { data: oldPackageRows } = await supaClient
-  .from('packages')
-  .select('*')
-  .eq('id', cleanId)
-  .limit(1);
+        const { data: oldPackageRows, error: oldFetchErr } = await supaClient
+            .from('packages')
+            .select('*')
+            .eq('id', cleanId)
+            .limit(1);
 
-const oldPackage = (oldPackageRows && oldPackageRows[0]) ? oldPackageRows[0] : null;
+        if (oldFetchErr) {
+            console.error("Failed to load package before update:", oldFetchErr);
+        }
 
-const { data, error: updateErr } = await supaClient
-  .from('packages')
-  .update({ status: newPackageStatus })
-  .eq('id', cleanId)
-  .select();
+        const oldPackage = (oldPackageRows && oldPackageRows[0]) ? oldPackageRows[0] : null;
 
-const updatedPackage = (data && data[0]) ? data[0] : null;
+        let updatePayload = {
+            status_override_updated_at: new Date().toISOString(),
+            status_override_updated_by: window.portal?.currentUser?.name || window.portal?.currentUser?.email || 'admin'
+        };
+
+        if (normalized === 'PAUSE') {
+            updatePayload.status = 'Pause';
+            updatePayload.manual_status_override = 'PAUSE';
+            updatePayload.pause_until_date = null;
+        } else if (normalized === 'REFUNDED') {
+            updatePayload.status = 'Refunded';
+            updatePayload.manual_status_override = 'REFUNDED';
+            updatePayload.pause_until_date = null;
+        } else if (normalized === 'ONGOING') {
+            updatePayload.status = 'Active';
+            updatePayload.manual_status_override = null;
+            updatePayload.pause_until_date = null;
+        } else if (normalized === 'COMPLETED') {
+            updatePayload.status = 'Completed';
+            updatePayload.manual_status_override = null;
+            updatePayload.pause_until_date = null;
+        } else {
+            alert(`Unsupported package status: ${newPackageStatus}`);
+            return;
+        }
+
+        const { data, error: updateErr } = await supaClient
+            .from('packages')
+            .update(updatePayload)
+            .eq('id', cleanId)
+            .select();
+
+        const updatedPackage = (data && data[0]) ? data[0] : null;
 
         if (updateErr) {
             console.error("Status Update Error:", updateErr);
@@ -3284,37 +3315,47 @@ const updatedPackage = (data && data[0]) ? data[0] : null;
             return;
         }
 
-        console.log("Package status updated:", data);
+        console.log("Package status updated:", updatedPackage);
 
-       try {
-  if (oldPackage && updatedPackage) {
-    await window.portal?.createCommandCenterEvent?.({
-      moduleKey: 'overview',
-      entityType: 'package',
-      entityId: String(updatedPackage.id || cleanId),
-      entityCode: updatedPackage.client_code || null,
-      entityLabel: updatedPackage.client_code || 'Package',
-      eventType: 'updated',
-      summaryText: `${window.portal?.currentUser?.name || 'User'} changed package status for ${updatedPackage.client_code || 'client'}.`,
-      fieldChanges: window.portal?.buildFieldChanges
-        ? window.portal.buildFieldChanges(oldPackage, updatedPackage, ['status'])
-        : [],
-      oldData: oldPackage,
-      newData: updatedPackage,
-      severity: 'normal',
-      teamKeys: ['admin_management', 'sales']
-    });
-  }
-} catch (evtErr) {
-  console.error('Overview notification event failed:', evtErr);
-}
+        try {
+            if (oldPackage && updatedPackage) {
+                await window.portal?.createCommandCenterEvent?.({
+                    moduleKey: 'overview',
+                    entityType: 'package',
+                    entityId: String(updatedPackage.id || cleanId),
+                    entityCode: updatedPackage.client_code || null,
+                    entityLabel: updatedPackage.client_code || 'Package',
+                    eventType: 'updated',
+                    summaryText: `${window.portal?.currentUser?.name || 'User'} changed package status for ${updatedPackage.client_code || 'client'}.`,
+                    fieldChanges: window.portal?.buildFieldChanges
+                        ? window.portal.buildFieldChanges(
+                            oldPackage,
+                            updatedPackage,
+                            ['status', 'manual_status_override', 'pause_until_date', 'status_override_updated_at', 'status_override_updated_by']
+                          )
+                        : [],
+                    oldData: oldPackage,
+                    newData: updatedPackage,
+                    severity: 'normal',
+                    teamKeys: ['admin_management', 'sales']
+                });
+            }
+        } catch (evtErr) {
+            console.error('Overview notification event failed:', evtErr);
+        }
 
-if (window.portal && typeof window.portal.fetchAdminData === 'function') {
-  await window.portal.fetchAdminData(true);
-} else {
-  location.reload();
-}
-      
+        if (window.portal && typeof window.portal.fetchAdminData === 'function') {
+            await window.portal.fetchAdminData(true);
+        }
+
+        if (window.adminDashboard && typeof window.adminDashboard.refreshDashboard === 'function') {
+            window.adminDashboard.refreshDashboard();
+        } else if (window.Admin && typeof window.Admin.refreshDashboard === 'function') {
+            window.Admin.refreshDashboard();
+        } else {
+            location.reload();
+        }
+
     } catch (error) {
         console.error("Status Update Error:", error);
         alert("An error occurred while updating.");
