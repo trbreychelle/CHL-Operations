@@ -6277,21 +6277,31 @@ if (qualifiesRaffle) {
         }
       },
 
-     getOnboardingRows() {
+         getOnboardingRows() {
   const state = this.getState();
   const clients = Array.isArray(state?.rawClients) ? state.rawClients : [];
   const onboarding = Array.isArray(state?.clientOnboarding) ? state.clientOnboarding : [];
+  const packages = Array.isArray(state?.packages) ? state.packages : [];
   const drafts = this._onboardingDrafts || {};
 
+  const packageClientCodes = new Set(
+    packages
+      .map(p => String(p.client_code || "").trim().toLowerCase())
+      .filter(Boolean)
+  );
+
   const byCode = new Map(
-    onboarding.map(row => [String(row.client_code || "").trim(), row])
+    onboarding.map(row => [String(row.client_code || "").trim().toLowerCase(), row])
   );
 
   return clients
-    .filter(c => String(c.client_code || "").trim())
+    .filter(c => {
+      const clientCode = String(c.client_code || c.code_name || "").trim().toLowerCase();
+      return clientCode && packageClientCodes.has(clientCode);
+    })
     .map(c => {
-      const clientCode = String(c.client_code || "").trim();
-      const saved = byCode.get(clientCode) || {};
+      const clientCode = String(c.client_code || c.code_name || "").trim();
+      const saved = byCode.get(clientCode.toLowerCase()) || {};
       const draft = drafts[clientCode] || {};
 
       return {
