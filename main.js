@@ -3259,7 +3259,11 @@ window.updateClientPackageStatus = async function(packageId, newPackageStatus) {
         return;
     }
 
-    const normalized = String(newPackageStatus || "").trim().toUpperCase();
+    let normalized = String(newPackageStatus || "").trim().toUpperCase();
+
+// 🔥 FIX: map UI values → system values
+if (normalized === 'ACTIVE') normalized = 'ONGOING';
+  
     console.log("Updating package status", { packageId: cleanId, newPackageStatus: normalized });
 
     try {
