@@ -3275,6 +3275,27 @@ window.updateClientPackageStatus = async function(packageId, newPackageStatus) {
 
         const oldPackage = (oldPackageRows && oldPackageRows[0]) ? oldPackageRows[0] : null;
 
+        let pauseUntilDate = null;
+
+        if (normalized === 'PAUSE') {
+            const pauseChoice = await window.showPauseDatePickerModal();
+
+            if (pauseChoice === null) {
+                // user cancelled
+                if (window.portal && typeof window.portal.fetchAdminData === 'function') {
+                    await window.portal.fetchAdminData(true);
+                }
+                if (window.adminDashboard && typeof window.adminDashboard.refreshDashboard === 'function') {
+                    window.adminDashboard.refreshDashboard();
+                } else if (window.Admin && typeof window.Admin.refreshDashboard === 'function') {
+                    window.Admin.refreshDashboard();
+                }
+                return;
+            }
+
+            pauseUntilDate = pauseChoice || null;
+        }
+
         let updatePayload = {
             status_override_updated_at: new Date().toISOString(),
             status_override_updated_by: window.portal?.currentUser?.name || window.portal?.currentUser?.email || 'admin'
@@ -3283,7 +3304,7 @@ window.updateClientPackageStatus = async function(packageId, newPackageStatus) {
         if (normalized === 'PAUSE') {
             updatePayload.status = 'Pause';
             updatePayload.manual_status_override = 'PAUSE';
-            updatePayload.pause_until_date = null;
+            updatePayload.pause_until_date = pauseUntilDate;
         } else if (normalized === 'REFUNDED') {
             updatePayload.status = 'Refunded';
             updatePayload.manual_status_override = 'REFUNDED';
@@ -3360,6 +3381,155 @@ window.updateClientPackageStatus = async function(packageId, newPackageStatus) {
         console.error("Status Update Error:", error);
         alert("An error occurred while updating.");
     }
+};
+
+window.showPauseDatePickerModal = function() {
+    return new Promise((resolve) => {
+        const existing = document.getElementById('pause-date-modal');
+        if (existing) existing.remove();
+
+        const today = new Date().toISOString().split('T')[0];
+
+        const modal = document.createElement('div');
+        modal.id = 'pause-date-modal';
+        modal.innerHTML = `
+            <div style="
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.45);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 99999;
+            ">
+                <div style="
+                    background: #fff;
+                    width: 100%;
+                    max-width: 420px;
+                    border-radius: 16px;
+                    padding: 24px;
+                    box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+                    font-family: inherit;
+                ">
+                    <h3 style="margin: 0 0 10px; font-size: 20px; font-weight: 700; color: #111827;">
+                        Pause Package
+                    </h3>
+                    <p style="margin: 0 0 16px; font-size: 14px; color: #6B7280;">
+                        Choose until when this package should stay paused. Leave it blank for permanent pause.
+                    </p>
+
+                    <input
+                        id="pause-until-input"
+                        type="date"
+                        min="${today}"
+                        style="
+                            width: 100%;
+                            padding: 12px 14px;
+                            border: 1px solid #D1D5DB;
+                            border-radius: 10px;
+                            font-size: 14px;
+                            margin-bottom: 18px;
+                            box-sizing: border-box;
+                        "
+                    />
+
+                    <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                        <button
+                            id="pause-cancel-btn"
+                            type="button"
+                            style="
+                                padding: 10px 14px;
+                                border: 1px solid #D1D5DB;
+                                background: #fff;
+                                border-radius: 10px;
+                                font-weight: 600;
+                                cursor: pointer;
+                            "
+                        >
+                            Cancel
+                        </button>
+
+                        <button
+                            id="pause-permanent-btn"
+                            type="button"
+                            style="
+                                padding: 10px 14px;
+                                border: none;
+                                background: #F59E0B;
+                                color: #fff;
+                                border-radius: 10px;
+                                font-weight: 700;
+                                cursor: pointer;
+                            "
+                        >
+                            Permanent Pause
+                        </button>
+
+                        <button
+                            id="pause-save-btn"
+                            type="button"
+                            style="
+                                padding: 10px 14px;
+                                border: none;
+                                background: #2563EB;
+                                color: #fff;
+                                border-radius: 10px;
+                                font-weight: 700;
+                                cursor: pointer;
+                            "
+                        >
+                            Save Pause
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const input = document.getElementById('pause-until-input');
+        const cancelBtn = document.getElementById('pause-cancel-btn');
+        const permanentBtn = document.getElementById('pause-permanent-btn');
+        const saveBtn = document.getElementById('pause-save-btn');
+
+        const cleanup = () => {
+            modal.remove();
+        };
+
+        cancelBtn.addEventListener('click', () => {
+            cleanup();
+            resolve(null);
+        });
+
+        permanentBtn.addEventListener('click', () => {
+            cleanup();
+            resolve('');
+        });
+
+        saveBtn.addEventListener('click', () => {
+            const selectedDate = String(input?.value || '').trim();
+
+            if (!selectedDate) {
+                alert('Please choose a date, or click Permanent Pause.');
+                return;
+            }
+
+            cleanup();
+            resolve(selectedDate);
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal.firstElementChild) {
+                cleanup();
+                resolve(null);
+            }
+        });
+
+        setTimeout(() => {
+            if (input) input.showPicker?.();
+            if (input) input.focus();
+        }, 50);
+    });
 };
 
 document.getElementById('btn-submit-timeoff')?.addEventListener('click', async () => {
