@@ -5298,48 +5298,60 @@ openNotificationById(eventId) {
   if (item) this.openNotification(item);
 },
 
-      async dailyAdd(code) {
-          const client = this.clientHealthRaw.find(c => c.code === code);
-          if (client) {
-              client.isServing = true;
-              client.addedToBoardAt = Date.now();
-              client.dailyAgents = "";
-              client.dailyGoal = 0;
-              this.renderDailyTab(); 
-          }
+    async dailyAdd(code) {
+  // ✅ update ALL matching rows (not just one)
+  this.clientHealthRaw.forEach(c => {
+    if (c.code === code) {
+      c.isServing = true;
+      c.addedToBoardAt = Date.now();
+      c.dailyAgents = "";
+      c.dailyGoal = 0;
+    }
+  });
 
-          // Use exact Row ID so it never misses
-          if (typeof supaClient !== 'undefined' && supaClient && client && client.rawClientId) {
+  // ✅ force clean UI rebuild
+  this.renderDailyTab();
+
+  // ✅ sync to DB
+  const client = this.clientHealthRaw.find(c => c.code === code);
+  if (typeof supaClient !== 'undefined' && supaClient && client && client.rawClientId) {
     await supaClient
       .from('clients')
       .update({ is_serving: true, daily_agents: "", daily_goal: 0 })
       .eq('id', client.rawClientId);
-}
-      },
+  }
+},
 
-      async dailyRemove(btnElement, code) {
-          // 1. RIP THE CARD OUT OF THE SCREEN INSTANTLY
-          if (btnElement) {
-              const card = btnElement.closest('.relative.rounded-xl');
-              if (card) card.remove();
-          }
+    async dailyRemove(btnElement, code) {
+  // ✅ remove visually immediately
+  if (btnElement) {
+    const card = btnElement.closest('.relative.rounded-xl');
+    if (card) card.remove();
+  }
 
-          // 2. UPDATE MEMORY SO IT DOESN'T COME BACK
-          const client = this.clientHealthRaw.find(c => c.code === code);
-          if (client) client.isServing = false;
-          
-          this.renderDailyTab(); 
+  // ✅ update ALL rows in memory
+  this.clientHealthRaw.forEach(c => {
+    if (c.code === code) {
+      c.isServing = false;
+    }
+  });
 
-          // 3. TARGET EXACT ROW ID IN DATABASE
-          if (typeof supaClient !== 'undefined' && supaClient && client && client.rawClientId) {
+  // ✅ re-render clean state
+  this.renderDailyTab();
+
+  // ✅ sync to DB
+  const client = this.clientHealthRaw.find(c => c.code === code);
+  if (typeof supaClient !== 'undefined' && supaClient && client && client.rawClientId) {
     try {
-        await supaClient
-          .from('clients')
-          .update({ is_serving: false })
-          .eq('id', client.rawClientId);
-    } catch (e) { console.error("DB Sync Failed:", e); }
-}
-      },
+      await supaClient
+        .from('clients')
+        .update({ is_serving: false })
+        .eq('id', client.rawClientId);
+    } catch (e) {
+      console.error("DB Sync Failed:", e);
+    }
+  }
+},
 
       async dailyUpdate(code, field, value) {
           const client = this.clientHealthRaw.find(c => c.code === code);
