@@ -4786,10 +4786,16 @@ const normalizePkgStatus = (value) => {
         let serveHtml = "";
         
         // SEPARATE SORTING: Pool stays alphabetical, Serving stacks at the bottom
-        let allActiveClients = this.clientHealthRaw.filter(c =>
-  c.passbookStatus === "ACTIVE" &&
-  String(c.dealStatus || "").toUpperCase() !== "NEGOTIATING"
-);
+        let allActiveClients = this.clientHealthRaw.filter(c => {
+  const pkgStatus = String(c.packageStatus || "").toUpperCase();
+  const dealStatus = String(c.dealStatus || "").toUpperCase();
+
+  return (
+    c.passbookStatus === "ACTIVE" &&
+    dealStatus !== "NEGOTIATING" &&
+    pkgStatus === "ONGOING" // ✅ THIS IS THE FIX
+  );
+});
         let servingClients = allActiveClients.filter(c => c.isServing);
         let poolClients = allActiveClients.filter(c => !c.isServing);
 
