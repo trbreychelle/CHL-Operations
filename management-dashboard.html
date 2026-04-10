@@ -939,36 +939,7 @@ body.client-health-lock {
 </div>
 </input></input></div>
 </div>
-<div class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" id="add-client-modal">
-<div class="bg-white rounded-lg shadow-xl w-[400px] p-6 relative">
-<button class="absolute top-4 right-4 text-gray-400 hover:text-gray-700" onclick="document.getElementById('add-client-modal').classList.add('hidden')">
-<i class="fa-solid fa-xmark text-xl"></i>
-</button>
-<h2 class="text-xl font-bold text-gray-800 mb-4">Add New Client</h2>
-<form id="add-client-form" onsubmit="submitNewClient(event)">
-<div class="mb-4">
-<label class="block text-xs font-bold text-gray-500 mb-1">CLIENT CODE</label>
-<input class="w-full border rounded p-2 text-sm outline-none focus:border-blue-500" id="new-client-code" placeholder="e.g. Client 160" required="" type="text"/>
-</div>
-<div class="mb-4">
-<label class="block text-xs font-bold text-gray-500 mb-1">COMPANY NAME</label>
-<input class="w-full border rounded p-2 text-sm outline-none focus:border-blue-500" id="new-client-name" placeholder="e.g. Apex Roofing" required="" type="text"/>
-</div>
-<div class="mb-6">
-<label class="block text-xs font-bold text-gray-500 mb-1">INITIAL STATUS</label>
-<select class="w-full border rounded p-2 text-sm outline-none focus:border-blue-500" id="new-client-status">
-<option value="Active">ACTIVE</option>
-<option value="Pause">PAUSE</option>
-<option value="Blacklisted">BLACKLISTED</option>
-<option value="Inactive">INACTIVE</option>
-</select>
-</div>
-<button class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors" id="save-client-btn" type="submit">
-                Add Client
-            </button>
-</form>
-</div>
-</div>
+
 <div class="client-health-backdrop hidden" id="client-health-backdrop" onclick="Admin.toggleClientHealthExpanded(false)"></div>
 <script>
     const AdminDashboard = {
@@ -1087,15 +1058,12 @@ const packages = state.packages || [];
   this.renderHROverview();
   this.renderHRTab();
   this.setHRSubtab(this.hrSubtab || 'overview');
-} catch(e) { console.error("HR Error:", e); }
-        try { this.bindSalesUI(); this.renderSalesTab(); } catch(e) { console.error("Sales Error:", e); } 
+} catch(e) { console.error("HR Error:", e); } 
         try { this.bindPassbookUI(rawClients); this.applyPassbookFilters(rawClients); } catch(e) {}
         try { this.bindOverviewAnalyticsUI(); } catch(e) {}
-        try { this.renderOnboardingTab(); } catch(e) { console.error("Onboarding Error:", e); }
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
         try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
         try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
-        try { this.bindPayrollUI(); this.renderPayrollFinance(); } catch(e) {}
         try { this.bindOverviewAnalyticsUI(); } catch(e) {} 
         try { this.renderDailyTab(); } catch(e) {}
       },
@@ -6115,39 +6083,6 @@ if (eventUpdateError) {
           document.getElementById('save-sale-btn').innerText = "Save Deal";
           if(window.populateSalesClientDropdown) window.populateSalesClientDropdown();
           document.getElementById('add-sale-modal').classList.remove('hidden');
-      };
-
-      window.submitNewClient = async function(e) {
-          e.preventDefault();
-          if (typeof supaClient === 'undefined' || !supaClient) return;
-
-          const btn = document.getElementById('save-client-btn');
-          btn.innerText = "Saving...";
-          btn.disabled = true;
-
-          const payload = {
-              client_code: document.getElementById('new-client-code').value,
-              company_name: document.getElementById('new-client-name').value,
-              client_status: document.getElementById('new-client-status').value
-          };
-
-          const { error } = await supaClient.from('clients').insert([payload]);
-
-          if (error) {
-              console.error("Add Client Error:", error);
-              alert("Failed to add new client.");
-          } else {
-              document.getElementById('add-client-modal').classList.add('hidden');
-              document.getElementById('add-client-form').reset();
-              
-              if (window.portal && typeof window.portal.fetchAdminData === 'function') {
-                  window.portal.fetchAdminData(true);
-              }
-              if (typeof fetchAdminClients === 'function') fetchAdminClients('All'); 
-          }
-
-          btn.innerText = "Add Client";
-          btn.disabled = false;
       };
     
   </script>
