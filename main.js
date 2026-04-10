@@ -3253,6 +3253,11 @@ async function updateClientStatus(clientId, newStatus) {
 }
 
 async function deletePassbookClient(clientId, companyName) {
+      if (window.portal?.isManagementUser?.()) {
+        alert("Management access cannot delete passbook clients.");
+        return;
+    }
+  
     if (!supaClient) return;
     
     const confirmDelete = confirm(`⚠️ WARNING: Are you absolutely sure you want to permanently delete ${companyName}?\nThis action cannot be undone.`);
