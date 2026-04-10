@@ -84,9 +84,10 @@ class CallHammerPortal {
     this.currentUser = null;
   }
 
-  routeByRole(roleRaw) {
+    routeByRole(roleRaw) {
     const role = String(roleRaw || '').toLowerCase();
     if (role === 'admin') return 'admin-dashboard.html';
+    if (role === 'management') return 'management-dashboard.html';
     if (role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') return 'salesdashboard.html';
     return 'agent-dashboard.html';
   }
@@ -455,6 +456,56 @@ class CallHammerPortal {
     }
   }
 
+    isManagementUser() {
+    return String(this.currentUser?.role || '').toLowerCase() === 'management';
+  }
+
+  canEditOverviewPackageStatus() {
+    return !this.isManagementUser();
+  }
+
+  canApproveTimeOffRequests() {
+    return !this.isManagementUser();
+  }
+
+  canDeletePassbookClients() {
+    return !this.isManagementUser();
+  }
+
+  updateDashboardIdentity() {
+    const role = String(this.currentUser?.role || '').toLowerCase();
+    const fullName =
+      this.currentUser?.display_name ||
+      this.currentUser?.full_name ||
+      this.currentUser?.name ||
+      this.currentUser?.email ||
+      'Unknown User';
+
+    const accessLabelEl = document.getElementById('sidebar-access-label');
+    const userNameEl = document.getElementById('sidebar-user-name');
+    const initialsEl = document.getElementById('sidebar-user-initials');
+
+    if (accessLabelEl) {
+      if (role === 'management') accessLabelEl.textContent = 'Management Access';
+      else if (role === 'admin') accessLabelEl.textContent = 'Admin Access';
+      else if (role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') accessLabelEl.textContent = 'Sales Access';
+      else accessLabelEl.textContent = 'Agent Access';
+    }
+
+    if (userNameEl) {
+      userNameEl.textContent = fullName;
+    }
+
+    if (initialsEl) {
+      const parts = String(fullName).trim().split(/\s+/).filter(Boolean);
+      const initials = parts.length >= 2
+        ? `${parts[0][0]}${parts[1][0]}`
+        : String(fullName).slice(0, 2);
+
+      initialsEl.textContent = String(initials || 'NA').toUpperCase();
+    }
+  }
+
   getCommandCenterTeamKey() {
     const role = String(this.currentUser?.role || '').toLowerCase();
     if (role === 'sales') return 'sales';
@@ -599,7 +650,8 @@ setupCommandCenterRealtime() {
   this.bindIndexLoginForm();
 }
 
-    this.enforceRoleRouting();
+this.updateDashboardIdentity();
+this.enforceRoleRouting();
 this.bindEvents();
 this.bindPassbookUpdateButton();
 
@@ -611,7 +663,8 @@ this.bindPassbookUpdateButton();
 const isAgentPage = pathName.includes('agent-dashboard');
 const isAdminPage = pathName.includes('admin-dashboard');
 const isSalesPage = pathName.includes('salesdashboard');
-const isCommandCenter = isAdminPage || isSalesPage;
+const isManagementPage = pathName.includes('management-dashboard');
+const isCommandCenter = isAdminPage || isSalesPage || isManagementPage;
 const isOldAgentDash = isAgentPage;
 
     // Load Agent Dashboard
@@ -647,19 +700,21 @@ if (isCommandCenter) {
 }
   }
 
-  enforceRoleRouting() {
+   enforceRoleRouting() {
     if (!this.currentUser) return;
 
     const path = (window.location.pathname || '').toLowerCase();
     const role = (this.currentUser.role || 'agent').toLowerCase();
 
-    if (!path.includes('dashboard') && !path.includes('admin')) return;
+    if (!path.includes('dashboard') && !path.includes('admin') && !path.includes('management')) return;
 
     const onAdmin = path.includes('admin');
     const onAgent = path.includes('agent');
     const onSales = path.includes('sales');
+    const onManagement = path.includes('management');
 
     if (role === 'admin' && !onAdmin) window.location.href = 'admin-dashboard.html';
+    else if (role === 'management' && !onManagement) window.location.href = 'management-dashboard.html';
     else if ((role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') && !onSales) window.location.href = 'salesdashboard.html';
     else if (role === 'agent' && !onAgent) window.location.href = 'agent-dashboard.html';
   }
