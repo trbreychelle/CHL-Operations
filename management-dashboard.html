@@ -633,9 +633,6 @@ body.client-health-lock {
 <div class="view-section" id="view-clients">
 <div class="flex justify-between items-center mb-6">
 <h2 class="text-2xl font-bold text-gray-900">Passbook Clients</h2>
-<button class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-extrabold hover:bg-blue-700 transition-colors shadow-sm" onclick="document.getElementById('add-client-modal').classList.remove('hidden')">
-<i class="fas fa-plus mr-2"></i> Add Client
-            </button>
 </div>
 <div class="client-filter-container">
 <label for="clientStatusFilter">Filter Clients: </label>
@@ -910,82 +907,8 @@ body.client-health-lock {
 </div>
 </div>
 
- </div> <div class="hidden fixed inset-0 z-[100] flex items-center justify-center" id="add-sale-modal">
-<div class="absolute inset-0 bg-black/40" onclick="document.getElementById('add-sale-modal').classList.add('hidden')"></div>
-<div class="relative bg-white rounded-2xl shadow-xl w-[90%] max-w-md p-6 max-h-[90vh] overflow-y-auto">
-<div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-3">
-<h3 class="font-bold text-xl text-gray-900" id="sale-modal-title">Log New Deal</h3>
-<button class="text-gray-400 hover:text-gray-900" onclick="document.getElementById('add-sale-modal').classList.add('hidden')"><i class="fa-solid fa-xmark"></i></button>
-</div>
-<form class="space-y-4" id="add-sale-form" onsubmit="window.submitNewSale(event)">
-<input id="sale-package-id" type="hidden" value=""/>
-<div class="grid grid-cols-2 gap-3 mb-3">
-<div class="relative">
-<label class="block text-xs font-bold text-gray-500 uppercase mb-1">Roofing Company</label>
-<input autocomplete="off" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400" id="sale-company" placeholder="Type to search or add new..." required="" type="text"/>
-<div class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-xl hidden max-h-48 overflow-y-auto mt-1 top-full left-0" id="custom-client-suggestions"></div>
-</div>
-<div>
-<label class="block text-xs font-bold text-gray-500 uppercase mb-1">POC (Contact Person)</label>
-<input class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400" id="sale-poc" placeholder="e.g. John Doe" type="text"/>
-</div>
-</div>
-<input id="sale-client-code" type="hidden" value=""/>
-<div class="grid grid-cols-2 gap-3 mb-3">
-<div>
-<label class="block text-xs font-bold text-gray-500 uppercase mb-1">Purchased Leads</label>
-<input class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400" id="sale-leads" placeholder="e.g. 10" required="" type="number"/>
-</div>
-<div>
-<label class="block text-xs font-bold text-gray-500 uppercase mb-1">Deal Value ($)</label>
-<input class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400" id="sale-value" placeholder="e.g. 2111" required="" step="0.01" type="number"/>
-</div>
-</div>
-<div class="grid grid-cols-2 gap-3 mb-3">
-<div>
-<label class="block text-xs font-bold text-gray-500 uppercase mb-1">Total Commission ($)</label>
-<input class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400" id="sale-commission" placeholder="e.g. 500" step="0.01" type="number" value="0"/>
-</div>
-<div>
-<label class="block text-xs font-bold text-gray-500 uppercase mb-1">Purchase Date</label>
-<input class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400" id="sale-date" required="" type="date"/>
-</div>
-</div>
-<div class="mb-4">
-<label class="block text-xs font-bold text-gray-500 mb-1 uppercase">TRANSACTION NUMBER</label>
-<input class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400" id="sale-transaction-id" placeholder="e.g. TXN-2026-001" type="text"/>
-</div>
-<div class="grid grid-cols-3 gap-3">
-<div>
-<label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Deal Type</label>
-<select class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400 font-bold text-blue-700" id="sale-deal-type">
-<option value="New Client">New Client</option>
-<option value="Renewal">Renewal</option>
-</select>
-</div>
-<div>
-<label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Deal Status</label>
-<select class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400" id="sale-deal-status">
-<option value="Paid">Paid</option>
-<option value="Negotiating">Negotiating</option>
-<option value="Refunded">Refunded</option>
-</select>
-</div>
-<div>
-<label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sale Category</label>
-<select class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400" id="sale-category">
-<option value="Hammer">Hammer</option>
-<option value="Mikaela">Mikaela</option>
-<option value="Hannah">Hannah</option>
-<option value="CHL Team">CHL Team</option>
-</select>
-</div>
-</div>
-<button class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg mt-2 shadow-lg" id="save-sale-btn" type="submit">Save Deal</button>
-</form>
-</div>
-</div>
-</main>
+ </div> 
+    
 <div class="hidden fixed inset-0 z-[120] flex items-center justify-center" id="rejection-reason-modal">
 <div class="absolute inset-0 bg-black/40" onclick="Admin.closeRejectionReasonModal()"></div>
 <div class="relative bg-white rounded-2xl shadow-xl w-[92%] max-w-lg p-6 border border-gray-100">
@@ -3062,21 +2985,16 @@ const renderBottomRow = (a) => {
                 </label>
 
                 <div class="flex items-center gap-2">
-                    <select id="status-select-${client.id}" 
-                            onchange="updateClientStatus('${client.id}', this.value)" 
-                            class="px-2 py-1 rounded-full text-[10px] font-extrabold border outline-none cursor-pointer transition-all shadow-sm ${window.getClientStatusColor ? getClientStatusColor(client.client_status) : ''}">
-                        <option value="Active" ${client.client_status === 'Active' ? 'selected' : ''}>ACTIVE</option>
-                        <option value="Pause" ${client.client_status === 'Pause' ? 'selected' : ''}>PAUSE</option>
-                        <option value="Blacklisted" ${client.client_status === 'Blacklisted' ? 'selected' : ''}>BLACKLISTED</option>
-                        <option value="Inactive" ${client.client_status === 'Inactive' ? 'selected' : ''}>INACTIVE</option>
-                    </select>
+    <span class="px-2 py-1 rounded-full text-[10px] font-extrabold border shadow-sm ${window.getClientStatusColor ? getClientStatusColor(client.client_status) : ''}">
+        ${String(client.client_status || 'Inactive').toUpperCase()}
+    </span>
 
-                     ${canDeletePassbook ? `
-                    <button onclick="deletePassbookClient('${client.id}', '${client.company_name}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Client">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                    ` : ``}
-                </div>
+     ${canDeletePassbook ? `
+    <button onclick="deletePassbookClient('${client.id}', '${client.company_name}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Client">
+        <i class="fa-solid fa-trash-can"></i>
+    </button>
+    ` : ``}
+</div>
                 
             </div>
         </div>`;
@@ -3500,21 +3418,16 @@ async openNotification(item) {
             <td class="p-4">${this.extractClientName(client)}</td>
             <td class="p-4 text-right">
               <div style="display:inline-flex; align-items:center; gap:8px; margin-right:15px;">
-                <select id="status-select-${client.id}" 
-                        onchange="updateClientStatus('${client.id}', this.value)" 
-                        class="px-2 py-1 rounded-full text-[10px] font-extrabold border outline-none cursor-pointer transition-all shadow-sm ${window.getClientStatusColor ? getClientStatusColor(client.client_status) : ''}">
-                  <option value="Active" ${client.client_status === 'Active' ? 'selected' : ''}>ACTIVE</option>
-                  <option value="Pause" ${client.client_status === 'Pause' ? 'selected' : ''}>PAUSE</option>
-                  <option value="Blacklisted" ${client.client_status === 'Blacklisted' ? 'selected' : ''}>BLACKLISTED</option>
-                  <option value="Inactive" ${client.client_status === 'Inactive' ? 'selected' : ''}>INACTIVE</option>
-                </select>
+  <span class="px-2 py-1 rounded-full text-[10px] font-extrabold border shadow-sm ${window.getClientStatusColor ? getClientStatusColor(client.client_status) : ''}">
+    ${String(client.client_status || 'Inactive').toUpperCase()}
+  </span>
 
-                ${canDeletePassbook ? `
-                <button onclick="deletePassbookClient('${client.id}', '${client.company_name}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Client">
-                  <i class="fa-solid fa-trash-can"></i>
-                </button>
-                ` : ``}
-              </div>
+  ${canDeletePassbook ? `
+  <button onclick="deletePassbookClient('${client.id}', '${client.company_name}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Client">
+    <i class="fa-solid fa-trash-can"></i>
+  </button>
+  ` : ``}
+</div>
 
               <div class="sales-share-toggle" style="display:inline-block; margin-right:10px;">
                 <label>
