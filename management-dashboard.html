@@ -1053,12 +1053,7 @@ const packages = state.packages || [];
         // 3. Keep other dashboard modules alive
         try { this.initLeadsColumnsUI(); this.applyLeadsFilters(); } catch(e) {}
         try { this.bindLeadsMasterEvents(); } catch(e) {}
-        try {
-  this.bindHRUI();
-  this.renderHROverview();
-  this.renderHRTab();
-  this.setHRSubtab(this.hrSubtab || 'overview');
-} catch(e) { console.error("HR Error:", e); } 
+        
         try { this.bindPassbookUI(rawClients); this.applyPassbookFilters(rawClients); } catch(e) {}
         try { this.bindOverviewAnalyticsUI(); } catch(e) {}
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
@@ -4591,10 +4586,6 @@ if (event.module_key === 'overview') {
   this.setView?.('overview');
 } else if (event.module_key === 'passbook_clients') {
   this.setView?.('clients');
-} else if (event.module_key === 'sales_pipeline') {
-  this.setView?.('sales');
-} else if (event.module_key === 'onboarding') {
-  this.setView?.('onboarding');
 } else if (event.module_key === 'time_off') {
   this.setView?.('notifications');
 }
@@ -4632,33 +4623,6 @@ if (event.module_key === 'overview') {
   return;
 }
 
-  // SALES
-  if (focus.moduleKey === 'sales_pipeline') {
-    const row =
-      document.querySelector(`[data-sales-package-id="${focus.entityId}"]`);
-
-    if (row) {
-      row.classList.add('cc-focus-ring', 'cc-focus-pulse', 'bg-emerald-50');
-      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-    return;
-  }
-
-  // ONBOARDING
-  if (focus.moduleKey === 'onboarding') {
-    const code = String(focus.entityCode || '').trim();
-    const row = document.querySelector(`[data-onboarding-code="${code}"]`);
-
-    if (row) {
-      row.classList.add('cc-focus-ring', 'cc-focus-pulse', 'bg-emerald-50');
-      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-      const changedFields = Array.isArray(focus.changedFields) ? focus.changedFields : [];
-      changedFields.forEach(field => {
-        const fieldEl = row.querySelector(`[data-ob-field="${field}"]`);
-        if (fieldEl) {
-          fieldEl.classList.add('cc-focus-ring', 'bg-emerald-50');
-        }
       });
     }
   }
@@ -6072,18 +6036,6 @@ if (eventUpdateError) {
 };
     
     window.Admin = AdminDashboard;
-
-    window.openAddDealModal = function(e) {
-          if(e) e.preventDefault(); 
-          document.getElementById('add-sale-form').reset();
-          document.getElementById('sale-package-id').value = ""; 
-          document.getElementById('sale-client-code').value = ""; 
-          document.getElementById('sale-deal-type').value = "New Client";
-          document.getElementById('sale-modal-title').innerText = "Log New Deal";
-          document.getElementById('save-sale-btn').innerText = "Save Deal";
-          if(window.populateSalesClientDropdown) window.populateSalesClientDropdown();
-          document.getElementById('add-sale-modal').classList.remove('hidden');
-      };
     
   </script>
 <script src="main.js"></script>
