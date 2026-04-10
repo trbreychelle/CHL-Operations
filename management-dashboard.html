@@ -2188,12 +2188,22 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
               <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsToday}</td>
               <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsYesterday}</td>
               <td class="p-4">
-                <select onchange="window.updateClientPackageStatus('${String(r._pkgId || "").replace(/'/g, "\'")}', this.value)" class="px-2 py-1 rounded text-[10px] font-extrabold border outline-none cursor-pointer shadow-sm ${pkgColor}">
-                    <option value="Active" ${r.packageStatus === 'ONGOING' ? 'selected' : ''}>ONGOING</option>
-                    <option value="Pause" ${r.packageStatus === 'PAUSE' ? 'selected' : ''}>PAUSE</option>
-                    <option value="Completed" ${r.packageStatus === 'COMPLETED' ? 'selected' : ''}>COMPLETED</option>
-                    <option value="Refunded" ${r.packageStatus === 'REFUNDED' ? 'selected' : ''}>REFUNDED</option>
-                </select>
+                ${
+                  window.portal?.canEditOverviewPackageStatus?.()
+                    ? `
+                      <select onchange="window.updateClientPackageStatus('${String(r._pkgId || "").replace(/'/g, "\\'")}', this.value)" class="px-2 py-1 rounded text-[10px] font-extrabold border outline-none cursor-pointer shadow-sm ${pkgColor}">
+                        <option value="Active" ${r.packageStatus === 'ONGOING' ? 'selected' : ''}>ONGOING</option>
+                        <option value="Pause" ${r.packageStatus === 'PAUSE' ? 'selected' : ''}>PAUSE</option>
+                        <option value="Completed" ${r.packageStatus === 'COMPLETED' ? 'selected' : ''}>COMPLETED</option>
+                        <option value="Refunded" ${r.packageStatus === 'REFUNDED' ? 'selected' : ''}>REFUNDED</option>
+                      </select>
+                    `
+                    : `
+                      <span class="px-2 py-1 rounded text-[10px] font-extrabold ${pkgColor}">
+                        ${r.packageStatus}
+                      </span>
+                    `
+                }
               </td>
               <td class="p-4 text-gray-700">${r.clientName}</td>
               <td class="p-4 text-gray-500">${r.purchaseDate}</td>
@@ -3029,6 +3039,7 @@ const renderBottomRow = (a) => {
         const container = document.getElementById('client-cards-container');
         if (!container) return;
         container.innerHTML = (clients || []).map(client => {
+        const canDeletePassbook = window.portal?.canDeletePassbookClients?.() ?? true;
           const code = this.extractCode(client);
           return `<div class="text-left bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition relative" data-passbook-code="${code}" data-passbook-client-code="${code}">
 
@@ -3060,9 +3071,11 @@ const renderBottomRow = (a) => {
                         <option value="Inactive" ${client.client_status === 'Inactive' ? 'selected' : ''}>INACTIVE</option>
                     </select>
 
+                     ${canDeletePassbook ? `
                     <button onclick="deletePassbookClient('${client.id}', '${client.company_name}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Client">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
+                    ` : ``}
                 </div>
                 
             </div>
@@ -3476,21 +3489,44 @@ async openNotification(item) {
         else this.renderClientCards(rows);
       },
 
-      renderPassbookList(clients) {
-        document.getElementById("passbook-list-body").innerHTML = (clients || []).map(client => `<tr class="hover:bg-gray-50 transition-all" data-passbook-code="${this.extractCode(client)}" data-passbook-client-code="${this.extractCode(client)}"><td class="p-4">${this.extractCode(client)}</td><td class="p-4 font-bold">${this.extractRoofingCompany(client)}</td><td class="p-4">${this.extractCityState(client)}</td><td class="p-4">${this.extractClientName(client)}</td><td class="p-4 text-right"><div style="display:inline-flex; align-items:center; gap:8px; margin-right:15px;">
-<select id="status-select-${client.id}" 
-        onchange="updateClientStatus('${client.id}', this.value)" 
-        class="px-2 py-1 rounded-full text-[10px] font-extrabold border outline-none cursor-pointer transition-all shadow-sm ${window.getClientStatusColor ? getClientStatusColor(client.client_status) : ''}">
-    <option value="Active" ${client.client_status === 'Active' ? 'selected' : ''}>ACTIVE</option>
-    <option value="Pause" ${client.client_status === 'Pause' ? 'selected' : ''}>PAUSE</option>
-    <option value="Blacklisted" ${client.client_status === 'Blacklisted' ? 'selected' : ''}>BLACKLISTED</option>
-    <option value="Inactive" ${client.client_status === 'Inactive' ? 'selected' : ''}>INACTIVE</option>
-</select>
+            renderPassbookList(clients) {
+        const canDeletePassbook = window.portal?.canDeletePassbookClients?.() ?? true;
 
-<button onclick="deletePassbookClient('${client.id}', '${client.company_name}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Client">
-    <i class="fa-solid fa-trash-can"></i>
-</button>
-</div><div class="sales-share-toggle" style="display:inline-block; margin-right:10px;"><label><input type="checkbox" class="share-checkbox" onchange="toggleShareWithSales('${this.extractCode(client)}', this)" ${client.shared_with_sales ? 'checked' : ''}> Share with Sales</label></div><button class="px-3 py-1 rounded bg-gray-900 text-white text-xs" onclick="Admin.openPassbookClient('${this.extractCode(client)}')">Open</button></td></tr>`).join("");
+        document.getElementById("passbook-list-body").innerHTML = (clients || []).map(client => `
+          <tr class="hover:bg-gray-50 transition-all" data-passbook-code="${this.extractCode(client)}" data-passbook-client-code="${this.extractCode(client)}">
+            <td class="p-4">${this.extractCode(client)}</td>
+            <td class="p-4 font-bold">${this.extractRoofingCompany(client)}</td>
+            <td class="p-4">${this.extractCityState(client)}</td>
+            <td class="p-4">${this.extractClientName(client)}</td>
+            <td class="p-4 text-right">
+              <div style="display:inline-flex; align-items:center; gap:8px; margin-right:15px;">
+                <select id="status-select-${client.id}" 
+                        onchange="updateClientStatus('${client.id}', this.value)" 
+                        class="px-2 py-1 rounded-full text-[10px] font-extrabold border outline-none cursor-pointer transition-all shadow-sm ${window.getClientStatusColor ? getClientStatusColor(client.client_status) : ''}">
+                  <option value="Active" ${client.client_status === 'Active' ? 'selected' : ''}>ACTIVE</option>
+                  <option value="Pause" ${client.client_status === 'Pause' ? 'selected' : ''}>PAUSE</option>
+                  <option value="Blacklisted" ${client.client_status === 'Blacklisted' ? 'selected' : ''}>BLACKLISTED</option>
+                  <option value="Inactive" ${client.client_status === 'Inactive' ? 'selected' : ''}>INACTIVE</option>
+                </select>
+
+                ${canDeletePassbook ? `
+                <button onclick="deletePassbookClient('${client.id}', '${client.company_name}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Client">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+                ` : ``}
+              </div>
+
+              <div class="sales-share-toggle" style="display:inline-block; margin-right:10px;">
+                <label>
+                  <input type="checkbox" class="share-checkbox" onchange="toggleShareWithSales('${this.extractCode(client)}', this)" ${client.shared_with_sales ? 'checked' : ''}>
+                  Share with Sales
+                </label>
+              </div>
+
+              <button class="px-3 py-1 rounded bg-gray-900 text-white text-xs" onclick="Admin.openPassbookClient('${this.extractCode(client)}')">Open</button>
+            </td>
+          </tr>
+        `).join("");
       },
 
       bindPassbookUI(clients) {
@@ -4355,7 +4391,7 @@ timeOffDetails = `
               }
             </button>
 
-          ${event.module_key === 'time_off' ? (() => {
+  ${event.module_key === 'time_off' ? (() => {
   let data = event.new_data || {};
   if (typeof data === 'string') {
     try { data = JSON.parse(data); } catch (e) { data = {}; }
@@ -4376,6 +4412,10 @@ timeOffDetails = `
         <span>${currentStatus === 'approved' ? 'Approved' : 'Declined'}</span>
       </div>
     `;
+  }
+
+  if (!window.portal?.canApproveTimeOffRequests?.()) {
+    return ``;
   }
 
   return `
