@@ -2142,10 +2142,18 @@ totalCommissions += commVal;
       extractClientName(c) { return this.pick(c, ["contact_person", "client_name"], "—"); },
       extractCode(c) { return this.pick(c, ["code_name", "client_code"], "N/A"); },
 
-      setupPassbookFilters(clients) {
-       const shared = (clients || []).filter(
-  c => c.shared_with_sales === true || String(c.shared_with_sales).toLowerCase() === 'true'
-);
+            isSharedWithSales(c) {
+        const v = c?.shared_with_sales;
+
+        if (v === true) return true;
+        if (v === 1) return true;
+
+        const s = String(v ?? '').trim().toLowerCase();
+        return ['true', '1', 'yes', 'y', 't'].includes(s);
+      },
+
+           setupPassbookFilters(clients) {
+        const shared = (clients || []).filter(c => this.isSharedWithSales(c));
         const locs = [...new Set(shared.map(c => this.extractCityState(c)).filter(Boolean))].sort();
         const sel = document.getElementById("passbook-filter-location");
         if(sel) sel.innerHTML = `<option value="all">All Locations</option>` + locs.map(l => `<option value="${l}">${l}</option>`).join("");
@@ -2156,9 +2164,7 @@ totalCommissions += commVal;
         const loc = document.getElementById("passbook-filter-location")?.value || "all";
         
         // STRICT FILTER: Only show shared clients
-        let rows = (clients || []).filter(
-  c => c.shared_with_sales === true || String(c.shared_with_sales).toLowerCase() === 'true'
-);
+               let rows = (clients || []).filter(c => this.isSharedWithSales(c));
         
         rows = rows.filter(c => (loc === "all" || this.extractCityState(c) === loc));
         if (q) rows = rows.filter(c => `${this.extractRoofingCompany(c)} ${this.extractCode(c)}`.toLowerCase().includes(q));
