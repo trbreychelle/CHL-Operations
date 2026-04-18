@@ -885,7 +885,7 @@ const packages = state.packages || [];
 try { this.renderOnboardingTab(); } catch(e) { console.error("Onboarding Error:", e); }
 
 try {
-  const passbookClients = rawClients.length ? rawClients : clients;
+  const passbookClients = rawClients || [];
   this.setupPassbookFilters(passbookClients);
   this.bindPassbookUI(passbookClients);
   this.applyPassbookFilters(passbookClients);
@@ -2143,10 +2143,9 @@ totalCommissions += commVal;
       extractCode(c) { return this.pick(c, ["code_name", "client_code"], "N/A"); },
 
       setupPassbookFilters(clients) {
-        const shared = (clients || []).filter(c => {
-  const code = String(c.client_code || c.code_name || "").trim();
-  return !!code;
-});
+       const shared = (clients || []).filter(
+  c => c.shared_with_sales === true || String(c.shared_with_sales).toLowerCase() === 'true'
+);
         const locs = [...new Set(shared.map(c => this.extractCityState(c)).filter(Boolean))].sort();
         const sel = document.getElementById("passbook-filter-location");
         if(sel) sel.innerHTML = `<option value="all">All Locations</option>` + locs.map(l => `<option value="${l}">${l}</option>`).join("");
@@ -2157,10 +2156,9 @@ totalCommissions += commVal;
         const loc = document.getElementById("passbook-filter-location")?.value || "all";
         
         // STRICT FILTER: Only show shared clients
-        let rows = (clients || []).filter(c => {
-  const code = String(c.client_code || c.code_name || "").trim();
-  return !!code;
-});
+        let rows = (clients || []).filter(
+  c => c.shared_with_sales === true || String(c.shared_with_sales).toLowerCase() === 'true'
+);
         
         rows = rows.filter(c => (loc === "all" || this.extractCityState(c) === loc));
         if (q) rows = rows.filter(c => `${this.extractRoofingCompany(c)} ${this.extractCode(c)}`.toLowerCase().includes(q));
@@ -2344,10 +2342,10 @@ totalCommissions += commVal;
           onboarding.map(row => [String(row.client_code || "").trim().toLowerCase(), row])
         );
 
-        return clients
+       return clients
   .filter(client => {
     const code = String(client.client_code || client.code_name || "").trim().toLowerCase();
-    return !!code;
+    return code && packageClientCodes.has(code);
   })
           .map(client => {
             const code = String(client.client_code || client.code_name || "").trim();
