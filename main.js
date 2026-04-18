@@ -84,14 +84,16 @@ class CallHammerPortal {
     this.currentUser = null;
   }
 
-    routeByRole(roleRaw) {
-  const role = String(roleRaw || '').toLowerCase();
-  if (role === 'admin') return 'admin-dashboard.html';
-  if (role === 'management') return 'management-dashboard.html';
-  if (role === 'sales_rep') return 'salesrep-dashboard.html';
-  if (role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') return 'salesdashboard.html';
-  return 'agent-dashboard.html';
-}
+   routeByRole(roleRaw) {
+    const role = String(roleRaw || '').toLowerCase();
+
+    if (role === 'admin') return 'admin-dashboard.html';
+    if (role === 'management') return 'management-dashboard.html';
+    if (role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') return 'salesdashboard.html';
+    if (role === 'sales_rep') return 'salesrep-dashboard.html';
+
+    return 'agent-dashboard.html';
+  }
 
   async loginWithCredentials(email, password) {
   const cleanEmail = String(email || '').trim().toLowerCase();
@@ -509,11 +511,20 @@ if (accessLabelEl) {
   }
 
  getCommandCenterTeamKey() {
-  const role = String(this.currentUser?.role || '').toLowerCase();
-  if (role === 'sales_rep') return 'sales_rep_mikaela';
-  if (role === 'sales') return 'sales';
-  return 'admin_management';
-}
+    const role = String(this.currentUser?.role || '').toLowerCase();
+
+    if (
+      role === 'sales' ||
+      role === 'sales_rep' ||
+      role === 'team_leader' ||
+      role === 'team leader' ||
+      role === 'tl'
+    ) {
+      return 'sales';
+    }
+
+    return 'admin_management';
+  }
 
   async deleteCommandCenterNote(noteId) {
   if (!supaClient || !noteId) return false;
@@ -718,11 +729,11 @@ if (isCommandCenter) {
   const onSalesRep = path.includes('salesrep-dashboard');
   const onManagement = path.includes('management-dashboard');
 
-  if (role === 'admin' && !onAdmin) window.location.href = 'admin-dashboard.html';
-  else if (role === 'management' && !onManagement) window.location.href = 'management-dashboard.html';
-  else if (role === 'sales_rep' && !onSalesRep) window.location.href = 'salesrep-dashboard.html';
-  else if ((role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') && !onSales) window.location.href = 'salesdashboard.html';
-  else if (role === 'agent' && !onAgent) window.location.href = 'agent-dashboard.html';
+      if (role === 'admin' && !onAdmin) window.location.href = 'admin-dashboard.html';
+    else if (role === 'management' && !onManagement) window.location.href = 'management-dashboard.html';
+    else if ((role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') && !onSales) window.location.href = 'salesdashboard.html';
+    else if (role === 'sales_rep' && !path.includes('salesrep-dashboard')) window.location.href = 'salesrep-dashboard.html';
+    else if (role === 'agent' && !onAgent) window.location.href = 'agent-dashboard.html';
 }
   
   // ------------------------
