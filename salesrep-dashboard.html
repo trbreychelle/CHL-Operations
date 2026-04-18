@@ -885,7 +885,7 @@ const packages = state.packages || [];
 try { this.renderOnboardingTab(); } catch(e) { console.error("Onboarding Error:", e); }
 
 try {
-  const passbookClients = rawClients || [];
+  const passbookClients = rawClients.length ? rawClients : clients;
   this.setupPassbookFilters(passbookClients);
   this.bindPassbookUI(passbookClients);
   this.applyPassbookFilters(passbookClients);
@@ -2328,7 +2328,9 @@ totalCommissions += commVal;
 
           getOnboardingRows() {
   const state = this.getState();
-  const clients = Array.isArray(state?.rawClients) ? state.rawClients : [];
+  const clients = Array.isArray(state?.rawClients) && state.rawClients.length
+  ? state.rawClients
+  : (Array.isArray(state?.clients) ? state.clients : []);
   const onboarding = Array.isArray(state?.clientOnboarding) ? state.clientOnboarding : [];
   const packages = Array.isArray(state?.packages) ? state.packages : [];
 
