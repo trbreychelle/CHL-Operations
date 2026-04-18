@@ -85,12 +85,13 @@ class CallHammerPortal {
   }
 
     routeByRole(roleRaw) {
-    const role = String(roleRaw || '').toLowerCase();
-    if (role === 'admin') return 'admin-dashboard.html';
-    if (role === 'management') return 'management-dashboard.html';
-    if (role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') return 'salesdashboard.html';
-    return 'agent-dashboard.html';
-  }
+  const role = String(roleRaw || '').toLowerCase();
+  if (role === 'admin') return 'admin-dashboard.html';
+  if (role === 'management') return 'management-dashboard.html';
+  if (role === 'sales_rep') return 'salesrep-dashboard.html';
+  if (role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') return 'salesdashboard.html';
+  return 'agent-dashboard.html';
+}
 
   async loginWithCredentials(email, password) {
   const cleanEmail = String(email || '').trim().toLowerCase();
@@ -485,12 +486,13 @@ class CallHammerPortal {
     const userNameEl = document.getElementById('sidebar-user-name');
     const initialsEl = document.getElementById('sidebar-user-initials');
 
-    if (accessLabelEl) {
-      if (role === 'management') accessLabelEl.textContent = 'Management Access';
-      else if (role === 'admin') accessLabelEl.textContent = 'Admin Access';
-      else if (role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') accessLabelEl.textContent = 'Sales Access';
-      else accessLabelEl.textContent = 'Agent Access';
-    }
+if (accessLabelEl) {
+  if (role === 'management') accessLabelEl.textContent = 'Management Access';
+  else if (role === 'admin') accessLabelEl.textContent = 'Admin Access';
+  else if (role === 'sales_rep') accessLabelEl.textContent = 'Sales Rep Access';
+  else if (role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') accessLabelEl.textContent = 'Sales Access';
+  else accessLabelEl.textContent = 'Agent Access';
+}
 
     if (userNameEl) {
       userNameEl.textContent = fullName;
@@ -506,11 +508,12 @@ class CallHammerPortal {
     }
   }
 
-  getCommandCenterTeamKey() {
-    const role = String(this.currentUser?.role || '').toLowerCase();
-    if (role === 'sales') return 'sales';
-    return 'admin_management';
-  }
+ getCommandCenterTeamKey() {
+  const role = String(this.currentUser?.role || '').toLowerCase();
+  if (role === 'sales_rep') return 'sales_rep_mikaela';
+  if (role === 'sales') return 'sales';
+  return 'admin_management';
+}
 
   async deleteCommandCenterNote(noteId) {
   if (!supaClient || !noteId) return false;
@@ -659,12 +662,13 @@ this.bindPassbookUpdateButton();
       setTimeout(() => this.loadPassbookClientsList(true), 300);
     }
 
-    const pathName = (window.location.pathname || '').toLowerCase();
+   const pathName = (window.location.pathname || '').toLowerCase();
 const isAgentPage = pathName.includes('agent-dashboard');
 const isAdminPage = pathName.includes('admin-dashboard');
 const isSalesPage = pathName.includes('salesdashboard');
+const isSalesRepPage = pathName.includes('salesrep-dashboard');
 const isManagementPage = pathName.includes('management-dashboard');
-const isCommandCenter = isAdminPage || isSalesPage || isManagementPage;
+const isCommandCenter = isAdminPage || isSalesPage || isSalesRepPage || isManagementPage;
 const isOldAgentDash = isAgentPage;
 
     // Load Agent Dashboard
@@ -701,23 +705,25 @@ if (isCommandCenter) {
   }
 
    enforceRoleRouting() {
-    if (!this.currentUser) return;
+  if (!this.currentUser) return;
 
-    const path = (window.location.pathname || '').toLowerCase();
-    const role = (this.currentUser.role || 'agent').toLowerCase();
+  const path = (window.location.pathname || '').toLowerCase();
+  const role = (this.currentUser.role || 'agent').toLowerCase();
 
-    if (!path.includes('dashboard') && !path.includes('admin') && !path.includes('management')) return;
+  if (!path.includes('dashboard') && !path.includes('admin') && !path.includes('management') && !path.includes('salesrep')) return;
 
-    const onAdmin = path.includes('admin');
-    const onAgent = path.includes('agent');
-    const onSales = path.includes('sales');
-    const onManagement = path.includes('management');
+  const onAdmin = path.includes('admin-dashboard');
+  const onAgent = path.includes('agent-dashboard');
+  const onSales = path.includes('salesdashboard');
+  const onSalesRep = path.includes('salesrep-dashboard');
+  const onManagement = path.includes('management-dashboard');
 
-    if (role === 'admin' && !onAdmin) window.location.href = 'admin-dashboard.html';
-    else if (role === 'management' && !onManagement) window.location.href = 'management-dashboard.html';
-    else if ((role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') && !onSales) window.location.href = 'salesdashboard.html';
-    else if (role === 'agent' && !onAgent) window.location.href = 'agent-dashboard.html';
-  }
+  if (role === 'admin' && !onAdmin) window.location.href = 'admin-dashboard.html';
+  else if (role === 'management' && !onManagement) window.location.href = 'management-dashboard.html';
+  else if (role === 'sales_rep' && !onSalesRep) window.location.href = 'salesrep-dashboard.html';
+  else if ((role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') && !onSales) window.location.href = 'salesdashboard.html';
+  else if (role === 'agent' && !onAgent) window.location.href = 'agent-dashboard.html';
+}
   
   // ------------------------
   // Session / Events (safe)
@@ -2799,7 +2805,11 @@ window.editDealModal = function(pkgId) {
     document.getElementById('sale-value').value = String(pkg.amount || "").replace(/[^0-9.-]+/g,"");
     document.getElementById('sale-commission').value = pkg.commission_per_lead || 0;
     
-    if (pkg.purchase_date) document.getElementById('sale-date').value = new Date(pkg.purchase_date).toISOString().split('T')[0];
+    if (pkg.purchase_date) {
+  const rawDate = String(pkg.purchase_date).trim();
+  const isoOnly = rawDate.match(/^\d{4}-\d{2}-\d{2}$/);
+  document.getElementById('sale-date').value = isoOnly ? rawDate : '';
+}
 
     document.getElementById('sale-transaction-id').value = pkg.external_package_id || "";
     document.getElementById('sale-deal-status').value = pkg.deal_status || "Paid";
