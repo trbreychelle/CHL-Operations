@@ -161,8 +161,8 @@
       <div id="view-overview" class="view-section active">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
           <div>
-            <h1 class="text-3xl font-bold text-gray-900">Mikaela Sales Overview</h1>
-<p class="text-sm text-gray-500 mt-1">Monitor Mikaela sales performance and assigned deals only.</p>
+            <h1 class="text-3xl font-bold text-gray-900">Sales Overview</h1>
+<p class="text-sm text-gray-500 mt-1">Monitor sales performance and assigned deals.</p>
           </div>
           
           <div class="flex gap-4 flex-wrap">
@@ -2341,7 +2341,11 @@ totalCommissions += commVal;
         return clients
           .filter(client => {
             const code = String(client.client_code || client.code_name || "").trim().toLowerCase();
-            return code && packageClientCodes.has(code);
+            const isShared =
+              client.shared_with_sales === true ||
+              String(client.shared_with_sales).toLowerCase() === 'true';
+
+            return code && isShared;
           })
           .map(client => {
             const code = String(client.client_code || client.code_name || "").trim();
