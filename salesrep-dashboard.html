@@ -2327,50 +2327,49 @@ totalCommissions += commVal;
 },
 
           getOnboardingRows() {
-        const state = this.getState();
-        const clients = Array.isArray(state?.rawClients) ? state.rawClients : [];
-        const onboarding = Array.isArray(state?.clientOnboarding) ? state.clientOnboarding : [];
-        const packages = Array.isArray(state?.packages) ? state.packages : [];
+  const state = this.getState();
+  const clients = Array.isArray(state?.rawClients) ? state.rawClients : [];
+  const onboarding = Array.isArray(state?.clientOnboarding) ? state.clientOnboarding : [];
+  const packages = Array.isArray(state?.packages) ? state.packages : [];
 
-        const packageClientCodes = new Set(
-          packages
-            .map(p => String(p.client_code || "").trim().toLowerCase())
-            .filter(Boolean)
-        );
+  const packageClientCodes = new Set(
+    packages
+      .map(p => String(p.client_code || "").trim().toLowerCase())
+      .filter(Boolean)
+  );
 
-        const onboardingByCode = new Map(
-          onboarding.map(row => [String(row.client_code || "").trim().toLowerCase(), row])
-        );
+  const onboardingByCode = new Map(
+    onboarding.map(row => [String(row.client_code || "").trim().toLowerCase(), row])
+  );
 
-       return clients
-  .filter(client => {
-    const code = String(client.client_code || client.code_name || "").trim().toLowerCase();
-    return code && packageClientCodes.has(code);
-  })
-          .map(client => {
-            const code = String(client.client_code || client.code_name || "").trim();
-            const onboardingRow = onboardingByCode.get(code.toLowerCase()) || {};
-            const draft = this._onboardingDrafts?.[code] || {};
+  return clients
+    .filter(client => {
+      const code = String(client.client_code || client.code_name || "").trim().toLowerCase();
+      return code && packageClientCodes.has(code);
+    })
+    .map(client => {
+      const code = String(client.client_code || client.code_name || "").trim();
+      const onboardingRow = onboardingByCode.get(code.toLowerCase()) || {};
+      const draft = this._onboardingDrafts?.[code] || {};
 
-            return {
-              client_code: code,
-              company_name: client.company_name || client.roofing_company || "—",
+      return {
+        client_code: code,
+        company_name: client.company_name || client.roofing_company || "—",
 
-              client_paid: draft.client_paid ?? !!onboardingRow.client_paid,
-              contract_sent: draft.contract_sent ?? !!onboardingRow.contract_sent,
-              contract_completed: draft.contract_completed ?? !!onboardingRow.contract_completed,
-              onboarding_link_sent: draft.onboarding_link_sent ?? !!onboardingRow.onboarding_link_sent,
-              onboarding_link_completed: draft.onboarding_link_completed ?? !!onboardingRow.onboarding_link_completed,
-              ghl_account_created: draft.ghl_account_created ?? !!onboardingRow.ghl_account_created,
-              client_portal_created: draft.client_portal_created ?? !!onboardingRow.client_portal_created,
-              live_lead_tracker_created: draft.live_lead_tracker_created ?? !!onboardingRow.live_lead_tracker_created,
-              client_portal_demo_completed: draft.client_portal_demo_completed ?? !!onboardingRow.client_portal_demo_completed,
-              ready_to_receive_leads: draft.ready_to_receive_leads ?? !!onboardingRow.ready_to_receive_leads,
-              notes: draft.notes ?? onboardingRow.notes ?? ""
-            };
-          })
-          .sort((a, b) => a.company_name.localeCompare(b.company_name));
-      },
+        client_paid: draft.client_paid ?? !!onboardingRow.client_paid,
+        contract_sent: draft.contract_sent ?? !!onboardingRow.contract_sent,
+        contract_completed: draft.contract_completed ?? !!onboardingRow.contract_completed,
+        onboarding_link_sent: draft.onboarding_link_sent ?? !!onboardingRow.onboarding_link_sent,
+        onboarding_link_completed: draft.onboarding_link_completed ?? !!onboardingRow.onboarding_link_completed,
+        ghl_account_created: draft.ghl_account_created ?? !!onboardingRow.ghl_account_created,
+        client_portal_created: draft.client_portal_created ?? !!onboardingRow.client_portal_created,
+        live_lead_tracker_created: draft.live_lead_tracker_created ?? !!onboardingRow.live_lead_tracker_created,
+        client_portal_demo_completed: draft.client_portal_demo_completed ?? !!onboardingRow.client_portal_demo_completed,
+        ready_to_receive_leads: draft.ready_to_receive_leads ?? !!onboardingRow.ready_to_receive_leads,
+        notes: draft.notes ?? onboardingRow.notes ?? ""
+      };
+    });
+},
 
 getFilteredOnboardingRows() {
   let rows = this.getOnboardingRows();
