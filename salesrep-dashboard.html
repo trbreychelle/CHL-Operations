@@ -1,0 +1,2812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sales Access - CHL Command Center</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+
+    /* ONBOARDING CHECKBOX STYLE */
+.onboard-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #10b981;
+  transform: scale(1.2);
+}
+
+.onboard-checkbox:hover {
+  transform: scale(1.3);
+}
+    
+    /* TIGHTEN LEADS TRACKER COLUMNS (match admin) */
+#view-leads table {
+    table-layout: auto !important;
+    width: 100% !important;
+}
+
+#view-leads th,
+#view-leads td {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+#view-leads td {
+    position: relative;
+}
+
+#view-leads td:hover {
+    background-color: #f8fafc;
+    z-index: 20;
+}
+    
+    * { font-family: 'Inter', sans-serif; }
+    body { background-color: #F9FAFB; color: #111827; }
+
+    .sidebar { background: linear-gradient(180deg, #374151 0%, #111827 100%); transition: all 0.3s; }
+    .nav-item { transition: all 0.2s; border-left: 4px solid transparent; cursor: pointer; color: #D1D5DB; }
+    .nav-item:hover { background: rgba(251, 191, 36, 0.1); color: #FBBF24; }
+    .nav-item.active { background: rgba(251, 191, 36, 0.15); color: #FBBF24; border-left-color: #FBBF24; font-weight: 600; }
+
+    .status-container { position: relative; display: inline-flex; align-items: center; }
+    .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; cursor: help; }
+    .st-critical { background-color: #EF4444; box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2); }
+    .st-risk { background-color: #F59E0B; box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.18); }
+    .st-healthy { background-color: #10B981; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.18); }
+    .st-new { background-color: #3B82F6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18); }
+
+    .tooltip-text {
+      visibility: hidden; width: 260px; background-color: #111827; color: #fff; text-align: left;
+      border-radius: 8px; padding: 10px; position: absolute; z-index: 50; bottom: 135%; left: 50%;
+      margin-left: -130px; opacity: 0; transition: opacity 0.2s; font-size: 11px; font-weight: 500;
+      pointer-events: none; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); border: 1px solid #374151;
+      line-height: 1.35;
+    }
+    .tooltip-text::after {
+      content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px;
+      border-width: 5px; border-style: solid; border-color: #111827 transparent transparent transparent;
+    }
+    .status-container:hover .tooltip-text { visibility: visible; opacity: 1; }
+
+    .view-section { display: none; animation: fadeIn 0.3s ease-in-out; }
+    .view-section.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { background: rgba(17,24,39,0.02); }
+    .sort-icon { font-size: 10px; margin-left: 6px; color: #9CA3AF; }
+
+    /* KPI tiles */
+    .kpi-tile { background: #fff; border: 1px solid #F3F4F6; border-radius: 16px; padding: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+    .kpi-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .12em; color: #9CA3AF; }
+    .kpi-value { font-size: 20px; font-weight: 800; margin-top: 6px; color: #111827; }
+    .kpi-sub { font-size: 12px; font-weight: 600; margin-top: 2px; color: #6B7280; }
+
+    /* Client Health fixed scroll height */
+    .client-health-scroll { max-height: 315px; overflow-y: auto; }
+    .controls-wrap { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+    .controls-wrap > * { min-width: 180px; }
+    @media (max-width: 1024px) { .controls-wrap > * { min-width: 160px; } }
+    .table-scroll { overflow-x: auto; }
+    .table-min { min-width: 1100px; }
+
+    /* CRITICAL SALES UI OVERRIDES */
+    .sales-share-toggle { display: none !important; }
+  </style>
+</head>
+
+<body class="h-screen flex overflow-hidden">
+
+  <aside class="sidebar w-64 flex-shrink-0 hidden lg:flex flex-col">
+    <div class="h-16 flex items-center px-6 border-b border-gray-700">
+      <div class="w-8 h-8 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-lg flex items-center justify-center text-gray-900 font-bold mr-3 shadow-lg shadow-yellow-500/20">CH</div>
+      <span class="font-bold text-white tracking-tight">COMMAND CENTER</span>
+    </div>
+
+    <div class="flex-1 overflow-y-auto py-6 space-y-8">
+      <div>
+        <div class="px-6 mb-2 text-[10px] font-bold uppercase text-gray-400 tracking-wider">Sales Operations</div>
+        <nav class="space-y-1">
+          <a href="#overview" class="nav-item active flex items-center px-6 py-3 text-sm" onclick="Admin.nav('overview', this)">
+            <i class="fa-solid fa-satellite-dish w-5 text-center"></i> Overview
+          </a>
+          <a href="#notifications" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('notifications', this)">
+  <i class="fa-solid fa-bell w-5 text-center"></i> Notifications
+</a>
+          <a href="#sales" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('sales', this)">
+  <i class="fa-solid fa-handshake w-5 text-center"></i> Sales Pipeline
+</a>
+<a href="#onboarding" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('onboarding', this)">
+  <i class="fa-solid fa-list-check w-5 text-center"></i> Onboarding
+</a>
+<a href="#clients" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('clients', this)">
+  <i class="fa-solid fa-building w-5 text-center"></i> Passbook Clients
+</a>
+          <a href="#leads" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('leads', this)">
+            <i class="fa-solid fa-list-check w-5 text-center"></i> Leads Tracker
+          </a>
+        </nav>
+      </div>
+    </div>
+
+    <div class="p-4 border-t border-gray-700 bg-gray-800/50">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-blue-700 to-blue-600 flex items-center justify-center text-xs font-bold text-white border border-blue-500">SA</div>
+        <div>
+          <p class="text-xs font-bold text-white">Sales Rep Access</p>
+          <button onclick="portal.logout()" class="text-[10px] text-gray-400 hover:text-yellow-400 uppercase font-bold tracking-wide transition-colors">Log Out</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+    <div class="flex-1 overflow-y-auto p-6 lg:p-8" id="main-scroll">
+
+      <div id="view-overview" class="view-section active">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+          <div>
+            <h1 class="text-3xl font-bold text-gray-900">Mikaela Sales Overview</h1>
+<p class="text-sm text-gray-500 mt-1">Monitor Mikaela sales performance and assigned deals only.</p>
+          </div>
+          
+          <div class="flex gap-4 flex-wrap">
+  <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
+    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider" id="pulse-label">EST. VALUE</p>
+    <p class="text-lg font-bold text-emerald-600 mt-1" id="pulse-profit">$0.00</p>
+  </div>
+
+  <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm min-w-[220px]">
+    <div class="flex items-center justify-between gap-3">
+      <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Owed Leads</p>
+      <select id="owed-package-filter" class="text-[10px] font-extrabold border border-gray-200 rounded-lg px-2 py-1 bg-white">
+        <option value="all" selected>ALL</option>
+        <option value="ONGOING">ONGOING</option>
+        <option value="PAUSE">PAUSE</option>
+        <option value="COMPLETED">COMPLETED</option>
+        <option value="REFUNDED">REFUNDED</option>
+      </select>
+    </div>
+    <p class="text-lg font-bold text-gray-900 mt-1" id="pulse-owed">0</p>
+    <p class="text-[11px] font-semibold text-gray-500" id="pulse-owed-sub">All package statuses</p>
+  </div>
+
+  <div class="bg-white px-5 py-3 rounded-xl border border-gray-100 shadow-sm">
+    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pending Leads</p>
+    <p class="text-lg font-bold text-yellow-500 mt-1" id="pulse-pending">0</p>
+  </div>
+</div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8">
+          <div class="p-5 border-b border-gray-100 flex flex-col gap-3 bg-gray-50/50 rounded-t-2xl">
+            <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
+              <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                <i class="fa-solid fa-heart-pulse text-red-500"></i> Client Health Monitor
+              </h3>
+            </div>
+            
+            <div class="flex flex-col md:flex-row gap-3">
+              <div class="flex-1 relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+                <input id="health-search" type="text" placeholder="Search by code, roofing company, or client name..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+              </div>
+
+              <div class="relative min-w-[170px]">
+                <button id="health-status-btn" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white flex justify-between items-center hover:bg-gray-50">
+                  <span id="health-status-label" class="font-bold text-gray-700">Health: 4 selected</span>
+                  <i class="fa-solid fa-chevron-down text-gray-400 text-xs"></i>
+                </button>
+                <div id="health-status-popover" class="hidden absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-xl z-50 p-3 space-y-2 max-h-64 overflow-y-auto">
+                </div>
+              </div>
+
+              <select id="health-filter-package" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[190px] text-blue-700">
+                <option value="ONGOING" selected>Pkg: ONGOING</option>
+                <option value="PAUSE">Pkg: PAUSE</option>
+                <option value="COMPLETED">Pkg: COMPLETED</option>
+                <option value="REFUNDED">Pkg: REFUNDED</option>
+                <option value="ALL">All Packages</option>
+              </select>
+
+              <select id="health-filter-location" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[190px]">
+                <option value="all">All Locations</option>
+              </select>
+
+              <button id="health-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">Clear</button>
+            </div>
+          </div>
+          
+          <div class="client-health-scroll">
+            <table class="w-full text-left border-collapse">
+              <thead class="bg-white sticky top-0 z-10 shadow-sm">
+                <tr>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase w-10">Status</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="code">Code <span class="sort-icon" id="sort-code">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="roofingCompany">Roofing Company <span class="sort-icon" id="sort-roofingCompany">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="cityState">City/State <span class="sort-icon" id="sort-cityState">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center sortable" data-sort="packageRatio">Package (Owed) <span class="sort-icon" id="sort-packageRatio">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Qualified</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Credited</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center text-red-500">Cancel Rate</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center sortable" data-sort="leadsToday">Leads Today <span class="sort-icon" id="sort-leadsToday">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center sortable" data-sort="leadsYesterday">Leads Yesterday <span class="sort-icon" id="sort-leadsYesterday">↕</span></th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase">Package Status</th>
+                  <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="clientName">Client Name <span class="sort-icon" id="sort-clientName">↕</span></th>
+                </tr>
+              </thead>
+              <tbody id="client-health-body" class="text-sm divide-y divide-gray-50">
+                <tr><td colspan="12" class="p-6 text-center text-gray-400 italic">Loading clients...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8 overflow-hidden">
+          <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-gray-50/50">
+            <h3 class="font-bold text-gray-900 flex items-center gap-2">
+              <i class="fa-solid fa-chart-column text-yellow-500"></i> Team Performance Analytics
+            </h3>
+            
+            <div class="flex items-center gap-2 flex-wrap">
+              <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
+                <button onclick="Admin.setAnalyticsPeriod('today', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
+                <button onclick="Admin.setAnalyticsPeriod('this-week', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
+                <button onclick="Admin.setAnalyticsPeriod('previous-week', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Previous Week</button>
+                <button onclick="Admin.setAnalyticsPeriod('4-weeks', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">4 Weeks</button>
+                <button onclick="Admin.setAnalyticsPeriod('all-time', this)" class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
+              </div>
+
+              <div class="relative">
+                <button id="custom-range-toggle" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                  <i class="fa-regular fa-calendar"></i> Custom
+                </button>
+                <div id="custom-range-popover" class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                  <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">Custom Timeframe</div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+                      <input id="custom-start" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
+                    </div>
+                    <div>
+                      <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+                      <input id="custom-end" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
+                    </div>
+                  </div>
+                  <div class="flex justify-end gap-2 mt-3">
+                    <button id="custom-clear" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">Clear</button>
+                    <button id="custom-apply" class="px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">Apply</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-5">
+            <div class="grid grid-cols-1 md:grid-cols-6 gap-3 mb-5">
+              <div class="kpi-tile">
+                <div class="kpi-label">Total Leads</div>
+                <div class="kpi-value" id="kpi-total">0</div>
+                <div class="kpi-sub" id="kpi-range">—</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">QC Rejected</div>
+                <div class="kpi-value text-red-500" id="kpi-qc-rejected">0</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">Qualified</div>
+                <div class="kpi-value text-blue-500" id="kpi-qualified">0</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">Credited</div>
+                <div class="kpi-value text-purple-500" id="kpi-credited">0</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">Pending</div>
+                <div class="kpi-value text-yellow-500" id="kpi-pending">0</div>
+              </div>
+              <div class="kpi-tile">
+                <div class="kpi-label">Cancellation Rate</div>
+                <div class="kpi-value" id="kpi-cancel">0%</div>
+              </div>
+            </div>
+            <div class="bg-white border border-gray-100 rounded-2xl p-4">
+              <div class="w-full overflow-x-auto">
+                <div class="min-w-[720px]"><canvas id="team-analytics-chart" height="110"></canvas></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="view-notifications" class="view-section">
+  <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+    
+    <div class="xl:col-span-7">
+      <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-start justify-between gap-4 mb-5">
+          <div>
+            <h2 class="text-2xl font-black text-gray-900">Notifications</h2>
+            <p class="text-sm text-gray-500 mt-1">Command center activity feed and shared workflow status.</p>
+          </div>
+          <div class="px-4 py-2 rounded-2xl bg-blue-50 text-blue-700 text-sm font-extrabold shadow-sm">
+            Unread: <span id="notifications-unread-count">0</span>
+          </div>
+        </div>
+
+        <div id="notifications-feed" class="space-y-4"></div>
+      </div>
+    </div>
+
+    <div class="xl:col-span-5">
+      <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 sticky top-6">
+        <div class="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h3 class="text-xl font-black text-gray-900">Notes & To-Do</h3>
+            <p class="text-sm text-gray-500 mt-1">Quick notes for admins and sales.</p>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <textarea
+            id="command-center-note-draft"
+            class="w-full min-h-[110px] px-4 py-3 rounded-2xl border border-gray-200 bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+            placeholder="Add a quick team note or to-do..."
+          ></textarea>
+
+          <div class="flex justify-end mt-3">
+            <button
+              onclick="Admin.saveQuickNote()"
+              class="px-5 py-2.5 rounded-2xl bg-gray-900 text-white text-sm font-extrabold hover:bg-blue-600 transition-colors shadow-sm"
+            >
+              Add Note
+            </button>
+          </div>
+        </div>
+
+        <div id="notifications-notes-feed" class="space-y-3"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+      <div id="view-sales" class="view-section">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">Master Sales Pipeline</h2>
+            <p class="text-sm text-gray-500 mt-1">Track Mikaela deals only and use manual commission entry.</p>
+          </div>
+          <div class="flex gap-3 items-end">
+            <div class="bg-white px-5 py-2 rounded-xl border border-gray-100 shadow-sm text-right">
+              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TOTAL COMMISSIONS</p>
+              <p class="text-xl font-bold text-purple-600" id="sales-commissions-kpi">$0.00</p>
+            </div>
+            <div class="bg-white px-5 py-2 rounded-xl border border-gray-100 shadow-sm text-right">
+              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TOTAL SALES</p>
+              <p class="text-xl font-bold text-emerald-600" id="sales-total-kpi">$0.00</p>
+            </div>
+            <button class="px-4 py-3 rounded-lg bg-emerald-600 text-white text-sm font-extrabold hover:bg-emerald-700 shadow-lg shadow-emerald-600/20" onclick="window.openAddDealModal()">
+              <i class="fas fa-plus mr-2"></i> Add Deal
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+          <div class="flex flex-col md:flex-row gap-3 justify-between items-center mb-4 border-b border-gray-50 pb-4">
+              <div class="flex items-center gap-2 flex-wrap">
+                <div class="flex bg-gray-100 p-1 rounded-lg flex-wrap gap-1">
+                  <button onclick="Admin.setSalesPeriod('today', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Today</button>
+                  <button onclick="Admin.setSalesPeriod('this-week', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
+                  <button onclick="Admin.setSalesPeriod('previous-week', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Previous Week</button>
+                  <button onclick="Admin.setSalesPeriod('4-weeks', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">4 Weeks</button>
+                  <button onclick="Admin.setSalesPeriod('all-time', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">All-Time</button>
+                </div>
+
+                <div class="relative">
+                  <button id="sales-custom-toggle" class="px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                    <i class="fa-regular fa-calendar"></i> Custom
+                  </button>
+
+                  <div id="sales-custom-popover" class="hidden absolute left-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                    <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">Custom Timeframe</div>
+                    <div class="grid grid-cols-2 gap-2">
+                      <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+                        <input id="sales-custom-start" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
+                      </div>
+                      <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+                        <input id="sales-custom-end" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
+                      </div>
+                    </div>
+                    <div class="flex justify-end gap-2 mt-3">
+                      <button id="sales-custom-clear" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">Clear</button>
+                      <button id="sales-custom-apply" class="px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">Apply</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="text-xs font-bold text-gray-400" id="sales-range-label">Showing: All-Time</div>
+          </div>
+
+          <div class="flex flex-col md:flex-row gap-3">
+            <div class="flex-1 relative">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+              <input type="text" id="admin-sales-search" placeholder="Search deal, client name, package..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+            </div>
+            
+            <select id="admin-sales-category-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[170px] text-blue-700">
+  <option value="Mikaela" selected>View: Mikaela Only</option>
+</select>
+
+            <select id="admin-sales-package-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[170px] text-gray-700">
+              <option value="all">All Package Statuses</option>
+              <option value="Active">Active / Ongoing</option>
+              <option value="Pause">Pause</option>
+              <option value="Completed">Completed</option>
+              <option value="Refunded">Refunded</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-8">
+          <div class="table-scroll">
+            <table class="w-full text-left text-sm whitespace-nowrap">
+              <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+                <tr>
+                  <th class="p-4">Purchased Date</th>
+                  <th class="p-4">TXN #</th>
+                  <th class="p-4">Roofing Company</th>
+                  <th class="p-4">POC</th>
+                  <th class="p-4">Total Leads</th>
+                  <th class="p-4 text-emerald-600">Deal Value</th>
+                  <th class="p-4 text-purple-600">Total Comm.</th>
+                  <th class="p-4">PKG Status</th>
+                  <th class="p-4">Sold By</th>
+                  <th class="p-4 text-blue-600">Started (First Lead)</th>
+                  <th class="p-4">Deal Status</th>
+                  <th class="p-4 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody id="admin-sales-table-body" class="divide-y divide-gray-50">
+                <tr><td colspan="12" class="p-6 text-center text-gray-400 italic">Loading master pipeline...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="view-onboarding" class="view-section">
+  <div class="p-6">
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <div class="flex flex-col gap-4 mb-4">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">Client Onboarding</h2>
+          <p class="text-sm text-gray-500">Track onboarding progress for each client.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-3">
+          <div class="lg:col-span-2 relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+            <input
+              id="onboarding-search"
+              type="text"
+              placeholder="Search client code or company..."
+              class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+            />
+          </div>
+
+          <select id="ob-filter-contract-sent" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+            <option value="all">Contract Sent: All</option>
+            <option value="done">Done</option>
+            <option value="not_done">Not Done</option>
+          </select>
+
+          <select id="ob-filter-contract-done" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+            <option value="all">Contract Done: All</option>
+            <option value="done">Done</option>
+            <option value="not_done">Not Done</option>
+          </select>
+
+          <select id="ob-filter-ready" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+            <option value="all">Ready: All</option>
+            <option value="done">Done</option>
+            <option value="not_done">Not Done</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-3">
+          <select id="ob-filter-paid" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+            <option value="all">Paid: All</option>
+            <option value="done">Done</option>
+            <option value="not_done">Not Done</option>
+          </select>
+
+          <select id="ob-filter-form-sent" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+            <option value="all">Form Sent: All</option>
+            <option value="done">Done</option>
+            <option value="not_done">Not Done</option>
+          </select>
+
+          <select id="ob-filter-form-received" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+            <option value="all">Form Received: All</option>
+            <option value="done">Done</option>
+            <option value="not_done">Not Done</option>
+          </select>
+
+          <select id="ob-filter-portal" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+            <option value="all">Portal Created: All</option>
+            <option value="done">Done</option>
+            <option value="not_done">Not Done</option>
+          </select>
+
+          <select id="ob-filter-demo" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+            <option value="all">Demo: All</option>
+            <option value="done">Done</option>
+            <option value="not_done">Not Done</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-3">
+          <select id="ob-filter-tracker" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+            <option value="all">Shared Tracker: All</option>
+            <option value="done">Done</option>
+            <option value="not_done">Not Done</option>
+          </select>
+
+          <div></div>
+          <div></div>
+          <div></div>
+
+          <button
+            id="ob-clear-filters"
+            class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50"
+          >
+            Clear Filters
+          </button>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="min-w-[1350px] w-full text-sm">
+          <thead>
+            <tr class="border-b border-gray-200 text-left text-[11px] uppercase tracking-wide text-gray-500">
+              <th class="p-3">Code</th>
+              <th class="p-3">Company</th>
+              <th class="p-3">Paid</th>
+              <th class="p-3">Contract Sent</th>
+              <th class="p-3">Contract Done</th>
+              <th class="p-3">Onboarding Form Sent</th>
+              <th class="p-3">Onboarding Form Received</th>
+              <th class="p-3">Portal Created</th>
+              <th class="p-3">Shared Tracker</th>
+              <th class="p-3">Demo</th>
+              <th class="p-3">Ready</th>
+              <th class="p-3">Notes</th>
+              <th class="p-3">Action</th>
+            </tr>
+          </thead>
+          <tbody id="onboarding-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+      <div id="view-clients" class="view-section">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">Sales Clients</h2>
+        
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+          <div class="flex flex-col lg:flex-row gap-3 lg:items-end">
+            <div class="flex-1 relative">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+              <input id="passbook-search" type="text" placeholder="Search roofing company, code, city/state..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+            </div>
+            <select id="passbook-filter-location" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]">
+              <option value="all">All Locations</option>
+            </select>
+            <div class="flex bg-gray-200 p-1 rounded-lg">
+              <button id="passbook-view-cards" class="px-3 py-2 text-xs font-extrabold rounded-md bg-white shadow text-gray-900">Cards</button>
+              <button id="passbook-view-list" class="px-3 py-2 text-xs font-extrabold rounded-md text-gray-500 hover:text-gray-900">List</button>
+            </div>
+            <button id="passbook-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">Clear</button>
+          </div>
+          <div class="mt-3 text-xs text-gray-500">Showing <span class="font-bold" id="passbook-count">0</span> shared clients</div>
+        </div>
+
+        <div id="passbook-list-wrap" class="hidden bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-6">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm whitespace-nowrap">
+              <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+                <tr>
+                  <th class="p-4">Code</th>
+                  <th class="p-4">Roofing Company</th>
+                  <th class="p-4">City/State</th>
+                  <th class="p-4">Client Name</th>
+                  <th class="p-4 text-center">Status</th>
+                  <th class="p-4 text-right">Details</th>
+                </tr>
+              </thead>
+              <tbody id="passbook-list-body" class="divide-y divide-gray-50"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="client-cards-container">
+          <div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">Loading shared clients...</div>
+        </div>
+
+        <div id="passbook-modal" class="hidden fixed inset-0 z-[100]">
+          <div class="absolute inset-0 bg-black/40" onclick="Admin.closePassbookModal()"></div>
+          <div class="relative mx-auto mt-10 w-[94%] max-w-5xl bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+            <div class="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <div>
+                <h3 class="font-extrabold text-gray-900" id="passbook-modal-title">Client Details</h3>
+                <p class="text-xs text-gray-500 mt-1" id="passbook-modal-sub">—</p>
+              </div>
+              <button class="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50" onclick="Admin.closePassbookModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-5 max-h-[80vh] overflow-y-auto">
+              <div id="passbook-form-body"><div class="p-4 rounded-xl border border-gray-100 bg-gray-50/40 text-sm text-gray-500 italic">Loading client details...</div></div>
+              <div class="flex items-center justify-end gap-2 pt-4 border-t border-gray-100 mt-4">
+  <button
+    type="button"
+    id="passbookSaveButton"
+    class="px-4 py-2 rounded-lg bg-yellow-500 text-gray-900 text-sm font-extrabold hover:bg-yellow-400"
+  >
+    Save Changes
+  </button>
+  <button
+    type="button"
+    class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800"
+    onclick="Admin.closePassbookModal()"
+  >
+    Close
+  </button>
+</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="view-leads" class="view-section">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">Leads Master Record</h2>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+          <div class="controls-wrap">
+            <div class="flex-1 relative" style="min-width: 260px;">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+              <input id="leads-search" type="text" placeholder="Search homeowner, roofing company, status, lead ID..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+            </div>
+            <select id="leads-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[170px]"><option value="all">All Status</option></select>
+            <div class="flex items-center gap-2">
+              <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label><input id="leads-date-start" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/></div>
+              <div><label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label><input id="leads-date-end" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/></div>
+            </div>
+            <button id="leads-clear" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">Clear</button>
+            <div class="relative">
+              <button id="leads-columns-toggle" class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800 flex items-center gap-2"><i class="fa-solid fa-table-columns"></i> Columns</button>
+              <div id="leads-columns-popover" class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
+                <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">Visible Columns</div>
+                <div id="leads-columns-box" class="max-h-[280px] overflow-y-auto space-y-2 pr-1"></div>
+                <div class="flex justify-end gap-2 mt-3">
+                  <button id="leads-columns-all" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">All</button>
+                  <button id="leads-columns-min" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">Minimal</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="mt-3 text-xs text-gray-500">Showing <span class="font-bold" id="leads-count">0</span> leads</div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div class="table-scroll max-h-[65vh] overflow-y-auto relative pb-4">
+            <table class="table-min w-full text-left text-sm whitespace-nowrap">
+              <thead id="leads-table-head" class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100 sticky top-0 z-20 shadow-sm"></thead>
+              <tbody id="leads-table-body" class="divide-y divide-gray-50"><tr><td class="p-6 text-center text-gray-400">Loading leads...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      
+      <div id="add-sale-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/40" onclick="document.getElementById('add-sale-modal').classList.add('hidden')"></div>
+        <div class="relative bg-white rounded-2xl shadow-xl w-[90%] max-w-md p-6 max-h-[90vh] overflow-y-auto">
+          <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-3">
+            <h3 class="font-bold text-xl text-gray-900" id="sale-modal-title">Log New Deal</h3>
+            <button onclick="document.getElementById('add-sale-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-900"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <form id="add-sale-form" onsubmit="window.submitNewSale(event)" class="space-y-4">
+            <input type="hidden" id="sale-package-id" value="">
+            <div class="grid grid-cols-2 gap-3 mb-3">
+              <div class="relative">
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Roofing Company</label>
+                <input type="text" id="sale-company" autocomplete="off" placeholder="Type to search or add new..." required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
+                <div id="custom-client-suggestions" class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-xl hidden max-h-48 overflow-y-auto mt-1 top-full left-0"></div>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">POC (Contact Person)</label>
+                <input type="text" id="sale-poc" placeholder="e.g. John Doe" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
+              </div>
+            </div>
+            <input type="hidden" id="sale-client-code" value="">
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Purchased Leads</label>
+                  <input type="number" id="sale-leads" placeholder="e.g. 10" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Deal Value ($)</label>
+                  <input type="number" id="sale-value" step="0.01" placeholder="e.g. 2111" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Manual Commission ($)</label>
+                  <input type="number" id="sale-commission" step="0.01" placeholder="e.g. 500" value="0" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Purchase Date</label>
+                  <input type="date" id="sale-date" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">TRANSACTION NUMBER</label>
+                <input type="text" id="sale-transaction-id" placeholder="e.g. TXN-2026-001" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Deal Type</label>
+                    <select id="sale-deal-type" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400 font-bold text-blue-700">
+                        <option value="New Client">New Client</option>
+                        <option value="Renewal">Renewal</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Deal Status</label>
+                    <select id="sale-deal-status" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
+                        <option value="Paid">Paid</option>
+                        <option value="Negotiating">Negotiating</option>
+                        <option value="Refunded">Refunded</option>
+                    </select>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sale Category</label>
+                  <select id="sale-category" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
+  <option value="Mikaela" selected>Mikaela</option>
+</select>
+                </div>
+            </div>
+            <button type="submit" id="save-sale-btn" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg mt-2 shadow-lg">Save Deal</button>
+          </form>
+        </div>
+      </div>
+      
+    </div>
+  </main>
+
+  <script>
+    const AdminDashboard = {
+      analyticsPeriod: 'today',
+      salesPeriod: 'all-time',
+      _customRange: { active: false, start: null, end: null },
+      notifications: [],
+notificationsLoading: false,
+selectedNotificationId: null,
+notes: [],
+notesLoading: false,
+noteDraft: '',
+currentView: 'overview',
+      _salesCustomRange: { active: false, start: null, end: null },
+      _salesBound: false,
+      clientHealthRaw: [],
+      clientHealthView: [],
+      sortState: { key: null, dir: 'asc' },
+      _leadsCols: null,
+      _leadsVisibleCols: null,
+      _leadsFiltersBound: false,
+      _leadsSort: { key: "date_submitted", dir: "desc" }, 
+      _passbookView: "cards",
+      _passbookFiltersBound: false,
+      _owedKpiBound: false,
+      _leadsIndexByCompany: null,
+      _analyticsChart: null,
+      _firstLoadDone: false,
+      _onboardingDrafts: {},
+_onboardingFiltersBound: false,
+_onboardingDraftsBound: false,
+      _healthSearchTimer: null,
+
+      getState() { return window.portal?.adminState || {}; },
+
+      nav(view, el) {
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  if (el) el.classList.add('active');
+
+  document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+  const target = document.getElementById(`view-${view}`);
+  if (target) target.classList.add('active');
+
+  this.currentView = view;
+
+  if (view === 'notifications') {
+    this.loadNotifications?.(true);
+    this.loadNotes?.();
+  }
+
+  if (view === 'overview' && this._analyticsChart) {
+    setTimeout(() => this._analyticsChart?.resize?.(), 100);
+  }
+},
+
+      refreshDashboard() {
+        const state = this.getState();
+        if (!state) return;
+
+        const clients = state.clients || [];
+const rawClients = state.rawClients || [];
+const leads = state.leads || [];
+const packages = state.packages || [];
+
+        this._leadsIndexByCompany = new Map();
+        leads.forEach(l => {
+            const rawComp = this.getLeadField(l, ["Company Name", "company_name", "roofing_company", "Client"]);
+            const comp = this.normalizeCompanyName(rawComp);
+            if (!comp) return;
+            const arr = this._leadsIndexByCompany.get(comp) || [];
+            arr.push(l);
+            this._leadsIndexByCompany.set(comp, arr);
+        });
+
+        try {
+          this.clientHealthRaw = this.normalizeClientHealthRows(clients, packages);
+          this.setupFilters(this.clientHealthRaw);
+          this.applyClientHealthFilters();
+        } catch(e) { console.error("CHM Error:", e); }
+
+        try { this.bindOverviewAnalyticsUI(); this.updateAnalytics(this.analyticsPeriod); } catch(e) { console.error("Analytics Error:", e); }
+        try { this.bindSalesUI(); this.renderSalesTab(); } catch(e) { console.error("Sales Error:", e); }
+try { this.renderOnboardingTab(); } catch(e) { console.error("Onboarding Error:", e); }
+
+try {
+  const passbookClients = rawClients.length ? rawClients : clients;
+  this.setupPassbookFilters(passbookClients);
+  this.bindPassbookUI(passbookClients);
+  this.applyPassbookFilters(passbookClients);
+} catch(e) { console.error("Passbook Error:", e); }
+        
+        try {
+          this.initLeadsColumnsUI();
+          this.setupLeadFilters(leads);
+          this.bindLeadsMasterEvents();
+          this.applyLeadsFilters();
+        } catch(e) { console.error("Leads Error:", e); }
+
+        try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
+        try { if (this.currentView === 'notifications') { this.loadNotifications(); this.loadNotes(); } } catch(e) {}
+      },
+
+      async loadNotifications(force = false) {
+  if (!window.portal) return;
+
+  this.notificationsLoading = true;
+  this.refreshNotificationsTab?.();
+
+  const teamKey = window.portal?.getCommandCenterTeamKey?.() || 'sales';
+  const rows = await window.portal.fetchCommandCenterNotifications(teamKey, 100);
+
+  this.notifications = Array.isArray(rows) ? rows : [];
+  this.notificationsLoading = false;
+  this.refreshNotificationsTab?.();
+  await this.loadNotes?.();
+},
+
+async loadNotes() {
+  this.notesLoading = true;
+  this.refreshNotesTab?.();
+
+  const rows = await window.portal.fetchCommandCenterNotes(50);
+  this.notes = Array.isArray(rows) ? rows : [];
+
+  this.notesLoading = false;
+  this.refreshNotesTab();
+},
+
+refreshNotificationsTab() {
+  const wrap = document.getElementById('notifications-feed');
+  const badge = document.getElementById('notifications-unread-count');
+  if (!wrap) return;
+
+  const rows = Array.isArray(this.notifications) ? this.notifications : [];
+  const unreadCount = rows.filter(r => r.is_unread).length;
+  if (badge) badge.textContent = unreadCount;
+
+  if (this.notificationsLoading) {
+    wrap.innerHTML = `<div class="p-4 text-sm text-gray-500">Loading notifications...</div>`;
+    return;
+  }
+
+  if (!rows.length) {
+    wrap.innerHTML = `<div class="p-4 text-sm text-gray-400 italic">No notifications yet.</div>`;
+    return;
+  }
+
+  wrap.innerHTML = rows.map(item => {
+    const event = item.command_center_events || {};
+    const isFlagged = !!item.is_flagged;
+    const isDone = !!item.is_done;
+    const isUnread = !!item.is_unread;
+    const timeText = window.portal?.formatMSTDateTimeShort(event.created_at) || '—';
+
+    return `
+      <div class="rounded-3xl border ${isUnread ? 'border-blue-200 bg-blue-50/40' : 'border-gray-100 bg-white'} p-5">
+        <div class="flex items-start justify-between gap-4">
+          <div class="flex-1">
+            <div class="text-sm font-black text-gray-900">${event.summary_text || 'Activity update'}</div>
+            <div class="mt-2 text-xs text-gray-500 flex items-center gap-2 flex-wrap">
+              <span>${timeText}</span>
+              <span>•</span>
+              <span>${event.actor_name || 'Unknown'}</span>
+              <span>•</span>
+              <span>${event.actor_role || 'user'}</span>
+              <span>•</span>
+              <span>${
+  event.module_key === 'time_off' ? 'Time Off Request' :
+  event.module_key === 'passbook_clients' ? 'Passbook Client' :
+  event.module_key === 'sales_pipeline' ? 'Sales Pipeline' :
+  event.module_key === 'overview' ? 'Overview' :
+  event.module_key === 'onboarding' ? 'Onboarding' :
+  (event.module_key || 'Notification')
+}</span>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 shrink-0 pt-1">
+            <button
+              onclick="Admin.cycleNotificationState('${event.id}', ${isFlagged ? 'true' : 'false'}, ${isDone ? 'true' : 'false'})"
+              class="w-11 h-11 rounded-2xl ${
+                isDone
+                  ? 'bg-emerald-500 text-white shadow-md'
+                  : isFlagged
+                    ? 'bg-amber-500 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-600'
+              } text-lg font-black hover:scale-105 transition"
+            >
+              ${isDone ? '✓' : isFlagged ? '🚩' : '•'}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+},
+
+refreshNotesTab() {
+  const wrap = document.getElementById('notifications-notes-feed');
+  if (!wrap) return;
+
+  if (this.notesLoading) {
+    wrap.innerHTML = `<div class="p-4 text-sm text-gray-500">Loading notes...</div>`;
+    return;
+  }
+
+  if (!Array.isArray(this.notes) || !this.notes.length) {
+    wrap.innerHTML = `<div class="p-4 text-sm text-gray-400 italic">No notes yet.</div>`;
+    return;
+  }
+
+  wrap.innerHTML = this.notes.map(note => {
+    const done = note.status === 'done';
+    const timeText = window.portal?.formatMSTDateTimeShort(note.created_at) || '—';
+
+    return `
+      <div class="rounded-2xl border border-gray-100 p-4 ${done ? 'bg-emerald-50' : 'bg-gray-50'}">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex-1">
+            <div class="text-sm font-bold text-gray-900">${note.title || (note.note_type === 'task' ? 'Task' : 'Note')}</div>
+            <div class="text-sm text-gray-700 mt-1 whitespace-pre-wrap">${note.body || ''}</div>
+            <div class="mt-2 text-xs text-gray-500 flex items-center gap-2 flex-wrap">
+              <span>${timeText}</span>
+              <span>•</span>
+              <span>${note.created_by_name || 'Unknown'}</span>
+              <span>•</span>
+              <span>${note.created_by_role || 'user'}</span>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button
+              onclick="Admin.toggleNoteDone('${note.id}', ${done ? 'true' : 'false'})"
+              class="w-10 h-10 rounded-2xl ${done ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-600'} text-lg font-black hover:scale-105 transition"
+              title="${done ? 'Done' : 'Open'}"
+            >
+              ${done ? '✓' : '•'}
+            </button>
+
+            <button
+              onclick="Admin.deleteQuickNote('${note.id}')"
+              class="w-10 h-10 rounded-2xl bg-red-50 text-red-500 text-lg font-black hover:bg-red-100 transition"
+              title="Delete"
+            >
+              🗑
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+},
+
+async cycleNotificationState(eventId, isFlagged, isDone) {
+  const teamKey = window.portal?.getCommandCenterTeamKey?.() || 'sales';
+
+  this.notifications = (this.notifications || []).map(item => {
+    const event = item?.command_center_events || {};
+    if (event.id !== eventId) return item;
+
+    if (!isFlagged && !isDone) {
+      return { ...item, is_flagged: true, is_done: false };
+    }
+
+    if (isFlagged && !isDone) {
+      return { ...item, is_flagged: false, is_done: true };
+    }
+
+    return { ...item, is_flagged: false, is_done: false };
+  });
+
+  this.refreshNotificationsTab();
+
+  if (!isFlagged && !isDone) {
+    await window.portal.setCommandCenterFlagged(eventId, teamKey, true);
+  } else if (isFlagged && !isDone) {
+    await window.portal.setCommandCenterFlagged(eventId, teamKey, false);
+    await window.portal.setCommandCenterDone(eventId, teamKey, true);
+  } else {
+    await window.portal.setCommandCenterDone(eventId, teamKey, false);
+  }
+},
+
+async saveQuickNote() {
+  const textarea = document.getElementById('command-center-note-draft');
+  const body = String(textarea?.value || '').trim();
+  if (!body) return;
+
+  await window.portal.createCommandCenterNote({
+  body,
+  noteType: 'note',
+  title: null,
+  moduleKey: 'notes',
+  entityType: null,
+  entityId: null,
+  entityLabel: null,
+  assignedTeamKey: window.portal?.getCommandCenterTeamKey?.() || 'sales'
+});
+
+  if (textarea) textarea.value = '';
+  await this.loadNotes();
+},
+
+async toggleNoteDone(noteId, currentDone) {
+  await window.portal.setCommandCenterNoteDone(noteId, !currentDone);
+  await this.loadNotes();
+},
+
+async deleteQuickNote(noteId) {
+  await window.portal.deleteCommandCenterNote(noteId);
+  await this.loadNotes();
+},
+
+      _setActiveButton(btnSelector, btnElement) {
+        document.querySelectorAll(btnSelector).forEach(b => {
+          b.classList.remove("bg-white", "shadow", "text-gray-900");
+          b.classList.add("text-gray-500");
+        });
+        if (btnElement) {
+          btnElement.classList.add("bg-white", "shadow", "text-gray-900");
+          btnElement.classList.remove("text-gray-500");
+        }
+      },
+
+      _setCustomActive(toggleId, isActive) {
+        const t = document.getElementById(toggleId);
+        if (!t) return;
+        t.classList.toggle("ring-2", isActive);
+        t.classList.toggle("ring-yellow-400", isActive);
+      },
+
+      pick(obj, keys, fallback = "") {
+        for (const k of keys) {
+          const v = obj?.[k];
+          if (v !== undefined && v !== null && String(v).trim() !== "") return v;
+        }
+        return fallback;
+      },
+
+      getLeadField(l, keys, fallback="—") { return this.pick(l, keys, fallback); },
+
+      // --- DATE & MATH HELPERS ---
+      getLeadDateObj(l) {
+        const dStr = this.getLeadField(l, ["Date Submitted", "date_submitted", "DATE", "created_at"], "");
+        const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+        return (dt && !isNaN(dt.getTime())) ? dt : null;
+      },
+
+      getRangeFor(period, leads) {
+        const now = new Date();
+        const startOfDay = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+        const endOfDay   = (d) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
+
+        const getPayrollWeekRangeLocal = (d) => {
+          const x = new Date(d);
+          const day = x.getDay(); 
+          const diffToSat = (day - 6);
+          const start = new Date(x);
+          start.setDate(start.getDate() - diffToSat);
+          start.setHours(0,0,0,0);
+          const end = new Date(start);
+          end.setDate(end.getDate() + 6); 
+          end.setHours(23,59,59,999);
+          return { start, end };
+        };
+
+        const payrollThis = window.portal?.getPayrollWeekRange ? window.portal.getPayrollWeekRange() : null;
+        const payrollPrev = window.portal?.getPreviousPayrollWeekRange ? window.portal.getPreviousPayrollWeekRange() : null;
+        const localThis = getPayrollWeekRangeLocal(now);
+        const thisWeekStart = (payrollThis?.start && !isNaN(new Date(payrollThis.start).getTime())) ? new Date(payrollThis.start) : localThis.start;
+        const thisWeekEnd = (payrollThis?.end && !isNaN(new Date(payrollThis.end).getTime())) ? new Date(payrollThis.end) : localThis.end;
+
+        const localPrevStart = new Date(thisWeekStart);
+        localPrevStart.setDate(localPrevStart.getDate() - 7);
+        const localPrev = getPayrollWeekRangeLocal(localPrevStart);
+        const prevWeekStart = (payrollPrev?.start && !isNaN(new Date(payrollPrev.start).getTime())) ? new Date(payrollPrev.start) : localPrev.start;
+        const prevWeekEndFinal = (payrollPrev?.end && !isNaN(new Date(payrollPrev.end).getTime())) ? new Date(payrollPrev.end) : localPrev.end;
+
+        if (period === "custom") {
+           let r = this._customRange.active ? this._customRange : this._salesCustomRange;
+           return { start: startOfDay(new Date(r.start + "T00:00:00")), end: endOfDay(new Date(r.end + "T23:59:59")), grain: "day", label: "Custom Range" };
+        }
+        
+        if (period === "all-time") {
+          const dates = (leads || []).map(l => this.getLeadDateObj(l)).filter(d => d && !isNaN(d.getTime())).sort((a,b) => a - b);
+          if (!dates.length) return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "All-Time" };
+          const start = startOfDay(dates[0]);
+          const end   = endOfDay(dates[dates.length - 1]);
+          return { start, end, grain: "week", label: "All-Time" };
+        }
+
+        if (period === "today") return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "Today" };
+        if (period === "this-week") return { start: startOfDay(thisWeekStart), end: endOfDay(thisWeekEnd), grain: "day", label: "This Week" };
+        if (period === "previous-week") return { start: startOfDay(prevWeekStart), end: endOfDay(prevWeekEndFinal), grain: "day", label: "Previous Week" };
+        if (period === "4-weeks") {
+          const end = endOfDay(thisWeekEnd); const start = new Date(end); start.setDate(start.getDate() - 27); start.setHours(0,0,0,0);
+          return { start, end, grain: "week", label: "Last 4 Weeks" };
+        }
+        return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "Today" };
+      },
+
+      _fmtDateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; },
+      _fmtWeekKey(d) {
+        const x = new Date(d);
+        const day = x.getDay(); 
+        const diffToSat = (day - 6);
+        x.setDate(x.getDate() - diffToSat);
+        x.setHours(0,0,0,0);
+        return this._fmtDateKey(x);
+      },
+
+      _buildBuckets(start, end, grain) {
+        const buckets = []; let cursor = new Date(start); cursor.setHours(0,0,0,0);
+        if (grain === "day") { while (cursor <= end) { buckets.push(this._fmtDateKey(cursor)); cursor.setDate(cursor.getDate() + 1); } return buckets; }
+        if (grain === "week") { let wkCursor = new Date(this._fmtWeekKey(cursor) + "T00:00:00"); while (wkCursor <= end) { buckets.push(this._fmtDateKey(wkCursor)); wkCursor.setDate(wkCursor.getDate() + 7); } return buckets; }
+        return buckets;
+      },
+
+      _bucketKeyFor(dt, grain) {
+        if (grain === "day") return this._fmtDateKey(dt);
+        if (grain === "week") return this._fmtDateKey(new Date(this._fmtWeekKey(dt) + "T00:00:00"));
+        return this._fmtDateKey(dt);
+      },
+
+      isQualified(st) { const s = String(st || "").toLowerCase(); return s.includes("confirm") || s.includes("approve"); },
+      isRejected(st) { const s = String(st || "").toLowerCase(); return s.includes("reject"); },
+      isCredited(st) { const s = String(st || "").toLowerCase(); return s.includes("credit"); },
+
+      // --- OVERVIEW ANALYTICS ---
+      setAnalyticsPeriod(period, btnElement) {
+        this.analyticsPeriod = period;
+        if (period !== "custom") { this._customRange.active = false; }
+        this._setActiveButton('.analytics-btn', btnElement);
+        this.updateAnalytics(period);
+      },
+
+      bindOverviewAnalyticsUI() {
+        const toggle = document.getElementById("custom-range-toggle");
+        const pop = document.getElementById("custom-range-popover");
+        const apply = document.getElementById("custom-apply");
+        const clear = document.getElementById("custom-clear");
+
+        if (toggle && pop && !toggle.dataset.bound) {
+          toggle.dataset.bound = "true";
+          toggle.addEventListener("click", (e) => { e.preventDefault(); pop.classList.toggle("hidden"); });
+          document.addEventListener("click", (e) => {
+            if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) pop.classList.add("hidden");
+          });
+          
+          if (apply) apply.addEventListener("click", () => {
+            const s = document.getElementById("custom-start")?.value;
+            const e = document.getElementById("custom-end")?.value;
+            if (!s || !e) return;
+            this._customRange.active = true;
+            this._customRange.start = s;
+            this._customRange.end = e;
+            this.setAnalyticsPeriod("custom", null);
+            this._setCustomActive("custom-range-toggle", true);
+            pop.classList.add("hidden");
+          });
+
+          if (clear) clear.addEventListener("click", () => {
+            document.getElementById("custom-start").value = "";
+            document.getElementById("custom-end").value = "";
+            this._customRange.active = false;
+            this.setAnalyticsPeriod("today", document.querySelector('.analytics-btn'));
+            this._setCustomActive("custom-range-toggle", false);
+            pop.classList.add("hidden");
+          });
+        }
+      },
+
+      _renderAnalyticsChart(labels, series) {
+        const ctx = document.getElementById("team-analytics-chart");
+        if (!ctx) return;
+        if (this._analyticsChart) { this._analyticsChart.destroy(); }
+        this._analyticsChart = new Chart(ctx, {
+          type: "bar",
+          data: { labels, datasets: [
+            { label: "Qualified",   data: series.qualified, stack: "stack", backgroundColor: "#3B82F6" }, 
+            { label: "QC Rejected", data: series.rejected,  stack: "stack", backgroundColor: "#EF4444" }, 
+            { label: "Credited",    data: series.credited,  stack: "stack", backgroundColor: "#A855F7" }, 
+            { label: "Pending",     data: series.pending,   stack: "stack", backgroundColor: "#FACC15" }, 
+          ]},
+          options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
+        });
+      },
+
+            updateOverviewTopCardsFromAnalyticsCounts(qualifiedCount, pendingCount, period, leads) {
+        const pulseProfit = document.getElementById("pulse-profit");
+        const pulsePending = document.getElementById("pulse-pending");
+
+        let estValue = 0;
+
+        const { start, end } = this.getRangeFor(period, leads || []);
+        const cutoff = new Date("2026-03-09T00:00:00");
+
+        (Array.isArray(leads) ? leads : []).forEach(l => {
+          const dt = this.getLeadDateObj(l);
+          if (!dt || dt < start || dt > end) return;
+
+          const st = String(this.pick(l, ["Status", "STATUS", "status", "Lead_Status"], "")).toLowerCase();
+          const isQualified = st.includes("confirm") || st.includes("approve");
+          if (!isQualified) return;
+
+          estValue += (dt >= cutoff ? 135 : 125);
+        });
+
+        if (pulseProfit) {
+          pulseProfit.textContent = estValue.toLocaleString("en-US", {
+            style: "currency",
+            currency: "USD"
+          });
+        }
+
+        if (pulsePending) {
+          pulsePending.textContent = String(Number(pendingCount || 0));
+        }
+      },
+
+      updateAnalytics(period) {
+        const state = this.getState();
+        const leads = (state && state.leads) ? state.leads : [];
+        const { start, end, grain, label } = this.getRangeFor(period, leads);
+
+        const rangeEl = document.getElementById("kpi-range");
+        if (rangeEl) rangeEl.textContent = `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
+
+        let total = 0, qualified = 0, rejected = 0, credited = 0, pending = 0;
+        const buckets = this._buildBuckets(start, end, grain);
+        const seriesMap = new Map();
+        buckets.forEach(b => seriesMap.set(b, { qualified: 0, rejected: 0, credited: 0, pending: 0 }));
+
+        leads.forEach(l => {
+          const dt = this.getLeadDateObj(l);
+          if (!dt || dt < start || dt > end) return;
+
+          const st = this.pick(l, ["Status", "STATUS", "status", "Lead_Status"], "");
+          total++;
+
+          const bk = this._bucketKeyFor(dt, grain);
+          const bRow = seriesMap.get(bk);
+
+          if (this.isQualified(st)) { qualified++; if (bRow) bRow.qualified++; }
+          else if (this.isRejected(st)) { rejected++; if (bRow) bRow.rejected++; }
+          else if (this.isCredited(st)) { credited++; if (bRow) bRow.credited++; }
+          else { pending++; if (bRow) bRow.pending++; }
+        });
+
+        const kpiTotal = document.getElementById("kpi-total"); if(kpiTotal) kpiTotal.textContent = total;
+        const kpiQual = document.getElementById("kpi-qualified"); if(kpiQual) kpiQual.textContent = qualified;
+        const kpiRej = document.getElementById("kpi-qc-rejected"); if(kpiRej) kpiRej.textContent = rejected;
+        const kpiCred = document.getElementById("kpi-credited"); if(kpiCred) kpiCred.textContent = credited;
+        const kpiPend = document.getElementById("kpi-pending"); if(kpiPend) kpiPend.textContent = pending;
+        const kpiCanc = document.getElementById("kpi-cancel"); if(kpiCanc) kpiCanc.textContent = `${(qualified + credited > 0) ? Math.round((credited / (qualified + credited)) * 100) : 0}%`;
+                this.updateOverviewTopCardsFromAnalyticsCounts(qualified, pending, period, leads);
+
+        this._renderAnalyticsChart(buckets, {
+          qualified: buckets.map(b => seriesMap.get(b).qualified),
+          rejected: buckets.map(b => seriesMap.get(b).rejected),
+          credited: buckets.map(b => seriesMap.get(b).credited),
+          pending: buckets.map(b => seriesMap.get(b).pending),
+        });
+      },
+
+      // --- WATERFALL & HEALTH MONITOR ---
+      normalizeCompanyName(name) {
+        return String(name || "").toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+      },
+
+      normalizeClientHealthRows(clients, packages) {
+        const mstFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit' });
+        const now = new Date();
+        const todayStr = mstFormatter.format(now); 
+        const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = mstFormatter.format(yesterday);
+
+        let finalRows = [];
+
+        clients.forEach(c => {
+          const code = String(c.code_name || c.client_code || "").trim();
+          const company = String(c.company_name || c.roofing_company || "—").trim();
+          const clientName = String(c.contact_person || c.client_name || "—").trim();
+          const cityState = String(c.area || c.city_state || "—").trim();
+          const compKey = this.normalizeCompanyName(company);
+          
+          const clientPkgs = packages.filter(p => String(p.client_code || "").trim().toLowerCase() === code.toLowerCase())
+                                     .sort((a,b) => new Date(a.purchase_date || 0) - new Date(b.purchase_date || 0));
+          
+          if (clientPkgs.length === 0) return; 
+
+          let leadList = [...(this._leadsIndexByCompany?.get(compKey) || [])];
+          leadList.sort((a,b) => {
+              const dStrA = this.getLeadField(a, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
+              const dStrB = this.getLeadField(b, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
+              const dA = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStrA) : new Date(dStrA);
+              const dB = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStrB) : new Date(dStrB);
+              return (dA || 0) - (dB || 0);
+          });
+
+          clientPkgs.forEach((pkg, pkgIndex) => {
+              let qCount = 0, cCount = 0, todayCount = 0, yesterdayCount = 0;
+              let firstLeadDate = null, lastLeadDate = null;
+              let purchased = Number(pkg.purchased_leads) || 0;
+              const pDate = pkg.purchase_date ? new Date(pkg.purchase_date + "T00:00:00") : new Date(0);
+
+              while(leadList.length > 0 && qCount < purchased) {
+                  let l = leadList[0];
+                  const dStr = this.getLeadField(l, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
+                  let lDate = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+                  
+                  if (!lDate || isNaN(lDate.getTime())) { leadList.shift(); continue; }
+                  if (lDate < pDate) { leadList.shift(); continue; }
+
+                  leadList.shift(); 
+                  
+                  const st = String(l.status || l.STATUS || l.Lead_Status || "").toUpperCase();
+                  if (st.includes('APPROV') || st.includes('CONFIRM')) qCount++;
+                  else if (st.includes('CREDIT') || st.includes('REJECT')) cCount++;
+
+                  if (!firstLeadDate) firstLeadDate = lDate;
+                  lastLeadDate = lDate;
+
+                  let compareStr;
+                  if (dStr.match(/^\d{4}-\d{2}-\d{2}$/)) compareStr = dStr.substring(0, 10);
+                  else if (dStr.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+                      const [mm, dd, yyyy] = dStr.split('/');
+                      compareStr = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+                  } else compareStr = mstFormatter.format(lDate);
+
+                  if (compareStr === todayStr) todayCount++;
+                  if (compareStr === yesterdayStr) yesterdayCount++;
+              }
+
+              pkg._waterfallStats = { qualified: qCount, credited: cCount, firstLead: firstLeadDate, lastLead: lastLeadDate };
+
+              let owed = Math.max(purchased - qCount, 0);
+              let pkgStatus = String(pkg.status || "").toUpperCase().trim();
+              if (pkgStatus === 'ACTIVE') pkgStatus = 'ONGOING';
+
+              if (pkgStatus !== 'PAUSE' && pkgStatus !== 'REFUNDED') {
+                  if (owed > 0) pkgStatus = 'ONGOING';
+                  else if (purchased > 0 && owed === 0) pkgStatus = 'COMPLETED';
+                  else pkgStatus = 'COMPLETED';
+              }
+
+              if (pkgStatus === 'COMPLETED' && pkgIndex < clientPkgs.length - 1) return; 
+
+              let healthStatus = String(c.client_status || c.status || "INACTIVE").toUpperCase().trim(); 
+              const nowMs = Date.now();
+              const hoursSinceLastLead = lastLeadDate ? (nowMs - lastLeadDate.getTime()) / (1000 * 60 * 60) : 9999;
+
+              if (!lastLeadDate) healthStatus = "NOT STARTED"; 
+              else if (todayCount >= 1 && yesterdayCount >= 1) healthStatus = "HEALTHY";    
+              else if (hoursSinceLastLead > 48) healthStatus = "CRITICAL";   
+              else healthStatus = "AT RISK";    
+
+              const isRenewal = pkgIndex > 0;
+
+              finalRows.push({
+                  _raw: c,
+                  _pkgId: pkg.id,
+                  code: code,
+                  passbookStatus: String(c.client_status || c.status || "INACTIVE").toUpperCase().trim(),
+                  healthStatus: healthStatus,
+                  roofingCompany: company + (isRenewal ? ' <span class="text-[9px] font-black text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded ml-2">RENEWAL</span>' : ''),
+                  searchName: company + (isRenewal ? ' renewal' : ''),
+                  cityState: cityState,
+                  clientName: clientName,
+                  packageStatus: pkgStatus,
+                  packageLabel: `${owed} / ${purchased}`,
+                  owedRemaining: owed,
+                  qualifiedCount: qCount,
+                  creditedCount: cCount,
+                  purchaseDate: pkg.purchase_date || "—",
+                  leadsToday: todayCount,
+                  leadsYesterday: yesterdayCount,
+                  lastLead: lastLeadDate ? window.portal.formatDate(lastLeadDate) : "—"
+              });
+          });
+        });
+        return finalRows;
+      },
+
+      setupFilters(rows) {
+        const statusPop = document.getElementById("health-status-popover");
+        const statusBtn = document.getElementById("health-status-btn");
+        
+        if (!this._firstLoadDone) {
+            this._firstLoadDone = true;
+            
+            if (statusPop && statusBtn) {
+                const statuses = ["CRITICAL", "AT RISK", "HEALTHY", "NOT STARTED"];
+                statusPop.innerHTML = statuses.map(s => {
+                    return `<label class="flex items-center text-sm cursor-pointer p-2 hover:bg-gray-50 rounded"><input type="checkbox" value="${s}" class="health-st-chk mr-2" checked> ${s}</label>`;
+                }).join("");
+
+                const updateLabel = () => {
+                    const count = statusPop.querySelectorAll('.health-st-chk:checked').length;
+                    document.getElementById("health-status-label").textContent = `Health: ${count} selected`;
+                };
+                updateLabel();
+
+                statusPop.querySelectorAll('.health-st-chk').forEach(chk => chk.addEventListener('change', () => { updateLabel(); this.applyClientHealthFilters(); }));
+                statusBtn.addEventListener("click", (e) => { e.preventDefault(); statusPop.classList.toggle("hidden"); });
+            }
+
+            document.getElementById("health-filter-package")?.addEventListener("change", () => this.applyClientHealthFilters());
+            
+            const searchInput = document.getElementById("health-search");
+            if (searchInput) {
+                searchInput.addEventListener("input", () => {
+                    clearTimeout(this._healthSearchTimer);
+                    this._healthSearchTimer = setTimeout(() => { this.applyClientHealthFilters(); }, 300);
+                });
+            }
+
+            document.getElementById("health-clear")?.addEventListener("click", () => {
+                const s = document.getElementById("health-search"); if (s) s.value = "";
+                const pkgSel = document.getElementById("health-filter-package"); if (pkgSel) pkgSel.value = "ONGOING";
+                const locSel = document.getElementById("health-filter-location"); if (locSel) locSel.value = "all";
+                
+                document.querySelectorAll('.health-st-chk').forEach(chk => { chk.checked = true; });
+                const updateLabel = () => {
+                    const count = statusPop?.querySelectorAll('.health-st-chk:checked').length || 0;
+                    const lbl = document.getElementById("health-status-label");
+                    if (lbl) lbl.textContent = `Health: ${count} selected`;
+                };
+                updateLabel();
+                this.applyClientHealthFilters();
+            });
+            
+            document.querySelectorAll("th.sortable").forEach(th => {
+                th.addEventListener("click", () => {
+                  const key = th.getAttribute("data-sort");
+                  this.toggleSort(key);
+                  this.applyClientHealthFilters();
+                });
+            });
+        }
+
+        const locSel = document.getElementById("health-filter-location");
+        if (locSel) {
+           const currentVal = locSel.value;
+           const uniq = (arr) => [...new Set(arr.filter(x => String(x||"").trim() !== ""))].sort();
+           const locs = uniq(rows.map(r => r.cityState));
+           
+           locSel.innerHTML = `<option value="all">All Locations</option>` + locs.map(l => `<option value="${l}">${l}</option>`).join("");
+           locSel.value = locs.includes(currentVal) ? currentVal : "all";
+           
+           if (!locSel.dataset.bound) {
+               locSel.dataset.bound = "true";
+               locSel.addEventListener("change", () => this.applyClientHealthFilters());
+           }
+        }
+      },
+
+      applyClientHealthFilters() {
+        const q = String(document.getElementById("health-search")?.value || "").toLowerCase().trim();
+        const pkgFilter = document.getElementById("health-filter-package")?.value || "ONGOING";
+        const checkedHealth = Array.from(document.querySelectorAll('.health-st-chk:checked') || []).map(cb => cb.value.toUpperCase());
+
+        let filtered = [...this.clientHealthRaw];
+        filtered = filtered.filter(r => r.passbookStatus === 'ACTIVE');
+
+        if (pkgFilter !== "ALL") {
+            filtered = filtered.filter(r => {
+                if (pkgFilter === "ONGOING") {
+                    // HARD BLOCK: Never show PAUSE or REFUNDED in the default ongoing view
+                    if (r.packageStatus === "PAUSE" || r.packageStatus === "REFUNDED") return false;
+                    
+                    // Otherwise, show if explicitly ONGOING, or if we owe them leads
+                    return r.packageStatus === "ONGOING" || r.owedRemaining > 0;
+                }
+                return r.packageStatus === pkgFilter;
+            });
+        }
+
+        if (checkedHealth.length > 0) {
+            filtered = filtered.filter(r => checkedHealth.includes(r.healthStatus));
+        } else {
+            filtered = [];
+        }
+
+        if (q) {
+          filtered = filtered.filter(r => `${r.code} ${r.searchName} ${r.clientName}`.toLowerCase().includes(q));
+        }
+
+        const loc = document.getElementById("health-filter-location")?.value || "all";
+        if (loc !== "all") filtered = filtered.filter(r => String(r.cityState || "") === loc);
+
+        const countLbl = document.getElementById("health-status-label");
+        if (countLbl) countLbl.textContent = `Health: ${checkedHealth.length} selected`;
+
+        const { key, dir } = this.sortState;
+        if (key) {
+          filtered.sort((a,b) => {
+            const A = a[key]; const B = b[key];
+            if (typeof A === "number" && typeof B === "number") return dir === "asc" ? A - B : B - A;
+            return dir === "asc" ? String(A).localeCompare(String(B)) : String(B).localeCompare(String(A));
+          });
+        }
+
+        this.clientHealthView = filtered;
+        this.renderClientHealthTable(filtered);
+      },
+
+      statusDotClass(clientStatus) {
+        if (clientStatus === "CRITICAL") return "st-critical";
+        if (clientStatus === "AT RISK") return "st-risk";
+        if (clientStatus === "HEALTHY") return "st-healthy";
+        return "st-new";
+      },
+
+      toggleSort(key) {
+        if (this.sortState.key === key) { this.sortState.dir = this.sortState.dir === "asc" ? "desc" : "asc"; } 
+        else { this.sortState.key = key; this.sortState.dir = "asc"; }
+        document.querySelectorAll(".sort-icon").forEach(i => i.textContent = "↕");
+        const icon = document.getElementById(`sort-${key}`);
+        if (icon) icon.textContent = this.sortState.dir === "asc" ? "↑" : "↓";
+      },
+
+      renderClientHealthTable(rows) {
+        const tbody = document.getElementById("client-health-body");
+        if (!rows.length) {
+          tbody.innerHTML = `<tr><td colspan="12" class="p-6 text-center text-gray-400 italic">No Active clients matching filters.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = rows.map(r => {
+          let pkgColor = "bg-gray-100 text-gray-700";
+          if (r.packageStatus === 'ONGOING') pkgColor = "bg-blue-100 text-blue-800";
+          if (r.packageStatus === 'COMPLETED') pkgColor = "bg-purple-100 text-purple-800";
+          if (r.packageStatus === 'REFUNDED') pkgColor = "bg-orange-100 text-orange-800";
+          if (r.packageStatus === 'PAUSE') pkgColor = "bg-yellow-100 text-yellow-800";
+
+          return `
+            <tr class="hover:bg-gray-50">
+              <td class="p-4"><div class="status-container"><span class="status-dot ${this.statusDotClass(r.healthStatus)}"></span><span class="tooltip-text"><b>${r.healthStatus}</b></span></div></td>
+              <td class="p-4 text-gray-700 font-semibold">${r.code}</td>
+              <td class="p-4 font-bold text-gray-900">${r.roofingCompany}</td>
+              <td class="p-4 text-gray-600">${r.cityState}</td>
+              <td class="p-4 text-center text-gray-900 font-bold">${r.packageLabel}</td>
+              <td class="p-4 text-center text-blue-500 font-bold">${r.qualifiedCount}</td>
+              <td class="p-4 text-center text-purple-500 font-bold">${r.creditedCount}</td>
+              <td class="p-4 text-center text-red-500 font-bold">${(r.qualifiedCount+r.creditedCount > 0) ? Math.round((r.creditedCount/(r.qualifiedCount+r.creditedCount))*100) : 0}%</td>
+              <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsToday}</td>
+              <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsYesterday}</td>
+              <td class="p-4">
+  <select onchange="window.updateClientPackageStatus('${String(r._pkgId || "").replace(/'/g, "\\'")}', this.value)" class="px-2 py-1 rounded text-[10px] font-extrabold border outline-none cursor-pointer shadow-sm ${pkgColor}">
+    <option value="Active" ${r.packageStatus === 'ONGOING' ? 'selected' : ''}>ONGOING</option>
+    <option value="Pause" ${r.packageStatus === 'PAUSE' ? 'selected' : ''}>PAUSE</option>
+    <option value="Completed" ${r.packageStatus === 'COMPLETED' ? 'selected' : ''}>COMPLETED</option>
+    <option value="Refunded" ${r.packageStatus === 'REFUNDED' ? 'selected' : ''}>REFUNDED</option>
+  </select>
+</td>
+              <td class="p-4 text-gray-700">${r.clientName}</td>
+            </tr>
+          `;
+        }).join("");
+      },
+
+      computeTotalOwedLeads(packageStatus = "all") {
+        const rows = Array.isArray(this.clientHealthRaw) ? this.clientHealthRaw : [];
+        let total = 0;
+        for (const r of rows) {
+          if (packageStatus !== "all" && String(r.packageStatus || "").toUpperCase() !== packageStatus) continue;
+          total += Number(r.owedRemaining) || 0; 
+        }
+        return total;
+      },
+
+      bindOwedLeadsKPI() {
+        const sel = document.getElementById("owed-package-filter");
+        if (!sel || this._owedKpiBound) return;
+        this._owedKpiBound = true;
+        sel.addEventListener("change", () => this.updateOwedLeadsKPI());
+      },
+
+      updateOwedLeadsKPI() {
+        const sel = document.getElementById("owed-package-filter");
+        const val = sel ? sel.value : "all";
+        const total = this.computeTotalOwedLeads(val);
+        const el = document.getElementById("pulse-owed");
+        if (el) el.textContent = total;
+        const sub = document.getElementById("pulse-owed-sub");
+        if (sub) sub.textContent = (val === "all") ? "All package statuses" : `${val} packages`;
+      },
+
+      // --- SALES PIPELINE ENGINE ---
+      setSalesPeriod(period, btnElement) {
+        this.salesPeriod = period;
+        if (period !== "custom") {
+          this._salesCustomRange.active = false;
+          this._setCustomActive("sales-custom-toggle", false);
+          this._setActiveButton(".sales-btn", btnElement);
+        } else {
+          this._setActiveButton(".sales-btn", null);
+          this._setCustomActive("sales-custom-toggle", true);
+        }
+        this.renderSalesTab();
+      },
+
+      bindSalesUI() {
+        if (this._salesBound) return;
+        this._salesBound = true;
+
+        const search = document.getElementById("admin-sales-search");
+        const catSel = document.getElementById("admin-sales-category-filter");
+        const pkgSel = document.getElementById("admin-sales-package-filter");
+
+        if (search) search.addEventListener("input", () => this.renderSalesTab());
+        if (catSel) catSel.addEventListener("change", () => this.renderSalesTab());
+        if (pkgSel) pkgSel.addEventListener("change", () => this.renderSalesTab());
+
+        const toggle = document.getElementById("sales-custom-toggle");
+        const pop = document.getElementById("sales-custom-popover");
+        const apply = document.getElementById("sales-custom-apply");
+        const clear = document.getElementById("sales-custom-clear");
+
+        if (toggle && pop) {
+          toggle.addEventListener("click", (e) => { e.preventDefault(); pop.classList.toggle("hidden"); });
+          document.addEventListener("click", (e) => {
+            if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) pop.classList.add("hidden");
+          });
+        }
+
+        if (apply) {
+          apply.addEventListener("click", () => {
+            const s = document.getElementById("sales-custom-start")?.value;
+            const e = document.getElementById("sales-custom-end")?.value;
+            if (!s || !e) return;
+            this._salesCustomRange = { active: true, start: s, end: e };
+            this.setSalesPeriod("custom", null);
+            pop?.classList.add("hidden");
+          });
+        }
+
+        if (clear) {
+          clear.addEventListener("click", () => {
+            document.getElementById("sales-custom-start").value = "";
+            document.getElementById("sales-custom-end").value = "";
+            this._salesCustomRange.active = false;
+            this.setSalesPeriod("all-time", document.querySelector('.sales-btn:last-child'));
+            pop?.classList.add("hidden");
+          });
+        }
+      },
+
+      renderSalesTab() {
+        const state = this.getState();
+        const packages = Array.isArray(state.packages) ? [...state.packages] : [];
+        const leads = Array.isArray(state.leads) ? state.leads : [];
+        const clients = Array.isArray(state.clients) ? state.clients : [];
+
+        const leadsByCompany = new Map();
+        leads.forEach(l => {
+            const rawComp = this.getLeadField(l, ["Company Name", "company_name", "roofing_company", "Client"]);
+            const comp = this.normalizeCompanyName(rawComp);
+            if (comp) {
+                if (!leadsByCompany.has(comp)) leadsByCompany.set(comp, []);
+                leadsByCompany.get(comp).push(l);
+            }
+        });
+
+        const pkgsByCode = new Map();
+        packages.forEach(p => {
+            const code = String(p.client_code || "").trim().toLowerCase();
+            if (!pkgsByCode.has(code)) pkgsByCode.set(code, []);
+            pkgsByCode.get(code).push(p);
+        });
+
+        pkgsByCode.forEach((clientPkgs, code) => {
+            const clientObj = clients.find(c => String(c.client_code || c.code_name || "").toLowerCase() === code);
+            const rawClientComp = clientObj ? (clientObj.company_name || clientObj.roofing_company) : "";
+            const companyName = this.normalizeCompanyName(rawClientComp);
+
+            let clientLeads = [];
+            if (companyName && leadsByCompany.has(companyName)) {
+                clientLeads = [...leadsByCompany.get(companyName)];
+            }
+            
+            clientLeads.sort((a,b) => {
+                const dStrA = this.getLeadField(a, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
+                const dStrB = this.getLeadField(b, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
+                const dA = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStrA) : new Date(dStrA);
+                const dB = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStrB) : new Date(dStrB);
+                return (dA || 0) - (dB || 0);
+            });
+
+            clientPkgs.sort((a,b) => new Date(a.purchase_date || 0) - new Date(b.purchase_date || 0));
+
+            clientPkgs.forEach(pkg => {
+                let qCount = 0;
+                let firstLeadDate = null;
+                let purchased = Number(pkg.purchased_leads) || 0;
+                
+                let pDate = pkg.purchase_date ? new Date(pkg.purchase_date + "T00:00:00") : new Date(0);
+
+                while (clientLeads.length > 0 && qCount < purchased) {
+                    let l = clientLeads[0];
+                    const dStr = this.getLeadField(l, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
+                    let lDate = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+                    
+                    if (!lDate || isNaN(lDate.getTime())) { clientLeads.shift(); continue; }
+                    if (lDate < pDate) { clientLeads.shift(); continue; } 
+
+                    clientLeads.shift(); 
+
+                    const st = String(this.getLeadField(l, ["status", "Status", "STATUS", "Lead_Status"])).toUpperCase();
+                    if (st.includes('APPROV') || st.includes('CONFIRM')) qCount++;
+
+                    if (!firstLeadDate) firstLeadDate = lDate;
+                }
+                pkg._safeFirstLead = firstLeadDate;
+            });
+        });
+
+        let filtered = [...packages].filter(p => String(p.sales_category || "").trim() === "Mikaela");
+
+        const { start, end, label } = this.getRangeFor(this.salesPeriod, []);
+        if (this.salesPeriod !== 'all-time') {
+             filtered = filtered.filter(p => {
+                 if (!p.purchase_date) return false;
+                 const pDate = new Date(p.purchase_date + "T12:00:00");
+                 return pDate >= start && pDate <= end;
+             });
+        }
+        
+        const lbl = document.getElementById("sales-range-label");
+        if (lbl) lbl.textContent = this.salesPeriod === "custom" ? `Showing Custom: ${start.toLocaleDateString()} → ${end.toLocaleDateString()}` : `Showing: ${label}`;
+
+        const q = String(document.getElementById("admin-sales-search")?.value || "").toLowerCase().trim();
+        const catFilter = document.getElementById("admin-sales-category-filter")?.value || "Mikaela";
+        const pkgFilter = document.getElementById("admin-sales-package-filter")?.value || "all";
+
+        if (catFilter !== "All") {
+    filtered = filtered.filter(p => String(p.sales_category || "").trim().toLowerCase() === catFilter.toLowerCase());
+}
+        
+        if (pkgFilter !== "all") {
+            filtered = filtered.filter(p => {
+                 let s = String(p.status || "").toLowerCase();
+                 if (s === 'active') s = 'ongoing'; 
+                 let target = pkgFilter.toLowerCase();
+                 if (target === 'active') target = 'ongoing';
+                 return s.includes(target);
+            });
+        }
+
+        let totalSales = 0;
+        let totalCommissions = 0;
+        let html = "";
+
+        filtered.sort((a,b) => new Date(b.purchase_date || 0) - new Date(a.purchase_date || 0)).forEach(p => {
+            const code = String(p.client_code || "—").trim();
+            const clientMatch = clients.find(c => String(c.client_code || c.code_name) === code) || {};
+            const company = clientMatch.company_name || clientMatch.roofing_company || "Unknown Client";
+            
+            // Fixed the search bar to look for external_package_id instead of transaction_id
+            if (q && !`${company} ${code} ${p.external_package_id || ''}`.toLowerCase().includes(q)) return;
+
+                        const rawAmt = p.amount ? String(p.amount).replace(/[^0-9.-]+/g,"") : "0";
+const dealVal = parseFloat(rawAmt) || 0;
+const purchasedAmount = Number(p.purchased_leads) || 0;
+const commVal = Number(p.commission_per_lead) || 0;
+
+totalSales += dealVal;
+totalCommissions += commVal;
+
+            let stBadge = "bg-gray-100 text-gray-700";
+            const st = String(p.status || "").toUpperCase();
+            if (st === 'ACTIVE') stBadge = "bg-emerald-100 text-emerald-800";
+            if (st === 'PAUSE') stBadge = "bg-yellow-100 text-yellow-800";
+            if (st === 'COMPLETED') stBadge = "bg-blue-100 text-blue-800";
+
+            let dealBadge = "bg-gray-100 text-gray-700";
+            const ds = String(p.deal_status || "").toUpperCase();
+            if (ds === 'PAID') dealBadge = "bg-emerald-100 text-emerald-800";
+            if (ds === 'NEGOTIATING') dealBadge = "bg-yellow-100 text-yellow-800";
+            if (ds === 'REFUNDED') dealBadge = "bg-red-100 text-red-800";
+
+            let startedStr = "—";
+            if (p._safeFirstLead) {
+                startedStr = `${p._safeFirstLead.getMonth() + 1}/${p._safeFirstLead.getDate()}/${p._safeFirstLead.getFullYear()}`;
+            }
+
+            html += `
+              <tr class="hover:bg-gray-50 border-b border-gray-50">
+                <td class="p-4 font-bold text-gray-700">${p.purchase_date || "—"}</td>
+                <td class="p-4 text-xs font-mono text-gray-400">${p.external_package_id || "—"}</td>
+                <td class="p-4 font-black text-gray-900">${company} <span class="text-[10px] text-gray-400 font-normal ml-1">(${code})</span></td>
+                <td class="p-4 text-gray-600">${p.poc || clientMatch.contact_person || "—"}</td>
+                <td class="p-4 text-center font-bold">${p.purchased_leads || 0}</td>
+                <td class="p-4 text-emerald-600 font-black">$${dealVal.toLocaleString()}</td>
+                <td class="p-4 text-purple-600 font-black">$${commVal.toLocaleString()}</td>
+                <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${stBadge}">${st || 'UNKNOWN'}</span></td>
+                <td class="p-4 text-gray-600 font-bold">${p.sales_category || "—"}</td>
+                <td class="p-4 text-blue-600 font-bold">${startedStr}</td>
+                <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${dealBadge}">${ds || 'UNKNOWN'}</span></td>
+                <td class="p-4 text-center flex justify-center gap-1">
+                    <button onclick="window.editDealModal('${p.id}')" class="px-3 py-1 bg-gray-100 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded shadow-sm transition-colors">Edit</button>
+                </td>
+              </tr>
+            `;
+        });
+
+        document.getElementById("sales-total-kpi").textContent = totalSales.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        document.getElementById("sales-commissions-kpi").textContent = totalCommissions.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        document.getElementById("admin-sales-table-body").innerHTML = html || `<tr><td colspan="12" class="p-8 text-center text-gray-400 italic">No deals found for this range.</td></tr>`;
+      },
+
+
+      // --- LEADS TRACKER (READ ONLY) ---
+      getLeadsColumns() {
+        return [
+          { key: "date_submitted", label: "Date Submitted", keys: ["Date Submitted", "date_submitted", "DATE", "created_at"] },
+          { key: "lead_id", label: "LEAD ID", keys: ["LEAD ID", "lead_id"] },
+          { key: "roofing_company", label: "Roofing Company", keys: ["Company Name", "company_name", "roofing_company"] },
+          { key: "appointment_coordinator", label: "Appointment Coordinator Name", keys: ["Appointment Coordinator Name", "appointment_coordinator_name", "agent_name"] },
+          { key: "homeowner_name", label: "Homeowner Name(s)", keys: ["Homeowner Name(s)", "homeowner_names"] },
+          { key: "homeowner_email", label: "Email of Homeowner", keys: ["Email of Homeowner", "email_of_homeowner", "email"] },
+          { key: "homeowner_phone", label: "Homeowner Phone Number(s)", keys: ["Homeowner Phone Number(s)", "homeowner_phone_numbers", "phone"] },
+          { key: "appointment_datetime", label: "Appointment Date /Time", keys: ["Appointment Date /Time", "appointment_date_time"] },
+          { key: "address", label: "Address", keys: ["Address", "address"] },
+          { key: "age_of_roof", label: "Age of Roof", keys: ["Age of Roof", "age_of_roof"] },
+          { key: "insurance_company", label: "Insurance Company", keys: ["Insurance Company", "insurance_company"] },
+          { key: "additional_notes", label: "Additional Notes", keys: ["Additional Notes", "additional_notes"] },
+          { key: "status", label: "Status", keys: ["Status", "status", "STATUS"] },
+        ];
+      },
+
+      getLeadsDefaultVisibleCols() { return new Set(["date_submitted","homeowner_name","appointment_coordinator","roofing_company","status"]); },
+
+      setupLeadFilters(leads) {
+        const statusSel = document.getElementById("leads-filter-status");
+        if(statusSel){
+          statusSel.innerHTML = `
+            <option value="all">All Status</option>
+            <option value="APPROVED">APPROVED</option>
+            <option value="CREDITED">CREDITED</option>
+            <option value="PENDING REVIEW">PENDING REVIEW</option>
+            <option value="REJECTED">REJECTED</option>
+          `;
+        }
+      },
+
+      initLeadsColumnsUI() {
+  if (!this._leadsCols) {
+    this._leadsCols = this.getLeadsColumns();
+  }
+
+  if (!this._leadsVisibleCols) {
+    this._leadsVisibleCols = this.getLeadsDefaultVisibleCols();
+  }
+
+  const toggle = document.getElementById("leads-columns-toggle");
+  const pop = document.getElementById("leads-columns-popover");
+  const box = document.getElementById("leads-columns-box");
+  const allBtn = document.getElementById("leads-columns-all");
+  const minBtn = document.getElementById("leads-columns-min");
+
+  if (!toggle || !pop || !box) return;
+
+  const renderChecks = () => {
+    box.innerHTML = this._leadsCols.map(col => {
+      const checked = this._leadsVisibleCols.has(col.key);
+      return `
+        <label class="flex items-center gap-2 text-sm text-gray-700">
+          <input type="checkbox" data-colkey="${col.key}" ${checked ? "checked" : ""} />
+          <span>${col.label}</span>
+        </label>
+      `;
+    }).join("");
+
+    box.querySelectorAll('input[type="checkbox"][data-colkey]').forEach(chk => {
+      chk.addEventListener("change", () => {
+        const k = chk.getAttribute("data-colkey");
+        if (!k) return;
+        if (chk.checked) this._leadsVisibleCols.add(k);
+        else this._leadsVisibleCols.delete(k);
+        this.applyLeadsFilters();
+      });
+    });
+  };
+
+  if (!toggle.dataset.bound) {
+    toggle.dataset.bound = "true";
+    toggle.addEventListener("click", (e) => {
+      e.preventDefault();
+      pop.classList.toggle("hidden");
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
+        pop.classList.add("hidden");
+      }
+    });
+  }
+
+  if (allBtn && !allBtn.dataset.bound) {
+    allBtn.dataset.bound = "true";
+    allBtn.addEventListener("click", () => {
+      this._leadsVisibleCols = new Set(this._leadsCols.map(c => c.key));
+      renderChecks();
+      this.applyLeadsFilters();
+    });
+  }
+
+  if (minBtn && !minBtn.dataset.bound) {
+    minBtn.dataset.bound = "true";
+    minBtn.addEventListener("click", () => {
+      this._leadsVisibleCols = this.getLeadsDefaultVisibleCols();
+      renderChecks();
+      this.applyLeadsFilters();
+    });
+  }
+
+  renderChecks();
+},
+
+      applyLeadsFilters() {
+        const state = this.getState();
+        const leads = (state && Array.isArray(state.leads)) ? state.leads : [];
+        const q = String(document.getElementById("leads-search")?.value || "").toLowerCase().trim();
+        const stVal = document.getElementById("leads-filter-status")?.value || "all";
+        const sDate = document.getElementById("leads-date-start")?.value || "";
+        const eDate = document.getElementById("leads-date-end")?.value || "";
+
+        let filtered = [...leads];
+
+        if (stVal !== "all") {
+          filtered = filtered.filter(l => {
+            const s = String(this.getLeadField(l, ["status", "Status", "STATUS"], "")).toUpperCase();
+            if (stVal === "APPROVED") return s.includes("APPROV") || s.includes("CONFIRM");
+            if (stVal === "REJECTED") return s.includes("REJECT");
+            if (stVal === "CREDITED") return s.includes("CREDIT");
+            if (stVal === "PENDING REVIEW") return s.includes("PENDING");
+            return s.includes(stVal);
+          });
+        }
+
+        if (q) {
+          filtered = filtered.filter(l => {
+            const allValuesString = Object.values(l).join(" ").toLowerCase();
+            return allValuesString.includes(q);
+          });
+        }
+
+        if (sDate || eDate) {
+           const startDt = sDate ? new Date(sDate + "T00:00:00") : null;
+           const endDt = eDate ? new Date(eDate + "T23:59:59") : null;
+           filtered = filtered.filter(l => {
+               const lDt = this.getLeadDateObj(l);
+               if(!lDt) return false;
+               if (startDt && lDt < startDt) return false;
+               if (endDt && lDt > endDt) return false;
+               return true;
+           });
+        }
+
+        if (this._leadsSort?.key === "date_submitted") {
+          const dir = this._leadsSort.dir === "asc" ? 1 : -1;
+          filtered.sort((a, b) => {
+            const da = this.getLeadDateObj(a);
+            const db = this.getLeadDateObj(b);
+            if (!da && !db) return 0; if (!da) return 1; if (!db) return -1;
+            return (da.getTime() - db.getTime()) * dir;
+          });
+        }
+
+        const countEl = document.getElementById("leads-count");
+        if (countEl) countEl.textContent = filtered.length;
+        this.renderLeads(filtered);
+      },
+
+      bindLeadsMasterEvents() {
+        if (this._leadsFiltersBound) return;
+        this._leadsFiltersBound = true;
+        const els = ["leads-search", "leads-filter-status", "leads-date-start", "leads-date-end"];
+        els.forEach(id => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          const evt = (id === "leads-search") ? "input" : "change";
+          el.addEventListener(evt, () => this.applyLeadsFilters());
+        });
+
+        document.getElementById("leads-clear")?.addEventListener("click", () => {
+            const s = document.getElementById("leads-search"); if (s) s.value = "";
+            const a = document.getElementById("leads-filter-status"); if (a) a.value = "all";
+            const ds = document.getElementById("leads-date-start"); if (ds) ds.value = "";
+            const de = document.getElementById("leads-date-end"); if (de) de.value = "";
+            this.applyLeadsFilters();
+        });
+      },
+
+      statusBadge(status) {
+        const s = String(status || "").toLowerCase();
+        let cls = "bg-gray-100 text-gray-700 border-gray-200";
+        if (s.includes("approved") || s.includes("confirmed")) cls = "bg-emerald-100 text-emerald-800 border-emerald-200";
+        if (s.includes("rejected") || s.includes("credit"))    cls = "bg-red-100 text-red-800 border-red-200";
+        return `<span class="px-2 py-1 rounded-full text-xs font-extrabold border ${cls}">${status || "—"}</span>`;
+      },
+
+      renderLeads(leads) {
+        const tbody = document.getElementById('leads-table-body');
+        const thead = document.getElementById('leads-table-head');
+        if(!tbody || !thead) return;
+        this.initLeadsColumnsUI();
+        const visibleCols = this._leadsCols.filter(c => this._leadsVisibleCols.has(c.key));
+        thead.innerHTML = `<tr>${visibleCols.map(c => `<th class="p-4">${c.label}</th>`).join("")}</tr>`;
+        // NO DROPDOWNS, NO TRASHCANS. Read Only.
+        tbody.innerHTML = leads.map(l => `
+  <tr class="hover:bg-gray-50">
+    ${visibleCols.map(c => {
+      const rawVal = this.getLeadField(l, c.keys);
+      const safeVal = String(rawVal ?? "—")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+
+      const cellHtml = c.key === "status"
+        ? this.statusBadge(rawVal)
+        : safeVal;
+
+      const titleAttr = c.key === "status"
+        ? ""
+        : ` title="${safeVal}"`;
+
+      return `<td class="p-4"${titleAttr}>${cellHtml}</td>`;
+    }).join("")}
+  </tr>
+`).join("");
+ },
+
+      // --- PASSBOOK CLIENTS (LOCKED TO SHARED ONLY) ---
+      extractRoofingCompany(c) { return this.pick(c, ["company_name", "roofing_company"], "—"); },
+      extractCityState(c) { return this.pick(c, ["area", "city_state"], "—"); },
+      extractClientName(c) { return this.pick(c, ["contact_person", "client_name"], "—"); },
+      extractCode(c) { return this.pick(c, ["code_name", "client_code"], "N/A"); },
+
+      setupPassbookFilters(clients) {
+        const shared = (clients || []).filter(c => c.shared_with_sales === true || String(c.shared_with_sales).toLowerCase() === 'true');
+        const locs = [...new Set(shared.map(c => this.extractCityState(c)).filter(Boolean))].sort();
+        const sel = document.getElementById("passbook-filter-location");
+        if(sel) sel.innerHTML = `<option value="all">All Locations</option>` + locs.map(l => `<option value="${l}">${l}</option>`).join("");
+      },
+
+      applyPassbookFilters(clients) {
+        const q = String(document.getElementById("passbook-search")?.value || "").toLowerCase().trim();
+        const loc = document.getElementById("passbook-filter-location")?.value || "all";
+        
+        // STRICT FILTER: Only show shared clients
+        let rows = (clients || []).filter(c => c.shared_with_sales === true || String(c.shared_with_sales).toLowerCase() === 'true');
+        
+        rows = rows.filter(c => (loc === "all" || this.extractCityState(c) === loc));
+        if (q) rows = rows.filter(c => `${this.extractRoofingCompany(c)} ${this.extractCode(c)}`.toLowerCase().includes(q));
+
+        const countEl = document.getElementById("passbook-count");
+        if(countEl) countEl.textContent = rows.length;
+
+        if (this._passbookView === "list") this.renderPassbookList(rows);
+        else this.renderClientCards(rows);
+      },
+
+      renderPassbookList(clients) {
+        const tbody = document.getElementById("passbook-list-body");
+        // Read only row, View Details button only.
+        if(tbody) tbody.innerHTML = (clients || []).map(c => `<tr class="hover:bg-gray-50"><td class="p-4">${this.extractCode(c)}</td><td class="p-4 font-bold">${this.extractRoofingCompany(c)}</td><td class="p-4">${this.extractCityState(c)}</td><td class="p-4">${this.extractClientName(c)}</td><td class="p-4 text-center"><span class="px-2 py-1 rounded text-[10px] font-extrabold bg-blue-50 text-blue-700">${this.pick(c, ["status","client_status"], "ACTIVE").toUpperCase()}</span></td><td class="p-4 text-right"><button class="px-3 py-1 rounded bg-gray-900 text-white text-xs font-bold hover:bg-gray-800" onclick="Admin.openPassbookClient('${this.extractCode(c)}')">View Details</button></td></tr>`).join("") || `<tr><td colspan="6" class="p-6 text-center text-gray-400 italic">No shared clients available.</td></tr>`;
+      },
+
+      renderClientCards(clients) {
+        const container = document.getElementById('client-cards-container');
+        if (!container) return;
+        
+        // COMPLETELY CLICKABLE CARD (Read-Only)
+        container.innerHTML = (clients || []).map(c => {
+          const code = this.extractCode(c);
+          return `<div onclick="Admin.openPassbookClient('${String(code).replace(/'/g, "\\'")}')" class="text-left bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition cursor-pointer">
+              <div class="flex items-center justify-between"><h3 class="font-bold text-gray-900 text-lg">${this.extractRoofingCompany(c)}</h3><span class="text-xs font-bold text-gray-500">${code}</span></div>
+              <p class="text-xs text-gray-500 mt-1">${this.extractCityState(c)}</p>
+              <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+                  <span class="px-2 py-1 rounded text-[10px] font-extrabold bg-blue-50 text-blue-700">${this.pick(c, ["status","client_status"], "ACTIVE").toUpperCase()}</span>
+                  <span class="text-[10px] font-extrabold text-yellow-600 uppercase tracking-wider mt-3">Click to open</span>
+              </div>
+          </div>`;
+        }).join('') || '<div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm col-span-full">No shared clients available.</div>';
+      },
+
+      bindPassbookUI(clients) {
+        if (this._passbookFiltersBound) return; this._passbookFiltersBound = true;
+        const cBtn = document.getElementById("passbook-view-cards");
+        const lBtn = document.getElementById("passbook-view-list");
+        if(cBtn) cBtn.addEventListener("click", () => { this._passbookView="cards"; this.applyPassbookFilters(clients); });
+        if(lBtn) lBtn.addEventListener("click", () => { this._passbookView="list"; this.applyPassbookFilters(clients); });
+        document.getElementById("passbook-search")?.addEventListener("input", () => this.applyPassbookFilters(clients));
+        document.getElementById("passbook-filter-location")?.addEventListener("change", () => this.applyPassbookFilters(clients));
+        document.getElementById("passbook-clear")?.addEventListener("click", () => {
+            const s = document.getElementById("passbook-search"); if(s) s.value = "";
+            const l = document.getElementById("passbook-filter-location"); if(l) l.value = "all";
+            this.applyPassbookFilters(clients);
+        });
+      },
+
+      openPassbookClient(codeName) { 
+          const modal = document.getElementById("passbook-modal"); 
+          
+          // Updates the title and loading state
+          document.getElementById("passbook-modal-sub").textContent = `Code: ${codeName}`;
+          document.getElementById("passbook-form-body").innerHTML = '<div class="p-4 text-sm text-gray-500 italic"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Loading live from database...</div>';
+          
+          // Opens the modal securely
+          modal.classList.remove("hidden");
+          this._fetchAndRenderPassbookClient(codeName);
+      },
+
+      closePassbookModal() { document.getElementById("passbook-modal").classList.add("hidden"); },
+
+      async _fetchAndRenderPassbookClient(codeName) {
+        try {
+          if (typeof supaClient === 'undefined' || !supaClient) throw new Error("Database connection missing");
+          const { data, error } = await supaClient.from('clients').select('*').eq('client_code', codeName).limit(1);
+          if (error) throw error;
+          if (!data || data.length === 0) {
+             document.getElementById("passbook-form-body").innerHTML = `<div class="p-4 text-yellow-600 font-bold">Client not found.</div>`;
+             return;
+          }
+          this._renderPassbookForm(data[0]);
+        } catch (err) {
+          document.getElementById("passbook-form-body").innerHTML = '<div class="p-4 text-red-700 font-bold">Failed to load client.</div>';
+        }
+      },
+
+      _renderPassbookForm(raw) {
+  const safeStr = (val) => String(val ?? "").replace(/"/g, "&quot;");
+  const companyName = safeStr(raw.company_name) || "Unknown";
+  const codeName = safeStr(raw.client_code) || "—";
+  const cityState = safeStr(raw.area || raw.city_state) || "—";
+
+  document.getElementById("passbook-modal-title").textContent = companyName;
+  document.getElementById("passbook-modal-sub").textContent = `Code: ${codeName} • ${cityState}`;
+
+  const fields = [
+    { label: "Code Name", key: "client_code", locked: true },
+    { label: "Company Name", key: "company_name", locked: true },
+    { label: "Phone", key: "phone" },
+    { label: "Contact Person", key: "contact_person" },
+    { label: "Area / City State", key: "area" },
+    { label: "Area Codes To Use", key: "area_codes_to_use", long: true },
+    { label: "Email", key: "email" },
+    { label: "Website", key: "website" },
+    { label: "Status", key: "client_status" },
+    { label: "Company Address", key: "company_address", long: true },
+    { label: "Sales Rep Count", key: "sales_rep_count" },
+    { label: "Regions / Cities / Zip Codes", key: "regions", long: true },
+    { label: "Days of Operation", key: "days_of_operation" },
+    { label: "Hours of Operation", key: "hours_of_operation" },
+    { label: "Appointment Interval", key: "appointment_interval" },
+    { label: "Roof Types", key: "roof_types" },
+    { label: "Leads Per Day Limit", key: "leads_per_day_limit" },
+    { label: "Double Bookings", key: "double_bookings" },
+    { label: "Additional Notes / Requests", key: "additional_notes", long: true }
+  ];
+
+  let html = `
+    <form id="passbookClientForm" data-passbook-form="client" class="space-y-4">
+      <input type="hidden" id="codeName" value="${codeName}" />
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+  `;
+
+  for (const f of fields) {
+    const val = safeStr(raw[f.key]);
+    const locked = !!f.locked;
+
+    if (f.long) {
+      html += `
+        <div class="${f.key === 'additional_notes' || f.key === 'company_address' || f.key === 'regions' || f.key === 'area_codes_to_use' ? 'md:col-span-2' : ''}">
+          <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">${f.label}</label>
+          <textarea
+            name="${f.key}"
+            ${locked ? "readonly" : ""}
+            class="w-full px-3 py-2 border rounded-lg text-sm min-h-[110px] ${
+              locked
+                ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-white border-gray-200 text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+            }"
+          >${val}</textarea>
+        </div>
+      `;
+    } else {
+      html += `
+        <div>
+          <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">${f.label}</label>
+          <input
+            type="text"
+            name="${f.key}"
+            value="${val}"
+            ${locked ? "readonly" : ""}
+            class="w-full px-3 py-2 border rounded-lg text-sm ${
+              locked
+                ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-white border-gray-200 text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+            }"
+          />
+        </div>
+      `;
+    }
+  }
+
+  html += `
+      </div>
+    </form>
+  `;
+
+  document.getElementById("passbook-form-body").innerHTML = html;
+
+  if (window.portal && typeof window.portal.bindPassbookUpdateButton === "function") {
+    window.portal.bindPassbookUpdateButton();
+  }
+},
+
+          getOnboardingRows() {
+        const state = this.getState();
+        const clients = Array.isArray(state?.rawClients) ? state.rawClients : [];
+        const onboarding = Array.isArray(state?.clientOnboarding) ? state.clientOnboarding : [];
+        const packages = Array.isArray(state?.packages) ? state.packages : [];
+
+        const packageClientCodes = new Set(
+          packages
+            .map(p => String(p.client_code || "").trim().toLowerCase())
+            .filter(Boolean)
+        );
+
+        const onboardingByCode = new Map(
+          onboarding.map(row => [String(row.client_code || "").trim().toLowerCase(), row])
+        );
+
+        return clients
+          .filter(client => {
+            const code = String(client.client_code || client.code_name || "").trim().toLowerCase();
+            return code && packageClientCodes.has(code);
+          })
+          .map(client => {
+            const code = String(client.client_code || client.code_name || "").trim();
+            const onboardingRow = onboardingByCode.get(code.toLowerCase()) || {};
+            const draft = this._onboardingDrafts?.[code] || {};
+
+            return {
+              client_code: code,
+              company_name: client.company_name || client.roofing_company || "—",
+
+              client_paid: draft.client_paid ?? !!onboardingRow.client_paid,
+              contract_sent: draft.contract_sent ?? !!onboardingRow.contract_sent,
+              contract_completed: draft.contract_completed ?? !!onboardingRow.contract_completed,
+              onboarding_link_sent: draft.onboarding_link_sent ?? !!onboardingRow.onboarding_link_sent,
+              onboarding_link_completed: draft.onboarding_link_completed ?? !!onboardingRow.onboarding_link_completed,
+              ghl_account_created: draft.ghl_account_created ?? !!onboardingRow.ghl_account_created,
+              client_portal_created: draft.client_portal_created ?? !!onboardingRow.client_portal_created,
+              live_lead_tracker_created: draft.live_lead_tracker_created ?? !!onboardingRow.live_lead_tracker_created,
+              client_portal_demo_completed: draft.client_portal_demo_completed ?? !!onboardingRow.client_portal_demo_completed,
+              ready_to_receive_leads: draft.ready_to_receive_leads ?? !!onboardingRow.ready_to_receive_leads,
+              notes: draft.notes ?? onboardingRow.notes ?? ""
+            };
+          })
+          .sort((a, b) => a.company_name.localeCompare(b.company_name));
+      },
+
+getFilteredOnboardingRows() {
+  let rows = this.getOnboardingRows();
+
+  const q = String(document.getElementById("onboarding-search")?.value || "").toLowerCase().trim();
+
+  const filterMap = [
+    ["ob-filter-paid", "client_paid"],
+    ["ob-filter-contract-sent", "contract_sent"],
+    ["ob-filter-contract-done", "contract_completed"],
+    ["ob-filter-form-sent", "onboarding_link_sent"],
+    ["ob-filter-form-received", "onboarding_link_completed"],
+    ["ob-filter-portal", "client_portal_created"],
+    ["ob-filter-tracker", "live_lead_tracker_created"],
+    ["ob-filter-demo", "client_portal_demo_completed"],
+    ["ob-filter-ready", "ready_to_receive_leads"]
+  ];
+
+  if (q) {
+    rows = rows.filter(row =>
+      `${row.client_code} ${row.company_name}`.toLowerCase().includes(q)
+    );
+  }
+
+  filterMap.forEach(([id, field]) => {
+    const val = document.getElementById(id)?.value || "all";
+    if (val === "done") rows = rows.filter(r => !!r[field]);
+    if (val === "not_done") rows = rows.filter(r => !r[field]);
+  });
+
+  return rows;
+},
+
+bindOnboardingFilters() {
+  if (this._onboardingFiltersBound) return;
+  this._onboardingFiltersBound = true;
+
+  const ids = [
+    "onboarding-search",
+    "ob-filter-paid",
+    "ob-filter-contract-sent",
+    "ob-filter-contract-done",
+    "ob-filter-form-sent",
+    "ob-filter-form-received",
+    "ob-filter-portal",
+    "ob-filter-tracker",
+    "ob-filter-demo",
+    "ob-filter-ready"
+  ];
+
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const evt = id === "onboarding-search" ? "input" : "change";
+    el.addEventListener(evt, () => this.renderOnboardingTab());
+  });
+
+  const clearBtn = document.getElementById("ob-clear-filters");
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      const search = document.getElementById("onboarding-search");
+      if (search) search.value = "";
+
+      ids.forEach(id => {
+        if (id === "onboarding-search") return;
+        const el = document.getElementById(id);
+        if (el) el.value = "all";
+      });
+
+      this.renderOnboardingTab();
+    });
+  }
+},
+
+      bindOnboardingDraftTracking() {
+  const tbody = document.getElementById("onboarding-table-body");
+  if (!tbody) return;
+
+  if (this._onboardingDraftsBound) return;
+  this._onboardingDraftsBound = true;
+
+  tbody.addEventListener("change", (e) => {
+    const el = e.target;
+    if (!el || !el.matches("[data-ob-code][data-ob-field]")) return;
+
+    const clientCode = el.getAttribute("data-ob-code");
+    const field = el.getAttribute("data-ob-field");
+    if (!clientCode || !field) return;
+
+    if (!this._onboardingDrafts[clientCode]) this._onboardingDrafts[clientCode] = {};
+    this._onboardingDrafts[clientCode][field] = el.type === "checkbox" ? !!el.checked : el.value;
+  });
+
+  tbody.addEventListener("input", (e) => {
+    const el = e.target;
+    if (!el || !el.matches("[data-ob-code][data-ob-field]")) return;
+
+    const clientCode = el.getAttribute("data-ob-code");
+    const field = el.getAttribute("data-ob-field");
+    if (!clientCode || !field) return;
+
+    if (!this._onboardingDrafts[clientCode]) this._onboardingDrafts[clientCode] = {};
+    this._onboardingDrafts[clientCode][field] = el.type === "checkbox" ? !!el.checked : el.value;
+  });
+},
+
+renderOnboardingTab() {
+  const tbody = document.getElementById("onboarding-table-body");
+  if (!tbody) return;
+
+  this.bindOnboardingFilters();
+  this.bindOnboardingDraftTracking();
+  const rows = this.getFilteredOnboardingRows();
+
+  tbody.innerHTML = rows.map(row => `
+    <tr class="border-b border-gray-100 hover:bg-gray-50">
+      <td class="p-3 font-semibold text-gray-700">${row.client_code}</td>
+      <td class="p-3 text-gray-800">${row.company_name}</td>
+
+      <td class="p-3">
+        <input type="checkbox" class="onboard-checkbox"
+          data-ob-code="${row.client_code}" data-ob-field="client_paid"
+          ${row.client_paid ? "checked" : ""}>
+      </td>
+
+      <td class="p-3">
+        <input type="checkbox" class="onboard-checkbox"
+          data-ob-code="${row.client_code}" data-ob-field="contract_sent"
+          ${row.contract_sent ? "checked" : ""}>
+      </td>
+
+      <td class="p-3">
+        <input type="checkbox" class="onboard-checkbox"
+          data-ob-code="${row.client_code}" data-ob-field="contract_completed"
+          ${row.contract_completed ? "checked" : ""}>
+      </td>
+
+      <td class="p-3">
+        <input type="checkbox" class="onboard-checkbox"
+          data-ob-code="${row.client_code}" data-ob-field="onboarding_link_sent"
+          ${row.onboarding_link_sent ? "checked" : ""}>
+      </td>
+
+      <td class="p-3">
+        <input type="checkbox" class="onboard-checkbox"
+          data-ob-code="${row.client_code}" data-ob-field="onboarding_link_completed"
+          ${row.onboarding_link_completed ? "checked" : ""}>
+      </td>
+
+      <td class="p-3">
+        <input type="checkbox" class="onboard-checkbox"
+          data-ob-code="${row.client_code}" data-ob-field="client_portal_created"
+          ${row.client_portal_created ? "checked" : ""}>
+      </td>
+
+      <td class="p-3">
+        <input type="checkbox" class="onboard-checkbox"
+          data-ob-code="${row.client_code}" data-ob-field="live_lead_tracker_created"
+          ${row.live_lead_tracker_created ? "checked" : ""}>
+      </td>
+
+      <td class="p-3">
+        <input type="checkbox" class="onboard-checkbox"
+          data-ob-code="${row.client_code}" data-ob-field="client_portal_demo_completed"
+          ${row.client_portal_demo_completed ? "checked" : ""}>
+      </td>
+
+      <td class="p-3">
+        <input type="checkbox" class="onboard-checkbox"
+          data-ob-code="${row.client_code}" data-ob-field="ready_to_receive_leads"
+          ${row.ready_to_receive_leads ? "checked" : ""}>
+      </td>
+
+      <td class="p-3">
+        <input
+          type="text"
+          data-ob-code="${row.client_code}"
+          data-ob-field="notes"
+          value="${String(row.notes).replace(/"/g, '&quot;')}"
+          class="w-full min-w-[220px] px-3 py-2 border border-gray-200 rounded-lg text-sm"
+        />
+      </td>
+
+      <td class="p-3">
+        <button
+          data-ob-save="${row.client_code}"
+          class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500"
+          onclick="Admin.saveOnboardingRow('${row.client_code.replace(/'/g, "\\'")}')"
+        >
+          Save
+        </button>
+      </td>
+    </tr>
+  `).join("");
+},
+
+async saveOnboardingRow(clientCode) {
+  const state = this.getState();
+  const clients = Array.isArray(state?.rawClients) ? state.rawClients : [];
+  const client = clients.find(c => String(c.client_code || "").trim() === String(clientCode).trim()) || {};
+
+  const rowBtn = document.querySelector(`button[data-ob-save="${clientCode}"]`);
+  const originalBtnText = rowBtn ? rowBtn.textContent : "Save";
+
+  if (rowBtn) {
+    rowBtn.disabled = true;
+    rowBtn.textContent = "Saving...";
+    rowBtn.classList.add("opacity-70", "cursor-not-allowed");
+  }
+
+  const payload = {
+    client_code: clientCode,
+    company_name: client.company_name || client.roofing_company || null,
+    updated_at: new Date().toISOString()
+  };
+
+  document.querySelectorAll(`[data-ob-code="${clientCode}"]`).forEach(el => {
+    const field = el.getAttribute("data-ob-field");
+    if (!field) return;
+    payload[field] = el.type === "checkbox" ? !!el.checked : el.value;
+  });
+
+  const supa = supaClient;
+  if (!supa) {
+    if (rowBtn) {
+      rowBtn.disabled = false;
+      rowBtn.textContent = originalBtnText;
+      rowBtn.classList.remove("opacity-70", "cursor-not-allowed");
+    }
+    alert("Supabase is not available.");
+    return;
+  }
+
+  const { error } = await supa
+    .from("client_onboarding")
+    .upsert([payload], { onConflict: "client_code" });
+
+  if (error) {
+    console.error("Onboarding save failed:", error);
+    if (rowBtn) {
+      rowBtn.disabled = false;
+      rowBtn.textContent = originalBtnText;
+      rowBtn.classList.remove("opacity-70", "cursor-not-allowed");
+    }
+    alert("Failed to save onboarding row.");
+    return;
+  }
+
+  delete this._onboardingDrafts[clientCode];
+  await window.portal.fetchAdminData(true);
+
+  const freshBtn = document.querySelector(`button[data-ob-save="${clientCode}"]`);
+  if (freshBtn) {
+    freshBtn.textContent = "Saved ✓";
+    freshBtn.disabled = false;
+    freshBtn.classList.remove("opacity-70", "cursor-not-allowed");
+
+    setTimeout(() => {
+      const latestBtn = document.querySelector(`button[data-ob-save="${clientCode}"]`);
+      if (latestBtn) latestBtn.textContent = "Save";
+    }, 1200);
+  }
+},
+    };
+
+    window.adminDashboard = AdminDashboard;
+    window.Admin = AdminDashboard;
+
+    // --- SALES DEAL MODAL OVERRIDES ---
+    window.openAddDealModal = function() {
+    document.getElementById('add-sale-form').reset();
+    document.getElementById('sale-package-id').value = "";
+    document.getElementById('sale-client-code').value = "";
+    document.getElementById('sale-deal-type').value = "New Client";
+    document.getElementById('sale-category').value = "Mikaela";
+    document.getElementById('sale-modal-title').innerText = "Log New Deal";
+    document.getElementById('save-sale-btn').innerText = "Save Deal";
+    window.populateSalesClientDropdown();
+    document.getElementById('add-sale-modal').classList.remove('hidden');
+};
+
+    window.editDealModal = function(pkgId) {
+    const pkg = window.portal?.adminState?.packages?.find(p => p.id == pkgId);
+    if (!pkg) return;
+
+    if (window.populateSalesClientDropdown) window.populateSalesClientDropdown();
+
+    const clients = window.portal?.adminState?.rawClients || window.portal?.adminState?.clients || [];
+    const normalize = (v) => String(v || "").trim().toLowerCase();
+
+    const client = clients.find(c =>
+        normalize(c.client_code || c.code_name) === normalize(pkg.client_code) ||
+        normalize(c.company_name || c.roofing_company) === normalize(pkg.company_name || pkg.roofing_company)
+    ) || {};
+
+    document.getElementById('sale-package-id').value = pkg.id;
+    document.getElementById('sale-client-code').value = pkg.client_code || "";
+    document.getElementById('sale-company').value = client.company_name || pkg.company_name || pkg.roofing_company || "";
+    document.getElementById('sale-poc').value = client.contact_person || client.client_name || "";
+
+    document.getElementById('sale-leads').value = pkg.purchased_leads || "";
+    document.getElementById('sale-value').value = String(pkg.amount || "").replace(/[^0-9.-]+/g, "");
+    document.getElementById('sale-commission').value = pkg.commission_per_lead || 0;
+
+    if (pkg.purchase_date) {
+    const rawDate = String(pkg.purchase_date).trim();
+    const isoOnly = rawDate.match(/^\d{4}-\d{2}-\d{2}$/);
+    document.getElementById('sale-date').value = isoOnly ? rawDate : "";
+}
+
+    document.getElementById('sale-transaction-id').value = pkg.external_package_id || "";
+    document.getElementById('sale-deal-status').value = pkg.deal_status || "Paid";
+    document.getElementById('sale-deal-type').value = pkg.deal_type || "New Client";
+    document.getElementById('sale-category').value = "Mikaela";
+
+    document.getElementById('sale-modal-title').innerText = "Edit Deal Details";
+    document.getElementById('save-sale-btn').innerText = "Update Deal";
+    document.getElementById('add-sale-modal').classList.remove('hidden');
+};
+
+    window.populateSalesClientDropdown = function() {
+        const companyInput = document.getElementById('sale-company');
+        const suggestionBox = document.getElementById('custom-client-suggestions');
+        if (!companyInput || !suggestionBox) return;
+
+        const clients = window.portal?.adminState?.rawClients || window.portal?.adminState?.clients || [];
+        
+        document.addEventListener('click', (e) => {
+            if (e.target !== companyInput && e.target !== suggestionBox) {
+                suggestionBox.classList.add('hidden');
+            }
+        });
+
+        companyInput.addEventListener('input', (e) => {
+            const val = e.target.value.toLowerCase().trim();
+            suggestionBox.innerHTML = ''; 
+            
+            if (!val) {
+                suggestionBox.classList.add('hidden');
+                document.getElementById('sale-client-code').value = "";
+                document.getElementById('sale-deal-type').value = "New Client";
+                document.getElementById('sale-poc').value = "";
+                return;
+            }
+
+            const matches = clients.filter(c => String(c.company_name || "").toLowerCase().includes(val));
+            
+            if (matches.length > 0) {
+                suggestionBox.classList.remove('hidden');
+                matches.forEach(match => {
+                    const div = document.createElement('div');
+                    div.className = "px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm font-bold text-gray-700 border-b border-gray-50 last:border-0";
+                    div.textContent = match.company_name;
+                    
+                    div.onclick = () => {
+                        companyInput.value = match.company_name;
+                        document.getElementById('sale-poc').value = match.contact_person || "";
+                        document.getElementById('sale-client-code').value = match.client_code || match.code_name || "";
+                        document.getElementById('sale-deal-type').value = "Renewal";
+                        suggestionBox.classList.add('hidden');
+                    };
+                    suggestionBox.appendChild(div);
+                });
+            } else {
+                suggestionBox.classList.add('hidden');
+                document.getElementById('sale-client-code').value = "";
+                document.getElementById('sale-deal-type').value = "New Client";
+            }
+        });
+    };
+
+    window.submitNewSale = async function(e) {
+        e.preventDefault();
+        if (typeof supaClient === 'undefined' || !supaClient) return;
+
+        const btn = document.getElementById('save-sale-btn');
+        btn.innerText = "Saving...";
+        btn.disabled = true;
+
+        const pkgId = document.getElementById('sale-package-id').value;
+        let clientCode = document.getElementById('sale-client-code').value;
+        const companyName = document.getElementById('sale-company').value.trim();
+        const poc = document.getElementById('sale-poc').value.trim();
+
+        if (!companyName) {
+            alert("Roofing Company name is required.");
+            btn.innerText = "Save Deal"; btn.disabled = false; return;
+        }
+
+        // IF NEW CLIENT: Auto-create in the Passbook database first
+        if (!clientCode) {
+            clientCode = "NEW-" + Math.floor(Date.now() / 1000); // Generate a unique ID
+            const newClientPayload = {
+                client_code: clientCode,
+                company_name: companyName,
+                contact_person: poc,
+                client_status: "Active"
+            };
+            const { error: cErr } = await supaClient.from('clients').insert([newClientPayload]);
+            if (cErr) {
+                console.error("Auto-Client Creation Error:", cErr);
+                alert("Failed to auto-create client profile.");
+                btn.innerText = "Save Deal"; btn.disabled = false; return;
+            }
+        }
+
+        const payload = {
+    client_code: clientCode,
+    purchased_leads: parseInt(document.getElementById('sale-leads').value) || 0,
+    amount: parseFloat(document.getElementById('sale-value').value) || 0,
+    commission_per_lead: parseFloat(document.getElementById('sale-commission').value) || 0,
+    purchase_date: document.getElementById('sale-date').value,
+    external_package_id: document.getElementById('sale-transaction-id').value,
+    status: "Active",
+    deal_status: document.getElementById('sale-deal-status').value,
+    deal_type: document.getElementById('sale-deal-type').value,
+    sales_category: "Mikaela"
+};
+
+        let error;
+        if (pkgId) {
+            const res = await supaClient.from('packages').update(payload).eq('id', pkgId);
+            error = res.error;
+        } else {
+            const res = await supaClient.from('packages').insert([payload]);
+            error = res.error;
+        }
+
+        if (error) {
+            console.error("Sale Save Error:", error);
+            alert("Failed to save deal.");
+        } else {
+            document.getElementById('add-sale-modal').classList.add('hidden');
+            if (window.portal && typeof window.portal.fetchAdminData === 'function') window.portal.fetchAdminData(true);
+        }
+
+        btn.innerText = pkgId ? "Update Deal" : "Save Deal";
+        btn.disabled = false;
+    };
+  </script>
+  <script src="main.js"></script>
+</body>
+</html>
