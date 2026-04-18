@@ -2304,12 +2304,22 @@ if (this.adminState.clientHealthView.length > 0) {
     const packageStatus = this.getAny(r, ['package_status', 'Package Status'], '');
     const purchaseDate = this.getAny(r, ['purchase_date', 'Purchase Date'], '');
 
-    return {
+        return {
       status,
+      client_status: status,
       code_name: codeName,
+      client_code: codeName,
       roofing_company: roofingCompany,
+      company_name: roofingCompany,
       city_state: cityState,
+      area: cityState,
       client_name: clientName,
+      contact_person: clientName,
+      shared_with_sales: this.getAny(
+        matchedRaw,
+        ['shared_with_sales', 'share_with_sales', 'Shared With Sales', 'shared with sales'],
+        false
+      ),
       last_lead_received: lastLeadReceived,
       hours_since_last_lead: hoursSinceLastLead,
       leads_today: leadsToday,
