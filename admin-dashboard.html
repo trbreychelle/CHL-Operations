@@ -4799,28 +4799,36 @@ async openNotification(item) {
       },
 
       // --- DAILY STRATEGY TAB LOGIC ---
-      async renderDailyTab() {
+  async renderDailyTab() {
   const orgId = window.portal?.getCurrentOrganizationId?.();
   if (!orgId || !supaClient) return;
 
   const weekLabelEl = document.getElementById("dailyStrategyWeekLabel");
   const tabsEl = document.getElementById("dailyStrategyTabs");
   const boardEl = document.getElementById("dailyStrategyBoard");
+  const clientPoolEl = document.getElementById("daily-client-pool");
+  const clientPoolCountEl = document.getElementById("dailyClientPoolCount");
+  const rosterEl = document.getElementById("daily-agent-status-list");
+  const historyBodyEl = document.getElementById("dailyStrategyHistoryBody");
+  const historyCountEl = document.getElementById("dailyHistoryCount");
 
-  if (!weekLabelEl || !tabsEl || !boardEl) return;
+  if (!weekLabelEl || !tabsEl || !boardEl || !clientPoolEl || !rosterEl || !historyBodyEl) return;
 
   try {
     const today = new Date();
     const todayStr = today.toISOString().split("T")[0];
 
     const { data: weekDays, error: weekErr } = await supaClient.rpc("get_daily_strategy_week_days", {
-  p_organization_id: orgId,
-  p_any_date: todayStr
-});
+      p_organization_id: orgId,
+      p_any_date: todayStr
+    });
 
     if (weekErr) {
       console.error("Daily strategy week load failed:", weekErr);
       boardEl.innerHTML = `<div class="bg-white rounded-2xl border border-red-100 shadow-sm p-5 text-sm text-red-600">Failed to load strategy week.</div>`;
+      clientPoolEl.innerHTML = `<div class="text-sm text-red-500">Failed to load client pool.</div>`;
+      rosterEl.innerHTML = `<div class="text-sm text-red-500">Failed to load roster.</div>`;
+      historyBodyEl.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-red-500 italic">Failed to load history.</td></tr>`;
       return;
     }
 
@@ -4830,6 +4838,9 @@ async openNotification(item) {
       weekLabelEl.textContent = "No week found";
       tabsEl.innerHTML = "";
       boardEl.innerHTML = `<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm text-gray-400 italic">No strategy week available.</div>`;
+      clientPoolEl.innerHTML = `<div class="text-sm text-gray-400 italic">No client pool available.</div>`;
+      rosterEl.innerHTML = `<div class="text-sm text-gray-400 italic">No roster available.</div>`;
+      historyBodyEl.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-gray-400 italic">No history available.</td></tr>`;
       return;
     }
 
@@ -4886,72 +4897,289 @@ async openNotification(item) {
     this.dailyStrategyAssignments = Array.isArray(assignments) ? assignments : [];
 
     const rawClients = Array.isArray(this.getState().rawClients) ? this.getState().rawClients : [];
-const companyByCode = new Map(
-  rawClients.map(c => [
-    String(c.client_code || c.code_name || "").trim().toLowerCase(),
-    String(c.company_name || c.roofing_company || "").trim()
-  ])
-);
+    const timeEvents = Array.isArray(this.getState().timeEvents) ? this.getState().timeEvents : [];
+    const historyRows = Array.isArray(this.getState().clientPackageAllocationView) ? this.getState().clientPackageAllocationView : [];
+    const clientHealthRows = Array.isArray(this.clientHealthRaw) ? this.clientHealthRaw : [];
+
+    const companyByCode = new Map(
+      rawClients.map(c => [
+        String(c.client_code || c.code_name || "").trim().toLowerCase(),
+        c
+      ])
+    );
+
+    const assignedCodes = new Set(
+      this.dailyStrategyAssignments
+        .map(r => String(r.client_code || "").trim().toLowerCase())
+        .filter(Boolean)
+    );
 
     const servingNow = this.dailyStrategyAssignments.filter(r => String(r.lane || "") === "serving_now");
     const nextUp = this.dailyStrategyAssignments.filter(r => String(r.lane || "") === "next_up");
 
-    const renderLaneCards = (rows, emptyText) => {
+    const renderLaneCards = (rows, emptyText, laneTone) => {
       if (!rows.length) {
         return `<div class="text-sm text-gray-400 italic">${emptyText}</div>`;
       }
 
-      return rows.map(row => `
-        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4">
-          <div class="flex items-start justify-between gap-3 mb-2">
-            <div>
-              <div class="text-[11px] font-extrabold uppercase tracking-wide text-gray-400">${row.client_code || '—'}</div>
-              <div class="text-base font-bold text-gray-900">${
-  companyByCode.get(String(row.client_code || "").trim().toLowerCase()) ||
-  row.company_name ||
-  'Unknown Client'
-}</div>
-            </div>
-            <div class="text-xs font-bold text-gray-500">#${row.position_index || 0}</div>
-          </div>
+      return rows.map(row => {
+        const code = String(row.client_code || "").trim().toLowerCase();
+        const client = companyByCode.get(code) || {};
+        const companyName = client.company_name || client.roofing_company || row.company_name || "Unknown Client";
 
-          <div class="text-sm text-gray-700 space-y-1">
-            <div><span class="font-bold">Agents:</span> ${row.assigned_agents || '—'}</div>
-            <div><span class="font-bold">Goal:</span> ${row.daily_goal ?? 0}</div>
-            <div><span class="font-bold">Notes:</span> ${row.notes || '—'}</div>
+        return `
+          <div class="rounded-2xl border ${laneTone} shadow-sm p-4 bg-white">
+            <div class="flex items-start justify-between gap-3 mb-2">
+              <div>
+                <div class="text-[11px] font-extrabold uppercase tracking-wide text-gray-400">${row.client_code || '—'}</div>
+                <div class="text-base font-black text-gray-900">${companyName}</div>
+              </div>
+              <div class="text-xs font-black text-gray-500">#${row.position_index || 0}</div>
+            </div>
+
+            <div class="space-y-1 text-sm text-gray-700">
+              <div><span class="font-black text-gray-900">Agents:</span> ${row.assigned_agents || '—'}</div>
+              <div><span class="font-black text-gray-900">Goal:</span> ${row.daily_goal ?? 0}</div>
+              <div><span class="font-black text-gray-900">Notes:</span> ${row.notes || '—'}</div>
+            </div>
           </div>
-        </div>
-      `).join("");
+        `;
+      }).join("");
     };
 
     boardEl.innerHTML = `
-      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="font-bold text-gray-900 flex items-center gap-2">
-            <i class="fa-solid fa-bolt text-emerald-600"></i> Serving Now
-          </h3>
-          <span class="text-xs font-bold text-gray-400">${servingNow.length} row(s)</span>
+      <div class="bg-white rounded-3xl border border-emerald-100 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-teal-50">
+          <div class="flex items-center justify-between gap-3">
+            <h3 class="font-black text-gray-900 flex items-center gap-2">
+              <i class="fa-solid fa-bolt text-emerald-600"></i> Serving Now
+            </h3>
+            <span class="text-xs font-black text-gray-400">${servingNow.length} row(s)</span>
+          </div>
         </div>
-        <div class="space-y-4">
-          ${renderLaneCards(servingNow, "No serving-now assignments for this day.")}
+        <div class="p-5 space-y-4">
+          ${renderLaneCards(servingNow, "No serving-now assignments for this day.", "border-emerald-100")}
         </div>
       </div>
 
-      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="font-bold text-gray-900 flex items-center gap-2">
-            <i class="fa-solid fa-forward text-blue-600"></i> Next Up
-          </h3>
-          <span class="text-xs font-bold text-gray-400">${nextUp.length} row(s)</span>
+      <div class="bg-white rounded-3xl border border-blue-100 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+          <div class="flex items-center justify-between gap-3">
+            <h3 class="font-black text-gray-900 flex items-center gap-2">
+              <i class="fa-solid fa-forward text-blue-600"></i> Next Up
+            </h3>
+            <span class="text-xs font-black text-gray-400">${nextUp.length} row(s)</span>
+          </div>
         </div>
-        <div class="space-y-4">
-          ${renderLaneCards(nextUp, "No next-up assignments for this day.")}
+        <div class="p-5 space-y-4">
+          ${renderLaneCards(nextUp, "No next-up assignments for this day.", "border-blue-100")}
         </div>
       </div>
     `;
+
+    const activeClientPool = clientHealthRows
+      .filter(r => {
+        const pkgStatus = String(r.packageStatus || "").toUpperCase();
+        const passbookStatus = String(r.passbookStatus || "").toUpperCase();
+        const code = String(r.code || "").trim().toLowerCase();
+
+        return (
+          passbookStatus === "ACTIVE" &&
+          pkgStatus === "ONGOING" &&
+          !assignedCodes.has(code)
+        );
+      })
+      .sort((a, b) => {
+        const aCritical = String(a.healthStatus || "").toUpperCase() === "CRITICAL" ? 0 : 1;
+        const bCritical = String(b.healthStatus || "").toUpperCase() === "CRITICAL" ? 0 : 1;
+        if (aCritical !== bCritical) return aCritical - bCritical;
+        return String(a.code || "").localeCompare(String(b.code || ""));
+      });
+
+    clientPoolCountEl.textContent = `${activeClientPool.length} client${activeClientPool.length === 1 ? "" : "s"}`;
+
+    if (!activeClientPool.length) {
+      clientPoolEl.innerHTML = `<div class="text-sm text-gray-400 italic">No available active clients for this strategy day.</div>`;
+    } else {
+      clientPoolEl.innerHTML = activeClientPool.map(client => {
+        const health = String(client.healthStatus || "NOT STARTED").toUpperCase();
+        const healthTone =
+          health === "CRITICAL" ? "border-red-200 bg-red-50" :
+          health === "AT RISK" ? "border-amber-200 bg-amber-50" :
+          health === "HEALTHY" ? "border-emerald-200 bg-emerald-50" :
+          "border-blue-200 bg-blue-50";
+
+        return `
+          <div class="rounded-2xl border ${healthTone} shadow-sm p-4">
+            <div class="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <div class="text-[11px] font-extrabold uppercase tracking-wide text-gray-400">${client.code || '—'}</div>
+                <div class="text-base font-black text-gray-900">${String(client.searchName || client.roofingCompany || '').replace(/<[^>]*>/g, '')}</div>
+                <div class="text-xs text-gray-500 mt-1">${client.cityState || '—'}</div>
+              </div>
+              <div class="text-[10px] font-black px-2 py-1 rounded-full bg-white border border-gray-200 text-gray-700">
+                ${health}
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 text-xs mb-3">
+              <div class="rounded-xl bg-white border border-gray-200 p-2">
+                <div class="text-gray-400 font-bold uppercase">Package</div>
+                <div class="text-gray-900 font-black mt-1">${client.packageLabel || '0 / 0'}</div>
+              </div>
+              <div class="rounded-xl bg-white border border-gray-200 p-2">
+                <div class="text-gray-400 font-bold uppercase">Cancel Rate</div>
+                <div class="text-red-500 font-black mt-1">${
+                  (Number(client.qualifiedCount || 0) + Number(client.creditedCount || 0)) > 0
+                    ? Math.round((Number(client.creditedCount || 0) / (Number(client.qualifiedCount || 0) + Number(client.creditedCount || 0))) * 100)
+                    : 0
+                }%</div>
+              </div>
+              <div class="rounded-xl bg-white border border-gray-200 p-2">
+                <div class="text-gray-400 font-bold uppercase">Qualified</div>
+                <div class="text-blue-600 font-black mt-1">${client.qualifiedCount || 0}</div>
+              </div>
+              <div class="rounded-xl bg-white border border-gray-200 p-2">
+                <div class="text-gray-400 font-bold uppercase">Credited</div>
+                <div class="text-purple-600 font-black mt-1">${client.creditedCount || 0}</div>
+              </div>
+            </div>
+
+            <div class="text-xs text-gray-600 space-y-1 mb-4">
+              <div><span class="font-black text-gray-900">Today:</span> ${client.leadsToday || 0}</div>
+              <div><span class="font-black text-gray-900">Yesterday:</span> ${client.leadsYesterday || 0}</div>
+              <div><span class="font-black text-gray-900">Last Lead:</span> ${client.lastLead || '—'}</div>
+            </div>
+
+            <button
+              type="button"
+              onclick="Admin.dailyAdd('${String(client.code || '').replace(/'/g, "\\'")}')"
+              class="w-full px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-black hover:bg-blue-700 transition"
+            >
+              Add to Board
+            </button>
+          </div>
+        `;
+      }).join("");
+    }
+
+    const selectedDateOnly = this.dailyStrategySelectedDate;
+    const dayEvents = timeEvents.filter(evt => {
+      const raw = evt.occurred_at_ts || evt.occurred_at || evt.created_at;
+      if (!raw) return false;
+      const dt = new Date(raw);
+      if (isNaN(dt.getTime())) return false;
+      const dateKey = dt.toISOString().split("T")[0];
+      return dateKey === selectedDateOnly;
+    });
+
+    const rosterMap = new Map();
+
+    dayEvents.forEach(evt => {
+      const email = String(evt.agent_email || "").trim().toLowerCase();
+      const name = String(evt.agent_name || evt.display_name || evt.agent_email || "Unknown").trim();
+      const status = String(evt.status || evt.event_type || evt.action || "").toLowerCase();
+      const rawTime = evt.occurred_at_ts || evt.occurred_at || evt.created_at;
+
+      if (!email && !name) return;
+
+      const key = email || name.toLowerCase();
+      const existing = rosterMap.get(key);
+
+      if (!existing) {
+        rosterMap.set(key, {
+          name,
+          email,
+          status,
+          lastSeen: rawTime
+        });
+      } else {
+        const currentTime = new Date(rawTime).getTime();
+        const existingTime = new Date(existing.lastSeen).getTime();
+        if (currentTime >= existingTime) {
+          existing.status = status;
+          existing.lastSeen = rawTime;
+          existing.name = name || existing.name;
+          existing.email = email || existing.email;
+        }
+      }
+    });
+
+    const rosterRows = Array.from(rosterMap.values())
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""));
+
+    if (!rosterRows.length) {
+      rosterEl.innerHTML = `<div class="text-sm text-gray-400 italic">No roster activity for this day.</div>`;
+    } else {
+      rosterEl.innerHTML = rosterRows.map(row => {
+        const st = String(row.status || "").toLowerCase();
+
+        let badgeClass = "bg-gray-100 text-gray-700";
+        let label = "Offline";
+
+        if (st.includes("clock_in") || st.includes("resume") || st.includes("active")) {
+          badgeClass = "bg-emerald-100 text-emerald-700";
+          label = "Working";
+        } else if (st.includes("break")) {
+          badgeClass = "bg-amber-100 text-amber-700";
+          label = "On Break";
+        } else if (st.includes("clock_out") || st.includes("offline")) {
+          badgeClass = "bg-gray-100 text-gray-700";
+          label = "Offline";
+        }
+
+        return `
+          <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <div class="text-sm font-black text-gray-900">${row.name || 'Unknown'}</div>
+                <div class="text-xs text-gray-500 mt-1">${row.email || 'No email'}</div>
+              </div>
+              <span class="px-3 py-1 rounded-full text-[11px] font-black ${badgeClass}">
+                ${label}
+              </span>
+            </div>
+            <div class="text-[11px] text-gray-400 mt-2">
+              Last activity: ${window.portal?.formatMSTDateTimeShort?.(row.lastSeen) || row.lastSeen || '—'}
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    this.dailyStrategyHistoryRows = historyRows
+      .filter(r => String(r.week_start || "") === String(selectedWeekStart || ""))
+      .filter(r => String(r.strategy_date || "") === String(this.dailyStrategySelectedDate || ""));
+
+    historyCountEl.textContent = `${this.dailyStrategyHistoryRows.length} row${this.dailyStrategyHistoryRows.length === 1 ? "" : "s"}`;
+
+    if (!this.dailyStrategyHistoryRows.length) {
+      historyBodyEl.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-gray-400 italic">No history rows for this day.</td></tr>`;
+    } else {
+      historyBodyEl.innerHTML = this.dailyStrategyHistoryRows.map(row => `
+        <tr class="hover:bg-gray-50">
+          <td class="p-4">${row.strategy_date || '—'}</td>
+          <td class="p-4">${row.day_key || '—'}</td>
+          <td class="p-4 font-bold text-gray-700">${row.lane || '—'}</td>
+          <td class="p-4">${row.position_index ?? '—'}</td>
+          <td class="p-4 font-bold text-gray-900">${row.client_code || '—'}</td>
+          <td class="p-4">${row.company_name || '—'}</td>
+          <td class="p-4 text-center font-bold text-gray-700">${row.total_leads_set ?? 0}</td>
+          <td class="p-4 text-center font-black text-blue-600">${row.qualified_leads_set ?? 0}</td>
+          <td class="p-4 text-center font-black text-purple-600">${row.credited_leads_set ?? 0}</td>
+          <td class="p-4 text-center font-black text-yellow-600">${row.pending_leads_set ?? 0}</td>
+          <td class="p-4 text-center font-black text-red-500">${row.rejected_leads_set ?? 0}</td>
+        </tr>
+      `).join("");
+    }
+
+    this.setDailyStrategySubtab(this.dailyStrategySubtab || 'board');
   } catch (err) {
     console.error("renderDailyTab crashed:", err);
     boardEl.innerHTML = `<div class="bg-white rounded-2xl border border-red-100 shadow-sm p-5 text-sm text-red-600">Daily Strategy crashed while loading.</div>`;
+    clientPoolEl.innerHTML = `<div class="text-sm text-red-500">Client pool failed to load.</div>`;
+    rosterEl.innerHTML = `<div class="text-sm text-red-500">Roster failed to load.</div>`;
+    historyBodyEl.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-red-500 italic">History failed to load.</td></tr>`;
   }
 },
 
