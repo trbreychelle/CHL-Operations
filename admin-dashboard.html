@@ -654,10 +654,10 @@ body.client-health-lock {
     <div id="dailyStrategyTabs" class="flex flex-wrap gap-2"></div>
   </div>
 
-  <div id="dailyStrategyBoardView">
-    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
-      <div class="xl:col-span-9 space-y-6">
-        <div id="dailyStrategyBoard" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+ <div id="dailyStrategyBoardView">
+  <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+    <div class="xl:col-span-10 space-y-6">
+      <div id="dailyStrategyBoard" class="space-y-6">
           <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <div class="text-sm text-gray-400 italic">Loading strategy board...</div>
           </div>
@@ -701,7 +701,7 @@ body.client-health-lock {
         </div>
       </div>
 
-      <div class="xl:col-span-3">
+      <div class="xl:col-span-2">
         <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden sticky top-6">
           <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-teal-50">
             <div class="flex items-center justify-between gap-3">
@@ -713,7 +713,7 @@ body.client-health-lock {
               </div>
             </div>
           </div>
-          <div id="daily-agent-status-list" class="p-4 space-y-2 max-h-[560px] overflow-y-auto">
+          <div id="daily-agent-status-list" class="p-3 space-y-2 max-h-[360px] overflow-y-auto">
             <div class="text-sm text-gray-400 italic">Loading roster...</div>
           </div>
         </div>
@@ -4937,65 +4937,190 @@ async openNotification(item) {
     const servingNow = this.dailyStrategyAssignments.filter(r => String(r.lane || "") === "serving_now");
     const nextUp = this.dailyStrategyAssignments.filter(r => String(r.lane || "") === "next_up");
 
-    const renderLaneCards = (rows, emptyText, laneTone) => {
-      if (!rows.length) {
-        return `<div class="text-sm text-gray-400 italic">${emptyText}</div>`;
-      }
+   const renderLaneCards = (rows, emptyText, laneTone, laneKey) => {
+  if (!rows.length) {
+    return `<div class="text-sm text-gray-400 italic">${emptyText}</div>`;
+  }
 
-      return rows.map(row => {
-        const code = String(row.client_code || "").trim().toLowerCase();
-        const client = companyByCode.get(code) || {};
-        const companyName = client.company_name || client.roofing_company || row.company_name || "Unknown Client";
+  const selectedDate = this.dailyStrategySelectedDate;
 
-        return `
-          <div class="rounded-2xl border ${laneTone} shadow-sm p-4 bg-white">
-            <div class="flex items-start justify-between gap-3 mb-2">
-              <div>
-                <div class="text-[11px] font-extrabold uppercase tracking-wide text-gray-400">${row.client_code || '—'}</div>
-                <div class="text-base font-black text-gray-900">${companyName}</div>
-              </div>
-              <div class="text-xs font-black text-gray-500">#${row.position_index || 0}</div>
-            </div>
+  const dayLeadRows = Array.isArray(this.getState().leads)
+    ? this.getState().leads.filter(l => {
+        const d = this.getLeadDateObj(l);
+        if (!d || isNaN(d.getTime())) return false;
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        const key = `${y}-${m}-${day}`;
+        return key === selectedDate;
+      })
+    : [];
 
-            <div class="space-y-1 text-sm text-gray-700">
-              <div><span class="font-black text-gray-900">Agents:</span> ${row.assigned_agents || '—'}</div>
-              <div><span class="font-black text-gray-900">Goal:</span> ${row.daily_goal ?? 0}</div>
-              <div><span class="font-black text-gray-900">Notes:</span> ${row.notes || '—'}</div>
-            </div>
+  return rows.map(row => {
+    const code = String(row.client_code || "").trim().toLowerCase();
+    const client = companyByCode.get(code) || {};
+    const boardClient = clientHealthRows.find(c => String(c.code || "").trim().toLowerCase() === code) || {};
+
+    const companyName = client.company_name || client.roofing_company || row.company_name || "Unknown Client";
+    const goal = Number(row.daily_goal || 0);
+    const agents = row.assigned_agents || "";
+
+    const packageLabel = boardClient.packageLabel || "0 / 0";
+    const leadLimit = Number(boardClient.leadsPerDayLimit || 0);
+    const salesReps = Number(boardClient.salesRepCount || 0);
+    const oldLeads = Number(boardClient.qualifiedCount || 0);
+    const creditedLeads = Number(boardClient.creditedCount || 0);
+    const pendingLeads = Number(
+      dayLeadRows.filter(l => {
+        const cName = this.normalizeCompanyName(
+          this.getLeadField(l, ["Company Name", "company_name", "roofing_company"], "")
+        );
+        const boardName = this.normalizeCompanyName(companyName);
+        const st = String(this.getLeadField(l, ["Status", "status"], "")).toLowerCase();
+        return cName === boardName && this.isPendingReview(st);
+      }).length
+    );
+
+    const setToday = Number(
+      dayLeadRows.filter(l => {
+        const cName = this.normalizeCompanyName(
+          this.getLeadField(l, ["Company Name", "company_name", "roofing_company"], "")
+        );
+        const boardName = this.normalizeCompanyName(companyName);
+        const st = String(this.getLeadField(l, ["Status", "status"], "")).toLowerCase();
+        return cName === boardName && this.isQualified(st);
+      }).length
+    );
+
+    const goalMet = goal > 0 && setToday >= goal;
+
+    return `
+      <div class="rounded-2xl border ${goalMet ? 'border-emerald-300 bg-emerald-50' : laneTone + ' bg-white'} shadow-sm p-4">
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <div class="text-[11px] font-extrabold uppercase tracking-wide text-gray-400">${row.client_code || '—'}</div>
+            <div class="text-base font-black text-gray-900">${companyName}</div>
+            <div class="text-xs text-gray-500 mt-1">${boardClient.cityState || client.area || '—'}</div>
           </div>
-        `;
-      }).join("");
-    };
 
-    boardEl.innerHTML = `
-      <div class="bg-white rounded-3xl border border-emerald-100 shadow-sm overflow-hidden">
-        <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-teal-50">
-          <div class="flex items-center justify-between gap-3">
-            <h3 class="font-black text-gray-900 flex items-center gap-2">
-              <i class="fa-solid fa-bolt text-emerald-600"></i> Serving Now
-            </h3>
-            <span class="text-xs font-black text-gray-400">${servingNow.length} row(s)</span>
+          <div class="flex items-center gap-2">
+            <div class="text-xs font-black text-gray-500">#${row.position_index || 0}</div>
+
+            ${
+              laneKey === "next_up"
+                ? `<button
+                    type="button"
+                    onclick="Admin.moveDailyAssignment('${row.id}', 'serving_now')"
+                    class="px-2 py-1 rounded-lg bg-blue-100 text-blue-700 text-[11px] font-black hover:bg-blue-200"
+                  >Start</button>`
+                : `<button
+                    type="button"
+                    onclick="Admin.moveDailyAssignment('${row.id}', 'next_up')"
+                    class="px-2 py-1 rounded-lg bg-amber-100 text-amber-700 text-[11px] font-black hover:bg-amber-200"
+                  >Back</button>`
+            }
+
+            <button
+              type="button"
+              onclick="Admin.removeDailyAssignment('${row.id}')"
+              class="w-8 h-8 rounded-lg bg-red-100 text-red-600 font-black hover:bg-red-200"
+              title="Remove from board"
+            >×</button>
           </div>
         </div>
-        <div class="p-5 space-y-4">
-          ${renderLaneCards(servingNow, "No serving-now assignments for this day.", "border-emerald-100")}
-        </div>
-      </div>
 
-      <div class="bg-white rounded-3xl border border-blue-100 shadow-sm overflow-hidden">
-        <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
-          <div class="flex items-center justify-between gap-3">
-            <h3 class="font-black text-gray-900 flex items-center gap-2">
-              <i class="fa-solid fa-forward text-blue-600"></i> Next Up
-            </h3>
-            <span class="text-xs font-black text-gray-400">${nextUp.length} row(s)</span>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mb-3">
+          <div class="rounded-xl bg-white border border-gray-200 p-2">
+            <div class="text-gray-400 font-bold uppercase">Package</div>
+            <div class="text-gray-900 font-black mt-1">${packageLabel}</div>
+          </div>
+          <div class="rounded-xl bg-white border border-gray-200 p-2">
+            <div class="text-gray-400 font-bold uppercase">Lead Limit</div>
+            <div class="text-gray-900 font-black mt-1">${leadLimit}</div>
+          </div>
+          <div class="rounded-xl bg-white border border-gray-200 p-2">
+            <div class="text-gray-400 font-bold uppercase">Sales Reps</div>
+            <div class="text-gray-900 font-black mt-1">${salesReps}</div>
+          </div>
+          <div class="rounded-xl bg-white border border-gray-200 p-2">
+            <div class="text-gray-400 font-bold uppercase">Old Leads</div>
+            <div class="text-blue-600 font-black mt-1">${oldLeads}</div>
+          </div>
+          <div class="rounded-xl bg-white border border-gray-200 p-2">
+            <div class="text-gray-400 font-bold uppercase">Credited</div>
+            <div class="text-purple-600 font-black mt-1">${creditedLeads}</div>
+          </div>
+          <div class="rounded-xl bg-white border border-gray-200 p-2">
+            <div class="text-gray-400 font-bold uppercase">Pending</div>
+            <div class="text-yellow-600 font-black mt-1">${pendingLeads}</div>
+          </div>
+          <div class="rounded-xl bg-white border border-gray-200 p-2">
+            <div class="text-gray-400 font-bold uppercase">Set Today</div>
+            <div class="font-black mt-1 ${goalMet ? 'text-emerald-600' : 'text-gray-900'}">${setToday}</div>
+          </div>
+          <div class="rounded-xl bg-white border border-gray-200 p-2">
+            <div class="text-gray-400 font-bold uppercase">Goal Status</div>
+            <div class="font-black mt-1 ${goalMet ? 'text-emerald-600' : 'text-gray-900'}">${goalMet ? 'Goal Reached' : 'In Progress'}</div>
           </div>
         </div>
-        <div class="p-5 space-y-4">
-          ${renderLaneCards(nextUp, "No next-up assignments for this day.", "border-blue-100")}
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-black text-gray-500 uppercase mb-1">Assigned Agents</label>
+            <input
+              type="text"
+              value="${String(agents).replace(/"/g, '&quot;')}"
+              onchange="Admin.updateDailyAssignment('${row.id}', 'assigned_agents', this.value)"
+              class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              placeholder="Type agent names"
+            />
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-black text-gray-500 uppercase mb-1">Daily Goal</label>
+            <input
+              type="number"
+              min="0"
+              value="${goal}"
+              onchange="Admin.updateDailyAssignment('${row.id}', 'daily_goal', this.value)"
+              class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
         </div>
       </div>
     `;
+  }).join("");
+};
+
+    boardEl.innerHTML = `
+  <div class="bg-white rounded-3xl border border-emerald-100 shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-teal-50">
+      <div class="flex items-center justify-between gap-3">
+        <h3 class="font-black text-gray-900 flex items-center gap-2">
+          <i class="fa-solid fa-bolt text-emerald-600"></i> Serving Now
+        </h3>
+        <span class="text-xs font-black text-gray-400">${servingNow.length} row(s)</span>
+      </div>
+    </div>
+    <div class="p-5 space-y-4">
+      ${renderLaneCards(servingNow, "No serving-now assignments for this day.", "border-emerald-100", "serving_now")}
+    </div>
+  </div>
+
+  <div class="bg-white rounded-3xl border border-blue-100 shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+      <div class="flex items-center justify-between gap-3">
+        <h3 class="font-black text-gray-900 flex items-center gap-2">
+          <i class="fa-solid fa-forward text-blue-600"></i> Next Up
+        </h3>
+        <span class="text-xs font-black text-gray-400">${nextUp.length} row(s)</span>
+      </div>
+    </div>
+    <div class="p-5 space-y-4">
+      ${renderLaneCards(nextUp, "No next-up assignments for this day.", "border-blue-100", "next_up")}
+    </div>
+  </div>
+`;
 
     const clientPoolSearch = String(document.getElementById("daily-client-pool-search")?.value || "").toLowerCase().trim();
 const clientPoolStatus = String(document.getElementById("daily-client-pool-status")?.value || "ONGOING").toUpperCase();
@@ -5676,20 +5801,80 @@ openNotificationById(eventId) {
   await this.renderDailyTab();
 },
 
-      async dailyUpdate(code, field, value) {
-          const client = this.clientHealthRaw.find(c => c.code === code);
-          if (!client) return;
+     async updateDailyAssignment(assignmentId, field, value) {
+  if (!assignmentId || typeof supaClient === "undefined" || !supaClient) {
+    alert("Database connection missing.");
+    return;
+  }
 
-          if (field === 'daily_goal') client.dailyGoal = Number(value) || 0;
-          if (field === 'daily_agents') client.dailyAgents = value;
+  const payload = {};
+  payload[field] = field === "daily_goal" ? (Number(value) || 0) : String(value || "");
 
-          // Target exact Row ID for typing and goals
-          if (typeof supaClient !== 'undefined' && supaClient && client.rawClientId) {
-              const payload = {};
-              payload[field] = field === 'daily_goal' ? (Number(value) || 0) : value;
-              await supaClient.from('clients').update(payload).eq('id', client.rawClientId); 
-          }
-      },
+  const { error } = await supaClient
+    .from("daily_strategy_assignments")
+    .update(payload)
+    .eq("id", assignmentId);
+
+  if (error) {
+    console.error("updateDailyAssignment failed:", error);
+    alert(`Failed to update board card: ${error.message || "Unknown error"}`);
+    return;
+  }
+
+  await this.renderDailyTab();
+},
+
+async removeDailyAssignment(assignmentId) {
+  if (!assignmentId || typeof supaClient === "undefined" || !supaClient) {
+    alert("Database connection missing.");
+    return;
+  }
+
+  const { error } = await supaClient
+    .from("daily_strategy_assignments")
+    .delete()
+    .eq("id", assignmentId);
+
+  if (error) {
+    console.error("removeDailyAssignment failed:", error);
+    alert(`Failed to remove board card: ${error.message || "Unknown error"}`);
+    return;
+  }
+
+  await this.renderDailyTab();
+},
+
+async moveDailyAssignment(assignmentId, targetLane) {
+  if (!assignmentId || !targetLane || typeof supaClient === "undefined" || !supaClient) {
+    alert("Database connection missing.");
+    return;
+  }
+
+  const laneRows = (this.dailyStrategyAssignments || []).filter(
+    r => String(r.lane || "") === String(targetLane || "")
+  );
+
+  const nextPosition = laneRows.reduce(
+    (max, r) => Math.max(max, Number(r.position_index || 0)),
+    0
+  ) + 1;
+
+  const { error } = await supaClient
+    .from("daily_strategy_assignments")
+    .update({
+      lane: targetLane,
+      position_index: nextPosition
+    })
+    .eq("id", assignmentId);
+
+  if (error) {
+    console.error("moveDailyAssignment failed:", error);
+    alert(`Failed to move board card: ${error.message || "Unknown error"}`);
+    return;
+  }
+
+  await this.renderDailyTab();
+},
       
       // --- CEO PAYROLL & FINANCE ENGINE ---
       switchPayrollTab(tab) {
