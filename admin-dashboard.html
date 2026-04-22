@@ -713,7 +713,7 @@ body.client-health-lock {
               </div>
             </div>
           </div>
-          <div id="daily-agent-status-list" class="p-3 space-y-2 max-h-[360px] overflow-y-auto">
+          <div id="daily-agent-status-list" class="p-3 space-y-2 max-h-[760px] overflow-y-auto">
             <div class="text-sm text-gray-400 italic">Loading roster...</div>
           </div>
         </div>
@@ -4959,7 +4959,10 @@ async openNotification(item) {
   return rows.map(row => {
     const code = String(row.client_code || "").trim().toLowerCase();
     const client = companyByCode.get(code) || {};
-    const boardClient = clientHealthRows.find(c => String(c.code || "").trim().toLowerCase() === code) || {};
+    const boardClient = clientHealthRows.find(c =>
+  String(c.code || "").trim().toLowerCase() === code &&
+  String(c.packageStatus || "").toUpperCase() === "ONGOING"
+) || {};
 
     const companyName = client.company_name || client.roofing_company || row.company_name || "Unknown Client";
     const goal = Number(row.daily_goal || 0);
@@ -5102,10 +5105,11 @@ async openNotification(item) {
         <span class="text-xs font-black text-gray-400">${servingNow.length} row(s)</span>
       </div>
     </div>
-    <div class="p-5 space-y-4">
-      ${renderLaneCards(servingNow, "No serving-now assignments for this day.", "border-emerald-100", "serving_now")}
-    </div>
+    <div class="p-5">
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+    ${renderLaneCards(servingNow, "No serving-now assignments for this day.", "border-emerald-100", "serving_now")}
   </div>
+</div>
 
   <div class="bg-white rounded-3xl border border-blue-100 shadow-sm overflow-hidden">
     <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
@@ -5116,10 +5120,11 @@ async openNotification(item) {
         <span class="text-xs font-black text-gray-400">${nextUp.length} row(s)</span>
       </div>
     </div>
-    <div class="p-5 space-y-4">
-      ${renderLaneCards(nextUp, "No next-up assignments for this day.", "border-blue-100", "next_up")}
-    </div>
+    <div class="p-5">
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+    ${renderLaneCards(nextUp, "No next-up assignments for this day.", "border-blue-100", "next_up")}
   </div>
+</div>
 `;
 
     const clientPoolSearch = String(document.getElementById("daily-client-pool-search")?.value || "").toLowerCase().trim();
@@ -5340,7 +5345,10 @@ if (isTodaySelected) {
     const dailySearchEl = document.getElementById("daily-client-pool-search");
 if (dailySearchEl && !dailySearchEl.dataset.bound) {
   dailySearchEl.dataset.bound = "true";
-  dailySearchEl.addEventListener("input", () => this.renderDailyTab());
+ dailySearchEl.addEventListener("input", () => {
+  clearTimeout(this._dailyPoolSearchTimer);
+  this._dailyPoolSearchTimer = setTimeout(() => this.renderDailyTab(), 180);
+});
 }
 
 const dailyStatusEl = document.getElementById("daily-client-pool-status");
@@ -5827,6 +5835,17 @@ openNotificationById(eventId) {
 async removeDailyAssignment(assignmentId) {
   if (!assignmentId || typeof supaClient === "undefined" || !supaClient) {
     alert("Database connection missing.");
+    return;
+  }
+
+  const { error: childError } = await supaClient
+    .from("daily_strategy_events")
+    .delete()
+    .eq("strategy_assignment_id", assignmentId);
+
+  if (childError) {
+    console.error("removeDailyAssignment child delete failed:", childError);
+    alert(`Failed to remove board activity rows: ${childError.message || "Unknown error"}`);
     return;
   }
 
