@@ -5279,7 +5279,13 @@ const activeClientPool = clientHealthRows
       }
     });
 
-    const rosterRows = Array.from(rosterMap.values())
+  const excludedRosterNames = new Set([
+  "micaella barrot",
+  "recca barrot"
+]);
+
+const rosterRows = Array.from(rosterMap.values())
+  .filter(row => !excludedRosterNames.has(String(row.name || "").trim().toLowerCase()))
   .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 
     if (!rosterRows.length) {
