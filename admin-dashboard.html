@@ -5106,7 +5106,7 @@ async openNotification(item) {
     });
 
     const rosterRows = Array.from(rosterMap.values())
-      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""));
+  .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 
     if (!rosterRows.length) {
       rosterEl.innerHTML = `<div class="text-sm text-gray-400 italic">No roster activity for this day.</div>`;
