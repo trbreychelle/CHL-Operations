@@ -4714,9 +4714,9 @@ async openNotification(item) {
     const todayStr = today.toISOString().split("T")[0];
 
     const { data: weekDays, error: weekErr } = await supaClient.rpc("get_daily_strategy_week_days", {
-      p_organization_id: orgId,
-      p_anchor_date: todayStr
-    });
+  p_organization_id: orgId,
+  p_any_date: todayStr
+});
 
     if (weekErr) {
       console.error("Daily strategy week load failed:", weekErr);
