@@ -5654,30 +5654,25 @@ openNotificationById(eventId) {
   const dailyGoal =
     Number(client.dailyGoal || rawClient.daily_goal || 0);
 
-  const insertPayload = {
-    organization_id: orgId,
-    week_start: selectedWeekRow.week_start,
-    strategy_date: this.dailyStrategySelectedDate,
-    day_key: selectedWeekRow.day_key,
-    lane: "next_up",
-    position_index: nextPosition,
-    client_code: client.code,
-    company_name: rawClient.company_name || rawClient.roofing_company || String(client.searchName || client.roofingCompany || "").replace(/<[^>]*>/g, ""),
-    assigned_agents: assignedAgents,
-    daily_goal: dailyGoal,
-    notes: ""
-  };
+   const { error } = await supaClient.rpc("add_daily_strategy_assignment", {
+    p_organization_id: orgId,
+    p_strategy_date: this.dailyStrategySelectedDate,
+    p_client_id: rawClient.id,
+    p_lane: "next_up",
+    p_assigned_agents: assignedAgents || "",
+    p_daily_goal: dailyGoal || 0,
+    p_notes: "",
+    p_actor_profile_id: null,
+    p_actor_name: (window.portal?.currentUser?.name || "Admin"),
+    p_actor_role: (window.portal?.currentUser?.role || "admin")
+  });
 
-  const { error } = await supaClient
-    .from("daily_strategy_assignments")
-    .insert([insertPayload]);
-
-  if (error) {
+    if (error) {
     console.error("dailyAdd insert failed:", error);
-    alert("Failed to add client to board.");
+    alert(`Failed to add client to board: ${error.message || "Unknown error"}`);
     return;
   }
-
+   
   await this.renderDailyTab();
 },
 
