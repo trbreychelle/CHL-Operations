@@ -617,56 +617,30 @@ body.client-health-lock {
 </div>
       
       <div id="view-daily" class="view-section">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
-          <div>
-            <h2 class="text-2xl font-bold text-gray-900">Daily Strategy Board</h2>
-            <p class="text-sm text-gray-500 mt-1">Assign agents, set goals, and monitor real-time progress.</p>
-          </div>
-        </div>
+  <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+    <div>
+      <h2 class="text-2xl font-bold text-gray-900">Daily Strategy Board</h2>
+      <p class="text-sm text-gray-500 mt-1">Weekly scheduling board powered by strategy assignments.</p>
+    </div>
+  </div>
 
-        <div class="flex flex-col lg:flex-row gap-6">
-          
-          <div class="flex-1 flex flex-col gap-6">
-            
-            <div class="bg-blue-50/50 rounded-2xl border border-blue-100 shadow-sm p-5">
-              <h3 class="font-bold text-blue-900 mb-4 flex items-center gap-2"><i class="fa-solid fa-satellite-dish"></i> Clients Serving Today</h3>
-              <div id="daily-serving-board" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-h-[100px]">
-                <div class="text-sm text-blue-400 italic text-center py-4 col-span-full">Drag or add clients here from the pool below.</div>
-              </div>
-            </div>
+  <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
+    <div class="flex items-center justify-between gap-3 mb-4">
+      <h3 class="font-bold text-gray-900 flex items-center gap-2">
+        <i class="fa-solid fa-calendar-week text-blue-600"></i> Strategy Week
+      </h3>
+      <div id="dailyStrategyWeekLabel" class="text-xs font-bold text-gray-500">Loading week...</div>
+    </div>
 
-            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
-                  <h3 class="font-bold text-gray-900 flex items-center gap-2"><i class="fa-solid fa-users-viewfinder"></i> Active Client Pool</h3>
-                  <div class="flex items-center gap-2 w-full sm:w-auto">
-                      <select id="daily-pool-filter" class="text-xs px-2 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none font-bold text-gray-700" onchange="Admin.renderDailyTab()">
-                          <option value="ONGOING" selected>Ongoing</option>
-                          <option value="PAUSE">Pause</option>
-                          <option value="ALL">All Active</option>
-                      </select>
-                      <div class="relative flex-1 sm:flex-none">
-                          <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
-                          <input type="text" id="daily-pool-search" placeholder="Search pool..." class="text-xs pl-8 pr-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none w-full sm:w-48" oninput="Admin.renderDailyTab()">
-                      </div>
-                  </div>
-              </div>
-              <div id="daily-client-pool" class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[500px] overflow-y-auto pr-2">
-                </div>
-            </div>
+    <div id="dailyStrategyTabs" class="flex flex-wrap gap-2"></div>
+  </div>
 
-          </div> <div class="w-full lg:w-80 flex-shrink-0 flex flex-col gap-4">
-            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden sticky top-6">
-              <div class="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-                <h3 class="font-bold text-gray-900 text-sm">Real-Time Roster</h3>
-                <span class="text-[10px] font-bold text-gray-500" id="daily-date-header">Today</span>
-              </div>
-              <div class="p-2 space-y-1 max-h-[700px] overflow-y-auto" id="daily-agent-status-list">
-                </div>
-            </div>
-          </div>
-
-        </div>
-      </div>
+  <div id="dailyStrategyBoard" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <div class="text-sm text-gray-400 italic">Loading strategy board...</div>
+    </div>
+  </div>
+</div>
       
     <div id="view-sales" class="view-section">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
@@ -1814,6 +1788,9 @@ body.client-health-lock {
   <script>
     const AdminDashboard = {
       sortState: { key: null, dir: 'asc' },
+      dailyStrategyWeekRows: [],
+dailyStrategySelectedDate: null,
+dailyStrategyAssignments: [],
             clientHealthExpanded: false,
       _clientHealthExpandBound: false,
 _firstLoadDone: false,
@@ -4722,212 +4699,149 @@ async openNotification(item) {
       },
 
       // --- DAILY STRATEGY TAB LOGIC ---
-      renderDailyTab() {
-        // ANTI-GLITCH: Don't refresh the board if you are currently typing!
-        if (document.activeElement && document.activeElement.closest('#daily-serving-board')) return;
+      async renderDailyTab() {
+  const orgId = window.portal?.getCurrentOrganizationId?.();
+  if (!orgId || !supaClient) return;
 
-        const mstFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit' });
-        const todayStr = mstFormatter.format(new Date());
-        const dateHeader = document.getElementById("daily-date-header");
-        if (dateHeader) dateHeader.textContent = todayStr;
+  const weekLabelEl = document.getElementById("dailyStrategyWeekLabel");
+  const tabsEl = document.getElementById("dailyStrategyTabs");
+  const boardEl = document.getElementById("dailyStrategyBoard");
 
-        const events = Array.isArray(this.getState().timeEvents) ? this.getState().timeEvents : [];
-        const agents = Array.isArray(this.getState().agents) ? this.getState().agents : [];
-        const statusMap = new Map();
+  if (!weekLabelEl || !tabsEl || !boardEl) return;
 
-        events.forEach(e => {
-            const timestamp = e.occurred_at || e.created_at;
-            if (!timestamp) return;
-            const eventDt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(timestamp) : new Date(timestamp);
-            if (!eventDt) return;
-            
-            const eventDayStr = mstFormatter.format(window.portal?.toMST ? window.portal.toMST(eventDt) : eventDt);
-            if (eventDayStr === todayStr) {
-                const rawAg = String(e.agent_name || "");
-                const ag = this.getOfficialAgentName(rawAg);
-                const existing = statusMap.get(ag);
-                if (!existing || eventDt > existing.dt) {
-                    statusMap.set(ag, { dt: eventDt, action: String(e.action).trim().toLowerCase() });
-                }
-            }
-        });
+  try {
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
 
-        const activeAgents = agents.filter(a => {
-            const st = String(a.employment_status || "").toLowerCase().trim();
-            const rl = String(a.role || "").toLowerCase().trim();
-            return st === "active" && rl !== "admin";
-        });
+    const { data: weekDays, error: weekErr } = await supaClient.rpc("get_daily_strategy_week_days", {
+      p_organization_id: orgId,
+      p_anchor_date: todayStr
+    });
 
-        let statusHtml = "";
-        activeAgents.sort((a,b) => (a.agent_name || a.name || "").localeCompare(b.agent_name || b.name || "")).forEach(a => {
-            const name = String(a.agent_name || a.name || "").trim();
-            const latest = statusMap.get(name);
-            let badge = `<span class="text-[10px] font-extrabold text-gray-400 bg-gray-100 px-2 py-1 rounded">OFFLINE</span>`;
-            if (latest) {
-                if (latest.action === 'clock in' || latest.action === 'resume') badge = `<span class="text-[10px] font-extrabold text-emerald-700 bg-emerald-100 px-2 py-1 rounded flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> WORKING</span>`;
-                else if (latest.action === 'break start') badge = `<span class="text-[10px] font-extrabold text-yellow-700 bg-yellow-100 px-2 py-1 rounded">ON BREAK</span>`;
-            }
-            statusHtml += `<div class="flex justify-between items-center p-2 hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-100 transition-colors"><span class="text-xs font-bold text-gray-700">${name}</span> ${badge}</div>`;
-        });
-        document.getElementById("daily-agent-status-list").innerHTML = statusHtml;
+    if (weekErr) {
+      console.error("Daily strategy week load failed:", weekErr);
+      boardEl.innerHTML = `<div class="bg-white rounded-2xl border border-red-100 shadow-sm p-5 text-sm text-red-600">Failed to load strategy week.</div>`;
+      return;
+    }
 
-        const poolEl = document.getElementById("daily-client-pool");
-        const serveEl = document.getElementById("daily-serving-board");
-        const searchTerm = (document.getElementById("daily-pool-search")?.value || "").toLowerCase();
-       const packageFilter = document.getElementById("daily-pool-filter")?.value || "ONGOING";
+    this.dailyStrategyWeekRows = Array.isArray(weekDays) ? weekDays : [];
 
-const normalizePkgStatus = (value) => {
-  let s = String(value || "").toUpperCase().trim();
-  if (s === "ACTIVE") s = "ONGOING";
-  return s;
-};
-        
-        let poolHtml = "";
-        let serveHtml = "";
-        
-        // SEPARATE SORTING: Pool stays alphabetical, Serving stacks at the bottom
-        let allActiveClients = this.clientHealthRaw.filter(c => {
-  const pkgStatus = String(c.packageStatus || "").toUpperCase();
-  const dealStatus = String(c.dealStatus || "").toUpperCase();
+    if (!this.dailyStrategyWeekRows.length) {
+      weekLabelEl.textContent = "No week found";
+      tabsEl.innerHTML = "";
+      boardEl.innerHTML = `<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm text-gray-400 italic">No strategy week available.</div>`;
+      return;
+    }
 
-  return (
-    c.passbookStatus === "ACTIVE" &&
-    dealStatus !== "NEGOTIATING" &&
-    pkgStatus === "ONGOING" // ✅ THIS IS THE FIX
-  );
-});
-        let servingClients = allActiveClients.filter(c => c.isServing);
-        let poolClients = allActiveClients.filter(c => !c.isServing);
+    const firstRow = this.dailyStrategyWeekRows[0];
+    weekLabelEl.textContent = `${firstRow.week_start} → ${firstRow.week_end}`;
 
-        // Sort serving clients by when they were added so new ones drop to the BOTTOM
-        servingClients.sort((a, b) => (a.addedToBoardAt || 0) - (b.addedToBoardAt || 0));
+    if (!this.dailyStrategySelectedDate) {
+      this.dailyStrategySelectedDate = todayStr;
+    }
 
-        // Only sort the pool alphabetically
-        poolClients.sort((a, b) => a.roofingCompany.localeCompare(b.roofingCompany));
+    const validDates = new Set(this.dailyStrategyWeekRows.map(r => r.strategy_date));
+    if (!validDates.has(this.dailyStrategySelectedDate)) {
+      this.dailyStrategySelectedDate = firstRow.strategy_date;
+    }
 
-        // 1. RENDER SERVING BOARD
-        servingClients.forEach(c => {
-          const normalizedPkgStatus = normalizePkgStatus(c.packageStatus);
-            // FIX: Use the raw company name from the database, bypassing the HTML badge!
-            const rawCompany = c._raw.company_name || c._raw.roofing_company || c.roofingCompany.split('<')[0];
-            const leadList = this._leadsIndexByCompany?.get(this.normalizeCompanyName(rawCompany)) || [];
-            let todaysApproved = 0, todaysPending = 0;
-            
-            leadList.forEach(l => {
-                const dStr = l.date_submitted || l['Date Submitted'] || l.created_at;
-                const d = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
-                if (d && !isNaN(d.getTime())) {
-                    const compStr = mstFormatter.format(window.portal?.toMST ? window.portal.toMST(d) : d);
-                    const st = String(l.status || "").toLowerCase();
-                    if (compStr === todayStr) {
-                        if (st.includes('approv') || st.includes('confirm')) todaysApproved++;
-                        else if (st.includes('pending')) todaysPending++;
-                    }
-                }
-            });
+    tabsEl.innerHTML = this.dailyStrategyWeekRows.map(row => {
+      const active = row.strategy_date === this.dailyStrategySelectedDate;
+      return `
+        <button
+          type="button"
+          onclick="Admin.selectDailyStrategyDate('${row.strategy_date}')"
+          class="px-4 py-2 rounded-xl text-sm font-extrabold border transition-all ${
+            active
+              ? 'bg-gray-900 text-white border-gray-900'
+              : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+          }"
+        >
+          ${row.day_label}
+          <span class="ml-2 text-[11px] font-bold ${active ? 'text-gray-200' : 'text-gray-400'}">
+            ${row.strategy_date}
+          </span>
+        </button>
+      `;
+    }).join("");
 
-            const goal = c.dailyGoal;
-            const goalMet = goal > 0 && todaysApproved >= goal;
+    const selectedWeekRow = this.dailyStrategyWeekRows.find(r => r.strategy_date === this.dailyStrategySelectedDate);
+    const selectedWeekStart = selectedWeekRow?.week_start;
 
-            // THE OBLITERATE CARD: Button pushed outside the box to prevent blocking
-            serveHtml += `
-            <div class="relative rounded-xl p-4 transition-all flex flex-col ${goalMet ? 'bg-emerald-50 border-4 border-emerald-400 shadow-sm' : 'bg-white border border-blue-200 shadow-sm'}">
-                
-                <button type="button" onclick="Admin.dailyRemove(this, \`${(c.code || '').replace(/`/g, '')}\`)" class="absolute -top-3 -right-3 w-8 h-8 bg-red-500 hover:bg-red-700 text-white rounded-full shadow-lg flex items-center justify-center cursor-pointer z-[99999] border-2 border-white ring-2 ring-red-100">
-                    <i class="fa-solid fa-xmark text-sm font-black pointer-events-none"></i>
-                </button>
-                
-               <div class="mb-3 pr-4">
-    <p class="text-[11px] text-gray-500 font-bold uppercase mb-1">${c.code}</p>
-    <h4 class="font-bold text-gray-900 leading-tight" title="${String(c.roofingCompany).replace(/<[^>]*>/g, '')}">
-      ${c.roofingCompany}
-    </h4>
-    <p class="text-[10px] text-gray-400 font-bold uppercase mt-1">${c.cityState}</p>
-    <p class="text-[11px] text-gray-600 mt-1">
-      <span class="font-bold">Owed:</span> ${c.owedRemaining}
-      <span class="mx-2 text-gray-300">•</span>
-      <span class="font-bold">Capacity:</span> ${c.leadsPerDayLimit || 0}/day
-      <span class="mx-2 text-gray-300">•</span>
-      <span class="font-bold">Sales Reps:</span> ${c.salesRepCount || 0}
-    </p>
-</div>
-                
-                <div class="flex-1 flex flex-col gap-3 relative z-10">
-                    <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Assigned Agents</label>
-                        <textarea onchange="Admin.dailyUpdate(\`${(c.code || '').replace(/`/g, '')}\`, 'daily_agents', this.value)" placeholder="• John&#10;• Mary" class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded focus:ring-2 focus:ring-blue-400 outline-none resize-none" rows="3">${c.dailyAgents}</textarea>
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Goal</label>
-                        <input type="number" onchange="Admin.dailyUpdate(\`${(c.code || '').replace(/`/g, '')}\`, 'daily_goal', this.value)" value="${goal || ''}" placeholder="0" class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded focus:ring-2 focus:ring-blue-400 outline-none text-center font-bold">
-                    </div>
-                </div>
+    const { data: assignments, error: assignErr } = await supaClient
+      .from("daily_strategy_assignments")
+      .select("*")
+      .eq("organization_id", orgId)
+      .eq("week_start", selectedWeekStart)
+      .eq("strategy_date", this.dailyStrategySelectedDate)
+      .order("lane", { ascending: true })
+      .order("position_index", { ascending: true });
 
-                <div class="mt-3 flex items-center justify-between pt-3 border-t border-gray-50 relative z-10">
-    <div class="text-[11px] font-bold text-yellow-600">Pending: ${todaysPending}</div>
-    <div class="text-[11px] font-bold ${todaysApproved > 0 ? 'text-emerald-600' : 'text-gray-400'}">
-      Set Today: ${todaysApproved} / Goal: ${goal || 0}
-    </div>
-    <div class="text-right">
-      ${goalMet
-        ? `<span class="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-2 py-1 rounded">✅ MET</span>`
-        : `<span class="text-[10px] font-bold text-gray-400">In Progress</span>`}
-    </div>
-</div>
-            </div>`;
-        });
+    if (assignErr) {
+      console.error("Daily strategy assignments load failed:", assignErr);
+      boardEl.innerHTML = `<div class="bg-white rounded-2xl border border-red-100 shadow-sm p-5 text-sm text-red-600">Failed to load assignments.</div>`;
+      return;
+    }
 
-        // 2. RENDER POOL BOARD
-        poolClients.forEach(c => {
-  const normalizedPkgStatus = normalizePkgStatus(c.packageStatus);
-  if (String(c.dealStatus || "").toUpperCase() === "NEGOTIATING") return;
-if (normalizedPkgStatus === "REFUNDED" || normalizedPkgStatus === "COMPLETED") return;
-if (c.owedRemaining <= 0) return;
-if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return;
+    this.dailyStrategyAssignments = Array.isArray(assignments) ? assignments : [];
 
-  const safeSearchText = `${String(c.searchName || c.roofingCompany || "")} ${String(c.code || "")} ${String(c.cityState || "")}`.toLowerCase();
-  if (searchTerm && !safeSearchText.includes(searchTerm)) return;
+    const servingNow = this.dailyStrategyAssignments.filter(r => String(r.lane || "") === "serving_now");
+    const nextUp = this.dailyStrategyAssignments.filter(r => String(r.lane || "") === "next_up");
 
-  if (packageFilter !== "ALL" && normalizedPkgStatus !== packageFilter) return;
+    const renderLaneCards = (rows, emptyText) => {
+      if (!rows.length) {
+        return `<div class="text-sm text-gray-400 italic">${emptyText}</div>`;
+      }
 
-            let healthColor = "text-blue-600 bg-blue-50";
-            if (c.healthStatus === "CRITICAL") healthColor = "text-red-600 bg-red-50";
-            else if (c.healthStatus === "AT RISK") healthColor = "text-yellow-600 bg-yellow-50";
-            else if (c.healthStatus === "HEALTHY") healthColor = "text-emerald-600 bg-emerald-50";
+      return rows.map(row => `
+        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4">
+          <div class="flex items-start justify-between gap-3 mb-2">
+            <div>
+              <div class="text-[11px] font-extrabold uppercase tracking-wide text-gray-400">${row.client_code || '—'}</div>
+              <div class="text-base font-bold text-gray-900">${row.company_name || 'Unknown Client'}</div>
+            </div>
+            <div class="text-xs font-bold text-gray-500">#${row.position_index || 0}</div>
+          </div>
 
-            poolHtml += `
-            <div class="border border-gray-200 rounded-lg p-3 hover:border-gray-300 hover:shadow-sm transition-all flex justify-between items-center group bg-gray-50/30">
-  <div>
-    <p class="text-[10px] text-gray-500 font-bold uppercase mb-1">${c.code}</p>
-    <h4 class="text-sm font-bold text-gray-800 leading-tight" title="${String(c.roofingCompany).replace(/<[^>]*>/g, '')}">
-      ${c.roofingCompany}
-    </h4>
-    <p class="text-[10px] text-gray-500 mb-1">${c.cityState}</p>
-    <p class="text-[11px] text-gray-600 mb-1.5">
-      <span class="font-bold">Owed:</span> ${c.owedRemaining}
-      <span class="mx-2 text-gray-300">•</span>
-      <span class="font-bold">Capacity:</span> ${c.leadsPerDayLimit || 0}/day
-      <span class="mx-2 text-gray-300">•</span>
-      <span class="font-bold">Sales Reps:</span> ${c.salesRepCount || 0}
-    </p>
-    <div class="flex gap-2 flex-wrap">
-        <span class="text-[9px] font-extrabold ${normalizedPkgStatus === 'ONGOING' ? 'text-blue-600 bg-blue-100' : 'text-yellow-600 bg-yellow-100'} px-1.5 py-0.5 rounded">${normalizedPkgStatus}</span>
-        <span class="text-[9px] font-extrabold ${healthColor} px-1.5 py-0.5 rounded">${c.healthStatus}</span>
-        <span class="text-[9px] font-extrabold text-gray-600 bg-gray-200 px-1.5 py-0.5 rounded" title="Owed / Purchased">Owed: ${c.packageLabel}</span>
-    </div>
-</div>
-                <button onclick="Admin.dailyAdd(\`${(c.code || '').replace(/`/g, '')}\`)" class="relative z-50 w-7 h-7 flex-shrink-0 rounded bg-white border border-gray-200 text-gray-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors shadow-sm ml-2 cursor-pointer pointer-events-auto">
-                    <i class="fa-solid fa-plus text-xs pointer-events-none"></i>
-                </button>
-            </div>`;
-        });
+          <div class="text-sm text-gray-700 space-y-1">
+            <div><span class="font-bold">Agents:</span> ${row.assigned_agents || '—'}</div>
+            <div><span class="font-bold">Goal:</span> ${row.daily_goal ?? 0}</div>
+            <div><span class="font-bold">Notes:</span> ${row.notes || '—'}</div>
+          </div>
+        </div>
+      `).join("");
+    };
 
-        if (!serveHtml) serveHtml = `<div class="text-sm text-blue-400 italic text-center py-4 col-span-full">Board is empty. Add clients below.</div>`;
-        if (!poolHtml) poolHtml = `<div class="text-sm text-gray-400 italic text-center py-4 col-span-full">No active clients match criteria.</div>`;
+    boardEl.innerHTML = `
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-gray-900 flex items-center gap-2">
+            <i class="fa-solid fa-bolt text-emerald-600"></i> Serving Now
+          </h3>
+          <span class="text-xs font-bold text-gray-400">${servingNow.length} row(s)</span>
+        </div>
+        <div class="space-y-4">
+          ${renderLaneCards(servingNow, "No serving-now assignments for this day.")}
+        </div>
+      </div>
 
-        serveEl.innerHTML = serveHtml;
-        poolEl.innerHTML = poolHtml;
-      },
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-gray-900 flex items-center gap-2">
+            <i class="fa-solid fa-forward text-blue-600"></i> Next Up
+          </h3>
+          <span class="text-xs font-bold text-gray-400">${nextUp.length} row(s)</span>
+        </div>
+        <div class="space-y-4">
+          ${renderLaneCards(nextUp, "No next-up assignments for this day.")}
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    console.error("renderDailyTab crashed:", err);
+    boardEl.innerHTML = `<div class="bg-white rounded-2xl border border-red-100 shadow-sm p-5 text-sm text-red-600">Daily Strategy crashed while loading.</div>`;
+  }
+},
 
     refreshNotificationsTab() {
   const wrap = document.getElementById('notifications-feed');
@@ -6694,6 +6608,11 @@ async saveOnboardingRow(clientCode) {
           btn.title = "Expand Client Health Monitor";
         }
       },
+
+      selectDailyStrategyDate(dateStr) {
+  this.dailyStrategySelectedDate = dateStr;
+  this.renderDailyTab();
+},
 
       setView(viewId) {
   const linkEl = document.querySelector(`.nav-item[href="#${viewId}"]`);
