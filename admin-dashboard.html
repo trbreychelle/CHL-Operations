@@ -4785,6 +4785,14 @@ async openNotification(item) {
 
     this.dailyStrategyAssignments = Array.isArray(assignments) ? assignments : [];
 
+    const rawClients = Array.isArray(this.getState().rawClients) ? this.getState().rawClients : [];
+const companyByCode = new Map(
+  rawClients.map(c => [
+    String(c.client_code || c.code_name || "").trim().toLowerCase(),
+    String(c.company_name || c.roofing_company || "").trim()
+  ])
+);
+
     const servingNow = this.dailyStrategyAssignments.filter(r => String(r.lane || "") === "serving_now");
     const nextUp = this.dailyStrategyAssignments.filter(r => String(r.lane || "") === "next_up");
 
@@ -4798,7 +4806,11 @@ async openNotification(item) {
           <div class="flex items-start justify-between gap-3 mb-2">
             <div>
               <div class="text-[11px] font-extrabold uppercase tracking-wide text-gray-400">${row.client_code || '—'}</div>
-              <div class="text-base font-bold text-gray-900">${row.company_name || 'Unknown Client'}</div>
+              <div class="text-base font-bold text-gray-900">${
+  companyByCode.get(String(row.client_code || "").trim().toLowerCase()) ||
+  row.company_name ||
+  'Unknown Client'
+}</div>
             </div>
             <div class="text-xs font-bold text-gray-500">#${row.position_index || 0}</div>
           </div>
