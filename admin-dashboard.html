@@ -671,6 +671,26 @@ body.client-health-lock {
                   <i class="fa-solid fa-layer-group text-amber-500"></i> Active Client Pool
                 </h3>
                 <p class="text-xs text-gray-500 mt-1">Available active clients for the selected strategy day.</p>
+                <div class="mt-3 flex flex-col md:flex-row gap-3">
+  <div class="flex-1 relative">
+    <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+    <input
+      id="daily-client-pool-search"
+      type="text"
+      placeholder="Search roofing company, client code, or client number..."
+      class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+    />
+  </div>
+
+  <select
+    id="daily-client-pool-status"
+    class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[180px] text-blue-700"
+  >
+    <option value="ONGOING" selected>ONGOING</option>
+    <option value="PAUSE">PAUSE</option>
+    <option value="ALL">ALL</option>
+  </select>
+</div>
               </div>
               <div id="dailyClientPoolCount" class="text-xs font-black text-gray-400">0 clients</div>
             </div>
@@ -693,7 +713,7 @@ body.client-health-lock {
               </div>
             </div>
           </div>
-          <div id="daily-agent-status-list" class="p-5 space-y-3">
+          <div id="daily-agent-status-list" class="p-4 space-y-2 max-h-[560px] overflow-y-auto">
             <div class="text-sm text-gray-400 italic">Loading roster...</div>
           </div>
         </div>
@@ -4977,18 +4997,26 @@ async openNotification(item) {
       </div>
     `;
 
-    const activeClientPool = clientHealthRows
-      .filter(r => {
-        const pkgStatus = String(r.packageStatus || "").toUpperCase();
-        const passbookStatus = String(r.passbookStatus || "").toUpperCase();
-        const code = String(r.code || "").trim().toLowerCase();
+    const clientPoolSearch = String(document.getElementById("daily-client-pool-search")?.value || "").toLowerCase().trim();
+const clientPoolStatus = String(document.getElementById("daily-client-pool-status")?.value || "ONGOING").toUpperCase();
 
-        return (
-          passbookStatus === "ACTIVE" &&
-          pkgStatus === "ONGOING" &&
-          !assignedCodes.has(code)
-        );
-      })
+const activeClientPool = clientHealthRows
+  .filter(r => {
+    const pkgStatus = String(r.packageStatus || "").toUpperCase();
+    const passbookStatus = String(r.passbookStatus || "").toUpperCase();
+    const code = String(r.code || "").trim().toLowerCase();
+
+    if (passbookStatus !== "ACTIVE") return false;
+    if (clientPoolStatus !== "ALL" && pkgStatus !== clientPoolStatus) return false;
+    if (assignedCodes.has(code)) return false;
+
+    if (clientPoolSearch) {
+      const blob = `${r.code || ""} ${r.clientName || ""} ${String(r.searchName || r.roofingCompany || "").replace(/<[^>]*>/g, "")}`.toLowerCase();
+      if (!blob.includes(clientPoolSearch)) return false;
+    }
+
+    return true;
+  })
       .sort((a, b) => {
         const aCritical = String(a.healthStatus || "").toUpperCase() === "CRITICAL" ? 0 : 1;
         const bCritical = String(b.healthStatus || "").toUpperCase() === "CRITICAL" ? 0 : 1;
@@ -5043,7 +5071,16 @@ async openNotification(item) {
                 <div class="text-gray-400 font-bold uppercase">Credited</div>
                 <div class="text-purple-600 font-black mt-1">${client.creditedCount || 0}</div>
               </div>
+              <div class="rounded-xl bg-white border border-gray-200 p-2">
+  <div class="text-gray-400 font-bold uppercase">Lead Limit</div>
+  <div class="text-gray-900 font-black mt-1">${client.leadsPerDayLimit || 0}</div>
+</div>
+<div class="rounded-xl bg-white border border-gray-200 p-2">
+  <div class="text-gray-400 font-bold uppercase">Sales Reps</div>
+  <div class="text-gray-900 font-black mt-1">${client.salesRepCount || 0}</div>
+</div>
             </div>
+            
 
             <div class="text-xs text-gray-600 space-y-1 mb-4">
               <div><span class="font-black text-gray-900">Today:</span> ${client.leadsToday || 0}</div>
@@ -5115,26 +5152,28 @@ async openNotification(item) {
         const st = String(row.status || "").toLowerCase();
 
         let badgeClass = "bg-gray-100 text-gray-700";
-        let label = "Offline";
+let label = "Offline";
+        const isTodaySelected = this.dailyStrategySelectedDate === new Date().toISOString().split("T")[0];
 
-        if (st.includes("clock_in") || st.includes("resume") || st.includes("active")) {
-          badgeClass = "bg-emerald-100 text-emerald-700";
-          label = "Working";
-        } else if (st.includes("break")) {
-          badgeClass = "bg-amber-100 text-amber-700";
-          label = "On Break";
-        } else if (st.includes("clock_out") || st.includes("offline")) {
-          badgeClass = "bg-gray-100 text-gray-700";
-          label = "Offline";
-        }
+if (isTodaySelected) {
+  if (st.includes("clock_in") || st.includes("resume") || st.includes("active")) {
+    badgeClass = "bg-emerald-100 text-emerald-700";
+    label = "Working";
+  } else if (st.includes("break")) {
+    badgeClass = "bg-amber-100 text-amber-700";
+    label = "On Break";
+  } else if (st.includes("clock_out") || st.includes("offline")) {
+    badgeClass = "bg-gray-100 text-gray-700";
+    label = "Offline";
+  }
+}
 
         return `
-          <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+          <div class="rounded-xl border border-gray-100 bg-gray-50 p-3">
             <div class="flex items-center justify-between gap-3">
               <div>
-                <div class="text-sm font-black text-gray-900">${row.name || 'Unknown'}</div>
-                <div class="text-xs text-gray-500 mt-1">${row.email || 'No email'}</div>
-              </div>
+  <div class="text-sm font-black text-gray-900">${row.name || 'Unknown'}</div>
+</div>
               <span class="px-3 py-1 rounded-full text-[11px] font-black ${badgeClass}">
                 ${label}
               </span>
@@ -5172,6 +5211,18 @@ async openNotification(item) {
         </tr>
       `).join("");
     }
+
+    const dailySearchEl = document.getElementById("daily-client-pool-search");
+if (dailySearchEl && !dailySearchEl.dataset.bound) {
+  dailySearchEl.dataset.bound = "true";
+  dailySearchEl.addEventListener("input", () => this.renderDailyTab());
+}
+
+const dailyStatusEl = document.getElementById("daily-client-pool-status");
+if (dailyStatusEl && !dailyStatusEl.dataset.bound) {
+  dailyStatusEl.dataset.bound = "true";
+  dailyStatusEl.addEventListener("change", () => this.renderDailyTab());
+}
 
     this.setDailyStrategySubtab(this.dailyStrategySubtab || 'board');
   } catch (err) {
@@ -5552,59 +5603,82 @@ openNotificationById(eventId) {
   if (item) this.openNotification(item);
 },
 
-    async dailyAdd(code) {
-  // ✅ update ALL matching rows (not just one)
-  this.clientHealthRaw.forEach(c => {
-    if (c.code === code) {
-      c.isServing = true;
-      c.addedToBoardAt = Date.now();
-      c.dailyAgents = "";
-      c.dailyGoal = 0;
-    }
-  });
-
-  // ✅ force clean UI rebuild
-  this.renderDailyTab();
-
-  // ✅ sync to DB
-  const client = this.clientHealthRaw.find(c => c.code === code);
-  if (typeof supaClient !== 'undefined' && supaClient && client && client.rawClientId) {
-    await supaClient
-      .from('clients')
-      .update({ is_serving: true, daily_agents: "", daily_goal: 0 })
-      .eq('id', client.rawClientId);
-  }
-},
-
-    async dailyRemove(btnElement, code) {
-  // ✅ remove visually immediately
-  if (btnElement) {
-    const card = btnElement.closest('.relative.rounded-xl');
-    if (card) card.remove();
+ async dailyAdd(code) {
+  const orgId = window.portal?.getCurrentOrganizationId?.();
+  if (!orgId || typeof supaClient === "undefined" || !supaClient) {
+    alert("Database connection missing.");
+    return;
   }
 
-  // ✅ update ALL rows in memory
-  this.clientHealthRaw.forEach(c => {
-    if (c.code === code) {
-      c.isServing = false;
-    }
-  });
+  const selectedWeekRow = Array.isArray(this.dailyStrategyWeekRows)
+    ? this.dailyStrategyWeekRows.find(r => r.strategy_date === this.dailyStrategySelectedDate)
+    : null;
 
-  // ✅ re-render clean state
-  this.renderDailyTab();
-
-  // ✅ sync to DB
-  const client = this.clientHealthRaw.find(c => c.code === code);
-  if (typeof supaClient !== 'undefined' && supaClient && client && client.rawClientId) {
-    try {
-      await supaClient
-        .from('clients')
-        .update({ is_serving: false })
-        .eq('id', client.rawClientId);
-    } catch (e) {
-      console.error("DB Sync Failed:", e);
-    }
+  if (!selectedWeekRow) {
+    alert("No strategy day selected.");
+    return;
   }
+
+  const codeKey = String(code || "").trim().toLowerCase();
+  const client = (this.clientHealthRaw || []).find(c => String(c.code || "").trim().toLowerCase() === codeKey);
+
+  if (!client) {
+    alert("Client not found.");
+    return;
+  }
+
+  const existingAssignments = Array.isArray(this.dailyStrategyAssignments)
+    ? this.dailyStrategyAssignments.filter(r => String(r.client_code || "").trim().toLowerCase() === codeKey)
+    : [];
+
+  if (existingAssignments.length) {
+    return;
+  }
+
+  const nextPosition =
+    (this.dailyStrategyAssignments || [])
+      .filter(r => String(r.lane || "") === "next_up")
+      .reduce((max, r) => Math.max(max, Number(r.position_index || 0)), 0) + 1;
+
+  const rawClient = Array.isArray(this.getState().rawClients)
+    ? this.getState().rawClients.find(rc =>
+        String(rc.client_code || rc.code_name || "").trim().toLowerCase() === codeKey
+      ) || {}
+    : {};
+
+  const assignedAgents =
+    client.dailyAgents ||
+    rawClient.daily_agents ||
+    "";
+
+  const dailyGoal =
+    Number(client.dailyGoal || rawClient.daily_goal || 0);
+
+  const insertPayload = {
+    organization_id: orgId,
+    week_start: selectedWeekRow.week_start,
+    strategy_date: this.dailyStrategySelectedDate,
+    day_key: selectedWeekRow.day_key,
+    lane: "next_up",
+    position_index: nextPosition,
+    client_code: client.code,
+    company_name: rawClient.company_name || rawClient.roofing_company || String(client.searchName || client.roofingCompany || "").replace(/<[^>]*>/g, ""),
+    assigned_agents: assignedAgents,
+    daily_goal: dailyGoal,
+    notes: ""
+  };
+
+  const { error } = await supaClient
+    .from("daily_strategy_assignments")
+    .insert([insertPayload]);
+
+  if (error) {
+    console.error("dailyAdd insert failed:", error);
+    alert("Failed to add client to board.");
+    return;
+  }
+
+  await this.renderDailyTab();
 },
 
       async dailyUpdate(code, field, value) {
@@ -6976,8 +7050,6 @@ async saveOnboardingRow(clientCode) {
       boardView.classList.add('hidden');
     }
   }
-
-  this.renderDailyTab();
 },
 
       selectDailyStrategyDate(dateStr) {
