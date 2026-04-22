@@ -616,7 +616,7 @@ body.client-health-lock {
   </div>
 </div>
       
-      <div id="view-daily" class="view-section">
+     <div id="view-daily" class="view-section">
   <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
     <div>
       <h2 class="text-2xl font-bold text-gray-900">Daily Strategy Board</h2>
@@ -624,20 +624,118 @@ body.client-health-lock {
     </div>
   </div>
 
-  <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
+  <div class="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-3xl shadow-xl border border-slate-800 p-5 mb-6 text-white">
     <div class="flex items-center justify-between gap-3 mb-4">
-      <h3 class="font-bold text-gray-900 flex items-center gap-2">
-        <i class="fa-solid fa-calendar-week text-blue-600"></i> Strategy Week
+      <h3 class="font-black text-white flex items-center gap-2">
+        <i class="fa-solid fa-calendar-week text-yellow-300"></i> Strategy Week
       </h3>
-      <div id="dailyStrategyWeekLabel" class="text-xs font-bold text-gray-500">Loading week...</div>
+      <div id="dailyStrategyWeekLabel" class="text-xs font-black text-blue-100">Loading week...</div>
+    </div>
+
+    <div class="flex items-center gap-2 mb-4">
+      <button
+        id="daily-tab-board"
+        type="button"
+        onclick="Admin.setDailyStrategySubtab('board')"
+        class="px-4 py-2 rounded-2xl bg-white text-slate-900 text-xs font-black shadow"
+      >
+        Board
+      </button>
+      <button
+        id="daily-tab-history"
+        type="button"
+        onclick="Admin.setDailyStrategySubtab('history')"
+        class="px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black"
+      >
+        History
+      </button>
     </div>
 
     <div id="dailyStrategyTabs" class="flex flex-wrap gap-2"></div>
   </div>
 
-  <div id="dailyStrategyBoard" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-      <div class="text-sm text-gray-400 italic">Loading strategy board...</div>
+  <div id="dailyStrategyBoardView">
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+      <div class="xl:col-span-9 space-y-6">
+        <div id="dailyStrategyBoard" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div class="text-sm text-gray-400 italic">Loading strategy board...</div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-amber-50 to-orange-50">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <h3 class="font-black text-gray-900 flex items-center gap-2">
+                  <i class="fa-solid fa-layer-group text-amber-500"></i> Active Client Pool
+                </h3>
+                <p class="text-xs text-gray-500 mt-1">Available active clients for the selected strategy day.</p>
+              </div>
+              <div id="dailyClientPoolCount" class="text-xs font-black text-gray-400">0 clients</div>
+            </div>
+          </div>
+          <div id="daily-client-pool" class="p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div class="text-sm text-gray-400 italic">Loading client pool...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="xl:col-span-3">
+        <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden sticky top-6">
+          <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-teal-50">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <h3 class="font-black text-gray-900 flex items-center gap-2">
+                  <i class="fa-solid fa-user-clock text-emerald-600"></i> Daily Roster
+                </h3>
+                <p class="text-xs text-gray-500 mt-1">Live working status of today’s team.</p>
+              </div>
+            </div>
+          </div>
+          <div id="daily-agent-status-list" class="p-5 space-y-3">
+            <div class="text-sm text-gray-400 italic">Loading roster...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="dailyStrategyHistoryView" class="hidden">
+    <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-violet-50 to-fuchsia-50">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <h3 class="font-black text-gray-900 flex items-center gap-2">
+              <i class="fa-solid fa-clock-rotate-left text-violet-600"></i> Strategy History
+            </h3>
+            <p class="text-xs text-gray-500 mt-1">Planned clients and actual lead output for the selected day.</p>
+          </div>
+          <div id="dailyHistoryCount" class="text-xs font-black text-gray-400">0 rows</div>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm whitespace-nowrap">
+          <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+            <tr>
+              <th class="p-4">Date</th>
+              <th class="p-4">Day</th>
+              <th class="p-4">Lane</th>
+              <th class="p-4">Position</th>
+              <th class="p-4">Client Code</th>
+              <th class="p-4">Company</th>
+              <th class="p-4 text-center">Total Leads</th>
+              <th class="p-4 text-center text-blue-600">Qualified</th>
+              <th class="p-4 text-center text-purple-600">Credited</th>
+              <th class="p-4 text-center text-yellow-600">Pending</th>
+              <th class="p-4 text-center text-red-500">Rejected</th>
+            </tr>
+          </thead>
+          <tbody id="dailyStrategyHistoryBody" class="divide-y divide-gray-50">
+            <tr><td colspan="11" class="p-6 text-center text-gray-400 italic">Loading history...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -1791,6 +1889,8 @@ body.client-health-lock {
       dailyStrategyWeekRows: [],
 dailyStrategySelectedDate: null,
 dailyStrategyAssignments: [],
+      dailyStrategySubtab: 'board',
+dailyStrategyHistoryRows: [],
             clientHealthExpanded: false,
       _clientHealthExpandBound: false,
 _firstLoadDone: false,
@@ -6620,6 +6720,37 @@ async saveOnboardingRow(clientCode) {
           btn.title = "Expand Client Health Monitor";
         }
       },
+
+      setDailyStrategySubtab(tab) {
+  this.dailyStrategySubtab = tab === 'history' ? 'history' : 'board';
+
+  const boardBtn = document.getElementById('daily-tab-board');
+  const historyBtn = document.getElementById('daily-tab-history');
+  const boardView = document.getElementById('dailyStrategyBoardView');
+  const historyView = document.getElementById('dailyStrategyHistoryView');
+
+  if (boardBtn && historyBtn) {
+    if (this.dailyStrategySubtab === 'board') {
+      boardBtn.className = 'px-4 py-2 rounded-2xl bg-white text-slate-900 text-xs font-black shadow';
+      historyBtn.className = 'px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black';
+    } else {
+      historyBtn.className = 'px-4 py-2 rounded-2xl bg-white text-slate-900 text-xs font-black shadow';
+      boardBtn.className = 'px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black';
+    }
+  }
+
+  if (boardView && historyView) {
+    if (this.dailyStrategySubtab === 'board') {
+      boardView.classList.remove('hidden');
+      historyView.classList.add('hidden');
+    } else {
+      historyView.classList.remove('hidden');
+      boardView.classList.add('hidden');
+    }
+  }
+
+  this.renderDailyTab();
+},
 
       selectDailyStrategyDate(dateStr) {
   this.dailyStrategySelectedDate = dateStr;
