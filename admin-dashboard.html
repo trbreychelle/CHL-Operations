@@ -5238,60 +5238,80 @@ const activeClientPool = clientHealthRows
     }
 
     const selectedDateOnly = this.dailyStrategySelectedDate;
-    const dayEvents = timeEvents.filter(evt => {
-      const raw = evt.occurred_at_ts || evt.occurred_at || evt.created_at;
-      if (!raw) return false;
-      const dt = new Date(raw);
-      if (isNaN(dt.getTime())) return false;
-      const mst = window.portal?.toMST ? window.portal.toMST(dt) : dt;
 
-const y = mst.getFullYear();
-const m = String(mst.getMonth() + 1).padStart(2, "0");
-const d = String(mst.getDate()).padStart(2, "0");
+const allAgents = Array.isArray(this.getState().agents) ? this.getState().agents : [];
 
-const dateKey = `${y}-${m}-${d}`;
-return dateKey === selectedDateOnly;
-    });
-
-    const rosterMap = new Map();
-
-    dayEvents.forEach(evt => {
-      const email = String(evt.agent_email || "").trim().toLowerCase();
-      const name = String(evt.agent_name || evt.display_name || evt.agent_email || "Unknown").trim();
-      const status = String(evt.status || evt.event_type || evt.action || "").toLowerCase();
-      const rawTime = evt.occurred_at_ts || evt.occurred_at || evt.created_at;
-
-      if (!email && !name) return;
-
-      const key = email || name.toLowerCase();
-      const existing = rosterMap.get(key);
-
-      if (!existing) {
-        rosterMap.set(key, {
-          name,
-          email,
-          status,
-          lastSeen: rawTime
-        });
-      } else {
-        const currentTime = new Date(rawTime).getTime();
-        const existingTime = new Date(existing.lastSeen).getTime();
-        if (currentTime >= existingTime) {
-          existing.status = status;
-          existing.lastSeen = rawTime;
-          existing.name = name || existing.name;
-          existing.email = email || existing.email;
-        }
-      }
-    });
-
-  const excludedRosterNames = new Set([
+const excludedRosterNames = new Set([
   "micaella barrot",
   "recca barrot"
 ]);
 
+const baseRoster = allAgents
+  .filter(agent => {
+    const name = String(agent.agent_name || agent.name || "").trim();
+    const employmentStatus = String(agent.employment_status || "").toLowerCase().trim();
+
+    if (!name) return false;
+    if (employmentStatus !== "active") return false;
+    if (excludedRosterNames.has(name.toLowerCase())) return false;
+
+    return true;
+  })
+  .map(agent => ({
+    name: String(agent.agent_name || agent.name || "").trim(),
+    email: String(agent.agent_email || agent.email || "").trim().toLowerCase(),
+    status: "",
+    lastSeen: null
+  }));
+
+const rosterMap = new Map(
+  baseRoster.map(row => [row.email || row.name.toLowerCase(), row])
+);
+
+const dayEvents = timeEvents.filter(evt => {
+  const raw = evt.occurred_at_ts || evt.occurred_at || evt.created_at;
+  if (!raw) return false;
+
+  const dt = new Date(raw);
+  if (isNaN(dt.getTime())) return false;
+
+  const mst = window.portal?.toMST ? window.portal.toMST(dt) : dt;
+  const y = mst.getFullYear();
+  const m = String(mst.getMonth() + 1).padStart(2, "0");
+  const d = String(mst.getDate()).padStart(2, "0");
+  const dateKey = `${y}-${m}-${d}`;
+
+  return dateKey === selectedDateOnly;
+});
+
+dayEvents.forEach(evt => {
+  const email = String(evt.agent_email || "").trim().toLowerCase();
+  const name = String(evt.agent_name || evt.display_name || evt.agent_email || "Unknown").trim();
+  const status = String(evt.status || evt.event_type || evt.action || "").toLowerCase();
+  const rawTime = evt.occurred_at_ts || evt.occurred_at || evt.created_at;
+
+  const key = email || name.toLowerCase();
+  const existing = rosterMap.get(key) || {
+    name,
+    email,
+    status: "",
+    lastSeen: null
+  };
+
+  const currentTime = rawTime ? new Date(rawTime).getTime() : 0;
+  const existingTime = existing.lastSeen ? new Date(existing.lastSeen).getTime() : 0;
+
+  if (!existing.lastSeen || currentTime >= existingTime) {
+    existing.name = name || existing.name;
+    existing.email = email || existing.email;
+    existing.status = status;
+    existing.lastSeen = rawTime;
+  }
+
+  rosterMap.set(key, existing);
+});
+
 const rosterRows = Array.from(rosterMap.values())
-  .filter(row => !excludedRosterNames.has(String(row.name || "").trim().toLowerCase()))
   .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 
     if (!rosterRows.length) {
