@@ -5243,8 +5243,14 @@ const activeClientPool = clientHealthRows
       if (!raw) return false;
       const dt = new Date(raw);
       if (isNaN(dt.getTime())) return false;
-      const dateKey = dt.toISOString().split("T")[0];
-      return dateKey === selectedDateOnly;
+      const mst = window.portal?.toMST ? window.portal.toMST(dt) : dt;
+
+const y = mst.getFullYear();
+const m = String(mst.getMonth() + 1).padStart(2, "0");
+const d = String(mst.getDate()).padStart(2, "0");
+
+const dateKey = `${y}-${m}-${d}`;
+return dateKey === selectedDateOnly;
     });
 
     const rosterMap = new Map();
@@ -5299,13 +5305,25 @@ let label = "Offline";
         const isTodaySelected = this.dailyStrategySelectedDate === new Date().toISOString().split("T")[0];
 
 if (isTodaySelected) {
-  if (st.includes("clock_in") || st.includes("resume") || st.includes("active")) {
+  if (
+    st.includes("clock_in") ||
+    st.includes("resume") ||
+    st.includes("break_end") ||
+    st.includes("in")
+  ) {
     badgeClass = "bg-emerald-100 text-emerald-700";
     label = "Working";
-  } else if (st.includes("break")) {
+  } else if (
+    st.includes("break") ||
+    st.includes("break_start")
+  ) {
     badgeClass = "bg-amber-100 text-amber-700";
     label = "On Break";
-  } else if (st.includes("clock_out") || st.includes("offline")) {
+  } else if (
+    st.includes("clock_out") ||
+    st.includes("out") ||
+    st.includes("offline")
+  ) {
     badgeClass = "bg-gray-100 text-gray-700";
     label = "Offline";
   }
