@@ -5290,6 +5290,8 @@ dayEvents.forEach(evt => {
   const status = String(evt.status || evt.event_type || evt.action || "").toLowerCase();
   const rawTime = evt.occurred_at_ts || evt.occurred_at || evt.created_at;
 
+  if (excludedRosterNames.has(name.toLowerCase())) return;
+
   const key = email || name.toLowerCase();
   const existing = rosterMap.get(key) || {
     name,
@@ -5312,6 +5314,7 @@ dayEvents.forEach(evt => {
 });
 
 const rosterRows = Array.from(rosterMap.values())
+  .filter(row => !excludedRosterNames.has(String(row.name || "").trim().toLowerCase()))
   .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 
     if (!rosterRows.length) {
