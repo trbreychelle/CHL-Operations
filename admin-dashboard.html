@@ -2098,27 +2098,30 @@ const reviewerIds = [
 let reviewerById = new Map();
 
 if (reviewerIds.length) {
-  const { data: profiles, error: profileError } = await supaClient
-    .from("profiles")
-    .select("id, display_name, email")
-    .in("id", reviewerIds);
+  const pairs = await Promise.all(
+    reviewerIds.map(async id => {
+      const { data, error } = await supaClient.rpc("get_profile_display_name", {
+        p_profile_id: id
+      });
 
-  if (!profileError && Array.isArray(profiles)) {
-    reviewerById = new Map(
-      profiles.map(p => [
-        String(p.id),
-        p.display_name || p.email || "Unknown reviewer"
-      ])
-    );
-  }
+      if (error) {
+        console.error("Reviewer name lookup failed:", id, error);
+        return [String(id), "Unknown reviewer"];
+      }
+
+      return [String(id), data || "Unknown reviewer"];
+    })
+  );
+
+  reviewerById = new Map(pairs);
 }
 
 this.passbookAuditRows = rows.map(ev => ({
   ...ev,
   command_center_team_state: (Array.isArray(ev.command_center_team_state) ? ev.command_center_team_state : []).map(st => ({
     ...st,
-    reviewed_by_name: reviewerById.get(String(st.reviewed_by_profile_id)) || "",
-reviewed_by_email: String(st.reviewed_by_profile_id || "")
+   reviewed_by_name: reviewerById.get(String(st.reviewed_by_profile_id)) || "",
+reviewed_by_email: ""
   }))
 }));
 
