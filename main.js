@@ -417,6 +417,11 @@ class CallHammerPortal {
 
     // If Admin/Management acknowledged a Passbook change,
 // notify Sales/Sales Rep that their change was reviewed.
+const ok = await this.markCommandCenterReviewed(eventId, resolvedTeamKey);
+
+if (!ok) return false;
+
+// NOW the row is updated → safe to propagate to sales
 if (resolvedTeamKey === 'admin_management') {
   try {
     const { data: adminStateRow, error: adminStateError } = await supaClient
@@ -424,11 +429,9 @@ if (resolvedTeamKey === 'admin_management') {
       .select('event_id, organization_id, reviewed_by_profile_id, reviewed_at')
       .eq('event_id', eventId)
       .eq('team_key', 'admin_management')
-      .maybeSingle();
+      .single();
 
     if (!adminStateError && adminStateRow) {
-      const reviewedAt = adminStateRow.reviewed_at || new Date().toISOString();
-
       const { error: salesAckError } = await supaClient
         .from('command_center_team_state')
         .upsert(
@@ -438,8 +441,8 @@ if (resolvedTeamKey === 'admin_management') {
             team_key: 'sales',
             is_unread: true,
             is_reviewed: true,
-            reviewed_by_profile_id: this.currentUser?.id || adminStateRow.reviewed_by_profile_id || null,
-            reviewed_at: reviewedAt,
+            reviewed_by_profile_id: adminStateRow.reviewed_by_profile_id,
+            reviewed_at: adminStateRow.reviewed_at,
             status: 'acknowledged'
           }],
           { onConflict: 'event_id,team_key' }
@@ -449,14 +452,10 @@ if (resolvedTeamKey === 'admin_management') {
         console.error('Sales acknowledgement notification failed:', salesAckError);
       }
     }
-  } catch (salesAckErr) {
-    console.error('Sales acknowledgement notification exception:', salesAckErr);
+  } catch (err) {
+    console.error('Sales acknowledgement propagation failed:', err);
   }
 }
-
-  const ok = await this.markCommandCenterReviewed(eventId, resolvedTeamKey);
-
-  if (!ok) return false;
 
   try {
     if (window.Admin?.loadPassbookModuleInbox) {
