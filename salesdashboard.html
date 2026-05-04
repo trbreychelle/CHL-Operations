@@ -1051,7 +1051,7 @@ async loadNotes() {
   this.refreshNotesTab();
 },
 
-      async renderDailyTab() {
+  async renderDailyTab() {
   const boardEl = document.getElementById("dailyStrategyBoard");
   const tabsEl = document.getElementById("dailyStrategyTabs");
   const weekLabelEl = document.getElementById("dailyStrategyWeekLabel");
@@ -1124,8 +1124,57 @@ async loadNotes() {
 
   this.dailyStrategyAssignments = assignments || [];
 
-  const rawClients = this.getState().rawClients || [];
+  const state = this.getState();
+  const rawClients = state.rawClients || state.clients || [];
+  const leads = state.leads || [];
   const clientById = new Map(rawClients.map(c => [String(c.id), c]));
+
+  const selectedDate = this.dailyStrategySelectedDate;
+
+  const leadDateKey = (lead) => {
+    const dt = this.getLeadDateObj(lead);
+    return dt ? this._fmtDateKey(dt) : "";
+  };
+
+  const countClientLeadsForDay = (companyName, statusType) => {
+    const boardName = this.normalizeCompanyName(companyName);
+
+    return leads.filter(l => {
+      if (leadDateKey(l) !== selectedDate) return false;
+
+      const leadCompany = this.normalizeCompanyName(
+        this.getLeadField(l, ["Company Name", "company_name", "roofing_company", "Client"], "")
+      );
+
+      if (leadCompany !== boardName) return false;
+
+      const st = this.getLeadField(l, ["Status", "status", "STATUS", "Lead_Status"], "");
+
+      if (statusType === "pending") {
+        return !this.isQualified(st) && !this.isCredited(st) && !this.isRejected(st);
+      }
+
+      if (statusType === "set") {
+        return this.isQualified(st);
+      }
+
+      if (statusType === "rejected") {
+        return this.isRejected(st);
+      }
+
+      return false;
+    }).length;
+  };
+
+  const getHealthRow = (clientCode, companyName) => {
+    const code = String(clientCode || "").trim().toLowerCase();
+    const name = this.normalizeCompanyName(companyName);
+
+    return (this.clientHealthRaw || []).find(r =>
+      String(r.code || "").trim().toLowerCase() === code ||
+      this.normalizeCompanyName(String(r.roofingCompany || "").replace(/<[^>]*>/g, "")) === name
+    ) || {};
+  };
 
   const renderLane = (lane, title, icon) => {
     const rows = this.dailyStrategyAssignments.filter(r => r.lane === lane);
@@ -1135,29 +1184,93 @@ async loadNotes() {
         <div class="px-5 py-4 border-b border-gray-100 bg-gray-50">
           <h3 class="font-black text-gray-900 flex items-center gap-2">${icon} ${title}</h3>
         </div>
+
         <div class="p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           ${rows.length ? rows.map(row => {
             const c = clientById.get(String(row.client_id)) || {};
-            const company = c.company_name || row.client_code || "Unknown Client";
+            const company = c.company_name || c.roofing_company || row.company_name || row.client_code || "Unknown Client";
+            const health = getHealthRow(row.client_code, company);
+
+            const packageLabel = health.packageLabel || "0 / 0";
+            const leadLimit = c.leads_per_day_limit || health.leadsPerDayLimit || 0;
+            const salesReps = c.sales_rep_count || health.salesRepCount || 0;
+
+            const pending = countClientLeadsForDay(company, "pending");
+            const setToday = countClientLeadsForDay(company, "set");
+            const rejected = countClientLeadsForDay(company, "rejected");
+
+            const goal = Number(row.daily_goal || 0);
+            const remaining = Math.max(goal - setToday, 0);
+
+            let cardColor = "border-gray-200 bg-white";
+
+            if (goal > 0) {
+              if (setToday >= goal) {
+                cardColor = "border-emerald-300 bg-emerald-50";
+              } else if ((setToday + pending) >= goal) {
+                cardColor = "border-yellow-300 bg-yellow-50";
+              } else if (remaining === 1 && pending === 0) {
+                cardColor = "border-red-300 bg-red-50";
+              }
+            }
+
             const note = String(row.notes || "").trim();
-            const noteHtml = note
-              ? `<div class="mt-3 rounded-xl bg-orange-50 border border-orange-100 p-3 text-xs text-orange-800">
-                   <div class="font-black mb-1">🔥 Sales Note</div>
-                   <div class="whitespace-pre-wrap">${note.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
-                   <div class="mt-2 text-[10px] text-orange-500 font-bold">Added by ${row.created_by_name || "Sales"}</div>
-                 </div>`
-              : "";
 
             return `
-              <div class="rounded-2xl border border-gray-100 p-4 bg-white shadow-sm">
-                <div class="flex items-start justify-between gap-2">
+              <div class="rounded-2xl border ${cardColor} shadow-sm p-4">
+                <div class="flex items-start justify-between gap-3 mb-3">
                   <div>
-                    <div class="font-black text-gray-900">${company}</div>
-                    <div class="text-xs text-gray-500 mt-1">${row.client_code || "—"}</div>
+                    <div class="text-[11px] font-extrabold uppercase tracking-wide text-gray-400">${row.client_code || "—"}</div>
+
+                    <div class="flex items-center gap-2">
+                      <div class="text-base font-black text-gray-900">${company}</div>
+                      ${note ? `<span class="px-2 py-1 rounded-lg bg-orange-50 border border-orange-200 text-[11px] font-black text-orange-700" title="${note.replace(/"/g, "&quot;")}">🔥</span>` : ""}
+                    </div>
+
+                    <div class="text-xs text-gray-500 mt-1">${c.area || c.city_state || health.cityState || "—"}</div>
                   </div>
-                  ${note ? `<span class="text-xl" title="Sales note">🔥</span>` : ""}
                 </div>
-                ${noteHtml}
+
+                <div class="grid grid-cols-2 gap-2 text-xs mb-3">
+                  <div class="rounded-xl bg-white border border-gray-200 p-2">
+                    <div class="text-gray-400 font-bold uppercase">Package</div>
+                    <div class="text-gray-900 font-black mt-1">${packageLabel}</div>
+                  </div>
+
+                  <div class="rounded-xl bg-white border border-gray-200 p-2">
+                    <div class="text-gray-400 font-bold uppercase">Lead Limit</div>
+                    <div class="text-gray-900 font-black mt-1">${leadLimit}</div>
+                  </div>
+
+                  <div class="rounded-xl bg-white border border-gray-200 p-2">
+                    <div class="text-gray-400 font-bold uppercase">Sales Reps</div>
+                    <div class="text-gray-900 font-black mt-1">${salesReps}</div>
+                  </div>
+
+                  <div class="rounded-xl bg-white border border-gray-200 p-2">
+                    <div class="text-gray-400 font-bold uppercase">Pending</div>
+                    <div class="text-yellow-600 font-black mt-1">${pending}</div>
+                  </div>
+
+                  <div class="rounded-xl bg-white border border-gray-200 p-2">
+                    <div class="text-gray-400 font-bold uppercase">Set Today</div>
+                    <div class="text-blue-600 font-black mt-1">${setToday}</div>
+                  </div>
+
+                  <div class="rounded-xl bg-white border border-gray-200 p-2">
+                    <div class="text-gray-400 font-bold uppercase">QC Rejected</div>
+                    <div class="text-red-500 font-black mt-1">${rejected}</div>
+                  </div>
+                </div>
+
+                <div class="rounded-xl bg-white border border-gray-200 p-3 text-xs">
+                  <div class="text-gray-400 font-bold uppercase mb-1">Assigned Agents</div>
+                  <div class="font-black text-gray-900">${row.assigned_agents || "—"}</div>
+                </div>
+
+                <div class="mt-2 rounded-xl bg-gray-900 text-white px-3 py-2 text-xs font-black text-center">
+                  Daily Goal: ${goal}
+                </div>
               </div>
             `;
           }).join("") : `<div class="text-sm text-gray-400 italic">No clients in ${title}.</div>`}
