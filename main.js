@@ -324,7 +324,6 @@ const allowedModules =
         )
       `)
       .eq('team_key', 'sales')
-      .eq('status', 'acknowledged')
       .eq('is_unread', true)
       .order('updated_at', { ascending: false })
       .limit(limit);
