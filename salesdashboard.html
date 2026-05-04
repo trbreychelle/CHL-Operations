@@ -1052,7 +1052,7 @@ try {
   this.refreshNotificationsTab?.();
 
   const teamKey = window.portal?.getCommandCenterTeamKey?.() || 'sales';
-  const rows = await window.portal.fetchCommandCenterNotifications(teamKey, 100);
+  const rows = await window.portal.fetchSalesPassbookAcknowledgements(100);
 
   this.notifications = Array.isArray(rows) ? rows : [];
   this.notificationsLoading = false;
