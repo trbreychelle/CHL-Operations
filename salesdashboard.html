@@ -122,6 +122,9 @@
       <div>
         <div class="px-6 mb-2 text-[10px] font-bold uppercase text-gray-400 tracking-wider">Sales Operations</div>
         <nav class="space-y-1">
+          <a href="#daily" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('daily', this)">
+  <i class="fa-solid fa-calendar-day w-5 text-center"></i> Daily Strategy
+</a>
           <a href="#overview" class="nav-item active flex items-center px-6 py-3 text-sm" onclick="Admin.nav('overview', this)">
             <i class="fa-solid fa-satellite-dish w-5 text-center"></i> Overview
           </a>
@@ -383,6 +386,73 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+      <div id="view-daily" class="view-section">
+  <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+    <div>
+      <h2 class="text-2xl font-bold text-gray-900">Daily Strategy Board</h2>
+      <p class="text-sm text-gray-500 mt-1">View today’s strategy and submit client notes to Next Up.</p>
+    </div>
+  </div>
+
+  <div class="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-3xl shadow-xl border border-slate-800 p-5 mb-6 text-white">
+    <div class="flex items-center justify-between gap-3 mb-4">
+      <h3 class="font-black text-white flex items-center gap-2">
+        <i class="fa-solid fa-calendar-week text-yellow-300"></i> Strategy Week
+      </h3>
+      <div id="dailyStrategyWeekLabel" class="text-xs font-black text-blue-100">Loading week...</div>
+    </div>
+    <div id="dailyStrategyTabs" class="flex flex-wrap gap-2"></div>
+  </div>
+
+  <div class="space-y-6">
+    <div id="dailyStrategyBoard" class="space-y-6">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div class="text-sm text-gray-400 italic">Loading strategy board...</div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-amber-50 to-orange-50">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <h3 class="font-black text-gray-900 flex items-center gap-2">
+              <i class="fa-solid fa-layer-group text-amber-500"></i> Active Client Pool
+            </h3>
+            <p class="text-xs text-gray-500 mt-1">Click 🔥 to add a sales note and submit to Next Up.</p>
+
+            <div class="mt-3 flex flex-col md:flex-row gap-3">
+              <div class="flex-1 relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+                <input
+                  id="daily-client-pool-search"
+                  type="text"
+                  placeholder="Search roofing company, client code, or client number..."
+                  class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                />
+              </div>
+
+              <select
+                id="daily-client-pool-status"
+                class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[180px] text-blue-700"
+              >
+                <option value="ONGOING" selected>ONGOING</option>
+                <option value="PAUSE">PAUSE</option>
+                <option value="ALL">ALL</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="dailyClientPoolCount" class="text-xs font-black text-gray-400">0 clients</div>
+        </div>
+      </div>
+
+      <div id="daily-client-pool" class="p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div class="text-sm text-gray-400 italic">Loading client pool...</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -726,6 +796,49 @@
           </div>
         </div>
       </div>
+
+      <div id="sales-fire-note-modal" class="hidden fixed inset-0 z-[120] flex items-center justify-center">
+  <div class="absolute inset-0 bg-black/40" onclick="Admin.closeSalesFireNoteModal()"></div>
+
+  <div class="relative bg-white rounded-2xl shadow-xl w-[92%] max-w-lg p-6 border border-gray-100">
+    <div class="flex items-start justify-between gap-4 mb-4">
+      <div>
+        <h3 class="text-xl font-black text-gray-900">🔥 Add Sales Note</h3>
+        <p class="text-sm text-gray-500 mt-1" id="sales-fire-note-client-label">Client</p>
+      </div>
+      <button
+        type="button"
+        onclick="Admin.closeSalesFireNoteModal()"
+        class="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <input type="hidden" id="sales-fire-note-client-id" />
+
+    <textarea
+      id="sales-fire-note-text"
+      rows="6"
+      placeholder="Add the sales note for this client..."
+      class="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+    ></textarea>
+
+    <div class="flex items-center justify-end gap-2 mt-4">
+      <button
+        type="button"
+        onclick="Admin.closeSalesFireNoteModal()"
+        class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
+        Cancel
+      </button>
+      <button
+        type="button"
+        onclick="Admin.submitSalesFireNote()"
+        class="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-extrabold hover:bg-orange-600">
+        Add to Next Up
+      </button>
+    </div>
+  </div>
+</div>
       
       <div id="add-sale-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center">
         <div class="absolute inset-0 bg-black/40" onclick="document.getElementById('add-sale-modal').classList.add('hidden')"></div>
@@ -818,6 +931,10 @@ notes: [],
 notesLoading: false,
 noteDraft: '',
 currentView: 'overview',
+      dailyStrategyWeekRows: [],
+dailyStrategySelectedDate: null,
+dailyStrategyAssignments: [],
+_salesFireClientId: null,
       _salesCustomRange: { active: false, start: null, end: null },
       _salesBound: false,
       clientHealthRaw: [],
@@ -905,6 +1022,7 @@ try {
 
         try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
         try { if (this.currentView === 'notifications') { this.loadNotifications(); this.loadNotes(); } } catch(e) {}
+        try { this.renderDailyTab(); } catch(e) { console.error("Daily Strategy Error:", e); }
       },
 
       async loadNotifications(force = false) {
@@ -932,6 +1050,296 @@ async loadNotes() {
   this.notesLoading = false;
   this.refreshNotesTab();
 },
+
+      async renderDailyTab() {
+  const boardEl = document.getElementById("dailyStrategyBoard");
+  const tabsEl = document.getElementById("dailyStrategyTabs");
+  const weekLabelEl = document.getElementById("dailyStrategyWeekLabel");
+  const clientPoolEl = document.getElementById("daily-client-pool");
+
+  if (!boardEl || !tabsEl || !clientPoolEl) return;
+  if (typeof supaClient === "undefined" || !supaClient) return;
+
+  const orgId = window.portal?.currentUser?.organization_id;
+  if (!orgId) return;
+
+  const today = new Date();
+  const start = window.portal?.getPayrollWeekStart
+    ? window.portal.getPayrollWeekStart(today)
+    : today;
+
+  const dates = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    dates.push(d);
+  }
+
+  const toDateKey = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  if (!this.dailyStrategySelectedDate) {
+    this.dailyStrategySelectedDate = toDateKey(today);
+    if (!dates.some(d => toDateKey(d) === this.dailyStrategySelectedDate)) {
+      this.dailyStrategySelectedDate = toDateKey(dates[0]);
+    }
+  }
+
+  if (weekLabelEl) {
+    weekLabelEl.textContent = `${dates[0].toLocaleDateString()} → ${dates[6].toLocaleDateString()}`;
+  }
+
+  tabsEl.innerHTML = dates.map(d => {
+    const key = toDateKey(d);
+    const active = key === this.dailyStrategySelectedDate;
+    const label = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+
+    return `
+      <button
+        type="button"
+        onclick="Admin.selectDailyStrategyDate('${key}')"
+        class="px-4 py-2 rounded-2xl text-xs font-black ${active ? 'bg-white text-slate-900 shadow' : 'bg-white/10 border border-white/20 text-white'}">
+        ${label}
+      </button>
+    `;
+  }).join("");
+
+  const { data: assignments, error: assignmentError } = await supaClient
+    .from("daily_strategy_assignments")
+    .select("*")
+    .eq("organization_id", orgId)
+    .eq("strategy_date", this.dailyStrategySelectedDate)
+    .eq("is_active", true)
+    .order("position_index", { ascending: true });
+
+  if (assignmentError) {
+    console.error("Sales daily assignments failed:", assignmentError);
+    boardEl.innerHTML = `<div class="bg-white rounded-2xl border border-red-100 shadow-sm p-5 text-sm text-red-600">Failed to load board.</div>`;
+    return;
+  }
+
+  this.dailyStrategyAssignments = assignments || [];
+
+  const rawClients = this.getState().rawClients || [];
+  const clientById = new Map(rawClients.map(c => [String(c.id), c]));
+
+  const renderLane = (lane, title, icon) => {
+    const rows = this.dailyStrategyAssignments.filter(r => r.lane === lane);
+
+    return `
+      <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100 bg-gray-50">
+          <h3 class="font-black text-gray-900 flex items-center gap-2">${icon} ${title}</h3>
+        </div>
+        <div class="p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          ${rows.length ? rows.map(row => {
+            const c = clientById.get(String(row.client_id)) || {};
+            const company = c.company_name || row.client_code || "Unknown Client";
+            const note = String(row.notes || "").trim();
+            const noteHtml = note
+              ? `<div class="mt-3 rounded-xl bg-orange-50 border border-orange-100 p-3 text-xs text-orange-800">
+                   <div class="font-black mb-1">🔥 Sales Note</div>
+                   <div class="whitespace-pre-wrap">${note.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
+                   <div class="mt-2 text-[10px] text-orange-500 font-bold">Added by ${row.created_by_name || "Sales"}</div>
+                 </div>`
+              : "";
+
+            return `
+              <div class="rounded-2xl border border-gray-100 p-4 bg-white shadow-sm">
+                <div class="flex items-start justify-between gap-2">
+                  <div>
+                    <div class="font-black text-gray-900">${company}</div>
+                    <div class="text-xs text-gray-500 mt-1">${row.client_code || "—"}</div>
+                  </div>
+                  ${note ? `<span class="text-xl" title="Sales note">🔥</span>` : ""}
+                </div>
+                ${noteHtml}
+              </div>
+            `;
+          }).join("") : `<div class="text-sm text-gray-400 italic">No clients in ${title}.</div>`}
+        </div>
+      </div>
+    `;
+  };
+
+  boardEl.innerHTML = [
+    renderLane("serving_now", "Serving Now", "🚀"),
+    renderLane("next_up", "Next Up", "⏭️")
+  ].join("");
+
+  this.renderSalesDailyClientPool();
+},
+
+selectDailyStrategyDate(dateStr) {
+  this.dailyStrategySelectedDate = dateStr;
+  this.renderDailyTab();
+},
+
+renderSalesDailyClientPool() {
+  const wrap = document.getElementById("daily-client-pool");
+  const countEl = document.getElementById("dailyClientPoolCount");
+  if (!wrap) return;
+
+  const rows = Array.isArray(this.clientHealthRaw) ? this.clientHealthRaw : [];
+  const q = String(document.getElementById("daily-client-pool-search")?.value || "").toLowerCase().trim();
+  const status = String(document.getElementById("daily-client-pool-status")?.value || "ONGOING").toUpperCase();
+
+  const existingCodes = new Set(
+    (this.dailyStrategyAssignments || []).map(r => String(r.client_code || "").trim().toLowerCase())
+  );
+
+  let filtered = rows.filter(r => {
+    const code = String(r.code || "").trim().toLowerCase();
+    if (!code || existingCodes.has(code)) return false;
+
+    const pkgStatus = String(r.packageStatus || "").toUpperCase();
+    if (status !== "ALL" && pkgStatus !== status) return false;
+
+    const blob = `${r.code} ${r.roofingCompany} ${r.clientName} ${r.cityState}`.toLowerCase();
+    if (q && !blob.includes(q)) return false;
+
+    return true;
+  });
+
+  if (countEl) countEl.textContent = `${filtered.length} clients`;
+
+  if (!filtered.length) {
+    wrap.innerHTML = `<div class="text-sm text-gray-400 italic">No clients found.</div>`;
+    return;
+  }
+
+  wrap.innerHTML = filtered.map(r => {
+    const rawClient = (this.getState().rawClients || []).find(c =>
+      String(c.client_code || c.code_name || "").trim().toLowerCase() === String(r.code || "").trim().toLowerCase()
+    ) || {};
+
+    return `
+      <div class="rounded-2xl border border-gray-100 p-4 bg-white shadow-sm relative">
+        <button
+          type="button"
+          onclick="Admin.openSalesFireNoteModal('${rawClient.id || ""}', '${String(r.roofingCompany || r.code).replace(/<[^>]*>/g, "").replace(/'/g, "\\'")}')"
+          class="absolute top-3 right-3 w-9 h-9 rounded-full bg-orange-50 hover:bg-orange-100 text-lg shadow-sm"
+          title="Add sales note">
+          🔥
+        </button>
+
+        <div class="pr-10">
+          <div class="font-black text-gray-900">${r.roofingCompany}</div>
+          <div class="text-xs text-gray-500 mt-1">${r.code} • ${r.cityState || "—"}</div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 mt-4 text-center">
+          <div class="rounded-xl bg-gray-50 p-2">
+            <div class="text-[10px] font-bold text-gray-400 uppercase">Owed</div>
+            <div class="font-black text-gray-900">${r.owedRemaining ?? 0}</div>
+          </div>
+          <div class="rounded-xl bg-blue-50 p-2">
+            <div class="text-[10px] font-bold text-blue-400 uppercase">Qualified</div>
+            <div class="font-black text-blue-700">${r.qualifiedCount ?? 0}</div>
+          </div>
+          <div class="rounded-xl bg-purple-50 p-2">
+            <div class="text-[10px] font-bold text-purple-400 uppercase">Credited</div>
+            <div class="font-black text-purple-700">${r.creditedCount ?? 0}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  const searchEl = document.getElementById("daily-client-pool-search");
+  if (searchEl && !searchEl.dataset.bound) {
+    searchEl.dataset.bound = "true";
+    searchEl.addEventListener("input", () => {
+      clearTimeout(this._dailyPoolSearchTimer);
+      this._dailyPoolSearchTimer = setTimeout(() => this.renderSalesDailyClientPool(), 180);
+    });
+  }
+
+  const statusEl = document.getElementById("daily-client-pool-status");
+  if (statusEl && !statusEl.dataset.bound) {
+    statusEl.dataset.bound = "true";
+    statusEl.addEventListener("change", () => this.renderSalesDailyClientPool());
+  }
+},
+
+openSalesFireNoteModal(clientId, label) {
+  if (!clientId) {
+    alert("Client ID missing. Refresh and try again.");
+    return;
+  }
+
+  this._salesFireClientId = clientId;
+
+  const modal = document.getElementById("sales-fire-note-modal");
+  const labelEl = document.getElementById("sales-fire-note-client-label");
+  const hidden = document.getElementById("sales-fire-note-client-id");
+  const text = document.getElementById("sales-fire-note-text");
+
+  if (labelEl) labelEl.textContent = label || "Client";
+  if (hidden) hidden.value = clientId;
+  if (text) text.value = "";
+  if (modal) modal.classList.remove("hidden");
+
+  setTimeout(() => text?.focus(), 50);
+},
+
+closeSalesFireNoteModal() {
+  const modal = document.getElementById("sales-fire-note-modal");
+  const hidden = document.getElementById("sales-fire-note-client-id");
+  const text = document.getElementById("sales-fire-note-text");
+
+  this._salesFireClientId = null;
+  if (hidden) hidden.value = "";
+  if (text) text.value = "";
+  if (modal) modal.classList.add("hidden");
+},
+
+async submitSalesFireNote() {
+  if (typeof supaClient === "undefined" || !supaClient) {
+    alert("Database connection missing.");
+    return;
+  }
+
+  const orgId = window.portal?.currentUser?.organization_id;
+  const clientId = this._salesFireClientId || document.getElementById("sales-fire-note-client-id")?.value;
+  const note = String(document.getElementById("sales-fire-note-text")?.value || "").trim();
+
+  if (!orgId || !clientId || !this.dailyStrategySelectedDate) {
+    alert("Missing board/client details. Refresh and try again.");
+    return;
+  }
+
+  if (!note) {
+    alert("Please add a note before submitting.");
+    return;
+  }
+
+  const { error } = await supaClient.rpc("add_daily_strategy_assignment", {
+    p_organization_id: orgId,
+    p_strategy_date: this.dailyStrategySelectedDate,
+    p_client_id: clientId,
+    p_lane: "next_up",
+    p_assigned_agents: null,
+    p_daily_goal: 0,
+    p_notes: note,
+    p_actor_profile_id: window.portal?.currentUser?.id || null,
+    p_actor_name: window.portal?.currentUser?.name || window.portal?.currentUser?.email || "Sales",
+    p_actor_role: window.portal?.currentUser?.role || "sales"
+  });
+
+  if (error) {
+    console.error("Sales fire note failed:", error);
+    alert(error.message || "Failed to add client to Next Up.");
+    return;
+  }
+
+  this.closeSalesFireNoteModal();
+  await this.renderDailyTab();
+}
 
 refreshNotificationsTab() {
   const wrap = document.getElementById('notifications-feed');
