@@ -2633,6 +2633,17 @@ if (form) {
 
     if (fieldChanges.length > 0) {
       const eventId = await this.createCommandCenterEvent({
+        if (eventId) {
+  await supaClient.from('command_center_team_state').insert([
+    {
+      event_id: eventId,
+      organization_id: this.getCurrentOrganizationId(),
+      team_key: 'admin_management',
+      is_unread: true,
+      is_reviewed: false
+    }
+  ]);
+}
         moduleKey: 'passbook_clients',
         entityType: 'client',
         entityId: String(newRow.id || oldRow.id || finalClientCode),
