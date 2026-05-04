@@ -2002,6 +2002,21 @@ noteDraft: '',
 
       getState() { return window.portal?.adminState || {}; },
 
+      openDailySalesNote(assignmentId) {
+  const row = (this.dailyStrategyAssignments || []).find(r => String(r.id) === String(assignmentId));
+
+  if (!row) {
+    alert("Sales note not found. Refresh the Daily Strategy tab.");
+    return;
+  }
+
+  this.openAdminFireNoteModal(
+    row.notes || "",
+    row.company_name || row.client_code || "Client",
+    row.created_by_name || "Sales"
+  );
+},
+
       openAdminFireNoteModal(note, client, author) {
   document.getElementById("admin-fire-note-client").innerText = client || "Client";
   document.getElementById("admin-fire-note-content").innerText = note || "";
