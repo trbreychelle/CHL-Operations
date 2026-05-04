@@ -138,7 +138,9 @@
   <i class="fa-solid fa-list-check w-5 text-center"></i> Onboarding
 </a>
 <a href="#clients" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('clients', this)">
-  <i class="fa-solid fa-building w-5 text-center"></i> Passbook Clients
+  <i class="fa-solid fa-building w-5 text-center"></i>
+  <span class="flex-1">Passbook Clients</span>
+  <span id="sales-passbook-tab-badge" class="hidden ml-2 min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-black inline-flex items-center justify-center">0</span>
 </a>
           <a href="#leads" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('leads', this)">
             <i class="fa-solid fa-list-check w-5 text-center"></i> Leads Tracker
@@ -946,6 +948,7 @@ _salesFireClientId: null,
       _leadsSort: { key: "date_submitted", dir: "desc" }, 
       _passbookView: "cards",
       _passbookFiltersBound: false,
+      passbookAckInbox: [],
       _owedKpiBound: false,
       _leadsIndexByCompany: null,
       _analyticsChart: null,
@@ -975,6 +978,24 @@ _onboardingDraftsBound: false,
   if (view === 'overview' && this._analyticsChart) {
     setTimeout(() => this._analyticsChart?.resize?.(), 100);
   }
+},
+
+      async loadSalesPassbookAckInbox() {
+  if (!window.portal?.fetchPassbookModuleInbox) return;
+
+  const teamKey = window.portal?.getCommandCenterTeamKey?.() || "sales";
+  const rows = await window.portal.fetchPassbookModuleInbox(teamKey, 100);
+
+  this.passbookAckInbox = Array.isArray(rows) ? rows : [];
+
+  const badge = document.getElementById("sales-passbook-tab-badge");
+  if (!badge) return;
+
+  const count = this.passbookAckInbox.length || 0;
+  badge.textContent = count;
+
+  if (count > 0) badge.classList.remove("hidden");
+  else badge.classList.add("hidden");
 },
 
       refreshDashboard() {
@@ -1011,6 +1032,7 @@ try {
   this.setupPassbookFilters(passbookClients);
   this.bindPassbookUI(passbookClients);
   this.applyPassbookFilters(passbookClients);
+  this.loadSalesPassbookAckInbox();
 } catch(e) { console.error("Passbook Error:", e); }
         
         try {
@@ -2777,14 +2799,14 @@ async deleteQuickNote(noteId) {
   const fields = [
     { label: "Code Name", key: "client_code", locked: true },
     { label: "Company Name", key: "company_name", locked: true },
-    { label: "Phone", key: "phone" },
-    { label: "Contact Person", key: "contact_person" },
+    { label: "Phone", key: "phone", locked: true },
+    { label: "Contact Person", key: "contact_person", locked: true },
     { label: "Area / City State", key: "area" },
     { label: "Area Codes To Use", key: "area_codes_to_use", long: true },
-    { label: "Email", key: "email" },
+    { label: "Email", key: "email", locked: true },
     { label: "Website", key: "website" },
     { label: "Status", key: "client_status" },
-    { label: "Company Address", key: "company_address", long: true },
+    { label: "Company Address", key: "company_address", long: true, locked: true },
     { label: "Sales Rep Count", key: "sales_rep_count" },
     { label: "Regions / Cities / Zip Codes", key: "regions", long: true },
     { label: "Days of Operation", key: "days_of_operation" },
