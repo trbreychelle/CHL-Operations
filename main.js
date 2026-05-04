@@ -2137,8 +2137,26 @@ renderAgentPayrollDaily(rows) {
     }
   }
 
-  getPassbookTeamKeys(clientRow = {}, updates = {}) {
-  return ['admin_management', 'sales'];
+ getPassbookTeamKeys(clientRow = {}, updates = {}) {
+  const role = String(this.currentUser?.role || "").toLowerCase();
+
+  // Sales + Sales Rep changes should notify Admin.
+  if (
+    role === "sales" ||
+    role === "sales_rep" ||
+    role === "team_leader" ||
+    role === "team leader" ||
+    role === "tl"
+  ) {
+    return ["admin_management"];
+  }
+
+  // Admin / Management changes should notify Sales.
+  if (role === "admin" || role === "management") {
+    return ["sales"];
+  }
+
+  return ["admin_management"];
 }
 
   getPassbookTrackedFields() {
@@ -2614,7 +2632,7 @@ if (form) {
     const fieldChanges = this.buildFieldChanges(oldRow, newRow, trackedFields);
 
     if (fieldChanges.length > 0) {
-      await this.createCommandCenterEvent({
+      const eventId = await this.createCommandCenterEvent({
         moduleKey: 'passbook_clients',
         entityType: 'client',
         entityId: String(newRow.id || oldRow.id || finalClientCode),
@@ -2628,6 +2646,15 @@ if (form) {
         severity: 'normal',
         teamKeys: this.getPassbookTeamKeys(oldRow, newRow)
       });
+      if (!eventId) {
+  console.error("Passbook update saved, but notification event was not created.", {
+    finalClientCode,
+    fieldChanges,
+    actor: this.currentUser
+  });
+
+  alert("Client saved, but the admin notification was not created. Check console.");
+}
     }
 
     // 5. Refresh dashboard views
