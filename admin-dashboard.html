@@ -205,7 +205,9 @@ body.client-health-lock {
             <i class="fa-solid fa-list-check w-5 text-center"></i> Onboarding
           </a>
           <a href="#clients" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('clients', this)">
-            <i class="fa-solid fa-building w-5 text-center"></i> Passbook Clients
+           <i class="fa-solid fa-building w-5 text-center"></i>
+<span class="flex-1">Passbook Clients</span>
+<span id="passbook-tab-badge" class="hidden ml-2 min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-black inline-flex items-center justify-center">0</span>
           </a>
           <a href="#leads" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('leads', this)">
             <i class="fa-solid fa-list-check w-5 text-center"></i> Leads Tracker
@@ -1988,6 +1990,9 @@ hrSubtab: 'overview',
       // Passbook View state
       _passbookView: "cards",
       _passbookFiltersBound: false,
+      passbookModuleInbox: [],
+passbookChangedByCode: new Map(),
+_lastPassbookClients: [],
       _owedKpiBound: false,
 
       notifications: [],
@@ -2029,6 +2034,83 @@ closeAdminFireNoteModal() {
   document.getElementById("admin-fire-note-modal").classList.add("hidden");
 },
 
+      async loadPassbookModuleInbox() {
+  if (!window.portal?.fetchPassbookModuleInbox) return;
+
+  const rows = await window.portal.fetchPassbookModuleInbox('admin_management', 100);
+  this.passbookModuleInbox = Array.isArray(rows) ? rows : [];
+
+  const byCode = new Map();
+
+  this.passbookModuleInbox.forEach(item => {
+    const ev = item.command_center_events || {};
+    const code = String(ev.entity_code || "").trim().toLowerCase();
+    if (!code) return;
+
+    const existing = byCode.get(code) || [];
+    existing.push(item);
+    byCode.set(code, existing);
+  });
+
+  this.passbookChangedByCode = byCode;
+  this.updatePassbookTabBadge();
+
+  if (Array.isArray(this._lastPassbookClients) && this._lastPassbookClients.length) {
+    this.applyPassbookFilters(this._lastPassbookClients);
+  }
+},
+
+updatePassbookTabBadge() {
+  const badge = document.getElementById("passbook-tab-badge");
+  if (!badge) return;
+
+  const count = this.passbookModuleInbox?.length || 0;
+  badge.textContent = count;
+
+  if (count > 0) badge.classList.remove("hidden");
+  else badge.classList.add("hidden");
+},
+
+getPassbookChangeItemsForCode(code) {
+  const key = String(code || "").trim().toLowerCase();
+  return this.passbookChangedByCode?.get(key) || [];
+},
+
+getPassbookChangedFieldsForCode(code) {
+  const items = this.getPassbookChangeItemsForCode(code);
+  const fields = new Set();
+
+  items.forEach(item => {
+    const ev = item.command_center_events || {};
+    const changes = Array.isArray(ev.field_changes) ? ev.field_changes : [];
+
+    changes.forEach(ch => {
+      if (ch?.field) fields.add(String(ch.field));
+    });
+  });
+
+  return fields;
+},
+
+async acknowledgePassbookChangesForCode(code) {
+  const items = this.getPassbookChangeItemsForCode(code);
+
+  if (!items.length) {
+    alert("No open Passbook changes found for this client.");
+    return;
+  }
+
+  for (const item of items) {
+    const eventId = item.event_id || item.command_center_events?.id;
+    if (eventId) {
+      await window.portal.acknowledgePassbookChange(eventId, "admin_management");
+    }
+  }
+
+  await this.loadPassbookModuleInbox();
+  alert("Passbook change acknowledged.");
+},
+      
       refreshDashboard() {
         const state = this.getState();
 if (!state) return;
@@ -2074,7 +2156,11 @@ const packages = state.packages || [];
   this.setHRSubtab(this.hrSubtab || 'overview');
 } catch(e) { console.error("HR Error:", e); }
         try { this.bindSalesUI(); this.renderSalesTab(); } catch(e) { console.error("Sales Error:", e); } 
-        try { this.bindPassbookUI(rawClients); this.applyPassbookFilters(rawClients); } catch(e) {}
+       try {
+  this.bindPassbookUI(rawClients);
+  this.applyPassbookFilters(rawClients);
+  this.loadPassbookModuleInbox();
+} catch(e) {}
         try { this.bindOverviewAnalyticsUI(); } catch(e) {}
         try { this.renderOnboardingTab(); } catch(e) { console.error("Onboarding Error:", e); }
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
@@ -3934,50 +4020,49 @@ const renderBottomRow = (a) => {
 },
 
       renderClientCards(clients) {
-        const container = document.getElementById('client-cards-container');
-        if (!container) return;
-        container.innerHTML = (clients || []).map(client => {
-          const code = this.extractCode(client);
-          return `<div class="text-left bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition relative" data-passbook-code="${code}" data-passbook-client-code="${code}">
+  const container = document.getElementById('client-cards-container');
+  if (!container) return;
 
-            <div onclick="Admin.openPassbookClient('${String(code).replace(/'/g, "\\'")}')" class="cursor-pointer">
-                <div class="flex items-center justify-between">
-                    <h3 class="font-bold text-gray-900 text-lg">${this.extractRoofingCompany(client)}</h3>
-                    <span class="text-xs font-bold text-gray-500">${code}</span>
-                </div>
-                <p class="text-xs text-gray-500 mt-1">${this.extractCityState(client)}</p>
-                <p class="text-[10px] font-extrabold text-yellow-600 uppercase tracking-wider mt-3">Click to open</p>
-            </div>
+  container.innerHTML = (clients || []).map(c => {
+    const code = this.extractCode(c);
+    const key = String(code || "").trim().toLowerCase();
+    const changed = this.passbookChangedByCode?.has(key);
+    const changeCount = this.getPassbookChangeItemsForCode(code).length;
 
-            <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center relative z-10">
-                
-                <label class="flex items-center text-sm text-gray-600 cursor-pointer">
-                    <input type="checkbox" class="mr-2" 
-                           onchange="toggleShareWithSales('${code}', this)" 
-                           ${client.shared_with_sales ? 'checked' : ''}>
-                    Share with Sales
-                </label>
+    return `
+      <div
+        onclick="Admin.openPassbookClient('${String(code).replace(/'/g, "\\'")}')"
+        class="text-left p-6 rounded-2xl border shadow-sm hover:shadow-md transition cursor-pointer ${
+          changed
+            ? 'bg-emerald-50 border-emerald-300 ring-2 ring-emerald-200'
+            : 'bg-white border-gray-100 hover:border-gray-200'
+        }"
+      >
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h3 class="font-bold text-gray-900 text-lg">${this.extractRoofingCompany(c)}</h3>
+            <p class="text-xs text-gray-500 mt-1">${this.extractCityState(c)}</p>
+          </div>
 
-                <div class="flex items-center gap-2">
-                    <select id="status-select-${client.id}" 
-                            onchange="updateClientStatus('${client.id}', this.value)" 
-                            class="px-2 py-1 rounded-full text-[10px] font-extrabold border outline-none cursor-pointer transition-all shadow-sm ${window.getClientStatusColor ? getClientStatusColor(client.client_status) : ''}">
-                        <option value="Active" ${client.client_status === 'Active' ? 'selected' : ''}>ACTIVE</option>
-                        <option value="Pause" ${client.client_status === 'Pause' ? 'selected' : ''}>PAUSE</option>
-                        <option value="Blacklisted" ${client.client_status === 'Blacklisted' ? 'selected' : ''}>BLACKLISTED</option>
-                        <option value="Inactive" ${client.client_status === 'Inactive' ? 'selected' : ''}>INACTIVE</option>
-                    </select>
+          <div class="flex flex-col items-end gap-2">
+            <span class="text-xs font-bold text-gray-500">${code}</span>
+            ${changed ? `<span class="min-w-[22px] h-5 px-1.5 rounded-full bg-emerald-600 text-white text-[10px] font-black inline-flex items-center justify-center">${changeCount}</span>` : ""}
+          </div>
+        </div>
 
-                    <button onclick="deletePassbookClient('${client.id}', '${client.company_name}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Client">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                </div>
-                
-            </div>
-        </div>`;
-        }).join('') || '<div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">No results</div>';
-      },
-
+        <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+          <span class="px-2 py-1 rounded text-[10px] font-extrabold bg-blue-50 text-blue-700">
+            ${this.pick(c, ["status","client_status"], "ACTIVE").toUpperCase()}
+          </span>
+          <span class="text-[10px] font-extrabold ${changed ? 'text-emerald-700' : 'text-yellow-600'} uppercase tracking-wider">
+            ${changed ? 'Review Changes' : 'Click to open'}
+          </span>
+        </div>
+      </div>
+    `;
+  }).join('') || '<div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm col-span-full">No clients available.</div>';
+},
+      
       openPassbookClient(codeName) { 
         this._openPassbookModalShell(codeName); 
         this._fetchAndRenderPassbookClient(codeName); 
@@ -3990,6 +4075,50 @@ const renderBottomRow = (a) => {
         document.getElementById("passbook-form-body").innerHTML = '<div class="p-6 text-sm text-gray-500 italic flex items-center gap-2"><i class="fa-solid fa-spinner fa-spin"></i> Loading live from database...</div>';
         modal.classList.remove("hidden");
       },
+
+      highlightPassbookChangedFields(codeName) {
+  const changedFields = this.getPassbookChangedFieldsForCode(codeName);
+  const items = this.getPassbookChangeItemsForCode(codeName);
+
+  const existing = document.getElementById("passbook-change-review-box");
+  if (existing) existing.remove();
+
+  if (!changedFields.size || !items.length) return;
+
+  document.querySelectorAll("#passbook-form-body input[name], #passbook-form-body textarea[name], #passbook-form-body select[name]").forEach(el => {
+    const field = el.getAttribute("name");
+    if (!changedFields.has(field)) return;
+
+    el.classList.add("bg-emerald-50", "border-emerald-400", "ring-2", "ring-emerald-200");
+  });
+
+  const body = document.getElementById("passbook-form-body");
+  if (!body) return;
+
+  const fieldList = Array.from(changedFields).join(", ");
+
+  const box = document.createElement("div");
+  box.id = "passbook-change-review-box";
+  box.className = "mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4";
+
+  box.innerHTML = `
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div>
+        <div class="text-sm font-black text-emerald-800">Passbook changes need review</div>
+        <div class="text-xs text-emerald-700 mt-1">Changed fields: ${fieldList}</div>
+      </div>
+
+      <button
+        type="button"
+        onclick="Admin.acknowledgePassbookChangesForCode('${String(codeName).replace(/'/g, "\\'")}')"
+        class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black hover:bg-emerald-700">
+        Acknowledge
+      </button>
+    </div>
+  `;
+
+  body.prepend(box);
+},
       
       closePassbookModal() { 
         document.getElementById("passbook-modal").classList.add("hidden"); 
@@ -4203,7 +4332,8 @@ async openNotification(item) {
              return;
           }
           
-          this._renderPassbookForm(data[0]);
+         this._renderPassbookForm(data[0]);
+setTimeout(() => this.highlightPassbookChangedFields(codeName), 50);
           
         } catch (err) {
           console.error("Fetch Client Error:", err);
@@ -4377,29 +4507,55 @@ async openNotification(item) {
           );
         }
 
-        rows.sort((a,b) => this.getClientSortNumber(this.extractCode(a)) - this.getClientSortNumber(this.extractCode(b)));
-        document.getElementById("passbook-count").textContent = rows.length;
+        this._lastPassbookClients = clients || [];
+
+rows.sort((a, b) => {
+  const aCode = String(this.extractCode(a) || "").trim().toLowerCase();
+  const bCode = String(this.extractCode(b) || "").trim().toLowerCase();
+
+  const aChanged = this.passbookChangedByCode?.has(aCode) ? 1 : 0;
+  const bChanged = this.passbookChangedByCode?.has(bCode) ? 1 : 0;
+
+  if (aChanged !== bChanged) return bChanged - aChanged;
+
+  return this.getClientSortNumber(this.extractCode(a)) - this.getClientSortNumber(this.extractCode(b));
+});
+
+document.getElementById("passbook-count").textContent = rows.length;
 
         if (this._passbookView === "list") this.renderPassbookList(rows);
         else this.renderClientCards(rows);
       },
 
       renderPassbookList(clients) {
-        document.getElementById("passbook-list-body").innerHTML = (clients || []).map(client => `<tr class="hover:bg-gray-50 transition-all" data-passbook-code="${this.extractCode(client)}" data-passbook-client-code="${this.extractCode(client)}"><td class="p-4">${this.extractCode(client)}</td><td class="p-4 font-bold">${this.extractRoofingCompany(client)}</td><td class="p-4">${this.extractCityState(client)}</td><td class="p-4">${this.extractClientName(client)}</td><td class="p-4 text-right"><div style="display:inline-flex; align-items:center; gap:8px; margin-right:15px;">
-<select id="status-select-${client.id}" 
-        onchange="updateClientStatus('${client.id}', this.value)" 
-        class="px-2 py-1 rounded-full text-[10px] font-extrabold border outline-none cursor-pointer transition-all shadow-sm ${window.getClientStatusColor ? getClientStatusColor(client.client_status) : ''}">
-    <option value="Active" ${client.client_status === 'Active' ? 'selected' : ''}>ACTIVE</option>
-    <option value="Pause" ${client.client_status === 'Pause' ? 'selected' : ''}>PAUSE</option>
-    <option value="Blacklisted" ${client.client_status === 'Blacklisted' ? 'selected' : ''}>BLACKLISTED</option>
-    <option value="Inactive" ${client.client_status === 'Inactive' ? 'selected' : ''}>INACTIVE</option>
-</select>
+  const tbody = document.getElementById("passbook-list-body");
+  if (!tbody) return;
 
-<button onclick="deletePassbookClient('${client.id}', '${client.company_name}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Client">
-    <i class="fa-solid fa-trash-can"></i>
-</button>
-</div><div class="sales-share-toggle" style="display:inline-block; margin-right:10px;"><label><input type="checkbox" class="share-checkbox" onchange="toggleShareWithSales('${this.extractCode(client)}', this)" ${client.shared_with_sales ? 'checked' : ''}> Share with Sales</label></div><button class="px-3 py-1 rounded bg-gray-900 text-white text-xs" onclick="Admin.openPassbookClient('${this.extractCode(client)}')">Open</button></td></tr>`).join("");
-      },
+  tbody.innerHTML = (clients || []).map(c => {
+    const code = this.extractCode(c);
+    const changed = this.passbookChangedByCode?.has(String(code || "").trim().toLowerCase());
+    const changeCount = this.getPassbookChangeItemsForCode(code).length;
+
+    return `
+      <tr class="${changed ? 'bg-emerald-50' : 'hover:bg-gray-50'}">
+        <td class="p-4 font-bold text-gray-700">
+          ${code}
+          ${changed ? `<span class="ml-2 px-2 py-1 rounded-full bg-emerald-600 text-white text-[10px] font-black">${changeCount}</span>` : ""}
+        </td>
+        <td class="p-4 font-bold text-gray-900">${this.extractRoofingCompany(c)}</td>
+        <td class="p-4">${this.extractCityState(c)}</td>
+        <td class="p-4">${this.extractClientName(c)}</td>
+        <td class="p-4 text-right">
+          <button
+            class="px-3 py-1 rounded bg-gray-900 text-white text-xs font-bold hover:bg-gray-800"
+            onclick="Admin.openPassbookClient('${String(code).replace(/'/g, "\\'")}')">
+            ${changed ? 'Review' : 'View Details'}
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join("") || `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No clients available.</td></tr>`;
+},
 
       bindPassbookUI(clients) {
         if (this._passbookFiltersBound) return; this._passbookFiltersBound = true;
