@@ -2155,14 +2155,29 @@ renderPassbookAuditHeader(codeName) {
   const latest = rows[0];
 
   let lastReviewed = null;
+
   rows.forEach(ev => {
-    const states = Array.isArray(ev.command_center_team_state) ? ev.command_center_team_state : [];
-    states.forEach(st => {
-      if (st.reviewed_at && (!lastReviewed || new Date(st.reviewed_at) > new Date(lastReviewed.reviewed_at))) {
-        lastReviewed = st;
-      }
-    });
+    const states = Array.isArray(ev.command_center_team_state)
+      ? ev.command_center_team_state
+      : [];
+
+    states
+      .filter(st => st.team_key === "admin_management")
+      .forEach(st => {
+        if (
+          st.reviewed_at &&
+          (!lastReviewed || new Date(st.reviewed_at) > new Date(lastReviewed.reviewed_at))
+        ) {
+          lastReviewed = st;
+        }
+      });
   });
+
+  const reviewedName =
+    lastReviewed?.reviewed_by_name ||
+    lastReviewed?.display_name ||
+    lastReviewed?.full_name ||
+    "";
 
   wrap.innerHTML = `
     <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
@@ -2174,7 +2189,7 @@ renderPassbookAuditHeader(codeName) {
 
       <div class="rounded-xl border border-gray-100 bg-gray-50 p-3">
         <div class="text-[10px] font-black text-gray-400 uppercase">Last Acknowledged</div>
-        <div class="text-sm font-black text-gray-900 mt-1">${lastReviewed ? (lastReviewed.reviewed_by_name || "Reviewed") : "Not acknowledged yet"}</div>
+        <div class="text-sm font-black text-gray-900 mt-1">${lastReviewed ? (reviewedName || "Admin reviewed") : "Not acknowledged yet"}</div>
         <div class="text-xs text-gray-500 mt-1">${lastReviewed?.reviewed_at ? (window.portal?.formatMSTDateTimeShort?.(lastReviewed.reviewed_at) || lastReviewed.reviewed_at) : "—"}</div>
       </div>
     </div>
