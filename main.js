@@ -753,8 +753,9 @@ setupCommandCenterRealtime() {
       },
       async () => {
         try {
-  await window.Admin?.loadNotifications?.(true);
-  await window.Admin?.loadPassbookModuleInbox?.();
+ await window.Admin?.loadNotifications?.(true);
+await window.Admin?.loadPassbookModuleInbox?.();
+await window.Admin?.loadSalesPassbookAckInbox?.();
 } catch (err) {
           console.error('Realtime notifications refresh failed:', err);
         }
