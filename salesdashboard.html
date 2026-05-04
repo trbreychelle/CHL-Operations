@@ -981,11 +981,9 @@ _onboardingDraftsBound: false,
 },
 
       async loadSalesPassbookAckInbox() {
-  if (!window.portal?.fetchPassbookModuleInbox) return;
+  if (!window.portal?.fetchSalesPassbookAcknowledgements) return;
 
-  const teamKey = window.portal?.getCommandCenterTeamKey?.() || "sales";
-  const rows = await window.portal.fetchPassbookModuleInbox(teamKey, 100);
-
+  const rows = await window.portal.fetchSalesPassbookAcknowledgements(100);
   this.passbookAckInbox = Array.isArray(rows) ? rows : [];
 
   const badge = document.getElementById("sales-passbook-tab-badge");
