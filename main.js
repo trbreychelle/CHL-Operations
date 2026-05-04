@@ -2126,11 +2126,41 @@ renderAgentPayrollDaily(rows) {
       });
 
       if (error) {
-        console.error('❌ command_center_create_event failed:', error);
-        return null;
-      }
+  console.error('❌ command_center_create_event failed:', error);
 
-      return data || null;
+  const { data: fallbackEvent, error: fallbackError } = await supaClient
+    .from('command_center_events')
+    .insert([{
+      organization_id: organizationId,
+      module_key: moduleKey,
+      entity_type: entityType,
+      entity_id: String(entityId || ''),
+      entity_code: entityCode,
+      entity_label: entityLabel,
+      event_type: eventType,
+      summary_text: summaryText,
+      field_changes: fieldChanges || [],
+      old_data: oldData,
+      new_data: newData,
+      actor_profile_id: this.currentUser?.id || null,
+      actor_name: this.currentUser?.name || this.currentUser?.email || 'Unknown',
+      actor_role: this.currentUser?.role || null,
+      severity,
+      is_system_event: false,
+      is_archived: false
+    }])
+    .select('id')
+    .single();
+
+  if (fallbackError) {
+    console.error('❌ fallback command_center_events insert failed:', fallbackError);
+    return null;
+  }
+
+  return fallbackEvent?.id || null;
+}
+
+return data || null;
     } catch (err) {
       console.error('❌ createCommandCenterEvent exception:', err);
       return null;
