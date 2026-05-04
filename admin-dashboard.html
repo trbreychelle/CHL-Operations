@@ -2100,14 +2100,14 @@ let reviewerById = new Map();
 if (reviewerIds.length) {
   const { data: profiles, error: profileError } = await supaClient
     .from("profiles")
-    .select("id, display_name, full_name, email")
+    .select("id, display_name, email")
     .in("id", reviewerIds);
 
   if (!profileError && Array.isArray(profiles)) {
     reviewerById = new Map(
       profiles.map(p => [
         String(p.id),
-        p.display_name || p.full_name || p.email || "Unknown"
+        p.display_name || p.email || "Unknown reviewer"
       ])
     );
   }
@@ -2117,7 +2117,8 @@ this.passbookAuditRows = rows.map(ev => ({
   ...ev,
   command_center_team_state: (Array.isArray(ev.command_center_team_state) ? ev.command_center_team_state : []).map(st => ({
     ...st,
-    reviewed_by_name: reviewerById.get(String(st.reviewed_by_profile_id)) || ""
+    reviewed_by_name: reviewerById.get(String(st.reviewed_by_profile_id)) || "",
+reviewed_by_email: String(st.reviewed_by_profile_id || "")
   }))
 }));
 
