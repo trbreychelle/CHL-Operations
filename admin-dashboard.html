@@ -4614,8 +4614,33 @@ setTimeout(() => this.highlightPassbookChangedFields(codeName), 50);
           `;
         }
         
-        html += `</div>`;
-        document.getElementById("passbook-form-body").innerHTML = html;
+       html += `
+  </div>
+
+  <div class="flex items-center justify-end gap-2 pt-4 border-t border-gray-100 mt-4">
+    <button
+      type="button"
+      id="passbookSaveButton"
+      class="px-4 py-2 rounded-lg bg-yellow-500 text-gray-900 text-sm font-extrabold hover:bg-yellow-400"
+    >
+      Save Changes
+    </button>
+
+    <button
+      type="button"
+      class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800"
+      onclick="Admin.closePassbookModal()"
+    >
+      Close
+    </button>
+  </div>
+`;
+
+document.getElementById("passbook-form-body").innerHTML = html;
+
+if (window.portal && typeof window.portal.bindPassbookUpdateButton === "function") {
+  window.portal.bindPassbookUpdateButton();
+}
       },
 
             renderLeads(leads) {
