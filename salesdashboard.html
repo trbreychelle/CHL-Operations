@@ -2756,6 +2756,110 @@ async deleteQuickNote(noteId) {
         });
       },
 
+      async loadSalesPassbookAuditForCode(codeName) {
+  if (!supaClient || !codeName) {
+    this.passbookAuditRows = [];
+    return [];
+  }
+
+  const { data: events, error } = await supaClient
+    .from("command_center_events")
+    .select("id, entity_code, actor_name, actor_role, created_at")
+    .eq("module_key", "passbook_clients")
+    .eq("entity_code", codeName)
+    .order("created_at", { ascending: false })
+    .limit(25);
+
+  if (error) {
+    console.error("Sales passbook audit load failed:", error);
+    this.passbookAuditRows = [];
+    return [];
+  }
+
+  const eventIds = (events || []).map(e => e.id);
+
+  let states = [];
+  if (eventIds.length) {
+    const { data: stateRows, error: stateError } = await supaClient
+      .from("command_center_team_state")
+      .select("event_id, team_key, is_reviewed, reviewed_by_profile_id, reviewed_at, status")
+      .in("event_id", eventIds)
+      .in("team_key", ["sales", "admin_management"]);
+
+    if (!stateError) states = stateRows || [];
+  }
+
+  const reviewerIds = [...new Set(states.map(s => s.reviewed_by_profile_id).filter(Boolean))];
+
+  let reviewerById = new Map();
+  if (reviewerIds.length) {
+    const { data: profiles } = await supaClient
+      .from("profiles")
+      .select("id, display_name, full_name, email")
+      .in("id", reviewerIds);
+
+    reviewerById = new Map(
+      (profiles || []).map(p => [
+        String(p.id),
+        p.display_name || p.full_name || p.email || "Reviewed"
+      ])
+    );
+  }
+
+  this.passbookAuditRows = (events || []).map(ev => ({
+    ...ev,
+    command_center_team_state: states
+      .filter(st => st.event_id === ev.id)
+      .map(st => ({
+        ...st,
+        reviewed_by_name: reviewerById.get(String(st.reviewed_by_profile_id)) || ""
+      }))
+  }));
+
+  return this.passbookAuditRows;
+},
+
+renderSalesPassbookAuditHeader() {
+  const body = document.getElementById("passbook-form-body");
+  if (!body) return;
+
+  document.getElementById("sales-passbook-audit-header")?.remove();
+
+  const rows = this.passbookAuditRows || [];
+  const latest = rows[0];
+
+  let lastReviewed = null;
+
+  rows.forEach(ev => {
+    const states = Array.isArray(ev.command_center_team_state) ? ev.command_center_team_state : [];
+    states.forEach(st => {
+      if (st.reviewed_at && (!lastReviewed || new Date(st.reviewed_at) > new Date(lastReviewed.reviewed_at))) {
+        lastReviewed = st;
+      }
+    });
+  });
+
+  const box = document.createElement("div");
+  box.id = "sales-passbook-audit-header";
+  box.className = "grid grid-cols-1 md:grid-cols-2 gap-3 mb-4";
+
+  box.innerHTML = `
+    <div class="rounded-xl border border-gray-100 bg-gray-50 p-3">
+      <div class="text-[10px] font-black text-gray-400 uppercase">Last Changed By</div>
+      <div class="text-sm font-black text-gray-900 mt-1">${latest?.actor_name || "No history yet"}</div>
+      <div class="text-xs text-gray-500 mt-1">${latest?.created_at ? (window.portal?.formatMSTDateTimeShort?.(latest.created_at) || latest.created_at) : "—"}</div>
+    </div>
+
+    <div class="rounded-xl border border-gray-100 bg-gray-50 p-3">
+      <div class="text-[10px] font-black text-gray-400 uppercase">Last Acknowledged</div>
+      <div class="text-sm font-black text-gray-900 mt-1">${lastReviewed ? (lastReviewed.reviewed_by_name || "Reviewed") : "Not acknowledged yet"}</div>
+      <div class="text-xs text-gray-500 mt-1">${lastReviewed?.reviewed_at ? (window.portal?.formatMSTDateTimeShort?.(lastReviewed.reviewed_at) || lastReviewed.reviewed_at) : "—"}</div>
+    </div>
+  `;
+
+  body.prepend(box);
+},
+
       openPassbookClient(codeName) { 
           const modal = document.getElementById("passbook-modal"); 
           
@@ -2780,6 +2884,8 @@ async deleteQuickNote(noteId) {
              return;
           }
           this._renderPassbookForm(data[0]);
+await this.loadSalesPassbookAuditForCode(codeName);
+this.renderSalesPassbookAuditHeader();
         } catch (err) {
           document.getElementById("passbook-form-body").innerHTML = '<div class="p-4 text-red-700 font-bold">Failed to load client.</div>';
         }
