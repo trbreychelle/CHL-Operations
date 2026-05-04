@@ -1172,23 +1172,38 @@ body.client-health-lock {
             <form id="passbookClientForm" class="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
               <input type="hidden" id="codeName" name="codeName" value="">
 
-              <div id="passbook-form-body">
-                <div class="p-4 rounded-xl border border-gray-100 bg-gray-50/40 text-sm text-gray-500 italic">
-                  Loading client details...
-                </div>
-              </div>
+             <div id="passbook-audit-header"></div>
 
-              <div class="flex items-center justify-end gap-2 pt-4 border-t border-gray-100">
-                <button type="button"
-                        class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50"
-                        onclick="Admin.closePassbookModal()">
-                  Cancel
-                </button>
-                <button id="passbookSaveButton" type="submit"
-                        class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800">
-                  Save Changes
-                </button>
-              </div>
+<div class="flex gap-2 mb-4">
+  <button
+    id="passbook-tab-details"
+    type="button"
+    onclick="Admin.setPassbookModalTab('details')"
+    class="px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-black">
+    Details
+  </button>
+  <button
+    id="passbook-tab-history"
+    type="button"
+    onclick="Admin.setPassbookModalTab('history')"
+    class="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-600 text-xs font-black">
+    History
+  </button>
+</div>
+
+<div id="passbook-details-tab">
+  <div id="passbook-form-body">
+    <div class="p-4 rounded-xl border border-gray-100 bg-gray-50/40 text-sm text-gray-500 italic">
+      Loading client details...
+    </div>
+  </div>
+</div>
+
+<div id="passbook-history-tab" class="hidden">
+  <div id="passbook-history-body" class="space-y-3">
+    <div class="p-5 text-sm text-gray-400 italic">Loading history...</div>
+  </div>
+</div>
             </form>
           </div>
         </div>
@@ -1993,6 +2008,9 @@ hrSubtab: 'overview',
       passbookModuleInbox: [],
 passbookChangedByCode: new Map(),
 _lastPassbookClients: [],
+      passbookAuditRows: [],
+passbookAuditByCode: new Map(),
+passbookModalTab: "details",
       _owedKpiBound: false,
 
       notifications: [],
@@ -2032,6 +2050,143 @@ noteDraft: '',
 
 closeAdminFireNoteModal() {
   document.getElementById("admin-fire-note-modal").classList.add("hidden");
+},
+
+      async loadPassbookAuditForCode(codeName) {
+  if (!supaClient || !codeName) return [];
+
+  const { data, error } = await supaClient
+    .from("command_center_events")
+    .select(`
+      id,
+      entity_code,
+      entity_label,
+      actor_name,
+      actor_role,
+      field_changes,
+      old_data,
+      new_data,
+      created_at,
+      command_center_team_state (
+        team_key,
+        is_reviewed,
+        reviewed_by_profile_id,
+        reviewed_at
+      )
+    `)
+    .eq("module_key", "passbook_clients")
+    .eq("entity_code", codeName)
+    .order("created_at", { ascending: false })
+    .limit(25);
+
+  if (error) {
+    console.error("loadPassbookAuditForCode failed:", error);
+    return [];
+  }
+
+  this.passbookAuditRows = data || [];
+  this.passbookAuditByCode.set(String(codeName).toLowerCase(), this.passbookAuditRows);
+  return this.passbookAuditRows;
+},
+
+setPassbookModalTab(tab) {
+  this.passbookModalTab = tab === "history" ? "history" : "details";
+
+  const details = document.getElementById("passbook-details-tab");
+  const history = document.getElementById("passbook-history-tab");
+  const detailsBtn = document.getElementById("passbook-tab-details");
+  const historyBtn = document.getElementById("passbook-tab-history");
+
+  if (details) details.classList.toggle("hidden", this.passbookModalTab !== "details");
+  if (history) history.classList.toggle("hidden", this.passbookModalTab !== "history");
+
+  if (detailsBtn && historyBtn) {
+    detailsBtn.className = this.passbookModalTab === "details"
+      ? "px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-black"
+      : "px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-600 text-xs font-black";
+
+    historyBtn.className = this.passbookModalTab === "history"
+      ? "px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-black"
+      : "px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-600 text-xs font-black";
+  }
+},
+
+renderPassbookAuditHeader(codeName) {
+  const wrap = document.getElementById("passbook-audit-header");
+  if (!wrap) return;
+
+  const rows = this.passbookAuditRows || [];
+  const latest = rows[0];
+
+  let lastReviewed = null;
+  rows.forEach(ev => {
+    const states = Array.isArray(ev.command_center_team_state) ? ev.command_center_team_state : [];
+    states.forEach(st => {
+      if (st.reviewed_at && (!lastReviewed || new Date(st.reviewed_at) > new Date(lastReviewed.reviewed_at))) {
+        lastReviewed = st;
+      }
+    });
+  });
+
+  wrap.innerHTML = `
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+      <div class="rounded-xl border border-gray-100 bg-gray-50 p-3">
+        <div class="text-[10px] font-black text-gray-400 uppercase">Last Changed By</div>
+        <div class="text-sm font-black text-gray-900 mt-1">${latest?.actor_name || "No history yet"}</div>
+        <div class="text-xs text-gray-500 mt-1">${latest?.created_at ? (window.portal?.formatMSTDateTimeShort?.(latest.created_at) || latest.created_at) : "—"}</div>
+      </div>
+
+      <div class="rounded-xl border border-gray-100 bg-gray-50 p-3">
+        <div class="text-[10px] font-black text-gray-400 uppercase">Last Acknowledged</div>
+        <div class="text-sm font-black text-gray-900 mt-1">${lastReviewed ? "Reviewed" : "Not acknowledged yet"}</div>
+        <div class="text-xs text-gray-500 mt-1">${lastReviewed?.reviewed_at ? (window.portal?.formatMSTDateTimeShort?.(lastReviewed.reviewed_at) || lastReviewed.reviewed_at) : "—"}</div>
+      </div>
+    </div>
+  `;
+},
+
+renderPassbookHistory(codeName) {
+  const wrap = document.getElementById("passbook-history-body");
+  if (!wrap) return;
+
+  const rows = this.passbookAuditRows || [];
+
+  if (!rows.length) {
+    wrap.innerHTML = `<div class="p-5 text-sm text-gray-400 italic">No Passbook change history yet.</div>`;
+    return;
+  }
+
+  wrap.innerHTML = rows.map(ev => {
+    const changes = Array.isArray(ev.field_changes) ? ev.field_changes : [];
+    const timeText = window.portal?.formatMSTDateTimeShort?.(ev.created_at) || ev.created_at || "—";
+
+    return `
+      <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="text-sm font-black text-gray-900">${ev.actor_name || "Unknown"}</div>
+            <div class="text-xs text-gray-500 mt-1">${ev.actor_role || "user"} • ${timeText}</div>
+          </div>
+          <span class="px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-[10px] font-black">
+            ${changes.length} field${changes.length === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        <div class="mt-3 space-y-2">
+          ${changes.length ? changes.map(ch => `
+            <div class="rounded-xl bg-gray-50 border border-gray-100 p-3 text-xs">
+              <div class="font-black text-gray-700 uppercase">${ch.field || "Field"}</div>
+              <div class="mt-1">
+                <span class="text-gray-400 line-through">${String(ch.old_value ?? ch.oldValue ?? "—")}</span>
+<span class="mx-2 text-gray-400">→</span>
+<span class="font-black text-emerald-700">${String(ch.new_value ?? ch.newValue ?? "—")}</span>
+              </div>
+            </div>
+          `).join("") : `<div class="text-xs text-gray-400 italic">No field details saved.</div>`}
+        </div>
+      </div>
+    `;
+  }).join("");
 },
 
       async loadPassbookModuleInbox() {
@@ -4332,7 +4487,11 @@ async openNotification(item) {
              return;
           }
           
-         this._renderPassbookForm(data[0]);
+        await this.loadPassbookAuditForCode(codeName);
+this._renderPassbookForm(data[0]);
+this.renderPassbookAuditHeader(codeName);
+this.renderPassbookHistory(codeName);
+this.setPassbookModalTab("details");
 setTimeout(() => this.highlightPassbookChangedFields(codeName), 50);
           
         } catch (err) {
