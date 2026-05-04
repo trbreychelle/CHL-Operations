@@ -462,9 +462,6 @@ if (resolvedTeamKey === 'admin_management') {
       await window.Admin.loadPassbookModuleInbox();
     }
 
-    if (window.portal?.fetchAdminData) {
-      await window.portal.fetchAdminData(true);
-    }
   } catch (err) {
     console.warn('Passbook acknowledge refresh failed:', err);
   }
