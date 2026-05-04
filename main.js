@@ -290,6 +290,59 @@ class CallHammerPortal {
   }
 }
 
+  async fetchSalesPassbookAcknowledgements(limit = 100) {
+  if (!supaClient) return [];
+
+  try {
+    const { data, error } = await supaClient
+      .from('command_center_team_state')
+      .select(`
+        id,
+        event_id,
+        team_key,
+        is_unread,
+        is_reviewed,
+        reviewed_by_profile_id,
+        reviewed_at,
+        status,
+        updated_at,
+        command_center_events (
+          id,
+          module_key,
+          entity_type,
+          entity_id,
+          entity_code,
+          entity_label,
+          event_type,
+          summary_text,
+          field_changes,
+          old_data,
+          new_data,
+          actor_name,
+          actor_role,
+          created_at
+        )
+      `)
+      .eq('team_key', 'sales')
+      .eq('status', 'acknowledged')
+      .eq('is_unread', true)
+      .order('updated_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('fetchSalesPassbookAcknowledgements failed:', error);
+      return [];
+    }
+
+    return (data || []).filter(row =>
+      String(row?.command_center_events?.module_key || '').toLowerCase() === 'passbook_clients'
+    );
+  } catch (err) {
+    console.error('fetchSalesPassbookAcknowledgements exception:', err);
+    return [];
+  }
+}
+
   async fetchPassbookModuleInbox(teamKey = null, limit = 100) {
   if (!supaClient) return [];
 
@@ -361,6 +414,45 @@ class CallHammerPortal {
 
   async acknowledgePassbookChange(eventId, teamKey = null) {
   const resolvedTeamKey = teamKey || this.getCommandCenterTeamKey();
+
+    // If Admin/Management acknowledged a Passbook change,
+// notify Sales/Sales Rep that their change was reviewed.
+if (resolvedTeamKey === 'admin_management') {
+  try {
+    const { data: adminStateRow, error: adminStateError } = await supaClient
+      .from('command_center_team_state')
+      .select('event_id, organization_id, reviewed_by_profile_id, reviewed_at')
+      .eq('event_id', eventId)
+      .eq('team_key', 'admin_management')
+      .maybeSingle();
+
+    if (!adminStateError && adminStateRow) {
+      const reviewedAt = adminStateRow.reviewed_at || new Date().toISOString();
+
+      const { error: salesAckError } = await supaClient
+        .from('command_center_team_state')
+        .upsert(
+          [{
+            event_id: eventId,
+            organization_id: adminStateRow.organization_id,
+            team_key: 'sales',
+            is_unread: true,
+            is_reviewed: true,
+            reviewed_by_profile_id: this.currentUser?.id || adminStateRow.reviewed_by_profile_id || null,
+            reviewed_at: reviewedAt,
+            status: 'acknowledged'
+          }],
+          { onConflict: 'event_id,team_key' }
+        );
+
+      if (salesAckError) {
+        console.error('Sales acknowledgement notification failed:', salesAckError);
+      }
+    }
+  } catch (salesAckErr) {
+    console.error('Sales acknowledgement notification exception:', salesAckErr);
+  }
+}
 
   const ok = await this.markCommandCenterReviewed(eventId, resolvedTeamKey);
 
