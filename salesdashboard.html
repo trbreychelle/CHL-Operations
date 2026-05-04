@@ -949,6 +949,7 @@ _salesFireClientId: null,
       _passbookView: "cards",
       _passbookFiltersBound: false,
       passbookAckInbox: [],
+      passbookAuditRows: [],
       _owedKpiBound: false,
       _leadsIndexByCompany: null,
       _analyticsChart: null,
@@ -994,6 +995,40 @@ _onboardingDraftsBound: false,
 
   if (count > 0) badge.classList.remove("hidden");
   else badge.classList.add("hidden");
+},
+
+      async loadSalesPassbookAuditForCode(codeName) {
+  if (!supaClient || !codeName) {
+    this.passbookAuditRows = [];
+    return [];
+  }
+
+  const { data: events, error } = await supaClient
+    .from("command_center_events")
+    .select(`
+      id,
+      entity_code,
+      entity_label,
+      actor_name,
+      actor_role,
+      field_changes,
+      old_data,
+      new_data,
+      created_at
+    `)
+    .eq("module_key", "passbook_clients")
+    .eq("entity_code", codeName)
+    .order("created_at", { ascending: false })
+    .limit(25);
+
+  if (error) {
+    console.error("Sales passbook audit load failed:", error);
+    this.passbookAuditRows = [];
+    return [];
+  }
+
+  this.passbookAuditRows = events || [];
+  return this.passbookAuditRows;
 },
 
       refreshDashboard() {
@@ -2828,15 +2863,10 @@ renderSalesPassbookAuditHeader() {
   const rows = this.passbookAuditRows || [];
   const latest = rows[0];
 
-  let lastReviewed = null;
-
-  rows.forEach(ev => {
-    const states = Array.isArray(ev.command_center_team_state) ? ev.command_center_team_state : [];
-    states.forEach(st => {
-      if (st.reviewed_at && (!lastReviewed || new Date(st.reviewed_at) > new Date(lastReviewed.reviewed_at))) {
-        lastReviewed = st;
-      }
-    });
+  const ackRows = this.passbookAckInbox || [];
+  const latestAck = ackRows.find(r => {
+    const ev = r.command_center_events || {};
+    return String(ev.entity_code || "") === String(latest?.entity_code || "");
   });
 
   const box = document.createElement("div");
@@ -2852,8 +2882,8 @@ renderSalesPassbookAuditHeader() {
 
     <div class="rounded-xl border border-gray-100 bg-gray-50 p-3">
       <div class="text-[10px] font-black text-gray-400 uppercase">Last Acknowledged</div>
-      <div class="text-sm font-black text-gray-900 mt-1">${lastReviewed ? (lastReviewed.reviewed_by_name || "Reviewed") : "Not acknowledged yet"}</div>
-      <div class="text-xs text-gray-500 mt-1">${lastReviewed?.reviewed_at ? (window.portal?.formatMSTDateTimeShort?.(lastReviewed.reviewed_at) || lastReviewed.reviewed_at) : "—"}</div>
+      <div class="text-sm font-black text-gray-900 mt-1">${latestAck?.reviewed_at ? "Admin reviewed" : "Not acknowledged yet"}</div>
+      <div class="text-xs text-gray-500 mt-1">${latestAck?.reviewed_at ? (window.portal?.formatMSTDateTimeShort?.(latestAck.reviewed_at) || latestAck.reviewed_at) : "—"}</div>
     </div>
   `;
 
@@ -2883,7 +2913,9 @@ renderSalesPassbookAuditHeader() {
              document.getElementById("passbook-form-body").innerHTML = `<div class="p-4 text-yellow-600 font-bold">Client not found.</div>`;
              return;
           }
-          this._renderPassbookForm(data[0]);
+          await this.loadSalesPassbookAuditForCode(codeName);
+this._renderPassbookForm(data[0]);
+this.renderSalesPassbookAuditHeader();
 await this.loadSalesPassbookAuditForCode(codeName);
 this.renderSalesPassbookAuditHeader();
         } catch (err) {
