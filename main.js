@@ -2633,17 +2633,6 @@ if (form) {
 
     if (fieldChanges.length > 0) {
       const eventId = await this.createCommandCenterEvent({
-        if (eventId) {
-  await supaClient.from('command_center_team_state').insert([
-    {
-      event_id: eventId,
-      organization_id: this.getCurrentOrganizationId(),
-      team_key: 'admin_management',
-      is_unread: true,
-      is_reviewed: false
-    }
-  ]);
-}
         moduleKey: 'passbook_clients',
         entityType: 'client',
         entityId: String(newRow.id || oldRow.id || finalClientCode),
@@ -2656,7 +2645,28 @@ if (form) {
         newData: newRow,
         severity: 'normal',
         teamKeys: this.getPassbookTeamKeys(oldRow, newRow)
-      });
+            });
+
+      if (eventId) {
+        const { error: teamStateError } = await supaClient
+          .from('command_center_team_state')
+          .upsert(
+            [{
+              event_id: eventId,
+              organization_id: this.getCurrentOrganizationId(),
+              team_key: 'admin_management',
+              is_unread: true,
+              is_reviewed: false,
+              status: 'new'
+            }],
+            { onConflict: 'event_id,team_key' }
+          );
+
+        if (teamStateError) {
+          console.error("Passbook notification team_state insert failed:", teamStateError);
+        }
+      }
+
       if (!eventId) {
   console.error("Passbook update saved, but notification event was not created.", {
     finalClientCode,
