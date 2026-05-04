@@ -5042,10 +5042,33 @@ async openNotification(item) {
       }).length
     );
 
-    const goalMet = goal > 0 && setToday >= goal;
+    const rejectedLeads = Number(
+  dayLeadRows.filter(l => {
+    const cName = this.normalizeCompanyName(
+      this.getLeadField(l, ["Company Name", "company_name", "roofing_company"], "")
+    );
+    const boardName = this.normalizeCompanyName(companyName);
+    const st = String(this.getLeadField(l, ["Status", "status"], "")).toLowerCase();
+    return cName === boardName && this.isRejected(st);
+  }).length
+);
+
+   const remaining = Math.max(goal - setToday, 0);
+
+let cardColor = "border-gray-200 bg-white";
+
+if (goal > 0) {
+  if (setToday >= goal) {
+    cardColor = "border-emerald-300 bg-emerald-50"; // GREEN
+  } else if ((setToday + pendingLeads) >= goal) {
+    cardColor = "border-yellow-300 bg-yellow-50"; // YELLOW
+  } else if (remaining === 1 && pendingLeads === 0) {
+    cardColor = "border-red-300 bg-red-50"; // RED
+  }
+}
 
     return `
-      <div class="rounded-2xl border ${goalMet ? 'border-emerald-300 bg-emerald-50' : laneTone + ' bg-white'} shadow-sm p-4">
+      <div class="rounded-2xl border ${cardColor} shadow-sm p-4">
         <div class="flex items-start justify-between gap-3 mb-3">
           <div>
             <div class="text-[11px] font-extrabold uppercase tracking-wide text-gray-400">${row.client_code || '—'}</div>
@@ -5094,7 +5117,8 @@ async openNotification(item) {
           </div>
         </div>
 
-<div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mb-3">
+<div class="grid grid-cols-3 gap-2 text-xs mb-3">
+
   <div class="rounded-xl bg-white border border-gray-200 p-2">
     <div class="text-gray-400 font-bold uppercase">Package</div>
     <div class="text-gray-900 font-black mt-1">${packageLabel}</div>
@@ -5117,15 +5141,15 @@ async openNotification(item) {
 
   <div class="rounded-xl bg-white border border-gray-200 p-2">
     <div class="text-gray-400 font-bold uppercase">Set Today</div>
-    <div class="font-black mt-1 ${goalMet ? 'text-emerald-600' : 'text-gray-900'}">${setToday}</div>
+    <div class="text-blue-600 font-black mt-1">${setToday}</div>
   </div>
 
   <div class="rounded-xl bg-white border border-gray-200 p-2">
-    <div class="text-gray-400 font-bold uppercase">Goal Status</div>
-    <div class="font-black mt-1 ${goalMet ? 'text-emerald-600' : 'text-gray-900'}">
-      ${goalMet ? 'Goal Reached' : 'In Progress'}
-    </div>
+    <div class="text-gray-400 font-bold uppercase">QC Rejected</div>
+    <div class="text-red-500 font-black mt-1">${rejectedLeads}</div>
   </div>
+
+</div>
 </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
