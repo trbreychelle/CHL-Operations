@@ -5004,6 +5004,14 @@ async openNotification(item) {
             <div class="text-[11px] font-extrabold uppercase tracking-wide text-gray-400">${row.client_code || '—'}</div>
             <div class="flex items-center gap-2">
   <div class="text-base font-black text-gray-900">${companyName}</div>
+  ${String(row.notes || "").trim() ? `
+  <button
+    type="button"
+    onclick="alert(${JSON.stringify("🔥 Sales Note\\n\\n" + (row.notes || "") + "\\n\\nAdded by: " + (row.created_by_name || "Sales"))})"
+    class="mt-2 px-2 py-1 rounded-lg bg-orange-50 border border-orange-200 text-[11px] font-black text-orange-700 hover:bg-orange-100">
+    🔥 View Note
+  </button>
+` : ""}
   ${
     boardClient._raw?.package_seq > 1
       ? `<span class="text-[10px] font-black text-purple-700 bg-purple-100 px-2 py-1 rounded-full">RENEWAL</span>`
