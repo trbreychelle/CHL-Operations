@@ -2791,19 +2791,40 @@ async deleteQuickNote(noteId) {
         });
       },
 
-      async loadSalesPassbookAuditForCode(codeName) {
+    async loadSalesPassbookAuditForCode(codeName) {
   if (!supaClient || !codeName) {
     this.passbookAuditRows = [];
     return [];
   }
 
-  const { data: events, error } = await supaClient
-    .from("command_center_events")
-    .select("id, entity_code, actor_name, actor_role, created_at")
-    .eq("module_key", "passbook_clients")
-    .eq("entity_code", codeName)
-    .order("created_at", { ascending: false })
-    .limit(25);
+  const { data: rows, error } = await supaClient
+    .from("command_center_team_state")
+    .select(`
+      id,
+      event_id,
+      team_key,
+      is_unread,
+      is_reviewed,
+      reviewed_at,
+      reviewed_by_profile_id,
+      status,
+      updated_at,
+      command_center_events (
+        id,
+        module_key,
+        entity_code,
+        entity_label,
+        actor_name,
+        actor_role,
+        field_changes,
+        old_data,
+        new_data,
+        created_at
+      )
+    `)
+    .eq("team_key", "sales")
+    .order("updated_at", { ascending: false })
+    .limit(100);
 
   if (error) {
     console.error("Sales passbook audit load failed:", error);
@@ -2811,45 +2832,20 @@ async deleteQuickNote(noteId) {
     return [];
   }
 
-  const eventIds = (events || []).map(e => e.id);
+  const cleanCode = String(codeName || "").trim().toLowerCase();
 
-  let states = [];
-  if (eventIds.length) {
-    const { data: stateRows, error: stateError } = await supaClient
-      .from("command_center_team_state")
-      .select("event_id, team_key, is_reviewed, reviewed_by_profile_id, reviewed_at, status")
-      .in("event_id", eventIds)
-      .in("team_key", ["sales", "admin_management"]);
+  this.passbookAuditRows = (rows || [])
+    .filter(r => {
+      const ev = r.command_center_events || {};
+      return String(ev.module_key || "").toLowerCase() === "passbook_clients"
+        && String(ev.entity_code || "").trim().toLowerCase() === cleanCode;
+    })
+    .map(r => ({
+      ...(r.command_center_events || {}),
+      command_center_team_state: [r]
+    }));
 
-    if (!stateError) states = stateRows || [];
-  }
-
-  const reviewerIds = [...new Set(states.map(s => s.reviewed_by_profile_id).filter(Boolean))];
-
-  let reviewerById = new Map();
-  if (reviewerIds.length) {
-    const { data: profiles } = await supaClient
-      .from("profiles")
-      .select("id, display_name, full_name, email")
-      .in("id", reviewerIds);
-
-    reviewerById = new Map(
-      (profiles || []).map(p => [
-        String(p.id),
-        p.display_name || p.full_name || p.email || "Reviewed"
-      ])
-    );
-  }
-
-  this.passbookAuditRows = (events || []).map(ev => ({
-    ...ev,
-    command_center_team_state: states
-      .filter(st => st.event_id === ev.id)
-      .map(st => ({
-        ...st,
-        reviewed_by_name: reviewerById.get(String(st.reviewed_by_profile_id)) || ""
-      }))
-  }));
+  console.log("Sales passbook audit rows:", codeName, this.passbookAuditRows);
 
   return this.passbookAuditRows;
 },
@@ -2913,10 +2909,8 @@ renderSalesPassbookAuditHeader() {
              document.getElementById("passbook-form-body").innerHTML = `<div class="p-4 text-yellow-600 font-bold">Client not found.</div>`;
              return;
           }
-          await this.loadSalesPassbookAuditForCode(codeName);
+         await this.loadSalesPassbookAuditForCode(codeName);
 this._renderPassbookForm(data[0]);
-this.renderSalesPassbookAuditHeader();
-await this.loadSalesPassbookAuditForCode(codeName);
 this.renderSalesPassbookAuditHeader();
         } catch (err) {
           document.getElementById("passbook-form-body").innerHTML = '<div class="p-4 text-red-700 font-bold">Failed to load client.</div>';
