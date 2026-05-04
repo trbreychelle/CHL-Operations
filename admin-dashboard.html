@@ -2084,9 +2084,45 @@ closeAdminFireNoteModal() {
     return [];
   }
 
-  this.passbookAuditRows = data || [];
-  this.passbookAuditByCode.set(String(codeName).toLowerCase(), this.passbookAuditRows);
-  return this.passbookAuditRows;
+  const rows = data || [];
+
+const reviewerIds = [
+  ...new Set(
+    rows.flatMap(ev => {
+      const states = Array.isArray(ev.command_center_team_state) ? ev.command_center_team_state : [];
+      return states.map(st => st.reviewed_by_profile_id).filter(Boolean);
+    })
+  )
+];
+
+let reviewerById = new Map();
+
+if (reviewerIds.length) {
+  const { data: profiles, error: profileError } = await supaClient
+    .from("profiles")
+    .select("id, display_name, full_name, email")
+    .in("id", reviewerIds);
+
+  if (!profileError && Array.isArray(profiles)) {
+    reviewerById = new Map(
+      profiles.map(p => [
+        String(p.id),
+        p.display_name || p.full_name || p.email || "Unknown"
+      ])
+    );
+  }
+}
+
+this.passbookAuditRows = rows.map(ev => ({
+  ...ev,
+  command_center_team_state: (Array.isArray(ev.command_center_team_state) ? ev.command_center_team_state : []).map(st => ({
+    ...st,
+    reviewed_by_name: reviewerById.get(String(st.reviewed_by_profile_id)) || ""
+  }))
+}));
+
+this.passbookAuditByCode.set(String(codeName).toLowerCase(), this.passbookAuditRows);
+return this.passbookAuditRows;
 },
 
 setPassbookModalTab(tab) {
@@ -2138,7 +2174,7 @@ renderPassbookAuditHeader(codeName) {
 
       <div class="rounded-xl border border-gray-100 bg-gray-50 p-3">
         <div class="text-[10px] font-black text-gray-400 uppercase">Last Acknowledged</div>
-        <div class="text-sm font-black text-gray-900 mt-1">${lastReviewed ? "Reviewed" : "Not acknowledged yet"}</div>
+        <div class="text-sm font-black text-gray-900 mt-1">${lastReviewed ? (lastReviewed.reviewed_by_name || "Reviewed") : "Not acknowledged yet"}</div>
         <div class="text-xs text-gray-500 mt-1">${lastReviewed?.reviewed_at ? (window.portal?.formatMSTDateTimeShort?.(lastReviewed.reviewed_at) || lastReviewed.reviewed_at) : "—"}</div>
       </div>
     </div>
