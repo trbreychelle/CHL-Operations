@@ -5036,15 +5036,11 @@ async openNotification(item) {
             <div class="text-[11px] font-extrabold uppercase tracking-wide text-gray-400">${row.client_code || '—'}</div>
             <div class="flex items-center gap-2">
   <div class="text-base font-black text-gray-900">${companyName}</div>
-  ${String(row.notes || "").trim() ? `
+ ${String(row.notes || "").trim() ? `
   <button
     type="button"
-    onclick="Admin.openAdminFireNoteModal(
-      ${JSON.stringify(row.notes)},
-      ${JSON.stringify(companyName)},
-      ${JSON.stringify(row.created_by_name || "Sales")}
-    )"
-    class="ml-2 px-2 py-1 rounded-lg bg-orange-50 border border-orange-200 text-[11px] font-black text-orange-700 hover:bg-orange-100">
+    onclick="event.stopPropagation(); Admin.openDailySalesNote('${row.id}')"
+    class="ml-2 px-2 py-1 rounded-lg bg-orange-50 border border-orange-200 text-[11px] font-black text-orange-700 hover:bg-orange-100 relative z-20">
     🔥
   </button>
 ` : ""}
