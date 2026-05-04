@@ -235,10 +235,10 @@ class CallHammerPortal {
     async fetchCommandCenterNotifications(teamKey = 'admin_management', limit = 50) {
   if (!supaClient) return [];
 
-  const allowedModules =
+ const allowedModules =
   teamKey === 'admin_management'
-    ? ['sales_pipeline', 'overview', 'onboarding', 'time_off', 'passbook_clients']
-    : ['sales_pipeline', 'overview', 'onboarding', 'passbook_clients'];
+    ? ['sales_pipeline', 'time_off']
+    : ['sales_pipeline'];
 
   try {
     const { data, error } = await supaClient
@@ -290,6 +290,59 @@ class CallHammerPortal {
   }
 }
 
+  async fetchPassbookModuleInbox(teamKey = null, limit = 100) {
+  if (!supaClient) return [];
+
+  const resolvedTeamKey = teamKey || this.getCommandCenterTeamKey();
+
+  try {
+    const { data, error } = await supaClient
+      .from('command_center_team_state')
+      .select(`
+        id,
+        event_id,
+        team_key,
+        is_unread,
+        is_reviewed,
+        reviewed_by_profile_id,
+        reviewed_at,
+        updated_at,
+        command_center_events (
+          id,
+          module_key,
+          entity_type,
+          entity_id,
+          entity_code,
+          entity_label,
+          event_type,
+          summary_text,
+          field_changes,
+          old_data,
+          new_data,
+          actor_name,
+          actor_role,
+          created_at
+        )
+      `)
+      .eq('team_key', resolvedTeamKey)
+      .eq('is_reviewed', false)
+      .order('updated_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('fetchPassbookModuleInbox failed:', error);
+      return [];
+    }
+
+    return (data || []).filter(row =>
+      String(row?.command_center_events?.module_key || '').toLowerCase() === 'passbook_clients'
+    );
+  } catch (err) {
+    console.error('fetchPassbookModuleInbox exception:', err);
+    return [];
+  }
+}
+
   async markCommandCenterReviewed(eventId, teamKey = 'admin_management') {
     if (!supaClient || !eventId) return false;
 
@@ -305,6 +358,28 @@ class CallHammerPortal {
 
     return !!data;
   }
+
+  async acknowledgePassbookChange(eventId, teamKey = null) {
+  const resolvedTeamKey = teamKey || this.getCommandCenterTeamKey();
+
+  const ok = await this.markCommandCenterReviewed(eventId, resolvedTeamKey);
+
+  if (!ok) return false;
+
+  try {
+    if (window.Admin?.loadPassbookModuleInbox) {
+      await window.Admin.loadPassbookModuleInbox();
+    }
+
+    if (window.portal?.fetchAdminData) {
+      await window.portal.fetchAdminData(true);
+    }
+  } catch (err) {
+    console.warn('Passbook acknowledge refresh failed:', err);
+  }
+
+  return true;
+}
 
   async setCommandCenterFlagged(eventId, teamKey = 'admin_management', isFlagged = true) {
     if (!supaClient || !eventId) return false;
@@ -587,11 +662,8 @@ setupCommandCenterRealtime() {
       },
       async () => {
         try {
-          if (window.Admin?.currentView === 'notifications') {
-            await window.Admin.loadNotifications(true);
-          } else {
-            // lightweight unread refresh even when not on tab
-            await window.Admin.loadNotifications(true);
+          await window.Admin?.loadNotifications?.(true);
+await window.Admin?.loadPassbookModuleInbox?.();
           }
         } catch (err) {
           console.error('Realtime notifications refresh failed:', err);
