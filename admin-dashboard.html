@@ -1816,6 +1816,26 @@ body.client-health-lock {
     </div>
   </main>
 
+  <div id="admin-fire-note-modal" class="hidden fixed inset-0 z-[120] flex items-center justify-center">
+  <div class="absolute inset-0 bg-black/40" onclick="Admin.closeAdminFireNoteModal()"></div>
+
+  <div class="relative bg-white rounded-2xl shadow-xl w-[92%] max-w-lg p-6 border border-gray-100">
+    <div class="flex items-start justify-between gap-4 mb-4">
+      <div>
+        <h3 class="text-xl font-black text-gray-900">🔥 Sales Note</h3>
+        <p class="text-sm text-gray-500 mt-1" id="admin-fire-note-client"></p>
+      </div>
+      <button onclick="Admin.closeAdminFireNoteModal()" class="w-9 h-9 rounded-lg border border-gray-200">
+        ✕
+      </button>
+    </div>
+
+    <div id="admin-fire-note-content" class="text-sm text-gray-700 whitespace-pre-wrap"></div>
+
+    <div id="admin-fire-note-meta" class="mt-3 text-xs text-gray-400 font-bold"></div>
+  </div>
+</div>
+
     <div id="rejection-reason-modal" class="hidden fixed inset-0 z-[120] flex items-center justify-center">
     <div class="absolute inset-0 bg-black/40" onclick="Admin.closeRejectionReasonModal()"></div>
 
@@ -1981,6 +2001,18 @@ notesLoading: false,
 noteDraft: '',
 
       getState() { return window.portal?.adminState || {}; },
+
+      openAdminFireNoteModal(note, client, author) {
+  document.getElementById("admin-fire-note-client").innerText = client || "Client";
+  document.getElementById("admin-fire-note-content").innerText = note || "";
+  document.getElementById("admin-fire-note-meta").innerText = `Added by ${author || "Sales"}`;
+
+  document.getElementById("admin-fire-note-modal").classList.remove("hidden");
+},
+
+closeAdminFireNoteModal() {
+  document.getElementById("admin-fire-note-modal").classList.add("hidden");
+}
 
       refreshDashboard() {
         const state = this.getState();
@@ -5007,9 +5039,13 @@ async openNotification(item) {
   ${String(row.notes || "").trim() ? `
   <button
     type="button"
-    onclick="alert(${JSON.stringify("🔥 Sales Note\\n\\n" + (row.notes || "") + "\\n\\nAdded by: " + (row.created_by_name || "Sales"))})"
-    class="mt-2 px-2 py-1 rounded-lg bg-orange-50 border border-orange-200 text-[11px] font-black text-orange-700 hover:bg-orange-100">
-    🔥 View Note
+    onclick="Admin.openAdminFireNoteModal(
+      ${JSON.stringify(row.notes)},
+      ${JSON.stringify(companyName)},
+      ${JSON.stringify(row.created_by_name || "Sales")}
+    )"
+    class="ml-2 px-2 py-1 rounded-lg bg-orange-50 border border-orange-200 text-[11px] font-black text-orange-700 hover:bg-orange-100">
+    🔥
   </button>
 ` : ""}
   ${
