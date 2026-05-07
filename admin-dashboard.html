@@ -2052,6 +2052,31 @@ closeAdminFireNoteModal() {
   document.getElementById("admin-fire-note-modal").classList.add("hidden");
 },
 
+      async toggleShareWithSales(codeName, checked) {
+  if (!supaClient || !codeName) {
+    alert("Database connection missing.");
+    return;
+  }
+
+  const { error } = await supaClient
+    .from("clients")
+    .update({
+      shared_with_sales: checked,
+      updated_at: new Date().toISOString()
+    })
+    .eq("client_code", codeName);
+
+  if (error) {
+    console.error("Share with Sales update failed:", error);
+    alert("Failed to update Share with Sales.");
+    return;
+  }
+
+  if (window.portal?.fetchAdminData) {
+    await window.portal.fetchAdminData(true);
+  }
+},
+
       async loadPassbookAuditForCode(codeName) {
   if (!supaClient || !codeName) return [];
 
@@ -4237,6 +4262,7 @@ const renderBottomRow = (a) => {
     const key = String(code || "").trim().toLowerCase();
     const changed = this.passbookChangedByCode?.has(key);
     const changeCount = this.getPassbookChangeItemsForCode(code).length;
+    const shared = c.shared_with_sales === true || String(c.shared_with_sales).toLowerCase() === "true";
 
     return `
       <div
@@ -4259,7 +4285,17 @@ const renderBottomRow = (a) => {
           </div>
         </div>
 
-        <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+<label class="mt-4 flex items-center gap-2 text-xs font-black text-gray-700" onclick="event.stopPropagation()">
+  <input
+    type="checkbox"
+    ${shared ? "checked" : ""}
+    onchange="Admin.toggleShareWithSales('${String(code).replace(/'/g, "\\'")}', this.checked)"
+    class="w-4 h-4 accent-blue-600"
+  />
+  Share with Sales
+</label>
+
+<div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
           <span class="px-2 py-1 rounded text-[10px] font-extrabold bg-blue-50 text-blue-700">
             ${this.pick(c, ["status","client_status"], "ACTIVE").toUpperCase()}
           </span>
