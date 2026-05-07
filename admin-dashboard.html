@@ -4643,9 +4643,22 @@ setTimeout(() => this.highlightPassbookChangedFields(codeName), 50);
           html += `
             <div>
               <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">${f.label}</label>
-              ${ isLong 
-                  ? `<textarea class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm h-24 focus:ring-2 focus:ring-blue-400 outline-none" name="${f.key}">${val}</textarea>` 
-                  : `<input class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none" name="${f.key}" value="${val}">` }
+              ${
+  f.key === "client_status"
+    ? `
+      <select
+        class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-400 outline-none"
+        name="${f.key}"
+      >
+        <option value="Active" ${val === "Active" ? "selected" : ""}>Active</option>
+        <option value="Inactive" ${val === "Inactive" ? "selected" : ""}>Inactive</option>
+        <option value="Blacklisted" ${val === "Blacklisted" ? "selected" : ""}>Blacklisted</option>
+      </select>
+    `
+    : isLong
+      ? `<textarea class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm h-24 focus:ring-2 focus:ring-blue-400 outline-none" name="${f.key}">${val}</textarea>`
+      : `<input class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none" name="${f.key}" value="${val}">`
+}
             </div>
           `;
         }
