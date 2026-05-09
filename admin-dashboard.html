@@ -5325,8 +5325,12 @@ document.getElementById("passbook-count").textContent = rows.length;
   if (!weekLabelEl || !tabsEl || !boardEl || !clientPoolEl || !rosterEl || !historyBodyEl) return;
 
   try {
-    const today = new Date();
-    const todayStr = today.toISOString().split("T")[0];
+    const todayStr = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Denver",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+}).format(new Date());
 
     const { data: weekDays, error: weekErr } = await supaClient.rpc("get_daily_strategy_week_days", {
       p_organization_id: orgId,
