@@ -3020,7 +3020,7 @@ renderHRTab() {
 
       renderHRPerformance() {
   const state = this.getState();
-  const groups = Array.isArray(state.hrTrainingGroups) ? state.hrTrainingGroups : [];
+  const perfRows = Array.isArray(state.hrTrainingPerformance) ? state.hrTrainingPerformance : [];
 
   const countEl = document.getElementById("hr-cohort-count");
   if (countEl) countEl.textContent = groups.length;
@@ -3049,7 +3049,12 @@ renderHRTab() {
     const week1Credited = Number(g.week1_credited_total || 0);
     const cancelRate = Number(g.week1_cancellation_rate || 0);
     const bonus = Number(g.recruiter_total_bonus || 0);
-    const warning = g.has_week1_warning === true || String(g.has_week1_warning).toLowerCase() === "true";
+    const cohortAgents = perfRows
+  .filter(r =>
+    String(r.active_start_date || "") === String(g.active_start_date || "") &&
+    String(r.recruiter_name || "") === String(g.recruiter_name || "")
+  )
+  .sort((a, b) => String(a.agent_name || "").localeCompare(String(b.agent_name || "")));
 
     const week1Pct = week1Goal > 0 ? Math.min(100, Math.round((week1Qualified / week1Goal) * 100)) : 0;
     const week2Pct = week2Goal > 0 ? Math.min(100, Math.round((week2Qualified / week2Goal) * 100)) : 0;
@@ -3119,7 +3124,113 @@ renderHRTab() {
             <div class="text-sm font-black text-gray-900">Recruiter Bonus</div>
             <div class="text-3xl font-black text-emerald-600 mt-2">$${bonus.toFixed(2)}</div>
             <div class="text-xs text-gray-500 mt-2">Cancellation Rate: <span class="font-black ${cancelRate >= 25 ? 'text-red-600' : 'text-emerald-600'}">${cancelRate}%</span></div>
-            <div class="text-xs text-gray-500 mt-1">Highest Week: <span class="font-black">${g.highest_week || '—'}</span></div>
+                    <div class="text-xs text-gray-500 mt-1">Highest Week: <span class="font-black">${g.highest_week || '—'}</span></div>
+          </div>
+        </div>
+
+        <div class="px-5 pb-5">
+          <div class="rounded-2xl border border-gray-100 overflow-hidden">
+            <div class="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+              <div class="text-sm font-black text-gray-900">Agents in this Cohort</div>
+              <div class="text-xs font-bold text-gray-400">${cohortAgents.length} people</div>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm whitespace-nowrap">
+                <thead class="bg-white text-[10px] font-black text-gray-400 uppercase border-b border-gray-100">
+                  <tr>
+                    <th class="p-3">Agent</th>
+                    <th class="p-3">Status</th>
+                    <th class="p-3 text-center">Week</th>
+                    <th class="p-3 text-center text-blue-600">Week 1 Qualified</th>
+                    <th class="p-3 text-center text-red-500">Week 1 Rejected</th>
+                    <th class="p-3 text-center text-purple-600">Week 1 Credited</th>
+                    <th class="p-3 text-center text-blue-600">Week 2 Qualified</th>
+                    <th class="p-3 text-center">Week 1 Result</th>
+                    <th class="p-3 text-right text-emerald-600">Recruiter Bonus</th>
+                  </tr>
+                </thead>
+
+                <tbody class="divide-y divide-gray-50">
+                  ${
+                    cohortAgents.length
+                      ? cohortAgents.map(a => {
+                          const aStatus = String(a.employment_status || "").toLowerCase();
+                          const aWeek1Qualified = Number(a.week1_qualified || 0);
+                          const aWeek1Rejected = Number(a.week1_rejected || 0);
+                          const aWeek1Credited = Number(a.week1_credited || 0);
+                          const aWeek2Qualified = Number(a.week2_qualified || 0);
+                          const aBonus = Number(a.recruiter_bonus_total || 0);
+
+                          const passed =
+                            a.week1_passed === true ||
+                            String(a.week1_passed).toLowerCase() === "true";
+
+                          const statusBadge =
+                            aStatus === "active"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : aStatus === "onboarding"
+                              ? "bg-yellow-100 text-yellow-700"
+                              : "bg-gray-100 text-gray-700";
+
+                          return `
+                            <tr class="hover:bg-gray-50">
+                              <td class="p-3 font-black text-gray-900">
+                                ${a.agent_name || "Unknown"}
+                                <div class="text-[11px] text-gray-400 font-semibold">${a.agent_email || "—"}</div>
+                              </td>
+
+                              <td class="p-3">
+                                <span class="px-2 py-1 rounded text-[10px] font-black ${statusBadge}">
+                                  ${(a.employment_status || "—").toUpperCase()}
+                                </span>
+                              </td>
+
+                              <td class="p-3 text-center font-bold text-gray-700">
+                                ${a.current_training_week || "—"}
+                              </td>
+
+                              <td class="p-3 text-center font-black text-blue-600">
+                                ${aWeek1Qualified}
+                              </td>
+
+                              <td class="p-3 text-center font-black text-red-500">
+                                ${aWeek1Rejected}
+                              </td>
+
+                              <td class="p-3 text-center font-black text-purple-600">
+                                ${aWeek1Credited}
+                              </td>
+
+                              <td class="p-3 text-center font-black text-blue-600">
+                                ${aWeek2Qualified}
+                              </td>
+
+                              <td class="p-3 text-center">
+                                ${
+                                  passed
+                                    ? `<span class="px-2 py-1 rounded bg-emerald-100 text-emerald-700 text-[10px] font-black">PASSED</span>`
+                                    : `<span class="px-2 py-1 rounded bg-orange-100 text-orange-700 text-[10px] font-black">NOT MET</span>`
+                                }
+                              </td>
+
+                              <td class="p-3 text-right font-black text-emerald-600">
+                                $${aBonus.toFixed(2)}
+                              </td>
+                            </tr>
+                          `;
+                        }).join("")
+                      : `
+                        <tr>
+                          <td colspan="9" class="p-5 text-center text-gray-400 italic">
+                            No agent rows found for this cohort.
+                          </td>
+                        </tr>
+                      `
+                  }
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
