@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recruitment Dashboard - Call Hammer Leads</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Inter', sans-serif; }
+    .sidebar { background: linear-gradient(180deg, #374151 0%, #111827 100%); }
+    .nav-item { transition: all 0.2s ease; cursor: pointer; color: #D1D5DB; }
+    .nav-item:hover, .nav-item.active { background: rgba(251, 191, 36, 0.15); border-left: 4px solid #FBBF24; color: #FBBF24; }
+    .dashboard-view { display: none; }
+    .dashboard-view.active { display: block; animation: fadeIn 0.2s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .status-pill { display:inline-flex; align-items:center; padding: 4px 9px; border-radius: 9999px; font-size: 10px; font-weight: 900; text-transform: uppercase; }
+    .status-active { background:#DCFCE7; color:#047857; }
+    .status-backend, .status-inactive { background:#F3F4F6; color:#4B5563; }
+    .status-offboarded, .status-blacklisted { background:#FEE2E2; color:#B91C1C; }
+    .thin-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .thin-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 9999px; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-800">
+  <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
+    <div class="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-lg flex items-center justify-center">
+            <span class="text-gray-900 font-black text-sm">CH</span>
+          </div>
+          <div>
+            <p class="text-xl font-black text-gray-900 tracking-tight">Recruitment Dashboard</p>
+            <p class="text-[11px] text-gray-500 font-semibold">HR directory, recruiting waves, and agent training performance</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button onclick="window.location.href='agent-dashboard.html'" class="px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-black hover:bg-gray-800">
+            Open Agent Dashboard
+          </button>
+          <div class="text-right hidden sm:block">
+            <p class="text-sm font-bold text-gray-900" id="nav-user-name">Loading...</p>
+            <p class="text-xs text-gray-500" id="nav-user-role">Recruiter Access</p>
+          </div>
+          <button onclick="safeLogout()" class="text-gray-400 hover:text-yellow-600 transition-colors" title="Log out">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="flex">
+    <aside class="sidebar w-64 min-h-screen text-white p-6 hidden lg:block relative">
+      <nav class="space-y-2">
+        <a href="#overview" class="nav-item active flex items-center space-x-3 px-4 py-3 rounded-lg font-bold"><span>HR Overview</span></a>
+        <a href="#directory" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-bold"><span>Directory</span></a>
+        <a href="#performance" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-bold"><span>Performance</span></a>
+      </nav>
+      <div class="absolute bottom-4 left-6 right-6">
+        <p class="text-[10px] font-black text-yellow-400 uppercase tracking-widest">Limited Access</p>
+        <p class="text-[11px] text-gray-300 mt-1">No payroll admin, sales, clients, or leads tracker access.</p>
+        <p class="text-[11px] font-bold text-yellow-400 mt-4" id="mst-clock">--:--:-- MST</p>
+      </div>
+    </aside>
+
+    <main class="flex-1 p-6 lg:p-10 max-w-[1800px] mx-auto w-full">
+      <section id="view-overview" class="dashboard-view active">
+        <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-8">
+          <div>
+            <h1 class="text-3xl font-black text-gray-900">HR & Recruitment Overview</h1>
+            <p class="text-sm text-gray-500 mt-1">Recruiter-only workspace for agent onboarding and training performance.</p>
+          </div>
+          <button onclick="refreshRecruitmentDashboard()" class="px-4 py-2 rounded-xl bg-yellow-500 text-gray-900 text-xs font-black hover:bg-yellow-400">Refresh</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Active Agents</p>
+            <p id="stat-active-agents" class="text-3xl font-black text-gray-900 mt-2">0</p>
+          </div>
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Training Incomplete</p>
+            <p id="stat-training-incomplete" class="text-3xl font-black text-orange-600 mt-2">0</p>
+          </div>
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Book Completed</p>
+            <p id="stat-book-complete" class="text-3xl font-black text-blue-700 mt-2">0</p>
+          </div>
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Video Completed</p>
+            <p id="stat-video-complete" class="text-3xl font-black text-green-700 mt-2">0</p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-black text-gray-900">Training Waves</h2>
+            <p class="text-xs text-gray-500">Grouped by recruiter/start date when available.</p>
+          </div>
+          <div id="training-waves-list" class="space-y-4">
+            <p class="text-sm text-gray-400 italic">Loading training waves...</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-directory" class="dashboard-view">
+        <div class="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-4 mb-8">
+          <div>
+            <h1 class="text-3xl font-black text-gray-900">Agent Directory</h1>
+            <p class="text-sm text-gray-500 mt-1">Add, edit, and review agent records.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <input id="directory-search" type="text" placeholder="Search name or email..." class="px-4 py-2 border border-gray-200 rounded-xl text-sm outline-none w-64" />
+            <select id="directory-status-filter" class="px-4 py-2 border border-gray-200 rounded-xl bg-white text-sm outline-none">
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="backend">Backend</option>
+              <option value="offboarded">Offboarded</option>
+              <option value="blacklisted">Blacklisted</option>
+            </select>
+            <button onclick="openAgentModal()" class="px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-black hover:bg-gray-800">Add Agent</button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="overflow-x-auto thin-scroll">
+            <table class="min-w-full divide-y divide-gray-100 text-sm">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-5 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Agent</th>
+                  <th class="px-5 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Email</th>
+                  <th class="px-5 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                  <th class="px-5 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Position</th>
+                  <th class="px-5 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Recruiter</th>
+                  <th class="px-5 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Book</th>
+                  <th class="px-5 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Video</th>
+                  <th class="px-5 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Action</th>
+                </tr>
+              </thead>
+              <tbody id="directory-table-body" class="divide-y divide-gray-100 bg-white">
+                <tr><td colspan="8" class="px-5 py-8 text-center text-gray-400 italic">Loading agents...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-performance" class="dashboard-view">
+        <div class="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-4 mb-8">
+          <div>
+            <h1 class="text-3xl font-black text-gray-900">Recruit Training Performance</h1>
+            <p class="text-sm text-gray-500 mt-1">Qualified lead performance for agents in training.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <input id="performance-search" type="text" placeholder="Search agent..." class="px-4 py-2 border border-gray-200 rounded-xl text-sm outline-none w-64" />
+            <button onclick="refreshRecruitmentDashboard()" class="px-4 py-2 rounded-xl bg-yellow-500 text-gray-900 text-xs font-black hover:bg-yellow-400">Refresh</button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="overflow-x-auto thin-scroll">
+            <table class="min-w-full divide-y divide-gray-100 text-sm">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-5 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Agent</th>
+                  <th class="px-5 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Recruiter</th>
+                  <th class="px-5 py-4 text-left text-[10px] font-black text-blue-600 uppercase tracking-widest">Week 1 Qualified</th>
+                  <th class="px-5 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Week 1 Result</th>
+                  <th class="px-5 py-4 text-left text-[10px] font-black text-blue-600 uppercase tracking-widest">Week 2 Qualified</th>
+                  <th class="px-5 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Week 2 Result</th>
+                  <th class="px-5 py-4 text-left text-[10px] font-black text-green-600 uppercase tracking-widest">Recruiter Bonus</th>
+                </tr>
+              </thead>
+              <tbody id="performance-table-body" class="divide-y divide-gray-100 bg-white">
+                <tr><td colspan="7" class="px-5 py-8 text-center text-gray-400 italic">Loading performance...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="agent-modal" class="hidden fixed inset-0 bg-gray-900/50 z-50 items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <h3 id="agent-modal-title" class="text-lg font-black text-gray-900">Add Agent</h3>
+        <button onclick="closeAgentModal()" class="text-gray-400 hover:text-gray-900 text-2xl leading-none">&times;</button>
+      </div>
+      <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <input type="hidden" id="agent-id" />
+        <label class="text-xs font-black text-gray-500 uppercase">Agent Name<input id="agent-name" class="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm normal-case font-normal" /></label>
+        <label class="text-xs font-black text-gray-500 uppercase">Agent Email<input id="agent-email" class="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm normal-case font-normal" /></label>
+        <label class="text-xs font-black text-gray-500 uppercase">Legal Name<input id="legal-name" class="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm normal-case font-normal" /></label>
+        <label class="text-xs font-black text-gray-500 uppercase">Country<input id="country" class="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm normal-case font-normal" /></label>
+        <label class="text-xs font-black text-gray-500 uppercase">Status
+          <select id="employment-status" class="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm normal-case font-normal bg-white">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="backend">Backend</option>
+            <option value="offboarded">Offboarded</option>
+            <option value="blacklisted">Blacklisted</option>
+          </select>
+        </label>
+        <label class="text-xs font-black text-gray-500 uppercase">Position<input id="position" class="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm normal-case font-normal" /></label>
+        <label class="text-xs font-black text-gray-500 uppercase">Recruiter Name<input id="recruiter-name" class="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm normal-case font-normal" /></label>
+        <label class="text-xs font-black text-gray-500 uppercase">Recruiter Email<input id="recruiter-email" class="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm normal-case font-normal" /></label>
+        <label class="text-xs font-black text-gray-500 uppercase">Start Date<input id="start-date" type="date" class="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm normal-case font-normal" /></label>
+        <div class="flex items-center gap-5 pt-6">
+          <label class="flex items-center gap-2 text-sm font-bold"><input id="training-book-read" type="checkbox" class="w-4 h-4" /> Book read</label>
+          <label class="flex items-center gap-2 text-sm font-bold"><input id="training-video-watched" type="checkbox" class="w-4 h-4" /> Video watched</label>
+        </div>
+        <label class="md:col-span-2 text-xs font-black text-gray-500 uppercase">HR Notes<textarea id="hr-notes" rows="3" class="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm normal-case font-normal"></textarea></label>
+      </div>
+      <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-2 bg-gray-50">
+        <button onclick="closeAgentModal()" class="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 text-xs font-black">Cancel</button>
+        <button onclick="saveAgent()" class="px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-black">Save Agent</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="main.js"></script>
+  <script>
+    let recruitmentAgents = [];
+    let recruitmentProfile = null;
+
+    function getSupabaseClient() {
+      return window.supabaseClient || window.chlSupabase || window.db || window.portal?.supabase || window.portal?.client || null;
+    }
+
+    function safeLogout() {
+      if (window.portal?.logout) return window.portal.logout();
+      const client = getSupabaseClient();
+      if (client?.auth?.signOut) client.auth.signOut().finally(() => window.location.href = 'index.html');
+      else window.location.href = 'index.html';
+    }
+
+    function tickMstClock() {
+      const el = document.getElementById('mst-clock');
+      if (!el) return;
+      const text = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Denver', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+      }).format(new Date());
+      el.textContent = `${text} MST`;
+    }
+
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        const targetId = 'view-' + item.getAttribute('href').substring(1);
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        document.querySelectorAll('.dashboard-view').forEach(view => view.classList.remove('active'));
+        document.getElementById(targetId)?.classList.add('active');
+      });
+    });
+
+    function statusClass(status) {
+      const s = String(status || '').toLowerCase();
+      if (s === 'active') return 'status-active';
+      if (s === 'offboarded' || s === 'blacklisted') return 'status-offboarded';
+      return 'status-backend';
+    }
+
+    function yesNo(value) {
+      return value ? '<span class="text-green-700 font-black">Yes</span>' : '<span class="text-gray-400 font-bold">No</span>';
+    }
+
+    async function loadCurrentRecruiterProfile() {
+      const client = getSupabaseClient();
+      if (!client?.auth?.getUser) return null;
+      const { data: userData } = await client.auth.getUser();
+      const user = userData?.user;
+      if (!user) return null;
+
+      const { data, error } = await client
+        .from('profiles')
+        .select('id,email,display_name,full_name,role,is_active,can_access_recruitment_dashboard,organization_id')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (error) throw error;
+      recruitmentProfile = data;
+      document.getElementById('nav-user-name').textContent = data.display_name || data.full_name || data.email || 'Recruiter';
+      if (!data?.can_access_recruitment_dashboard) {
+        alert('You do not have access to the Recruitment Dashboard.');
+        window.location.href = 'agent-dashboard.html';
+        return null;
+      }
+      return data;
+    }
+
+    async function loadAgents() {
+      const client = getSupabaseClient();
+      if (!client?.from) throw new Error('Supabase client not found. Check main.js exposes the client globally.');
+
+      const { data, error } = await client
+        .from('agents')
+        .select('id,agent_name,agent_email,legal_name,country,employment_status,role,position,start_date,active_start_date,recruiter_name,recruiter_email,training_book_read,training_video_watched,hr_notes,organization_id')
+        .eq('organization_id', recruitmentProfile.organization_id)
+        .order('agent_name', { ascending: true });
+
+      if (error) throw error;
+      recruitmentAgents = data || [];
+      renderOverview();
+      renderDirectory();
+      renderPerformance();
+    }
+
+    function renderOverview() {
+      const active = recruitmentAgents.filter(a => String(a.employment_status || '').toLowerCase() === 'active');
+      const book = recruitmentAgents.filter(a => a.training_book_read).length;
+      const video = recruitmentAgents.filter(a => a.training_video_watched).length;
+      const incomplete = recruitmentAgents.filter(a => !a.training_book_read || !a.training_video_watched).length;
+      document.getElementById('stat-active-agents').textContent = active.length;
+      document.getElementById('stat-training-incomplete').textContent = incomplete;
+      document.getElementById('stat-book-complete').textContent = book;
+      document.getElementById('stat-video-complete').textContent = video;
+
+      const groups = new Map();
+      recruitmentAgents.forEach(a => {
+        const key = `${a.active_start_date || a.start_date || 'No start date'}|${a.recruiter_name || 'No recruiter'}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(a);
+      });
+
+      const list = document.getElementById('training-waves-list');
+      if (!groups.size) {
+        list.innerHTML = '<p class="text-sm text-gray-400 italic">No training waves found.</p>';
+        return;
+      }
+      list.innerHTML = [...groups.entries()].map(([key, rows], idx) => {
+        const [start, recruiter] = key.split('|');
+        const done = rows.filter(a => a.training_book_read && a.training_video_watched).length;
+        return `<div class="border border-gray-100 rounded-2xl p-5 bg-gray-50/50">
+          <div class="flex items-center justify-between gap-3">
+            <div><p class="text-lg font-black text-gray-900">Wave ${idx + 1}</p><p class="text-xs text-gray-500">Start: ${start} • Recruiter: ${recruiter} • Agents: ${rows.length}</p></div>
+            <p class="text-sm font-black text-green-700">${done}/${rows.length} completed</p>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function filteredDirectoryAgents() {
+      const q = document.getElementById('directory-search')?.value?.toLowerCase().trim() || '';
+      const status = document.getElementById('directory-status-filter')?.value || 'all';
+      return recruitmentAgents.filter(a => {
+        const haystack = `${a.agent_name || ''} ${a.agent_email || ''} ${a.legal_name || ''}`.toLowerCase();
+        const statusOk = status === 'all' || String(a.employment_status || '').toLowerCase() === status;
+        return statusOk && (!q || haystack.includes(q));
+      });
+    }
+
+    function renderDirectory() {
+      const body = document.getElementById('directory-table-body');
+      const rows = filteredDirectoryAgents();
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="8" class="px-5 py-8 text-center text-gray-400 italic">No agents found.</td></tr>';
+        return;
+      }
+      body.innerHTML = rows.map(a => `<tr class="hover:bg-gray-50">
+        <td class="px-5 py-4 font-black text-gray-900">${a.agent_name || a.legal_name || '—'}</td>
+        <td class="px-5 py-4 text-gray-600">${a.agent_email || '—'}</td>
+        <td class="px-5 py-4"><span class="status-pill ${statusClass(a.employment_status)}">${a.employment_status || '—'}</span></td>
+        <td class="px-5 py-4 text-gray-600">${a.position || a.role || '—'}</td>
+        <td class="px-5 py-4 text-gray-600">${a.recruiter_name || '—'}</td>
+        <td class="px-5 py-4">${yesNo(a.training_book_read)}</td>
+        <td class="px-5 py-4">${yesNo(a.training_video_watched)}</td>
+        <td class="px-5 py-4 text-right"><button onclick="openAgentModal('${a.id}')" class="px-3 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-black">Edit</button></td>
+      </tr>`).join('');
+    }
+
+    function renderPerformance() {
+      const body = document.getElementById('performance-table-body');
+      const q = document.getElementById('performance-search')?.value?.toLowerCase().trim() || '';
+      const rows = recruitmentAgents.filter(a => !q || `${a.agent_name || ''} ${a.agent_email || ''}`.toLowerCase().includes(q));
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="7" class="px-5 py-8 text-center text-gray-400 italic">No performance rows found.</td></tr>';
+        return;
+      }
+      body.innerHTML = rows.map(a => `<tr class="hover:bg-gray-50">
+        <td class="px-5 py-4 font-black text-gray-900">${a.agent_name || '—'}</td>
+        <td class="px-5 py-4 text-gray-600">${a.recruiter_name || '—'}</td>
+        <td class="px-5 py-4 font-black text-blue-700">—</td>
+        <td class="px-5 py-4"><span class="status-pill status-backend">Pending View</span></td>
+        <td class="px-5 py-4 font-black text-blue-700">—</td>
+        <td class="px-5 py-4"><span class="status-pill status-backend">Pending View</span></td>
+        <td class="px-5 py-4 font-black text-green-700">—</td>
+      </tr>`).join('');
+    }
+
+    function openAgentModal(id) {
+      const agent = id ? recruitmentAgents.find(a => a.id === id) : null;
+      document.getElementById('agent-modal-title').textContent = agent ? 'Edit Agent' : 'Add Agent';
+      document.getElementById('agent-id').value = agent?.id || '';
+      document.getElementById('agent-name').value = agent?.agent_name || '';
+      document.getElementById('agent-email').value = agent?.agent_email || '';
+      document.getElementById('legal-name').value = agent?.legal_name || '';
+      document.getElementById('country').value = agent?.country || '';
+      document.getElementById('employment-status').value = agent?.employment_status || 'active';
+      document.getElementById('position').value = agent?.position || agent?.role || 'Agent';
+      document.getElementById('recruiter-name').value = agent?.recruiter_name || recruitmentProfile?.display_name || recruitmentProfile?.full_name || '';
+      document.getElementById('recruiter-email').value = agent?.recruiter_email || recruitmentProfile?.email || '';
+      document.getElementById('start-date').value = agent?.active_start_date || agent?.start_date || '';
+      document.getElementById('training-book-read').checked = !!agent?.training_book_read;
+      document.getElementById('training-video-watched').checked = !!agent?.training_video_watched;
+      document.getElementById('hr-notes').value = agent?.hr_notes || '';
+      const modal = document.getElementById('agent-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeAgentModal() {
+      const modal = document.getElementById('agent-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    async function saveAgent() {
+      const client = getSupabaseClient();
+      if (!client?.from) return alert('Supabase client not found.');
+      const id = document.getElementById('agent-id').value;
+      const payload = {
+        agent_name: document.getElementById('agent-name').value.trim(),
+        agent_email: document.getElementById('agent-email').value.trim().toLowerCase(),
+        legal_name: document.getElementById('legal-name').value.trim() || null,
+        country: document.getElementById('country').value.trim() || null,
+        employment_status: document.getElementById('employment-status').value,
+        role: 'Agent',
+        position: document.getElementById('position').value.trim() || 'Agent',
+        recruiter_name: document.getElementById('recruiter-name').value.trim() || null,
+        recruiter_email: document.getElementById('recruiter-email').value.trim().toLowerCase() || null,
+        start_date: document.getElementById('start-date').value || null,
+        active_start_date: document.getElementById('start-date').value || null,
+        training_book_read: document.getElementById('training-book-read').checked,
+        training_video_watched: document.getElementById('training-video-watched').checked,
+        hr_notes: document.getElementById('hr-notes').value.trim() || null,
+        organization_id: recruitmentProfile.organization_id
+      };
+      if (!payload.agent_name || !payload.agent_email) return alert('Agent name and email are required.');
+
+      const query = id
+        ? client.from('agents').update(payload).eq('id', id).select().single()
+        : client.from('agents').insert(payload).select().single();
+      const { error } = await query;
+      if (error) return alert(error.message || 'Could not save agent.');
+      closeAgentModal();
+      await refreshRecruitmentDashboard();
+    }
+
+    async function refreshRecruitmentDashboard() {
+      try {
+        if (!recruitmentProfile) await loadCurrentRecruiterProfile();
+        if (recruitmentProfile) await loadAgents();
+      } catch (err) {
+        console.error(err);
+        const message = err?.message || 'Could not load recruitment dashboard.';
+        document.getElementById('directory-table-body').innerHTML = `<tr><td colspan="8" class="px-5 py-8 text-center text-red-500 font-bold">${message}</td></tr>`;
+        document.getElementById('performance-table-body').innerHTML = `<tr><td colspan="7" class="px-5 py-8 text-center text-red-500 font-bold">${message}</td></tr>`;
+      }
+    }
+
+    document.getElementById('directory-search').addEventListener('input', renderDirectory);
+    document.getElementById('directory-status-filter').addEventListener('change', renderDirectory);
+    document.getElementById('performance-search').addEventListener('input', renderPerformance);
+
+    tickMstClock();
+    setInterval(tickMstClock, 1000);
+    setTimeout(refreshRecruitmentDashboard, 300);
+  </script>
+</body>
+</html>
