@@ -3074,6 +3074,105 @@ renderHRTab() {
     `;
   }).join("");
 },
+      closeHRLeadModal() {
+  const modal = document.getElementById("hr-lead-modal");
+  if (modal) modal.classList.add("hidden");
+},
+
+openHRLeadModal(title, subTitle, leads = []) {
+  const modal = document.getElementById("hr-lead-modal");
+  const titleEl = document.getElementById("hr-lead-modal-title");
+  const subEl = document.getElementById("hr-lead-modal-sub");
+  const body = document.getElementById("hr-lead-modal-body");
+
+  if (!modal || !titleEl || !subEl || !body) return;
+
+  titleEl.textContent = title || "HR Lead Drilldown";
+  subEl.textContent = subTitle || "—";
+
+  if (!Array.isArray(leads) || !leads.length) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="10" class="p-6 text-center text-gray-400 italic">
+          No leads found for this filter.
+        </td>
+      </tr>
+    `;
+    modal.classList.remove("hidden");
+    return;
+  }
+
+  body.innerHTML = leads.map(l => {
+    const status = this.getLeadField(l, ["status", "Status"], "—");
+    const statusLower = String(status).toLowerCase();
+
+    let badge = "bg-gray-100 text-gray-700";
+    if (statusLower.includes("approv") || statusLower.includes("confirm")) badge = "bg-blue-100 text-blue-700";
+    if (statusLower.includes("reject")) badge = "bg-red-100 text-red-700";
+    if (statusLower.includes("credit")) badge = "bg-purple-100 text-purple-700";
+    if (statusLower.includes("pending")) badge = "bg-yellow-100 text-yellow-700";
+
+    return `
+      <tr class="hover:bg-gray-50">
+        <td class="p-3">${this.getLeadField(l, ["date_submitted", "Date Submitted"], "—")}</td>
+        <td class="p-3 font-mono text-xs text-gray-500">${this.getLeadField(l, ["lead_id", "LEAD ID"], "—")}</td>
+        <td class="p-3 font-bold text-gray-900">${this.getLeadField(l, ["appointment_coordinator_name", "Appointment Coordinator Name"], "—")}</td>
+        <td class="p-3">${this.getLeadField(l, ["homeowner_names", "Homeowner Name(s)"], "—")}</td>
+        <td class="p-3">${this.getLeadField(l, ["company_name", "Company Name", "roofing_company"], "—")}</td>
+        <td class="p-3">${this.getLeadField(l, ["homeowner_phone_numbers", "Homeowner Phone Number", "phone"], "—")}</td>
+        <td class="p-3">${this.getLeadField(l, ["appointment_date_time", "Appointment Date /Time"], "—")}</td>
+        <td class="p-3">${this.getLeadField(l, ["address", "Address"], "—")}</td>
+        <td class="p-3">
+          <span class="px-2 py-1 rounded-full text-[11px] font-black ${badge}">
+            ${status}
+          </span>
+        </td>
+        <td class="p-3">${this.getLeadField(l, ["rejection_reason", "Rejection Reason"], "—")}</td>
+      </tr>
+    `;
+  }).join("");
+
+  modal.classList.remove("hidden");
+},
+
+openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
+  const state = this.getState();
+  const leads = Array.isArray(state.leads) ? state.leads : [];
+
+  const agentKey = String(agentName || "").trim().toLowerCase();
+
+  const start = startDate ? new Date(startDate + "T00:00:00") : null;
+  const end = endDate ? new Date(endDate + "T23:59:59") : null;
+
+  const filtered = leads.filter(l => {
+    const rawAgent = String(this.getLeadField(l, [
+      "appointment_coordinator_name",
+      "Appointment Coordinator Name",
+      "agent_name"
+    ], "")).trim().toLowerCase();
+
+    if (rawAgent !== agentKey) return false;
+
+    const dt = this.getLeadDateObj(l);
+    if (start && (!dt || dt < start)) return false;
+    if (end && (!dt || dt > end)) return false;
+
+    const st = String(this.getLeadField(l, ["status", "Status"], "")).toLowerCase();
+
+    if (statusType === "qualified") return st.includes("approv") || st.includes("confirm");
+    if (statusType === "rejected") return st.includes("reject");
+    if (statusType === "credited") return st.includes("credit");
+    if (statusType === "pending") return st.includes("pending");
+
+    return true;
+  });
+
+  this.openHRLeadModal(
+    `${agentName} — ${String(statusType || "all").toUpperCase()} Leads`,
+    `${startDate || "All time"} → ${endDate || "Present"}`,
+    filtered
+  );
+},
 
      renderHRPerformance() {
   const state = this.getState();
@@ -3183,7 +3282,11 @@ renderHRTab() {
                 </thead>
                 <tbody class="divide-y divide-gray-50">
                   ${cohortAgents.map(a => {
-                    const passed = a.week1_passed === true || String(a.week1_passed).toLowerCase() === "true";
+                    const start = String(a.active_start_date || "");
+const w1End = start ? new Date(new Date(start + "T00:00:00").getTime() + 6 * 86400000).toISOString().slice(0, 10) : "";
+const w2Start = start ? new Date(new Date(start + "T00:00:00").getTime() + 7 * 86400000).toISOString().slice(0, 10) : "";
+const w2End = start ? new Date(new Date(start + "T00:00:00").getTime() + 13 * 86400000).toISOString().slice(0, 10) : "";
+const safeAgentName = String(a.agent_name || "Unknown").replace(/'/g, "\\'");
                     return `
                       <tr class="hover:bg-gray-50">
                         <td class="p-3 font-black text-gray-900">
@@ -3192,10 +3295,29 @@ renderHRTab() {
                         </td>
                         <td class="p-3">${a.employment_status || "—"}</td>
                         <td class="p-3 text-center">${a.current_training_week || "—"}</td>
-                        <td class="p-3 text-center font-black text-blue-600">${Number(a.week1_qualified || 0)}</td>
-                        <td class="p-3 text-center font-black text-red-500">${Number(a.week1_rejected || 0)}</td>
-                        <td class="p-3 text-center font-black text-purple-600">${Number(a.week1_credited || 0)}</td>
-                        <td class="p-3 text-center font-black text-blue-600">${Number(a.week2_qualified || 0)}</td>
+                        <td class="p-3 text-center">
+  <button onclick="Admin.openHRAgentLeadDrilldown('${safeAgentName}', 'qualified', '${start}', '${w1End}')" class="font-black text-blue-600 hover:underline">
+    ${Number(a.week1_qualified || 0)}
+  </button>
+</td>
+
+<td class="p-3 text-center">
+  <button onclick="Admin.openHRAgentLeadDrilldown('${safeAgentName}', 'rejected', '${start}', '${w1End}')" class="font-black text-red-500 hover:underline">
+    ${Number(a.week1_rejected || 0)}
+  </button>
+</td>
+
+<td class="p-3 text-center">
+  <button onclick="Admin.openHRAgentLeadDrilldown('${safeAgentName}', 'credited', '${start}', '${w1End}')" class="font-black text-purple-600 hover:underline">
+    ${Number(a.week1_credited || 0)}
+  </button>
+</td>
+
+<td class="p-3 text-center">
+  <button onclick="Admin.openHRAgentLeadDrilldown('${safeAgentName}', 'qualified', '${w2Start}', '${w2End}')" class="font-black text-blue-600 hover:underline">
+    ${Number(a.week2_qualified || 0)}
+  </button>
+</td>
                         <td class="p-3 text-center">${passed ? "PASSED" : "NOT MET"}</td>
                         <td class="p-3 text-right font-black text-emerald-600">$${Number(a.recruiter_bonus_total || 0).toFixed(2)}</td>
                       </tr>
