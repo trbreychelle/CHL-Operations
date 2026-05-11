@@ -3131,8 +3131,9 @@ return {
 },
 
       openHRAgentDetails(agentId) {
-  const agents = this.state.hrAgents || [];
-  const agent = agents.find(a => String(a.id) === String(agentId));
+const state = this.getState();
+const agents = Array.isArray(state.agents) ? state.agents : [];
+const agent = agents.find(a => String(a.id) === String(agentId));
 
   if (!agent) {
     alert("Agent record not found.");
