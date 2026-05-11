@@ -2377,7 +2377,9 @@ async fetchAdminData(forceRefresh = false) {
     supaAgentCurrentRates = [],
     supaPayrollWeeklyFactView = [],
     supaPayrollWorkers = [],
-    supaClientOnboarding = [];
+    supaClientOnboarding = [],
+    supaHRTrainingPerformance = [],
+    supaHRTrainingGroups = [];
 
 if (supaClient) {
   const [
@@ -2394,7 +2396,9 @@ if (supaClient) {
   acrRes,
   pwfRes,
   pwwRes,
-  coRes
+  coRes,
+  hrPerfRes,
+  hrGroupRes
 ] = await Promise.all([
   supaClient.from('leads_raw').select('*'),
   supaClient.from('packages').select('*'),
@@ -2409,7 +2413,9 @@ if (supaClient) {
   supaClient.from('agent_current_rate_view').select('*'),
   supaClient.from('payroll_weekly_fact_v2').select('*'),
   supaClient.from('payroll_workers').select('*'),
-  supaClient.from('client_onboarding').select('*')
+  supaClient.from('client_onboarding').select('*'),
+  supaClient.from('hr_training_group_performance_v1').select('*'),
+  supaClient.from('hr_training_group_summary_v1').select('*')
 ]);
 
   console.log('pwfRes error:', pwfRes.error);
@@ -2430,7 +2436,8 @@ console.log('pwwRes rows:', pwwRes.data?.length || 0);
   supaAgentCurrentRates = acrRes.data || [];
   supaPayrollWeeklyFactView = pwfRes.data || [];
   supaPayrollWorkers = pwwRes.data || [];
-  supaClientOnboarding = coRes.data || [];
+  supaHRTrainingPerformance = hrPerfRes.data || [];
+  supaHRTrainingGroups = hrGroupRes.data || [];
 }
       
       this.adminState.rawClients = supaClients.length > 0 ? supaClients : (dataRoot.clients || []);
@@ -2450,7 +2457,8 @@ this.adminState.clientHealthView = supaClientHealth;
 this.adminState.agentPerformanceView = supaAgentPerformance;
 this.adminState.clientPackageStatusView = supaClientPackageStatus;
 this.adminState.clientPackageAllocationView = supaClientPackageAllocation;
-this.adminState.clientOnboarding = supaClientOnboarding;
+this.adminState.hrTrainingPerformance = supaHRTrainingPerformance;
+this.adminState.hrTrainingGroups = supaHRTrainingGroups;
 
       console.log('clientPackageStatusView rows:', this.adminState.clientPackageStatusView.length);
 
