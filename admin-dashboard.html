@@ -3568,6 +3568,12 @@ openHRGroupModal(group) {
   subEl.textContent = `Started ${group.active_start_date || "—"} • Recruiter: ${group.recruiter_name || "—"} • ${group.total_agents || 0} agents`;
 
   const weeks = [1, 2, 3, 4].map(n => ({
+    recruiterBonus:
+  n === 1
+    ? Number(group.week1_individual_bonus || 0) + Number(group.week1_group_bonus || 0)
+    : n === 2
+      ? Number(group.week2_group_bonus || 0)
+      : 0,
     week: n,
     total: Number(group[`week${n}_total`] || 0),
     qualified: Number(group[`week${n}_qualified_total`] || 0),
@@ -3589,7 +3595,13 @@ openHRGroupModal(group) {
           <div class="px-5 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
             <div>
               <div class="text-lg font-black text-gray-900">Week ${w.week}</div>
-              <div class="text-xs text-gray-500 mt-1">Goal: ${w.goal} qualified leads</div>
+             <div class="text-xs text-gray-500 mt-1">
+  Goal: ${w.goal} qualified leads
+</div>
+
+<div class="mt-2 text-sm font-black text-emerald-600">
+  Recruiter Bonus: $${Number(w.recruiterBonus || 0).toFixed(2)}
+</div>
             </div>
 
             ${
