@@ -3287,6 +3287,7 @@ const w1End = start ? new Date(new Date(start + "T00:00:00").getTime() + 6 * 864
 const w2Start = start ? new Date(new Date(start + "T00:00:00").getTime() + 7 * 86400000).toISOString().slice(0, 10) : "";
 const w2End = start ? new Date(new Date(start + "T00:00:00").getTime() + 13 * 86400000).toISOString().slice(0, 10) : "";
 const safeAgentName = String(a.agent_name || "Unknown").replace(/'/g, "\\'");
+const passed = a.week1_passed === true || String(a.week1_passed).toLowerCase() === "true";
                     return `
                       <tr class="hover:bg-gray-50">
                         <td class="p-3 font-black text-gray-900">
