@@ -3151,6 +3151,40 @@ return {
 
   return d.toISOString().slice(0, 10);
 },
+
+      async updateHRAgentTrainingFlag(agentId, field, value) {
+  if (!agentId || !supaClient) {
+    alert("Database connection missing.");
+    return;
+  }
+
+  if (!["training_book_read", "training_video_watched"].includes(field)) {
+    alert("Invalid training field.");
+    return;
+  }
+
+  const payload = {
+    [field]: String(value) === "true"
+  };
+
+  const { error } = await supaClient
+    .from("agents")
+    .update(payload)
+    .eq("id", agentId);
+
+  if (error) {
+    console.error("Training update failed:", error);
+    alert("Failed to update training status.");
+    return;
+  }
+
+  if (window.portal?.fetchAdminData) {
+    await window.portal.fetchAdminData(true);
+  } else {
+    this.renderHRPerformance();
+  }
+},
+      
       async updateHRAgentStatus(agentId, newStatus) {
   if (!agentId || !supaClient) {
     alert("Database connection missing.");
@@ -3908,7 +3942,8 @@ openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
             <thead class="bg-white text-[10px] font-black text-gray-400 uppercase border-b border-gray-100">
               <tr>
                 <th class="p-3">Agent</th>
-                <th class="p-3">Email</th>
+                <th class="p-3 text-center">Book</th>
+<th class="p-3 text-center">Video</th>
                 <th class="p-3">Status</th>
                 <th class="p-3 text-center text-blue-600">Week 1 Qualified</th>
                 <th class="p-3 text-center">Week 1 Result</th>
@@ -3938,7 +3973,25 @@ openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
                       return `
                         <tr class="hover:bg-gray-50">
                           <td class="p-3 font-black text-gray-900">${a.agent_name || "Unknown"}</td>
-                          <td class="p-3 text-gray-500">${a.agent_email || "—"}</td>
+                          <td class="p-3 text-center">
+  <select
+    onchange="Admin.updateHRAgentTrainingFlag('${a.agent_id}', 'training_book_read', this.value)"
+    class="border border-gray-200 rounded-lg px-2 py-1 text-xs font-black bg-white"
+  >
+    <option value="false" ${a.training_book_read === true ? "" : "selected"}>No</option>
+    <option value="true" ${a.training_book_read === true ? "selected" : ""}>Yes</option>
+  </select>
+</td>
+
+<td class="p-3 text-center">
+  <select
+    onchange="Admin.updateHRAgentTrainingFlag('${a.agent_id}', 'training_video_watched', this.value)"
+    class="border border-gray-200 rounded-lg px-2 py-1 text-xs font-black bg-white"
+  >
+    <option value="false" ${a.training_video_watched === true ? "" : "selected"}>No</option>
+    <option value="true" ${a.training_video_watched === true ? "selected" : ""}>Yes</option>
+  </select>
+</td>
                           <td class="p-3">
                             <span class="px-2 py-1 rounded text-[10px] font-black ${statusBadge}">
                               ${status.toUpperCase()}
