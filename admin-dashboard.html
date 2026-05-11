@@ -3110,9 +3110,10 @@ renderHRTab() {
     `;
   }).join("");
 },
-
-      openHRGroupModal(group) {
+openHRGroupModal(group) {
   if (!group) return;
+
+  this._activeHRGroup = group;
 
   const modal = document.getElementById("hr-group-modal");
   const titleEl = document.getElementById("hr-group-modal-title");
@@ -3121,69 +3122,32 @@ renderHRTab() {
 
   if (!modal || !titleEl || !subEl || !content) return;
 
-  titleEl.textContent =
-    `${group.recruiter_name || "Recruiter"} Cohort`;
+  titleEl.textContent = `Wave ${group.wave_number || ""}`;
+  subEl.textContent = `Started ${group.active_start_date || "—"} • Recruiter: ${group.recruiter_name || "—"} • ${group.total_agents || 0} agents`;
 
-  subEl.textContent =
-    `Started ${group.active_start_date || "—"} • ${group.total_agents || 0} agents`;
-
-  const weeks = [
-    {
-      week: 1,
-      total: group.week1_total,
-      qualified: group.week1_qualified_total,
-      rejected: group.week1_rejected_total,
-      credited: group.week1_credited_total,
-      cancel: group.week1_cancellation_rate,
-      goal: group.week1_goal,
-      passed: group.week1_group_passed
-    },
-    {
-      week: 2,
-      total: group.week2_total,
-      qualified: group.week2_qualified_total,
-      rejected: group.week2_rejected_total,
-      credited: group.week2_credited_total,
-      cancel: group.week2_cancellation_rate,
-      goal: group.week2_goal,
-      passed: group.week2_group_passed
-    },
-    {
-      week: 3,
-      total: group.week3_total,
-      qualified: group.week3_qualified_total,
-      rejected: group.week3_rejected_total,
-      credited: group.week3_credited_total,
-      cancel: group.week3_cancellation_rate,
-      goal: group.week3_goal,
-      passed: group.week3_group_passed
-    },
-    {
-      week: 4,
-      total: group.week4_total,
-      qualified: group.week4_qualified_total,
-      rejected: group.week4_rejected_total,
-      credited: group.week4_credited_total,
-      cancel: group.week4_cancellation_rate,
-      goal: group.week4_goal,
-      passed: group.week4_group_passed
-    }
-  ];
+  const weeks = [1, 2, 3, 4].map(n => ({
+    week: n,
+    total: Number(group[`week${n}_total`] || 0),
+    qualified: Number(group[`week${n}_qualified_total`] || 0),
+    rejected: Number(group[`week${n}_rejected_total`] || 0),
+    credited: Number(group[`week${n}_credited_total`] || 0),
+    cancel: Number(group[`week${n}_cancellation_rate`] || 0),
+    goal: Number(group[`week${n}_goal`] || 0),
+    passed: group[`week${n}_group_passed`] === true || String(group[`week${n}_group_passed`]).toLowerCase() === "true"
+  }));
 
   content.innerHTML = `
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
       ${weeks.map(w => `
-        <div class="rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-
+        <button
+          type="button"
+          onclick="Admin.renderHRGroupWeekBreakdown(${w.week})"
+          class="text-left rounded-3xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md hover:border-blue-200 transition bg-white"
+        >
           <div class="px-5 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
             <div>
-              <div class="text-lg font-black text-gray-900">
-                Week ${w.week}
-              </div>
-
-              <div class="text-xs text-gray-500 mt-1">
-                Goal: ${w.goal || 0} Qualified Leads
-              </div>
+              <div class="text-lg font-black text-gray-900">Week ${w.week}</div>
+              <div class="text-xs text-gray-500 mt-1">Goal: ${w.goal} qualified leads</div>
             </div>
 
             ${
@@ -3194,34 +3158,36 @@ renderHRTab() {
           </div>
 
           <div class="p-5 grid grid-cols-2 md:grid-cols-5 gap-3">
-
             <div class="rounded-2xl bg-gray-50 border border-gray-100 p-4 text-center">
               <div class="text-xs font-black text-gray-400 uppercase">Total</div>
-              <div class="text-2xl font-black text-gray-900 mt-2">${w.total || 0}</div>
+              <div class="text-2xl font-black text-gray-900 mt-2">${w.total}</div>
             </div>
 
             <div class="rounded-2xl bg-blue-50 border border-blue-100 p-4 text-center">
               <div class="text-xs font-black text-blue-400 uppercase">Qualified</div>
-              <div class="text-2xl font-black text-blue-700 mt-2">${w.qualified || 0}</div>
+              <div class="text-2xl font-black text-blue-700 mt-2">${w.qualified}</div>
             </div>
 
             <div class="rounded-2xl bg-red-50 border border-red-100 p-4 text-center">
               <div class="text-xs font-black text-red-400 uppercase">Rejected</div>
-              <div class="text-2xl font-black text-red-600 mt-2">${w.rejected || 0}</div>
+              <div class="text-2xl font-black text-red-600 mt-2">${w.rejected}</div>
             </div>
 
             <div class="rounded-2xl bg-purple-50 border border-purple-100 p-4 text-center">
               <div class="text-xs font-black text-purple-400 uppercase">Credited</div>
-              <div class="text-2xl font-black text-purple-700 mt-2">${w.credited || 0}</div>
+              <div class="text-2xl font-black text-purple-700 mt-2">${w.credited}</div>
             </div>
 
             <div class="rounded-2xl bg-yellow-50 border border-yellow-100 p-4 text-center">
               <div class="text-xs font-black text-yellow-500 uppercase">Cancel</div>
-              <div class="text-2xl font-black text-yellow-700 mt-2">${Number(w.cancel || 0).toFixed(2)}%</div>
+              <div class="text-2xl font-black text-yellow-700 mt-2">${w.cancel.toFixed(2)}%</div>
             </div>
-
           </div>
-        </div>
+
+          <div class="px-5 pb-4 text-xs font-black text-blue-600">
+            Click to view agent breakdown →
+          </div>
+        </button>
       `).join("")}
     </div>
   `;
@@ -3229,6 +3195,93 @@ renderHRTab() {
   modal.classList.remove("hidden");
 },
 
+      renderHRGroupWeekBreakdown(weekNumber) {
+  const group = this._activeHRGroup;
+  if (!group) return;
+
+  const state = this.getState();
+  const perfRows = Array.isArray(state.hrTrainingPerformance) ? state.hrTrainingPerformance : [];
+
+  const content = document.getElementById("hr-group-modal-content");
+  if (!content) return;
+
+  const agents = perfRows
+    .filter(r =>
+      String(r.active_start_date || "") === String(group.active_start_date || "") &&
+      String(r.recruiter_name || "") === String(group.recruiter_name || "")
+    )
+    .sort((a, b) => String(a.agent_name || "").localeCompare(String(b.agent_name || "")));
+
+  content.innerHTML = `
+    <div class="mb-4 flex items-center justify-between gap-3">
+      <div>
+        <div class="text-xl font-black text-gray-900">Week ${weekNumber} Agent Breakdown</div>
+        <div class="text-sm text-gray-500 mt-1">Wave ${group.wave_number || ""} • ${group.active_start_date || "—"}</div>
+      </div>
+
+      <button
+        type="button"
+        onclick='Admin.openHRGroupModal(Admin._activeHRGroup)'
+        class="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 text-xs font-black hover:bg-gray-200"
+      >
+        ← Back to Weeks
+      </button>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm whitespace-nowrap">
+          <thead class="bg-gray-50 text-[10px] font-black text-gray-400 uppercase border-b border-gray-100">
+            <tr>
+              <th class="p-3">Agent</th>
+              <th class="p-3">Status</th>
+              <th class="p-3 text-center">Total Leads</th>
+              <th class="p-3 text-center text-red-500">QC Rejected</th>
+              <th class="p-3 text-center text-blue-600">Qualified</th>
+              <th class="p-3 text-center text-purple-600">Credited</th>
+              <th class="p-3 text-center">Cancel Rate</th>
+              <th class="p-3 text-center">Result</th>
+            </tr>
+          </thead>
+
+          <tbody class="divide-y divide-gray-50">
+            ${agents.map(a => {
+              const total = Number(a[`week${weekNumber}_total`] || 0);
+              const rejected = Number(a[`week${weekNumber}_rejected`] || 0);
+              const qualified = Number(a[`week${weekNumber}_qualified`] || 0);
+              const credited = Number(a[`week${weekNumber}_credited`] || 0);
+              const cancel = Number(a[`week${weekNumber}_cancellation_rate`] || 0);
+              const passed = a[`week${weekNumber}_passed`] === true || String(a[`week${weekNumber}_passed`]).toLowerCase() === "true";
+
+              return `
+                <tr class="hover:bg-gray-50">
+                  <td class="p-3 font-black text-gray-900">
+                    ${a.agent_name || "Unknown"}
+                    <div class="text-[11px] text-gray-400 font-semibold">${a.agent_email || "—"}</div>
+                  </td>
+                  <td class="p-3">${a.employment_status || "—"}</td>
+                  <td class="p-3 text-center font-black text-gray-900">${total}</td>
+                  <td class="p-3 text-center font-black text-red-500">${rejected}</td>
+                  <td class="p-3 text-center font-black text-blue-600">${qualified}</td>
+                  <td class="p-3 text-center font-black text-purple-600">${credited}</td>
+                  <td class="p-3 text-center font-black ${cancel >= 25 ? "text-red-600" : "text-emerald-600"}">${cancel.toFixed(2)}%</td>
+                  <td class="p-3 text-center">
+                    ${
+                      passed
+                        ? `<span class="px-2 py-1 rounded bg-emerald-100 text-emerald-700 text-[10px] font-black">PASSED</span>`
+                        : `<span class="px-2 py-1 rounded bg-orange-100 text-orange-700 text-[10px] font-black">NOT MET</span>`
+                    }
+                  </td>
+                </tr>
+              `;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+},
+      
 closeHRGroupModal() {
   const modal = document.getElementById("hr-group-modal");
   if (modal) modal.classList.add("hidden");
