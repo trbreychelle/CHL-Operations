@@ -3138,6 +3138,20 @@ return {
   }).join("");
 },
 
+      getNextMondayFromDate(dateText) {
+  if (!dateText) return null;
+
+  const d = new Date(`${dateText}T00:00:00`);
+  if (isNaN(d.getTime())) return null;
+
+  const day = d.getDay();
+  const daysUntilMonday = (8 - day) % 7 || 7;
+
+  d.setDate(d.getDate() + daysUntilMonday);
+
+  return d.toISOString().slice(0, 10);
+},
+
       openAddHRAgentModal() {
   const modal = document.createElement("div");
   modal.id = "hr-agent-profile-modal";
@@ -3203,7 +3217,7 @@ return {
           <input id="new-country" class="mt-1 w-full border rounded-lg p-2 text-sm normal-case font-normal">
         </label>
 
-        <label class="text-xs font-bold text-gray-500 uppercase">Active Start Date
+        <label class="text-xs font-bold text-gray-500 uppercase">Hired Date
           <input id="new-active-start-date" type="date" class="mt-1 w-full border rounded-lg p-2 text-sm normal-case font-normal">
         </label>
 
@@ -3224,6 +3238,58 @@ return {
   `;
 
   document.body.appendChild(modal);
+},
+
+      async createHRAgent() {
+  if (!supaClient) {
+    alert("Database connection missing.");
+    return;
+  }
+
+  const hiredDate = document.getElementById("new-active-start-date")?.value || null;
+
+  const payload = {
+    legal_name: document.getElementById("new-legal-name")?.value || null,
+    agent_name: document.getElementById("new-agent-name")?.value || null,
+    agent_email: document.getElementById("new-work-email")?.value || null,
+    personal_email: document.getElementById("new-personal-email")?.value || null,
+    phone: document.getElementById("new-phone")?.value || null,
+    birthday: document.getElementById("new-birthday")?.value || null,
+    employment_status: "onboarding",
+    role: document.getElementById("new-role")?.value || "agent",
+    effective_hourly_rate: document.getElementById("new-rate")?.value || null,
+    base_rate: document.getElementById("new-rate")?.value || null,
+    country: document.getElementById("new-country")?.value || null,
+    start_date: hiredDate,
+    active_start_date: null,
+    recruiter_name: document.getElementById("new-recruiter")?.value || null,
+    hr_notes: document.getElementById("new-hr-notes")?.value || null
+  };
+
+  if (!payload.agent_name || !payload.agent_email) {
+    alert("Display Name and Work Email are required.");
+    return;
+  }
+
+  const { error } = await supaClient
+    .from("agents")
+    .insert([payload]);
+
+  if (error) {
+    console.error("Create HR agent failed:", error);
+    alert("Failed to add agent.");
+    return;
+  }
+
+  alert("Agent added as Onboarding.");
+
+  document.getElementById("hr-agent-profile-modal")?.remove();
+
+  if (window.portal?.fetchAdminData) {
+    await window.portal.fetchAdminData(true);
+  } else {
+    this.renderHRTab();
+  }
 },
 
       openHRAgentDetails(agentId) {
