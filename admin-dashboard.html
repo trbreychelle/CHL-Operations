@@ -1951,6 +1951,43 @@ body.client-health-lock {
     </div>
   </div>
 
+  <!-- HR GROUP PERFORMANCE MODAL -->
+<div id="hr-group-modal" class="hidden fixed inset-0 z-[130]">
+  <div
+    class="absolute inset-0 bg-black/50"
+    onclick="Admin.closeHRGroupModal()"
+  ></div>
+
+  <div class="relative mx-auto mt-6 w-[97%] max-w-7xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+
+    <div class="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-blue-50 flex items-center justify-between">
+      <div>
+        <h3 id="hr-group-modal-title" class="text-2xl font-black text-gray-900">
+          Training Cohort
+        </h3>
+
+        <p id="hr-group-modal-sub" class="text-sm text-gray-500 mt-1">
+          Weekly cohort analytics
+        </p>
+      </div>
+
+      <button
+        onclick="Admin.closeHRGroupModal()"
+        class="w-11 h-11 rounded-2xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+      >
+        ✕
+      </button>
+    </div>
+
+    <div id="hr-group-modal-content" class="p-6 overflow-y-auto max-h-[82vh]">
+      <div class="text-sm text-gray-400 italic">
+        Loading group performance...
+      </div>
+    </div>
+
+  </div>
+</div>
+
   <!-- HR LEAD DRILLDOWN MODAL -->
 <div id="hr-lead-modal" class="hidden fixed inset-0 z-[120]">
   <div
@@ -3073,6 +3110,129 @@ renderHRTab() {
     `;
   }).join("");
 },
+
+      openHRGroupModal(group) {
+  if (!group) return;
+
+  const modal = document.getElementById("hr-group-modal");
+  const titleEl = document.getElementById("hr-group-modal-title");
+  const subEl = document.getElementById("hr-group-modal-sub");
+  const content = document.getElementById("hr-group-modal-content");
+
+  if (!modal || !titleEl || !subEl || !content) return;
+
+  titleEl.textContent =
+    `${group.recruiter_name || "Recruiter"} Cohort`;
+
+  subEl.textContent =
+    `Started ${group.active_start_date || "—"} • ${group.total_agents || 0} agents`;
+
+  const weeks = [
+    {
+      week: 1,
+      total: group.week1_total,
+      qualified: group.week1_qualified_total,
+      rejected: group.week1_rejected_total,
+      credited: group.week1_credited_total,
+      cancel: group.week1_cancellation_rate,
+      goal: group.week1_goal,
+      passed: group.week1_group_passed
+    },
+    {
+      week: 2,
+      total: group.week2_total,
+      qualified: group.week2_qualified_total,
+      rejected: group.week2_rejected_total,
+      credited: group.week2_credited_total,
+      cancel: group.week2_cancellation_rate,
+      goal: group.week2_goal,
+      passed: group.week2_group_passed
+    },
+    {
+      week: 3,
+      total: group.week3_total,
+      qualified: group.week3_qualified_total,
+      rejected: group.week3_rejected_total,
+      credited: group.week3_credited_total,
+      cancel: group.week3_cancellation_rate,
+      goal: group.week3_goal,
+      passed: group.week3_group_passed
+    },
+    {
+      week: 4,
+      total: group.week4_total,
+      qualified: group.week4_qualified_total,
+      rejected: group.week4_rejected_total,
+      credited: group.week4_credited_total,
+      cancel: group.week4_cancellation_rate,
+      goal: group.week4_goal,
+      passed: group.week4_group_passed
+    }
+  ];
+
+  content.innerHTML = `
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      ${weeks.map(w => `
+        <div class="rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+
+          <div class="px-5 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+            <div>
+              <div class="text-lg font-black text-gray-900">
+                Week ${w.week}
+              </div>
+
+              <div class="text-xs text-gray-500 mt-1">
+                Goal: ${w.goal || 0} Qualified Leads
+              </div>
+            </div>
+
+            ${
+              w.passed
+                ? `<span class="px-3 py-1 rounded-full bg-emerald-500 text-white text-xs font-black">PASSED</span>`
+                : `<span class="px-3 py-1 rounded-full bg-red-500 text-white text-xs font-black">NOT MET</span>`
+            }
+          </div>
+
+          <div class="p-5 grid grid-cols-2 md:grid-cols-5 gap-3">
+
+            <div class="rounded-2xl bg-gray-50 border border-gray-100 p-4 text-center">
+              <div class="text-xs font-black text-gray-400 uppercase">Total</div>
+              <div class="text-2xl font-black text-gray-900 mt-2">${w.total || 0}</div>
+            </div>
+
+            <div class="rounded-2xl bg-blue-50 border border-blue-100 p-4 text-center">
+              <div class="text-xs font-black text-blue-400 uppercase">Qualified</div>
+              <div class="text-2xl font-black text-blue-700 mt-2">${w.qualified || 0}</div>
+            </div>
+
+            <div class="rounded-2xl bg-red-50 border border-red-100 p-4 text-center">
+              <div class="text-xs font-black text-red-400 uppercase">Rejected</div>
+              <div class="text-2xl font-black text-red-600 mt-2">${w.rejected || 0}</div>
+            </div>
+
+            <div class="rounded-2xl bg-purple-50 border border-purple-100 p-4 text-center">
+              <div class="text-xs font-black text-purple-400 uppercase">Credited</div>
+              <div class="text-2xl font-black text-purple-700 mt-2">${w.credited || 0}</div>
+            </div>
+
+            <div class="rounded-2xl bg-yellow-50 border border-yellow-100 p-4 text-center">
+              <div class="text-xs font-black text-yellow-500 uppercase">Cancel</div>
+              <div class="text-2xl font-black text-yellow-700 mt-2">${Number(w.cancel || 0).toFixed(2)}%</div>
+            </div>
+
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+
+  modal.classList.remove("hidden");
+},
+
+closeHRGroupModal() {
+  const modal = document.getElementById("hr-group-modal");
+  if (modal) modal.classList.add("hidden");
+},
       closeHRLeadModal() {
   const modal = document.getElementById("hr-lead-modal");
   if (modal) modal.classList.add("hidden");
@@ -3233,6 +3393,13 @@ openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
               <span class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-black">${activeAgents} Active</span>
               <span class="px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-black">${offboardedAgents} Offboarded</span>
               ${warning ? `<span class="px-3 py-1 rounded-full bg-orange-500 text-white text-xs font-black">Warning</span>` : ''}
+              <button
+  type="button"
+  onclick='Admin.openHRGroupModal(${JSON.stringify(g).replace(/'/g, "&apos;")})'
+  class="px-3 py-1 rounded-full bg-gray-900 text-white text-xs font-black hover:bg-blue-700"
+>
+  View Group
+</button>
             </div>
           </div>
         </div>
