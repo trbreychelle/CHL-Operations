@@ -2511,7 +2511,18 @@ const packages = state.packages || [];
         try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
         try { this.bindPayrollUI(); this.renderPayrollFinance(); } catch(e) {}
         try { this.bindOverviewAnalyticsUI(); } catch(e) {} 
-        try { this.renderDailyTab(); } catch(e) {}
+        try {
+  const activeEl = document.activeElement;
+  const isTypingDaily =
+    activeEl &&
+    activeEl.closest &&
+    activeEl.closest("#view-daily") &&
+    ["INPUT", "TEXTAREA", "SELECT"].includes(activeEl.tagName);
+
+  if (!isTypingDaily) {
+    this.renderDailyTab();
+  }
+} catch(e) {}
       },
       
       toMST(dateVal) {
@@ -6623,7 +6634,7 @@ if (goal > 0) {
           type="number"
           min="0"
           value="${goal}"
-          onblur="Admin.updateDailyAssignment('${row.id}', 'assigned_agents', this.value)"
+          onblur="Admin.updateDailyAssignment('${row.id}', 'daily_goal', this.value)"
           class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
       </div>
