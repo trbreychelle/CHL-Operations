@@ -3337,32 +3337,27 @@ openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
   );
 },
 
-     renderHRPerformance() {
+    renderHRPerformance() {
   const state = this.getState();
-  const groups = (Array.isArray(state.hrTrainingGroups) ? state.hrTrainingGroups : [])
-  .slice()
-  .sort((a, b) => String(b.active_start_date || "").localeCompare(String(a.active_start_date || "")));
+
+  const rawGroups = Array.isArray(state.hrTrainingGroups) ? state.hrTrainingGroups : [];
   const perfRows = Array.isArray(state.hrTrainingPerformance) ? state.hrTrainingPerformance : [];
-      const chronologicalGroups = [...groups]
-  .sort((a, b) =>
+
+  const chronologicalGroups = [...rawGroups].sort((a, b) =>
     String(a.active_start_date || "").localeCompare(String(b.active_start_date || ""))
   );
 
-const waveMap = new Map();
+  const waveMap = new Map();
+  chronologicalGroups.forEach((g, idx) => {
+    waveMap.set(`${g.active_start_date}_${g.recruiter_name}`, idx + 1);
+  });
 
-chronologicalGroups.forEach((g, idx) => {
-  const key = `${g.active_start_date}_${g.recruiter_name}`;
-  waveMap.set(key, idx + 1);
-});
-
-const groupsWithWave = [...groups]
-  .sort((a, b) =>
-    String(b.active_start_date || "").localeCompare(String(a.active_start_date || ""))
-  )
-  .map(g => ({
-    ...g,
-    wave_number: waveMap.get(`${g.active_start_date}_${g.recruiter_name}`) || 1
-  }));
+  const groups = [...rawGroups]
+    .sort((a, b) => String(b.active_start_date || "").localeCompare(String(a.active_start_date || "")))
+    .map(g => ({
+      ...g,
+      wave_number: waveMap.get(`${g.active_start_date}_${g.recruiter_name}`) || 1
+    }));
 
   const countEl = document.getElementById("hr-cohort-count");
   if (countEl) countEl.textContent = groups.length;
@@ -3373,27 +3368,13 @@ const groupsWithWave = [...groups]
   if (!groups.length) {
     wrap.innerHTML = `
       <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-sm text-gray-400 italic">
-        No active training cohorts found.
+        No active training waves found.
       </div>
     `;
     return;
   }
 
-
-  wrap.innerHTML = groupsWithWave.map(g => {
-    const totalAgents = Number(g.total_agents || 0);
-    const activeAgents = Number(g.active_agents || 0);
-    const offboardedAgents = Number(g.offboarded_agents || 0);
-    const week1Goal = Number(g.week1_goal || 0);
-    const week2Goal = Number(g.week2_goal || 0);
-    const week1Qualified = Number(g.week1_qualified_total || 0);
-    const week2Qualified = Number(g.week2_qualified_total || 0);
-    const week1Rejected = Number(g.week1_rejected_total || 0);
-    const week1Credited = Number(g.week1_credited_total || 0);
-    const cancelRate = Number(g.week1_cancellation_rate || 0);
-    const bonus = Number(g.recruiter_total_bonus || 0);
-    const warning = g.has_week1_warning === true || String(g.has_week1_warning).toLowerCase() === "true";
-
+  wrap.innerHTML = groups.map(g => {
     const cohortAgents = perfRows
       .filter(r =>
         String(r.active_start_date || "") === String(g.active_start_date || "") &&
@@ -3402,139 +3383,102 @@ const groupsWithWave = [...groups]
       .sort((a, b) => String(a.agent_name || "").localeCompare(String(b.agent_name || "")));
 
     return `
-      <div class="bg-white rounded-2xl border ${warning ? 'border-orange-200' : 'border-gray-100'} shadow-sm overflow-hidden">
-        <div class="p-5 border-b border-gray-100 ${warning ? 'bg-orange-50' : 'bg-gray-50'}">
-          <div class="flex justify-between gap-3">
-            <div>
-              <div class="text-[10px] font-black uppercase tracking-wider text-gray-400">Wave ${g.wave_number}</div>
-              <div class="text-xl font-black text-gray-900">${g.active_start_date || '—'}</div>
-              <div class="text-xs text-gray-500 mt-1">
-  Wave Start:
-  <span class="font-black">${g.active_start_date || '—'}</span>
-</div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
 
-<div class="text-xs text-gray-500 mt-1">
-  Recruiter:
-  <span class="font-black">${g.recruiter_name || '—'}</span>
-</div>
-            </div>
-
-            <div class="flex gap-2 flex-wrap items-start">
-              <span class="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-black">${totalAgents} Agents</span>
-              <span class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-black">${activeAgents} Active</span>
-              <span class="px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-black">${offboardedAgents} Offboarded</span>
-              ${warning ? `<span class="px-3 py-1 rounded-full bg-orange-500 text-white text-xs font-black">Warning</span>` : ''}
-              <button
-  type="button"
-  onclick='Admin.openHRGroupModal(${JSON.stringify(g).replace(/'/g, "&apos;")})'
-  class="px-3 py-1 rounded-full bg-gray-900 text-white text-xs font-black hover:bg-blue-700"
->
-  View Group
-</button>
+        <div class="p-5 border-b border-gray-100 bg-gray-50 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div>
+            <div class="text-xl font-black text-gray-900">Wave ${g.wave_number}</div>
+            <div class="text-xs text-gray-500 mt-1">
+              Wave Start: <span class="font-black">${g.active_start_date || "—"}</span>
+              • Recruiter: <span class="font-black">${g.recruiter_name || "—"}</span>
+              • Agents: <span class="font-black">${g.total_agents || 0}</span>
             </div>
           </div>
+
+          <button
+            type="button"
+            onclick='Admin.openHRGroupModal(${JSON.stringify(g).replace(/'/g, "&apos;")})'
+            class="px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-black hover:bg-blue-700"
+          >
+            View Wave
+          </button>
         </div>
 
-        <div class="p-5 grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div class="rounded-2xl border border-gray-100 p-4">
-            <div class="text-sm font-black text-gray-900">Week 1 Goal</div>
-            <div class="text-xs font-black text-orange-600 mt-1">${week1Qualified}/${week1Goal}</div>
-            <div class="grid grid-cols-3 gap-2 mt-4 text-center text-xs">
-              <div class="rounded-xl bg-blue-50 p-2"><div class="font-black text-blue-700">${week1Qualified}</div><div>Qualified</div></div>
-              <div class="rounded-xl bg-red-50 p-2"><div class="font-black text-red-600">${week1Rejected}</div><div>Rejected</div></div>
-              <div class="rounded-xl bg-purple-50 p-2"><div class="font-black text-purple-700">${week1Credited}</div><div>Credited</div></div>
-            </div>
-          </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm whitespace-nowrap">
+            <thead class="bg-white text-[10px] font-black text-gray-400 uppercase border-b border-gray-100">
+              <tr>
+                <th class="p-3">Agent</th>
+                <th class="p-3">Email</th>
+                <th class="p-3">Status</th>
+                <th class="p-3 text-center text-blue-600">Week 1 Qualified</th>
+                <th class="p-3 text-center">Week 1 Result</th>
+                <th class="p-3 text-center text-blue-600">Week 2 Qualified</th>
+                <th class="p-3 text-center">Week 2 Result</th>
+                <th class="p-3 text-right text-emerald-600">Recruiter Bonus</th>
+              </tr>
+            </thead>
 
-          <div class="rounded-2xl border border-gray-100 p-4">
-            <div class="text-sm font-black text-gray-900">Week 2 Goal</div>
-            <div class="text-xs font-black text-orange-600 mt-1">${week2Qualified}/${week2Goal}</div>
-          </div>
+            <tbody class="divide-y divide-gray-50">
+              ${
+                cohortAgents.length
+                  ? cohortAgents.map(a => {
+                      const w1Passed = a.week1_passed === true || String(a.week1_passed).toLowerCase() === "true";
+                      const w2Passed = a.week2_passed === true || String(a.week2_passed).toLowerCase() === "true";
 
-          <div class="rounded-2xl border border-gray-100 p-4">
-            <div class="text-sm font-black text-gray-900">Recruiter Bonus</div>
-            <div class="text-3xl font-black text-emerald-600 mt-2">$${bonus.toFixed(2)}</div>
-            <div class="text-xs text-gray-500 mt-2">Cancellation Rate: ${cancelRate}%</div>
-            <div class="text-xs text-gray-500 mt-1">Highest Week: ${g.highest_week || '—'}</div>
-          </div>
-        </div>
+                      const status = String(a.employment_status || "—");
+                      const statusLower = status.toLowerCase();
 
-        <div class="px-5 pb-5">
-          <div class="rounded-2xl border border-gray-100 overflow-hidden">
-            <div class="px-4 py-3 bg-gray-50 border-b border-gray-100 flex justify-between">
-              <div class="text-sm font-black text-gray-900">Agents in this Cohort</div>
-              <div class="text-xs font-bold text-gray-400">${cohortAgents.length} people</div>
-            </div>
+                      const statusBadge =
+                        statusLower === "active"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : statusLower === "onboarding"
+                          ? "bg-yellow-100 text-yellow-700"
+                          : "bg-gray-100 text-gray-700";
 
-            <div class="overflow-x-auto">
-              <table class="w-full text-left text-sm whitespace-nowrap">
-                <thead class="bg-white text-[10px] font-black text-gray-400 uppercase border-b border-gray-100">
-                  <tr>
-                    <th class="p-3">Agent</th>
-                    <th class="p-3">Status</th>
-                    <th class="p-3 text-center">Week</th>
-                    <th class="p-3 text-center text-blue-600">W1 Qualified</th>
-                    <th class="p-3 text-center text-red-500">W1 Rejected</th>
-                    <th class="p-3 text-center text-purple-600">W1 Credited</th>
-                    <th class="p-3 text-center text-blue-600">W2 Qualified</th>
-                    <th class="p-3 text-center">W1 Result</th>
-                    <th class="p-3 text-right text-emerald-600">Bonus</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50">
-                  ${cohortAgents.map(a => {
-                    const start = String(a.active_start_date || "");
-const w1End = start ? new Date(new Date(start + "T00:00:00").getTime() + 6 * 86400000).toISOString().slice(0, 10) : "";
-const w2Start = start ? new Date(new Date(start + "T00:00:00").getTime() + 7 * 86400000).toISOString().slice(0, 10) : "";
-const w2End = start ? new Date(new Date(start + "T00:00:00").getTime() + 13 * 86400000).toISOString().slice(0, 10) : "";
-const safeAgentName = String(a.agent_name || "Unknown").replace(/'/g, "\\'");
-const passed = a.week1_passed === true || String(a.week1_passed).toLowerCase() === "true";
-                    return `
-                      <tr class="hover:bg-gray-50">
-                        <td class="p-3 font-black text-gray-900">
-                          ${a.agent_name || "Unknown"}
-                          <div class="text-[11px] text-gray-400">${a.agent_email || "—"}</div>
-                        </td>
-                        <td class="p-3">${a.employment_status || "—"}</td>
-                        <td class="p-3 text-center">${a.current_training_week || "—"}</td>
-                        <td class="p-3 text-center">
-  <button onclick="Admin.openHRAgentLeadDrilldown('${safeAgentName}', 'qualified', '${start}', '${w1End}')" class="font-black text-blue-600 hover:underline">
-    ${Number(a.week1_qualified || 0)}
-  </button>
-</td>
+                      return `
+                        <tr class="hover:bg-gray-50">
+                          <td class="p-3 font-black text-gray-900">${a.agent_name || "Unknown"}</td>
+                          <td class="p-3 text-gray-500">${a.agent_email || "—"}</td>
+                          <td class="p-3">
+                            <span class="px-2 py-1 rounded text-[10px] font-black ${statusBadge}">
+                              ${status.toUpperCase()}
+                            </span>
+                          </td>
 
-<td class="p-3 text-center">
-  <button onclick="Admin.openHRAgentLeadDrilldown('${safeAgentName}', 'rejected', '${start}', '${w1End}')" class="font-black text-red-500 hover:underline">
-    ${Number(a.week1_rejected || 0)}
-  </button>
-</td>
+                          <td class="p-3 text-center font-black text-blue-600">${Number(a.week1_qualified || 0)}</td>
+                          <td class="p-3 text-center">
+                            ${
+                              w1Passed
+                                ? `<span class="px-2 py-1 rounded bg-emerald-100 text-emerald-700 text-[10px] font-black">PASSED</span>`
+                                : `<span class="px-2 py-1 rounded bg-orange-100 text-orange-700 text-[10px] font-black">NOT MET</span>`
+                            }
+                          </td>
 
-<td class="p-3 text-center">
-  <button onclick="Admin.openHRAgentLeadDrilldown('${safeAgentName}', 'credited', '${start}', '${w1End}')" class="font-black text-purple-600 hover:underline">
-    ${Number(a.week1_credited || 0)}
-  </button>
-</td>
+                          <td class="p-3 text-center font-black text-blue-600">${Number(a.week2_qualified || 0)}</td>
+                          <td class="p-3 text-center">
+                            ${
+                              w2Passed
+                                ? `<span class="px-2 py-1 rounded bg-emerald-100 text-emerald-700 text-[10px] font-black">PASSED</span>`
+                                : `<span class="px-2 py-1 rounded bg-orange-100 text-orange-700 text-[10px] font-black">NOT MET</span>`
+                            }
+                          </td>
 
-<td class="p-3 text-center">
-  <button onclick="Admin.openHRAgentLeadDrilldown('${safeAgentName}', 'qualified', '${w2Start}', '${w2End}')" class="font-black text-blue-600 hover:underline">
-    ${Number(a.week2_qualified || 0)}
-  </button>
-</td>
-                        <td class="p-3 text-center">${passed ? "PASSED" : "NOT MET"}</td>
-                        <td class="p-3 text-right font-black text-emerald-600">$${Number(a.recruiter_bonus_total || 0).toFixed(2)}</td>
-                      </tr>
-                    `;
-                  }).join("")}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                          <td class="p-3 text-right font-black text-emerald-600">
+                            $${Number(a.recruiter_bonus_total || 0).toFixed(2)}
+                          </td>
+                        </tr>
+                      `;
+                    }).join("")
+                  : `<tr><td colspan="8" class="p-5 text-center text-gray-400 italic">No agents found for this wave.</td></tr>`
+              }
+            </tbody>
+          </table>
         </div>
       </div>
     `;
   }).join("");
 },
-
       renderSalesTab() {
   const state = this.getState();
   const packages = Array.isArray(state.packages) ? [...state.packages] : [];
