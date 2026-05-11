@@ -3252,6 +3252,15 @@ openHRGroupModal(group) {
               const credited = Number(a[`week${weekNumber}_credited`] || 0);
               const cancel = Number(a[`week${weekNumber}_cancellation_rate`] || 0);
               const passed = a[`week${weekNumber}_passed`] === true || String(a[`week${weekNumber}_passed`]).toLowerCase() === "true";
+              const start = new Date(group.active_start_date + "T00:00:00");
+start.setDate(start.getDate() + ((weekNumber - 1) * 7));
+
+const end = new Date(start);
+end.setDate(end.getDate() + 6);
+
+const startDate = start.toISOString().slice(0, 10);
+const endDate = end.toISOString().slice(0, 10);
+const safeAgentName = String(a.agent_name || "Unknown").replace(/'/g, "\\'");
 
               return `
                 <tr class="hover:bg-gray-50">
@@ -3260,10 +3269,29 @@ openHRGroupModal(group) {
                     <div class="text-[11px] text-gray-400 font-semibold">${a.agent_email || "—"}</div>
                   </td>
                   <td class="p-3">${a.employment_status || "—"}</td>
-                  <td class="p-3 text-center font-black text-gray-900">${total}</td>
-                  <td class="p-3 text-center font-black text-red-500">${rejected}</td>
-                  <td class="p-3 text-center font-black text-blue-600">${qualified}</td>
-                  <td class="p-3 text-center font-black text-purple-600">${credited}</td>
+                  <td class="p-3 text-center">
+  <button onclick="Admin.openHRAgentLeadDrilldown('${safeAgentName}', 'all', '${startDate}', '${endDate}')" class="font-black text-gray-900 hover:underline">
+    ${total}
+  </button>
+</td>
+
+<td class="p-3 text-center">
+  <button onclick="Admin.openHRAgentLeadDrilldown('${safeAgentName}', 'rejected', '${startDate}', '${endDate}')" class="font-black text-red-500 hover:underline">
+    ${rejected}
+  </button>
+</td>
+
+<td class="p-3 text-center">
+  <button onclick="Admin.openHRAgentLeadDrilldown('${safeAgentName}', 'qualified', '${startDate}', '${endDate}')" class="font-black text-blue-600 hover:underline">
+    ${qualified}
+  </button>
+</td>
+
+<td class="p-3 text-center">
+  <button onclick="Admin.openHRAgentLeadDrilldown('${safeAgentName}', 'credited', '${startDate}', '${endDate}')" class="font-black text-purple-600 hover:underline">
+    ${credited}
+  </button>
+</td>
                   <td class="p-3 text-center font-black ${cancel >= 25 ? "text-red-600" : "text-emerald-600"}">${cancel.toFixed(2)}%</td>
                   <td class="p-3 text-center">
                     ${
