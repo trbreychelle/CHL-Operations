@@ -1269,7 +1269,7 @@ body.client-health-lock {
               <input
                 id="team-search"
                 type="text"
-                placeholder="Search agent name..."
+                placeholder="Search DISPLAY NAME..."
                 class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
               />
             </div>
@@ -1547,9 +1547,10 @@ body.client-health-lock {
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm whitespace-nowrap">
           <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
-            <tr>
-              <th class="p-4">Agent Name</th>
-              <th class="p-4">Email</th>
+  <tr>
+    <th class="p-4">Display Name</th>
+    <th class="p-4">Legal Name</th>
+    <th class="p-4">Email</th>
               <th class="p-4">Country</th>
               <th class="p-4">Role</th>
               <th class="p-4">Employment Status</th>
@@ -3041,8 +3042,9 @@ renderHRTab() {
     const hourlyRate = Number(String(fallbackRateRaw).replace(/[^0-9.]/g, "")) || 0;
 
     return {
-      name,
-      email: email || "—",
+  name,
+  legalName: String(a.legal_name || profile.full_name || "—"),
+  email: email || "—",
       country: String(a.country || "—").toUpperCase(),
       role,
       employmentStatus,
@@ -3093,10 +3095,15 @@ renderHRTab() {
     return `
       <tr class="hover:bg-gray-50">
         <td class="p-4 font-bold text-gray-900">
-          ${r.name}
-          <div class="text-[11px] text-gray-400 mt-1">Active start: ${r.activeStartDate}</div>
-        </td>
-        <td class="p-4 text-gray-600">${r.email}</td>
+  ${r.name}
+  <div class="text-[11px] text-gray-400 mt-1">Active start: ${r.activeStartDate}</div>
+</td>
+
+<td class="p-4 text-gray-700">
+  ${r.legalName || "—"}
+</td>
+
+<td class="p-4 text-gray-600">${r.email}</td>
         <td class="p-4 text-gray-700 font-semibold">${r.country}</td>
         <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${roleBadge}">${r.role.toUpperCase()}</span></td>
         <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${empBadge}">${r.employmentStatus.toUpperCase()}</span></td>
