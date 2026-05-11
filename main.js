@@ -88,11 +88,11 @@ class CallHammerPortal {
   const role = String(roleRaw || '').toLowerCase();
 
   if (
-    role === 'agent' &&
-    user?.can_access_recruitment_dashboard === true
-  ) {
-    return 'recruitment-dashboard.html';
-  }
+  role === 'agent' &&
+  user?.can_access_recruitment_dashboard === true
+) {
+  return 'agent-dashboard.html';
+}
 
   if (role === 'admin') return 'admin-dashboard.html';
   if (role === 'management') return 'management-dashboard.html';
@@ -914,7 +914,7 @@ if (isCommandCenter) {
   !onRecruitment &&
   !onAgent
 ) {
-  window.location.href = 'recruitment-dashboard.html';
+  window.location.href = 'agent-dashboard.html';
 } else if (
   role === 'agent' &&
   this.currentUser?.can_access_recruitment_dashboard !== true &&
