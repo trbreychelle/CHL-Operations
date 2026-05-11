@@ -3343,6 +3343,10 @@ openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
   .slice()
   .sort((a, b) => String(b.active_start_date || "").localeCompare(String(a.active_start_date || "")));
   const perfRows = Array.isArray(state.hrTrainingPerformance) ? state.hrTrainingPerformance : [];
+       const groupsWithWave = groups.map((g, idx) => ({
+  ...g,
+  wave_number: idx + 1
+}));
 
   const countEl = document.getElementById("hr-cohort-count");
   if (countEl) countEl.textContent = groups.length;
@@ -3359,7 +3363,8 @@ openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
     return;
   }
 
-  wrap.innerHTML = groups.map(g => {
+
+  wrap.innerHTML = groupsWithWave.map(g => {
     const totalAgents = Number(g.total_agents || 0);
     const activeAgents = Number(g.active_agents || 0);
     const offboardedAgents = Number(g.offboarded_agents || 0);
@@ -3385,9 +3390,9 @@ openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
         <div class="p-5 border-b border-gray-100 ${warning ? 'bg-orange-50' : 'bg-gray-50'}">
           <div class="flex justify-between gap-3">
             <div>
-              <div class="text-[10px] font-black uppercase tracking-wider text-gray-400">Cohort Start</div>
+              <div class="text-[10px] font-black uppercase tracking-wider text-gray-400">Wave ${g.wave_number}</div>
               <div class="text-xl font-black text-gray-900">${g.active_start_date || '—'}</div>
-              <div class="text-xs text-gray-500 mt-1">Recruiter: <span class="font-black">${g.recruiter_name || '—'}</span></div>
+              <div class="text-xs text-gray-500 mt-1">Wave Start: <span class="font-black">${g.recruiter_name || '—'}</span></div>
             </div>
 
             <div class="flex gap-2 flex-wrap items-start">
