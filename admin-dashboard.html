@@ -1524,6 +1524,13 @@ body.client-health-lock {
           </select>
 
           <select id="hr-role-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
+            <button
+  type="button"
+  onclick="Admin.openAddHRAgentModal()"
+  class="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-black hover:bg-blue-700"
+>
+  + Add Agent
+</button>
             <option value="agent" selected>Agents</option>
 <option value="admin">Admins</option>
 <option value="management">Management</option>
@@ -3128,6 +3135,94 @@ return {
       </tr>
     `;
   }).join("");
+},
+
+      openAddHRAgentModal() {
+  const modal = document.createElement("div");
+  modal.id = "hr-agent-profile-modal";
+  modal.className = "fixed inset-0 z-[160] bg-black/50 flex items-center justify-center p-6";
+
+  modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+      <div class="flex items-start justify-between p-6 border-b bg-slate-50">
+        <div>
+          <h2 class="text-2xl font-black text-gray-900">Add New Agent</h2>
+          <p class="text-sm text-gray-500 mt-1">Create a new HR profile</p>
+        </div>
+        <button type="button" onclick="document.getElementById('hr-agent-profile-modal')?.remove()" class="w-10 h-10 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-100">×</button>
+      </div>
+
+      <div class="p-6 overflow-auto max-h-[75vh] grid grid-cols-1 md:grid-cols-2 gap-4">
+        <label class="text-xs font-bold text-gray-500 uppercase">Legal Name
+          <input id="new-legal-name" class="mt-1 w-full border rounded-lg p-2 text-sm normal-case font-normal">
+        </label>
+
+        <label class="text-xs font-bold text-gray-500 uppercase">Display Name
+          <input id="new-agent-name" class="mt-1 w-full border rounded-lg p-2 text-sm normal-case font-normal">
+        </label>
+
+        <label class="text-xs font-bold text-gray-500 uppercase">Work Email
+          <input id="new-work-email" class="mt-1 w-full border rounded-lg p-2 text-sm normal-case font-normal">
+        </label>
+
+        <label class="text-xs font-bold text-gray-500 uppercase">Personal Email
+          <input id="new-personal-email" class="mt-1 w-full border rounded-lg p-2 text-sm normal-case font-normal">
+        </label>
+
+        <label class="text-xs font-bold text-gray-500 uppercase">Phone
+          <input id="new-phone" class="mt-1 w-full border rounded-lg p-2 text-sm normal-case font-normal">
+        </label>
+
+        <label class="text-xs font-bold text-gray-500 uppercase">Birthday
+          <input id="new-birthday" type="date" class="mt-1 w-full border rounded-lg p-2 text-sm normal-case font-normal">
+        </label>
+
+        <label class="text-xs font-bold text-gray-500 uppercase">Employment Status
+          <select id="new-employment-status" class="mt-1 w-full border rounded-lg p-2 text-sm normal-case font-normal">
+            <option value="Onboarding">Onboarding</option>
+            <option value="Active">Active</option>
+            <option value="Offboarded">Offboarded</option>
+          </select>
+        </label>
+
+        <label class="text-xs font-bold text-gray-500 uppercase">Role
+          <select id="new-role" class="mt-1 w-full border rounded-lg p-2 text-sm normal-case font-normal">
+            <option value="agent">Agent</option>
+            <option value="admin">Admin</option>
+            <option value="management">Management</option>
+            <option value="sales">Sales</option>
+          </select>
+        </label>
+
+        <label class="text-xs font-bold text-gray-500 uppercase">Hourly Rate
+          <input id="new-rate" class="mt-1 w-full border rounded-lg p-2 text-sm normal-case font-normal" value="5">
+        </label>
+
+        <label class="text-xs font-bold text-gray-500 uppercase">Country
+          <input id="new-country" class="mt-1 w-full border rounded-lg p-2 text-sm normal-case font-normal">
+        </label>
+
+        <label class="text-xs font-bold text-gray-500 uppercase">Active Start Date
+          <input id="new-active-start-date" type="date" class="mt-1 w-full border rounded-lg p-2 text-sm normal-case font-normal">
+        </label>
+
+        <label class="text-xs font-bold text-gray-500 uppercase">Recruiter
+          <input id="new-recruiter" class="mt-1 w-full border rounded-lg p-2 text-sm normal-case font-normal">
+        </label>
+
+        <label class="md:col-span-2 text-xs font-bold text-gray-500 uppercase">HR Notes
+          <textarea id="new-hr-notes" class="mt-1 w-full border rounded-lg p-2 text-sm normal-case font-normal min-h-[90px]"></textarea>
+        </label>
+
+        <div class="md:col-span-2 flex justify-end gap-3 pt-4 border-t">
+          <button type="button" onclick="document.getElementById('hr-agent-profile-modal')?.remove()" class="px-4 py-2 rounded-lg border text-sm font-bold">Cancel</button>
+          <button type="button" onclick="Admin.createHRAgent()" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-black">Add Agent</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
 },
 
       openHRAgentDetails(agentId) {
