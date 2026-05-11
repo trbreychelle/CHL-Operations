@@ -1577,7 +1577,7 @@ body.client-health-lock {
         <p class="text-sm text-gray-500 mt-1">Grouped by active start date. Tracks first 4 weeks and recruiter bonuses.</p>
       </div>
       <div class="text-xs text-gray-500">
-        Showing <span class="font-black" id="hr-cohort-count">0</span> cohort(s)
+        Showing <span class="font-black" id="hr-cohort-count">0</span> wave(s)
       </div>
     </div>
   </div>
@@ -2034,7 +2034,7 @@ body.client-health-lock {
 
         <tbody id="hr-lead-modal-body" class="divide-y divide-gray-50">
           <tr>
-            <td colspan="10" class="p-6 text-center text-gray-400 italic">
+            <td colspan="9" class="p-6 text-center text-gray-400 italic">
               Loading leads...
             </td>
           </tr>
@@ -3333,7 +3333,7 @@ openHRLeadModal(title, subTitle, leads = []) {
   if (!Array.isArray(leads) || !leads.length) {
     body.innerHTML = `
       <tr>
-        <td colspan="10" class="p-6 text-center text-gray-400 italic">
+        <td colspan="9" class="p-6 text-center text-gray-400 italic">
           No leads found for this filter.
         </td>
       </tr>
