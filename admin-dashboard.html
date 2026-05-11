@@ -2894,16 +2894,7 @@ renderHRTab() {
   const state = this.getState();
   const agents = Array.isArray(state.agents) ? state.agents : [];
   const profiles = Array.isArray(state.rawProfiles) ? state.rawProfiles : [];
-  const leads = Array.isArray(state.leads) ? state.leads : [];
-
-  const currentRates = Array.isArray(state.agentCurrentRates) ? state.agentCurrentRates : [];
-
-const rateByName = new Map(
-  currentRates.map(r => [
-    String(r.agent_name_key || "").trim().toLowerCase(),
-    Number(r.current_rate || 0)
-  ])
-);
+  const hrPerf = Array.isArray(state.hrTrainingPerformance) ? state.hrTrainingPerformance : [];
 
   const q = String(document.getElementById("hr-search")?.value || "").toLowerCase().trim();
   const stageFilter = document.getElementById("hr-stage-filter")?.value || "active";
@@ -2914,81 +2905,60 @@ const rateByName = new Map(
     profiles.map(p => [String(p.email || "").trim().toLowerCase(), p])
   );
 
+  const perfByAgentId = new Map(
+    hrPerf.map(r => [String(r.agent_id || ""), r])
+  );
+
   const rows = agents.map(a => {
-    const name = String(a.agent_name || a.name || "").trim();
-    const email = String(a.agent_email || a.email || "").trim().toLowerCase();
+    const id = String(a.id || "");
+    const perf = perfByAgentId.get(id) || {};
+    const name = String(a.agent_name || perf.agent_name || "Unknown").trim();
+    const email = String(a.agent_email || perf.agent_email || "").trim().toLowerCase();
     const profile = profileByEmail.get(email) || {};
 
-    let total = 0;
-    let qualified = 0;
-    let credited = 0;
-
-    leads.forEach(l => {
-      const rawAgent = String(
-        l.appointment_coordinator_name ||
-        l["Appointment Coordinator Name"] ||
-        l.agent_name ||
-        ""
-      ).trim().toLowerCase();
-
-      if (!name || rawAgent !== name.toLowerCase()) return;
-
-      total++;
-      const st = String(l.status || l.Status || "").toLowerCase();
-      if (st.includes("approv") || st.includes("confirm")) qualified++;
-      else if (st.includes("credit")) credited++;
-    });
-
+    const qualified = Number(perf.week1_qualified || 0) + Number(perf.week2_qualified || 0);
+    const credited = Number(perf.week1_credited || 0);
+    const rejected = Number(perf.week1_rejected || 0);
+    const total = qualified + credited + rejected;
     const cancelRate = (qualified + credited) > 0
       ? Math.round((credited / (qualified + credited)) * 100)
       : 0;
 
-    const employmentStatus = String(a.employment_status || "active").toLowerCase().trim();
-const warned = !!(
-  a.warned === true ||
-  String(a.warned || "").toLowerCase() === "true" ||
-  String(a.tags || "").toLowerCase().includes("warned")
-);
-const role = String(profile.role || a.role || "agent").toLowerCase().trim();
-const accessActive = profile.is_active === true || String(profile.is_active).toLowerCase() === "true";
+    const employmentStatus = String(a.employment_status || perf.employment_status || "active").toLowerCase().trim();
+    const warned = perf.week1_passed === false && Number(perf.current_training_week || 0) >= 2;
+    const role = String(profile.role || a.role || "agent").toLowerCase().trim();
+    const accessActive = profile.is_active === true || String(profile.is_active).toLowerCase() === "true";
 
-const fallbackRateRaw = a.effective_hourly_rate || a.base_rate || 0;
-const fallbackRate = Number(String(fallbackRateRaw).replace(/[^0-9.]/g, '')) || 0;
-const currentRate = rateByName.get(String(name || "").trim().toLowerCase()) ?? fallbackRate;
+    const fallbackRateRaw = a.effective_hourly_rate || a.base_rate || 0;
+    const hourlyRate = Number(String(fallbackRateRaw).replace(/[^0-9.]/g, "")) || 0;
 
-return {
-  name: name || "Unknown",
-  email: email || "—",
-  country: String(a.country || "—").toUpperCase(),
-  role,
-  employmentStatus,
-  accessActive,
-  warned,
-  hourlyRate: currentRate,
-  total,
-  qualified,
-  cancelRate
-};
+    return {
+      name,
+      email: email || "—",
+      country: String(a.country || "—").toUpperCase(),
+      role,
+      employmentStatus,
+      accessActive,
+      warned,
+      hourlyRate,
+      total,
+      qualified,
+      rejected,
+      credited,
+      cancelRate,
+      activeStartDate: perf.active_start_date || a.active_start_date || a.start_date || "—",
+      recruiterBonus: Number(perf.recruiter_bonus_total || 0),
+      week: Number(perf.current_training_week || 0)
+    };
   });
 
   let filtered = [...rows];
 
-  if (stageFilter !== "all") {
-    filtered = filtered.filter(r => r.employmentStatus === stageFilter);
-  }
-
+  if (stageFilter !== "all") filtered = filtered.filter(r => r.employmentStatus === stageFilter);
   if (warnedFilter === "warned") filtered = filtered.filter(r => r.warned);
   if (warnedFilter === "not-warned") filtered = filtered.filter(r => !r.warned);
-
-  if (roleFilter !== "all") {
-    filtered = filtered.filter(r => r.role === roleFilter);
-  }
-
-  if (q) {
-    filtered = filtered.filter(r =>
-      `${r.name} ${r.email}`.toLowerCase().includes(q)
-    );
-  }
+  if (roleFilter !== "all") filtered = filtered.filter(r => r.role === roleFilter);
+  if (q) filtered = filtered.filter(r => `${r.name} ${r.email}`.toLowerCase().includes(q));
 
   const countEl = document.getElementById("hr-count");
   if (countEl) countEl.textContent = filtered.length;
@@ -3012,23 +2982,18 @@ return {
       r.employmentStatus === "onboarding" ? "bg-yellow-100 text-yellow-800" :
       "bg-gray-100 text-gray-700";
 
-    const accessBadge = r.accessActive
-      ? `<span class="px-2 py-1 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800">ACTIVE</span>`
-      : `<span class="px-2 py-1 rounded text-[10px] font-extrabold bg-red-100 text-red-800">DISABLED</span>`;
-
-    const warnedBadge = r.warned
-      ? `<span class="px-2 py-1 rounded text-[10px] font-extrabold bg-orange-100 text-orange-800">WARNED</span>`
-      : `<span class="px-2 py-1 rounded text-[10px] font-extrabold bg-gray-100 text-gray-600">NO</span>`;
-
     return `
       <tr class="hover:bg-gray-50">
-        <td class="p-4 font-bold text-gray-900">${r.name}</td>
+        <td class="p-4 font-bold text-gray-900">
+          ${r.name}
+          <div class="text-[11px] text-gray-400 mt-1">Active start: ${r.activeStartDate}</div>
+        </td>
         <td class="p-4 text-gray-600">${r.email}</td>
         <td class="p-4 text-gray-700 font-semibold">${r.country}</td>
         <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${roleBadge}">${r.role.toUpperCase()}</span></td>
         <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${empBadge}">${r.employmentStatus.toUpperCase()}</span></td>
-        <td class="p-4">${accessBadge}</td>
-        <td class="p-4">${warnedBadge}</td>
+        <td class="p-4">${r.accessActive ? `<span class="px-2 py-1 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800">ACTIVE</span>` : `<span class="px-2 py-1 rounded text-[10px] font-extrabold bg-red-100 text-red-800">DISABLED</span>`}</td>
+        <td class="p-4">${r.warned ? `<span class="px-2 py-1 rounded text-[10px] font-extrabold bg-orange-100 text-orange-800">WEEK 1 WARNING</span>` : `<span class="px-2 py-1 rounded text-[10px] font-extrabold bg-gray-100 text-gray-600">NO</span>`}</td>
         <td class="p-4 text-right font-bold text-gray-900">$${r.hourlyRate.toFixed(2)}</td>
         <td class="p-4 text-center font-semibold text-gray-700">${r.total}</td>
         <td class="p-4 text-center font-bold text-blue-600">${r.qualified}</td>
