@@ -3963,9 +3963,19 @@ openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
                             }
                           </td>
 
-                          <td class="p-3 text-right font-black text-emerald-600">
-                            $${Number(a.recruiter_bonus_total || 0).toFixed(2)}
-                          </td>
+                         <td class="p-3 text-right">
+  <div class="font-black text-emerald-600">
+    $${Number(a.recruiter_bonus_total || 0).toFixed(2)}
+  </div>
+
+  <div class="mt-2 space-y-1 text-[10px] text-gray-500 font-bold">
+    <div>W1 Individual: $${Number(a.week1_individual_bonus || 0).toFixed(2)}</div>
+    <div>W1 Group: $${Number(a.week1_group_bonus || 0).toFixed(2)}</div>
+    <div>W2 Group: $${Number(a.week2_group_bonus || 0).toFixed(2)}</div>
+    <div>Book: $${Number(a.book_bonus || 0).toFixed(2)}</div>
+    <div>Video: $${Number(a.video_bonus || 0).toFixed(2)}</div>
+  </div>
+</td>
                         </tr>
                       `;
                     }).join("")
