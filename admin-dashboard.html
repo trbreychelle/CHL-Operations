@@ -3270,6 +3270,48 @@ const agent = agents.find(a => String(a.id) === String(agentId));
 
   document.body.appendChild(modal);
 },
+
+      async saveHRAgentDetails(agentId) {
+  if (!agentId || !supaClient) {
+    alert("Database connection missing.");
+    return;
+  }
+
+  const payload = {
+    legal_name: document.getElementById("hr-detail-legal-name")?.value || null,
+    agent_name: document.getElementById("hr-detail-agent-name")?.value || null,
+    agent_email: document.getElementById("hr-detail-work-email")?.value || null,
+    personal_email: document.getElementById("hr-detail-personal-email")?.value || null,
+    phone: document.getElementById("hr-detail-phone")?.value || null,
+    birthday: document.getElementById("hr-detail-birthday")?.value || null,
+    employment_status: document.getElementById("hr-detail-employment-status")?.value || null,
+    effective_hourly_rate: document.getElementById("hr-detail-rate")?.value || null,
+    country: document.getElementById("hr-detail-country")?.value || null,
+    recruiter_name: document.getElementById("hr-detail-recruiter")?.value || null,
+    hr_notes: document.getElementById("hr-detail-notes")?.value || null
+  };
+
+  const { error } = await supaClient
+    .from("agents")
+    .update(payload)
+    .eq("id", agentId);
+
+  if (error) {
+    console.error("Save HR agent failed:", error);
+    alert("Failed to save agent details.");
+    return;
+  }
+
+  alert("Agent details saved.");
+
+  document.getElementById("hr-agent-profile-modal")?.remove();
+
+  if (window.portal?.fetchAdminData) {
+    await window.portal.fetchAdminData(true);
+  } else {
+    this.renderHRTab();
+  }
+},
       
 openHRGroupModal(group) {
   if (!group) return;
