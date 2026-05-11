@@ -1570,11 +1570,24 @@ body.client-health-lock {
   </div>
 
   <div id="hr-subtab-performance" class="hr-subtab-view hidden">
-    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-      <div class="text-lg font-black text-gray-900 mb-2">Performance Intelligence</div>
-      <div class="text-sm text-gray-500">This section will show agent trends, quality metrics, and coaching risk.</div>
+  <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-4">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div>
+        <h3 class="text-lg font-black text-gray-900">Training Cohorts</h3>
+        <p class="text-sm text-gray-500 mt-1">Grouped by active start date. Tracks first 4 weeks and recruiter bonuses.</p>
+      </div>
+      <div class="text-xs text-gray-500">
+        Showing <span class="font-black" id="hr-cohort-count">0</span> cohort(s)
+      </div>
     </div>
   </div>
+
+  <div id="hr-cohort-cards" class="space-y-4">
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-sm text-gray-400 italic">
+      Loading training cohorts...
+    </div>
+  </div>
+</div>
 
   <div id="hr-subtab-compensation" class="hr-subtab-view hidden">
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
@@ -2749,6 +2762,8 @@ setHRSubtab(tab) {
     this.renderHRTab();
   } else if (tab === 'overview') {
     this.renderHROverview();
+  } else if (tab === 'performance') {
+    this.renderHRPerformance();
   }
 },
 
@@ -2999,6 +3014,115 @@ renderHRTab() {
         <td class="p-4 text-center font-bold text-blue-600">${r.qualified}</td>
         <td class="p-4 text-center font-bold ${r.cancelRate >= 25 ? 'text-red-500' : 'text-emerald-600'}">${r.cancelRate}%</td>
       </tr>
+    `;
+  }).join("");
+},
+
+      renderHRPerformance() {
+  const state = this.getState();
+  const groups = Array.isArray(state.hrTrainingGroups) ? state.hrTrainingGroups : [];
+
+  const countEl = document.getElementById("hr-cohort-count");
+  if (countEl) countEl.textContent = groups.length;
+
+  const wrap = document.getElementById("hr-cohort-cards");
+  if (!wrap) return;
+
+  if (!groups.length) {
+    wrap.innerHTML = `
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-sm text-gray-400 italic">
+        No active training cohorts found.
+      </div>
+    `;
+    return;
+  }
+
+  wrap.innerHTML = groups.map(g => {
+    const totalAgents = Number(g.total_agents || 0);
+    const activeAgents = Number(g.active_agents || 0);
+    const offboardedAgents = Number(g.offboarded_agents || 0);
+    const week1Goal = Number(g.week1_goal || 0);
+    const week2Goal = Number(g.week2_goal || 0);
+    const week1Qualified = Number(g.week1_qualified_total || 0);
+    const week2Qualified = Number(g.week2_qualified_total || 0);
+    const week1Rejected = Number(g.week1_rejected_total || 0);
+    const week1Credited = Number(g.week1_credited_total || 0);
+    const cancelRate = Number(g.week1_cancellation_rate || 0);
+    const bonus = Number(g.recruiter_total_bonus || 0);
+    const warning = g.has_week1_warning === true || String(g.has_week1_warning).toLowerCase() === "true";
+
+    const week1Pct = week1Goal > 0 ? Math.min(100, Math.round((week1Qualified / week1Goal) * 100)) : 0;
+    const week2Pct = week2Goal > 0 ? Math.min(100, Math.round((week2Qualified / week2Goal) * 100)) : 0;
+
+    return `
+      <div class="bg-white rounded-2xl border ${warning ? 'border-orange-200' : 'border-gray-100'} shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-gray-100 ${warning ? 'bg-orange-50' : 'bg-gray-50'}">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <div class="text-[10px] font-black uppercase tracking-wider text-gray-400">Cohort Start</div>
+              <div class="text-xl font-black text-gray-900">${g.active_start_date || '—'}</div>
+              <div class="text-xs text-gray-500 mt-1">Recruiter: <span class="font-black">${g.recruiter_name || '—'}</span></div>
+            </div>
+
+            <div class="flex gap-2 flex-wrap">
+              <span class="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-black">${totalAgents} Agents</span>
+              <span class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-black">${activeAgents} Active</span>
+              <span class="px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-black">${offboardedAgents} Offboarded</span>
+              ${warning ? `<span class="px-3 py-1 rounded-full bg-orange-500 text-white text-xs font-black">Warning</span>` : `<span class="px-3 py-1 rounded-full bg-emerald-500 text-white text-xs font-black">On Track</span>`}
+            </div>
+          </div>
+        </div>
+
+        <div class="p-5 grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div class="rounded-2xl border border-gray-100 p-4">
+            <div class="flex items-center justify-between">
+              <div class="text-sm font-black text-gray-900">Week 1 Goal</div>
+              <div class="text-xs font-black ${week1Qualified >= week1Goal ? 'text-emerald-600' : 'text-orange-600'}">
+                ${week1Qualified}/${week1Goal}
+              </div>
+            </div>
+            <div class="mt-3 h-3 rounded-full bg-gray-100 overflow-hidden">
+              <div class="h-full bg-gray-900" style="width:${week1Pct}%"></div>
+            </div>
+            <div class="grid grid-cols-3 gap-2 mt-4 text-center text-xs">
+              <div class="rounded-xl bg-blue-50 p-2">
+                <div class="font-black text-blue-700">${week1Qualified}</div>
+                <div class="text-gray-500">Qualified</div>
+              </div>
+              <div class="rounded-xl bg-red-50 p-2">
+                <div class="font-black text-red-600">${week1Rejected}</div>
+                <div class="text-gray-500">Rejected</div>
+              </div>
+              <div class="rounded-xl bg-purple-50 p-2">
+                <div class="font-black text-purple-700">${week1Credited}</div>
+                <div class="text-gray-500">Credited</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-gray-100 p-4">
+            <div class="flex items-center justify-between">
+              <div class="text-sm font-black text-gray-900">Week 2 Goal</div>
+              <div class="text-xs font-black ${week2Qualified >= week2Goal ? 'text-emerald-600' : 'text-orange-600'}">
+                ${week2Qualified}/${week2Goal}
+              </div>
+            </div>
+            <div class="mt-3 h-3 rounded-full bg-gray-100 overflow-hidden">
+              <div class="h-full bg-gray-900" style="width:${week2Pct}%"></div>
+            </div>
+            <div class="text-xs text-gray-500 mt-4">
+              Week 2 recruiter bonus is earned when the group reaches ${week2Goal} qualified leads.
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-gray-100 p-4">
+            <div class="text-sm font-black text-gray-900">Recruiter Bonus</div>
+            <div class="text-3xl font-black text-emerald-600 mt-2">$${bonus.toFixed(2)}</div>
+            <div class="text-xs text-gray-500 mt-2">Cancellation Rate: <span class="font-black ${cancelRate >= 25 ? 'text-red-600' : 'text-emerald-600'}">${cancelRate}%</span></div>
+            <div class="text-xs text-gray-500 mt-1">Highest Week: <span class="font-black">${g.highest_week || '—'}</span></div>
+          </div>
+        </div>
+      </div>
     `;
   }).join("");
 },
