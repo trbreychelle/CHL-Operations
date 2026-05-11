@@ -1984,7 +1984,6 @@ body.client-health-lock {
         <thead class="bg-white text-xs font-black text-gray-400 uppercase border-b border-gray-100 sticky top-0 z-20">
           <tr>
             <th class="p-3">Date</th>
-            <th class="p-3">Lead ID</th>
             <th class="p-3">Coordinator</th>
             <th class="p-3">Homeowner</th>
             <th class="p-3">Company</th>
@@ -3115,7 +3114,6 @@ openHRLeadModal(title, subTitle, leads = []) {
     return `
       <tr class="hover:bg-gray-50">
         <td class="p-3">${this.getLeadField(l, ["date_submitted", "Date Submitted"], "—")}</td>
-        <td class="p-3 font-mono text-xs text-gray-500">${this.getLeadField(l, ["lead_id", "LEAD ID"], "—")}</td>
         <td class="p-3 font-bold text-gray-900">${this.getLeadField(l, ["appointment_coordinator_name", "Appointment Coordinator Name"], "—")}</td>
         <td class="p-3">${this.getLeadField(l, ["homeowner_names", "Homeowner Name(s)"], "—")}</td>
         <td class="p-3">${this.getLeadField(l, ["company_name", "Company Name", "roofing_company"], "—")}</td>
