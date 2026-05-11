@@ -3940,7 +3940,7 @@ openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
             </div>
           </div>
 
-          <div class="text-right mr-3">
+          <div class="md:ml-auto md:mr-4 text-right">
   <div class="text-[10px] uppercase tracking-wide text-gray-400 font-black">
     Total Recruiter Bonus
   </div>
@@ -6610,11 +6610,11 @@ if (goal > 0) {
       <div>
         <label class="block text-[11px] font-black text-gray-500 uppercase mb-1">Assigned Agents</label>
         <textarea
-          rows="2"
-          onchange="Admin.updateDailyAssignment('${row.id}', 'assigned_agents', this.value)"
-          class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-          placeholder="Type multiple agent names"
-        >${String(agents)}</textarea>
+  rows="2"
+  onblur="Admin.updateDailyAssignment('${row.id}', 'assigned_agents', this.value)"
+  class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+  placeholder="Type multiple agent names"
+>${String(agents)}</textarea>
       </div>
 
       <div>
@@ -6623,7 +6623,7 @@ if (goal > 0) {
           type="number"
           min="0"
           value="${goal}"
-          onchange="Admin.updateDailyAssignment('${row.id}', 'daily_goal', this.value)"
+          onblur="Admin.updateDailyAssignment('${row.id}', 'assigned_agents', this.value)"
           class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
       </div>
@@ -7411,7 +7411,21 @@ const dailyGoal = 0;
     return;
   }
 
+ const localRow = (this.dailyStrategyAssignments || []).find(
+  r => String(r.id) === String(assignmentId)
+);
+
+if (localRow) {
+  localRow[field] = payload[field];
+}
+
+/*
+  Prevent assigned_agents textarea from losing focus
+  and jumping the page while typing.
+*/
+if (field !== "assigned_agents") {
   this.renderDailyTab();
+}
 },
 
 async removeDailyAssignment(assignmentId) {
