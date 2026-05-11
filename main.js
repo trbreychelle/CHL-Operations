@@ -84,16 +84,23 @@ class CallHammerPortal {
     this.currentUser = null;
   }
 
-   routeByRole(roleRaw) {
-    const role = String(roleRaw || '').toLowerCase();
+   routeByRole(roleRaw, user = null) {
+  const role = String(roleRaw || '').toLowerCase();
 
-    if (role === 'admin') return 'admin-dashboard.html';
-    if (role === 'management') return 'management-dashboard.html';
-    if (role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') return 'salesdashboard.html';
-    if (role === 'sales_rep') return 'salesrep-dashboard.html';
-
-    return 'agent-dashboard.html';
+  if (
+    role === 'agent' &&
+    user?.can_access_recruitment_dashboard === true
+  ) {
+    return 'recruitment-dashboard.html';
   }
+
+  if (role === 'admin') return 'admin-dashboard.html';
+  if (role === 'management') return 'management-dashboard.html';
+  if (role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') return 'salesdashboard.html';
+  if (role === 'sales_rep') return 'salesrep-dashboard.html';
+
+  return 'agent-dashboard.html';
+}
 
   async loginWithCredentials(email, password) {
   const cleanEmail = String(email || '').trim().toLowerCase();
@@ -124,7 +131,7 @@ class CallHammerPortal {
 
     const { data: profile, error: profileError } = await this.supabase
       .from('profiles')
-      .select('id, auth_user_id, organization_id, email, full_name, display_name, role, is_active')
+      .select('id, auth_user_id, organization_id, email, full_name, display_name, role, is_active, can_access_recruitment_dashboard')
       .eq('auth_user_id', authUser.id)
       .single();
 
@@ -148,11 +155,12 @@ class CallHammerPortal {
       name: profile.display_name || profile.full_name || profile.email,
       full_name: profile.full_name,
       display_name: profile.display_name,
-      role: profile.role
+      role: profile.role,
+can_access_recruitment_dashboard: profile.can_access_recruitment_dashboard === true
     };
 
     this.saveSession(user);
-    window.location.href = this.routeByRole(user.role);
+    window.location.href = this.routeByRole(user.role, user);
   } catch (supabaseErr) {
     console.error('Supabase login failed:', supabaseErr);
     throw supabaseErr;
@@ -815,7 +823,7 @@ await window.Admin?.loadSalesPassbookAckInbox?.();
       path.endsWith('/index.html');
 
     if (onIndex && this.currentUser) {
-      window.location.href = this.routeByRole(this.currentUser.role);
+      window.location.href = this.routeByRole(this.currentUser.role, this.currentUser);
       return;
     }
 
@@ -886,13 +894,26 @@ if (isCommandCenter) {
   const onAgent = path.includes('agent-dashboard');
   const onSales = path.includes('salesdashboard');
   const onSalesRep = path.includes('salesrep-dashboard');
-  const onManagement = path.includes('management-dashboard');
+  const onRecruitment = path.includes('recruitment-dashboard');
 
       if (role === 'admin' && !onAdmin) window.location.href = 'admin-dashboard.html';
     else if (role === 'management' && !onManagement) window.location.href = 'management-dashboard.html';
     else if ((role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') && !onSales) window.location.href = 'salesdashboard.html';
     else if (role === 'sales_rep' && !path.includes('salesrep-dashboard')) window.location.href = 'salesrep-dashboard.html';
-    else if (role === 'agent' && !onAgent) window.location.href = 'agent-dashboard.html';
+    else if (
+  role === 'agent' &&
+  this.currentUser?.can_access_recruitment_dashboard === true &&
+  !onRecruitment &&
+  !onAgent
+) {
+  window.location.href = 'recruitment-dashboard.html';
+} else if (
+  role === 'agent' &&
+  this.currentUser?.can_access_recruitment_dashboard !== true &&
+  !onAgent
+) {
+  window.location.href = 'agent-dashboard.html';
+}
 }
   
   // ------------------------
@@ -913,7 +934,7 @@ if (isCommandCenter) {
 
     const { data: profile, error: profileError } = await this.supabase
       .from('profiles')
-      .select('id, auth_user_id, organization_id, email, full_name, display_name, role, is_active')
+      .select('id, auth_user_id, organization_id, email, full_name, display_name, role, is_active, can_access_recruitment_dashboard')
       .eq('auth_user_id', authUser.id)
       .single();
 
@@ -928,7 +949,8 @@ if (isCommandCenter) {
       organization_id: profile.organization_id,
       email: profile.email,
       name: profile.display_name || profile.full_name || profile.email,
-      role: profile.role
+      role: profile.role,
+can_access_recruitment_dashboard: profile.can_access_recruitment_dashboard === true
     };
 
     this.saveSession(user);
