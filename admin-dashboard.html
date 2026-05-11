@@ -3368,9 +3368,19 @@ openHRLeadModal(title, subTitle, leads = []) {
         </td>
        <td
   class="p-3 max-w-[320px] truncate cursor-help"
-  title="${String(this.getLeadField(l, ["rejection_reason", "Rejection Reason"], "—")).replace(/"/g, '&quot;')}"
+  title="${String(
+    this.getLeadField(
+      l,
+      ['rejection_reason', 'Rejection Reason'],
+      '—'
+    )
+  ).replace(/"/g, '&quot;')}"
 >
-  ${this.getLeadField(l, ["rejection_reason", "Rejection Reason"], "—")}
+  ${this.getLeadField(
+    l,
+    ['rejection_reason', 'Rejection Reason'],
+    '—'
+  )}
 </td>
       </tr>
     `;
