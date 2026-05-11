@@ -3339,7 +3339,9 @@ openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
 
      renderHRPerformance() {
   const state = this.getState();
-  const groups = Array.isArray(state.hrTrainingGroups) ? state.hrTrainingGroups : [];
+  const groups = (Array.isArray(state.hrTrainingGroups) ? state.hrTrainingGroups : [])
+  .slice()
+  .sort((a, b) => String(b.active_start_date || "").localeCompare(String(a.active_start_date || "")));
   const perfRows = Array.isArray(state.hrTrainingPerformance) ? state.hrTrainingPerformance : [];
 
   const countEl = document.getElementById("hr-cohort-count");
