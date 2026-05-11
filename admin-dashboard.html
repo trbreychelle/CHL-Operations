@@ -3343,10 +3343,26 @@ openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
   .slice()
   .sort((a, b) => String(b.active_start_date || "").localeCompare(String(a.active_start_date || "")));
   const perfRows = Array.isArray(state.hrTrainingPerformance) ? state.hrTrainingPerformance : [];
-       const groupsWithWave = groups.map((g, idx) => ({
-  ...g,
-  wave_number: idx + 1
-}));
+      const chronologicalGroups = [...groups]
+  .sort((a, b) =>
+    String(a.active_start_date || "").localeCompare(String(b.active_start_date || ""))
+  );
+
+const waveMap = new Map();
+
+chronologicalGroups.forEach((g, idx) => {
+  const key = `${g.active_start_date}_${g.recruiter_name}`;
+  waveMap.set(key, idx + 1);
+});
+
+const groupsWithWave = [...groups]
+  .sort((a, b) =>
+    String(b.active_start_date || "").localeCompare(String(a.active_start_date || ""))
+  )
+  .map(g => ({
+    ...g,
+    wave_number: waveMap.get(`${g.active_start_date}_${g.recruiter_name}`) || 1
+  }));
 
   const countEl = document.getElementById("hr-cohort-count");
   if (countEl) countEl.textContent = groups.length;
