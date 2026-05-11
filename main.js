@@ -2414,8 +2414,8 @@ if (supaClient) {
   supaClient.from('payroll_weekly_fact_v2').select('*'),
   supaClient.from('payroll_workers').select('*'),
   supaClient.from('client_onboarding').select('*'),
-  supaClient.from('hr_training_group_performance_v1').select('*'),
-  supaClient.from('hr_training_group_summary_v1').select('*')
+  supaClient.from('hr_training_group_performance_v2').select('*'),
+  supaClient.from('hr_training_group_summary_v2').select('*')
 ]);
 
   console.log('pwfRes error:', pwfRes.error);
