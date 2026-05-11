@@ -3392,7 +3392,15 @@ openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
             <div>
               <div class="text-[10px] font-black uppercase tracking-wider text-gray-400">Wave ${g.wave_number}</div>
               <div class="text-xl font-black text-gray-900">${g.active_start_date || '—'}</div>
-              <div class="text-xs text-gray-500 mt-1">Wave Start: <span class="font-black">${g.recruiter_name || '—'}</span></div>
+              <div class="text-xs text-gray-500 mt-1">
+  Wave Start:
+  <span class="font-black">${g.active_start_date || '—'}</span>
+</div>
+
+<div class="text-xs text-gray-500 mt-1">
+  Recruiter:
+  <span class="font-black">${g.recruiter_name || '—'}</span>
+</div>
             </div>
 
             <div class="flex gap-2 flex-wrap items-start">
