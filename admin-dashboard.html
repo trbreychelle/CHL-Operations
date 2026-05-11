@@ -1522,21 +1522,22 @@ body.client-health-lock {
             <option value="onboarding">Onboarding</option>
             <option value="offboarded">Offboarded</option>
           </select>
+          
+  <select id="hr-role-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
+  <option value="agent" selected>Agents</option>
+  <option value="admin">Admins</option>
+  <option value="management">Management</option>
+  <option value="sales">Sales</option>
+  <option value="all">All Roles</option>
+</select>
 
-          <select id="hr-role-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
-            <button
+<button
   type="button"
   onclick="Admin.openAddHRAgentModal()"
   class="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-black hover:bg-blue-700"
 >
   + Add Agent
 </button>
-            <option value="agent" selected>Agents</option>
-<option value="admin">Admins</option>
-<option value="management">Management</option>
-<option value="sales">Sales</option>
-<option value="all">All Roles</option>
-          </select>
         </div>
       </div>
 
