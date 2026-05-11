@@ -3033,8 +3033,9 @@ renderHRTab() {
 
     const fallbackRateRaw = a.effective_hourly_rate || a.base_rate || 0;
     const hourlyRate = Number(String(fallbackRateRaw).replace(/[^0-9.]/g, "")) || 0;
-
-    return {
+    
+return {
+  agentId: id,
   name,
   legalName: String(a.legal_name || profile.full_name || "—"),
   email: email || "—",
@@ -3070,7 +3071,7 @@ renderHRTab() {
   if (!tbody) return;
 
   if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-gray-400 italic">No HR records found.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-gray-400 italic">No HR records found.</td></tr>`;
     return;
   }
 
@@ -3108,22 +3109,10 @@ renderHRTab() {
     class="border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold bg-white"
     onchange="Admin.updateHRAgentStatus('${r.agentId}', this.value)"
   >
-    <option value="Onboarding" ${r.employmentStatus === "Onboarding" ? "selected" : ""}>Onboarding</option>
-    <option value="Active" ${r.employmentStatus === "Active" ? "selected" : ""}>Active</option>
-    <option value="Offboarded" ${r.employmentStatus === "Offboarded" ? "selected" : ""}>Offboarded</option>
+    <option value="onboarding" ${r.employmentStatus === "onboarding" ? "selected" : ""}>Onboarding</option>
+<option value="active" ${r.employmentStatus === "active" ? "selected" : ""}>Active</option>
+<option value="offboarded" ${r.employmentStatus === "offboarded" ? "selected" : ""}>Offboarded</option>
   </select>
-</td>
-
-<td class="p-4">
-  ${r.access ? `
-    <span class="px-2 py-1 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
-      ACTIVE
-    </span>
-  ` : `
-    <span class="px-2 py-1 rounded text-[10px] font-extrabold bg-red-100 text-red-800">
-      DISABLED
-    </span>
-  `}
 </td>
 
 <td class="p-4 text-right">
