@@ -2435,9 +2435,10 @@ console.log('pwwRes rows:', pwwRes.data?.length || 0);
   supaProfiles = profRes.data || [];
   supaAgentCurrentRates = acrRes.data || [];
   supaPayrollWeeklyFactView = pwfRes.data || [];
-  supaPayrollWorkers = pwwRes.data || [];
-  supaHRTrainingPerformance = hrPerfRes.data || [];
-  supaHRTrainingGroups = hrGroupRes.data || [];
+supaPayrollWorkers = pwwRes.data || [];
+supaClientOnboarding = coRes.data || [];
+supaHRTrainingPerformance = hrPerfRes.data || [];
+supaHRTrainingGroups = hrGroupRes.data || [];
 }
       
       this.adminState.rawClients = supaClients.length > 0 ? supaClients : (dataRoot.clients || []);
@@ -2449,6 +2450,7 @@ this.adminState.rawProfiles = supaProfiles || [];
 this.adminState.agentCurrentRates = supaAgentCurrentRates || [];
 this.adminState.payrollWeeklyFactView = supaPayrollWeeklyFactView || [];
 this.adminState.payrollWorkers = supaPayrollWorkers || [];
+this.adminState.clientOnboarding = supaClientOnboarding || [];
 
 /* temporary backward compatibility */
 this.adminState.weeklyPayroll = supaPayrollWeeklyFactView || [];
