@@ -3555,7 +3555,10 @@ openHRGroupModal(group) {
           <div class="px-5 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
             <div>
               <div class="text-lg font-black text-gray-900">Week ${w.week}</div>
-              <div class="text-xs text-gray-500 mt-1">Goal: ${w.goal} qualified leads</div>
+              <div class="text-xs text-gray-500 mt-1">
+  Goal: ${w.goal} qualified leads
+  • Recruiter Bonus: <span class="font-black text-emerald-600">$${Number(group[`week${w.week}_recruiter_bonus`] || 0).toFixed(2)}</span>
+</div>
             </div>
 
             ${
@@ -3874,6 +3877,7 @@ openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
   }
 
   wrap.innerHTML = groups.map(g => {
+    const totalRecruiterBonus = Number(g.recruiter_total_bonus || 0);
     const cohortAgents = perfRows
       .filter(r =>
         String(r.active_start_date || "") === String(g.active_start_date || "") &&
@@ -3891,6 +3895,7 @@ openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
               Wave Start: <span class="font-black">${g.active_start_date || "—"}</span>
               • Recruiter: <span class="font-black">${g.recruiter_name || "—"}</span>
               • Agents: <span class="font-black">${g.total_agents || 0}</span>
+• Total Recruiter Bonus: <span class="font-black text-emerald-600">$${totalRecruiterBonus.toFixed(2)}</span>
             </div>
           </div>
 
@@ -3963,10 +3968,9 @@ openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
                             }
                           </td>
 
-                         <td class="p-3 text-right">
-  <div class="font-black text-emerald-600">
-    $${Number(a.recruiter_bonus_total || 0).toFixed(2)}
-  </div>
+                        <td class="p-3 text-right font-black text-emerald-600">
+  $${Number(a.recruiter_bonus_total || 0).toFixed(2)}
+</td>
 
   <div class="mt-2 space-y-1 text-[10px] text-gray-500 font-bold">
     <div>W1 Individual: $${Number(a.week1_individual_bonus || 0).toFixed(2)}</div>
