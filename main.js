@@ -846,7 +846,13 @@ const isAdminPage = pathName.includes('admin-dashboard');
 const isSalesPage = pathName.includes('salesdashboard');
 const isSalesRepPage = pathName.includes('salesrep-dashboard');
 const isManagementPage = pathName.includes('management-dashboard');
-const isCommandCenter = isAdminPage || isSalesPage || isSalesRepPage || isManagementPage;
+    const isRecruitmentPage = pathName.includes('recruitment-dashboard');
+const isCommandCenter =
+  isAdminPage ||
+  isSalesPage ||
+  isSalesRepPage ||
+  isManagementPage ||
+  isRecruitmentPage;
 const isOldAgentDash = isAgentPage;
 
     // Load Agent Dashboard
@@ -870,7 +876,9 @@ const isOldAgentDash = isAgentPage;
    // Load Admin OR Sales Dashboard
 if (isCommandCenter) {
   console.log("🟢 ADMIN DASHBOARD LOADING SAFE MODE");
+  if (!isRecruitmentPage) {
   document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+}
 
   setTimeout(() => {
     this.fetchAdminData(false);
