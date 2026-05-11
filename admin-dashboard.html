@@ -3151,6 +3151,49 @@ return {
 
   return d.toISOString().slice(0, 10);
 },
+      async updateHRAgentStatus(agentId, newStatus) {
+  if (!agentId || !supaClient) {
+    alert("Database connection missing.");
+    return;
+  }
+
+  const normalizedStatus = String(newStatus || "").toLowerCase();
+
+  const state = this.getState();
+  const agents = Array.isArray(state.agents) ? state.agents : [];
+  const agent = agents.find(a => String(a.id) === String(agentId));
+
+  const payload = {
+    employment_status: normalizedStatus
+  };
+
+  if (normalizedStatus === "active") {
+    if (!agent?.active_start_date) {
+      payload.active_start_date = this.getNextMondayFromDate(agent?.start_date);
+    }
+  }
+
+  if (normalizedStatus === "offboarded") {
+    payload.offboarded_date = new Date().toISOString().slice(0, 10);
+  }
+
+  const { error } = await supaClient
+    .from("agents")
+    .update(payload)
+    .eq("id", agentId);
+
+  if (error) {
+    console.error("Update HR agent status failed:", error);
+    alert("Failed to update agent status.");
+    return;
+  }
+
+  if (window.portal?.fetchAdminData) {
+    await window.portal.fetchAdminData(true);
+  } else {
+    this.renderHRTab();
+  }
+},
 
       openAddHRAgentModal() {
   const modal = document.createElement("div");
