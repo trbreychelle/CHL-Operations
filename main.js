@@ -657,7 +657,8 @@ if (accessLabelEl) {
   else if (role === 'admin') accessLabelEl.textContent = 'Admin Access';
   else if (role === 'sales_rep') accessLabelEl.textContent = 'Sales Rep Access';
   else if (role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') accessLabelEl.textContent = 'Sales Access';
-  else accessLabelEl.textContent = 'Agent Access';
+  else if (role === 'recruitment') accessLabelEl.textContent = 'Recruitment Access';
+else accessLabelEl.textContent = 'Agent Access';
 }
 
     if (userNameEl) {
@@ -944,15 +945,16 @@ if (isCommandCenter) {
     }
 
     const user = {
-      id: profile.id,
-      auth_user_id: profile.auth_user_id,
-      organization_id: profile.organization_id,
-      email: profile.email,
-      name: profile.display_name || profile.full_name || profile.email,
-      role: profile.role,
-can_access_recruitment_dashboard: profile.can_access_recruitment_dashboard === true
-    };
-
+  id: profile.id,
+  auth_user_id: profile.auth_user_id,
+  organization_id: profile.organization_id,
+  email: profile.email,
+  name: profile.display_name || profile.full_name || profile.email,
+  full_name: profile.full_name,
+  display_name: profile.display_name,
+  role: profile.role,
+  can_access_recruitment_dashboard: profile.can_access_recruitment_dashboard === true
+};
     this.saveSession(user);
 
   } catch (e) {
