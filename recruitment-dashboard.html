@@ -772,6 +772,36 @@
 
       if (error) throw error;
       recruitmentProfile = data;
+      const { data: agentRow } = await client
+  .from('agents')
+  .select('agent_name, agent_email, position, employment_status, base_rate, effective_hourly_rate, weekly_hours, start_date, active_start_date, photo_url')
+  .eq('organization_id', data.organization_id)
+  .ilike('agent_email', data.email)
+  .maybeSingle();
+
+document.getElementById('profile-full-name').textContent =
+  agentRow?.agent_name || data.display_name || data.full_name || data.email || '—';
+
+document.getElementById('profile-email').textContent =
+  agentRow?.agent_email || data.email || '—';
+
+document.getElementById('profile-position').textContent =
+  agentRow?.position || 'Recruitment';
+
+document.getElementById('profile-employment-status').textContent =
+  agentRow?.employment_status || '—';
+
+document.getElementById('profile-base-rate').textContent =
+  agentRow?.effective_hourly_rate || agentRow?.base_rate || '—';
+
+document.getElementById('profile-weekly-hours').textContent =
+  agentRow?.weekly_hours || '—';
+
+document.getElementById('profile-start-date').textContent =
+  agentRow?.active_start_date || agentRow?.start_date || '—';
+
+const avatar = document.getElementById('profile-avatar-preview');
+if (avatar && agentRow?.photo_url) avatar.src = agentRow.photo_url;
       document.getElementById('nav-user-name').textContent =
   data.display_name || data.full_name || data.email || 'Recruiter';
 
