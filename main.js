@@ -4118,7 +4118,7 @@ document.getElementById('btn-submit-timeoff')?.addEventListener('click', async (
   role === 'agent' &&
   user?.can_access_recruitment_dashboard === true
 ) {
-  return 'agent-dashboard.html';
+  return 'recruitment-dashboard.html';
 }
 
   if (role === 'admin') return 'admin-dashboard.html';
