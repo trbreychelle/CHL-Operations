@@ -4936,13 +4936,12 @@ const onRecruitment = path.includes('recruitment-dashboard');
     else if (role === 'management' && !onManagement) window.location.href = 'management-dashboard.html';
     else if ((role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') && !onSales) window.location.href = 'salesdashboard.html';
     else if (role === 'sales_rep' && !path.includes('salesrep-dashboard')) window.location.href = 'salesrep-dashboard.html';
-    else if (
+   else if (
   role === 'agent' &&
   this.currentUser?.can_access_recruitment_dashboard === true &&
-  !onRecruitment &&
-  !onAgent
+  !onRecruitment
 ) {
-  window.location.href = 'agent-dashboard.html';
+  window.location.href = 'recruitment-dashboard.html';
 } else if (
   role === 'agent' &&
   this.currentUser?.can_access_recruitment_dashboard !== true &&
