@@ -87,13 +87,7 @@ class CallHammerPortal {
    routeByRole(roleRaw, user = null) {
   const role = String(roleRaw || '').toLowerCase();
 
-  if (
-    role === 'agent' &&
-    user?.can_access_recruitment_dashboard === true
-  ) {
-    return 'recruitment-dashboard.html';
-  }
-
+  if (role === 'recruitment') return 'recruitment-dashboard.html';
   if (role === 'admin') return 'admin-dashboard.html';
   if (role === 'management') return 'management-dashboard.html';
   if (role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') return 'salesdashboard.html';
@@ -903,19 +897,17 @@ if (isCommandCenter) {
   const onSales = path.includes('salesdashboard');
   const onSalesRep = path.includes('salesrep-dashboard');
   const onRecruitment = path.includes('recruitment-dashboard');
+  const onManagement = path.includes('management-dashboard');
 
       if (role === 'admin' && !onAdmin) window.location.href = 'admin-dashboard.html';
     else if (role === 'management' && !onManagement) window.location.href = 'management-dashboard.html';
     else if ((role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') && !onSales) window.location.href = 'salesdashboard.html';
     else if (role === 'sales_rep' && !path.includes('salesrep-dashboard')) window.location.href = 'salesrep-dashboard.html';
-    else if (
-  role === 'agent' &&
-  this.currentUser?.can_access_recruitment_dashboard === true &&
-  !onRecruitment &&
-  !onAgent
-) {
+    else if (role === 'recruitment' && !onRecruitment) {
   window.location.href = 'recruitment-dashboard.html';
-} else if (
+}
+    
+  else if (
   role === 'agent' &&
   this.currentUser?.can_access_recruitment_dashboard !== true &&
   !onAgent
