@@ -3,50 +3,51 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Recruitment Dashboard - Call Hammer Leads</title>
+  <title>Agent Dashboard - Call Hammer Leads</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { font-family: 'Inter', sans-serif; }
+    .progress-bar { background: linear-gradient(90deg, #FBBF24 0%, #F59E0B 100%); transition: width 1s ease-in-out; }
+    .metric-card { background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(31, 41, 55, 0.02) 100%); transition: all 0.3s ease; }
+    .metric-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(251, 191, 36, 0.15); }
     .sidebar { background: linear-gradient(180deg, #374151 0%, #111827 100%); }
-    .nav-item { transition: all 0.2s ease; cursor: pointer; color: #D1D5DB; }
+    .nav-item { transition: all 0.3s ease; cursor: pointer; color: #D1D5DB; }
     .nav-item:hover, .nav-item.active { background: rgba(251, 191, 36, 0.15); border-left: 4px solid #FBBF24; color: #FBBF24; }
+    .chart-container { min-height: 350px; width: 100%; }
     .dashboard-view { display: none; }
-    .dashboard-view.active { display: block; animation: fadeIn 0.2s ease-in-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    .status-pill { display:inline-flex; align-items:center; padding: 4px 9px; border-radius: 9999px; font-size: 10px; font-weight: 900; text-transform: uppercase; }
-    .status-active { background:#DCFCE7; color:#047857; }
-    .status-backend, .status-inactive { background:#F3F4F6; color:#4B5563; }
-    .status-offboarded, .status-blacklisted { background:#FEE2E2; color:#B91C1C; }
-    .thin-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
-    .thin-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 9999px; }
+    .dashboard-view.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .calendar-day { transition: all 0.2s ease; position: relative; border: 1px solid #F3F4F6; }
+    .calendar-day:not(.disabled):hover { background-color: #FEF3C7; color: #B45309; border-color: #FBBF24; }
+    .calendar-day.selected { background-color: #FBBF24 !important; color: #1F2937 !important; font-weight: bold; border-radius: 50%; border-color: #1F2937; }
+    .calendar-day.in-range { background-color: #FEF3C7 !important; color: #92400E !important; border-radius: 0; }
+    #timeoff-history-list::-webkit-scrollbar { width: 4px; }
+    #timeoff-history-list::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 10px; }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen text-gray-800">
   <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
-    <div class="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between items-center h-16">
-        <div class="flex items-center space-x-3">
-          <div class="w-8 h-8 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-lg flex items-center justify-center">
-            <span class="text-gray-900 font-black text-sm">CH</span>
-          </div>
-          <div>
-            <p class="text-xl font-black text-gray-900 tracking-tight">Recruitment Dashboard</p>
-            <p class="text-[11px] text-gray-500 font-semibold">HR directory, recruiting waves, and agent training performance</p>
+        <div class="flex items-center space-x-4">
+          <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-lg flex items-center justify-center">
+              <span class="text-gray-900 font-bold text-sm">CH</span>
+            </div>
+            <span class="text-xl font-bold text-gray-900 tracking-tight">Agent Dashboard</span>
           </div>
         </div>
-
-        <div class="flex items-center gap-3">
-          <button onclick="window.location.href='agent-dashboard.html'" class="px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-black hover:bg-gray-800">
-            Open Agent Dashboard
-          </button>
-          <div class="text-right hidden sm:block">
-            <p class="text-sm font-bold text-gray-900" id="nav-user-name">Loading...</p>
-            <p class="text-xs text-gray-500" id="nav-user-role">Recruiter Access</p>
+        <div class="flex items-center space-x-4">
+          <div class="text-right">
+            <p class="text-sm font-medium text-gray-900" id="nav-user-name">Loading...</p>
+            <p class="text-xs text-gray-500" id="nav-user-role">Agent</p>
           </div>
-          <button onclick="safeLogout()" class="text-gray-400 hover:text-yellow-600 transition-colors" title="Log out">
+          <button onclick="portal.logout()" class="text-gray-400 hover:text-yellow-600 transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
             </svg>
           </button>
         </div>
@@ -55,202 +56,423 @@
   </nav>
 
   <div class="flex">
-    <aside class="sidebar w-64 min-h-screen text-white p-6 hidden lg:block relative">
+    <div class="sidebar w-64 min-h-screen text-white p-6 hidden lg:block relative">
       <nav class="space-y-2">
-        <a href="#overview" class="nav-item active flex items-center space-x-3 px-4 py-3 rounded-lg font-bold"><span>HR Overview</span></a>
-        <a href="#directory" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-bold"><span>Directory</span></a>
-        <a href="#performance" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-bold"><span>Performance</span></a>
+        <a href="#overview" class="nav-item active flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Performance Overview</span></a>
+<a href="#leads" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>My Leads</span></a>
+<a href="#profile" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Profile Info</span></a>
+<a href="#payroll" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Payroll</span></a>
+<a href="#timeoff" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Request Time Off</span></a>
+        <a href="#hr" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium">
+  <span>HR & Agents</span>
+</a>
       </nav>
-      <div class="absolute bottom-4 left-6 right-6">
-        <p class="text-[10px] font-black text-yellow-400 uppercase tracking-widest">Limited Access</p>
-        <p class="text-[11px] text-gray-300 mt-1">No payroll admin, sales, clients, or leads tracker access.</p>
-        <p class="text-[11px] font-bold text-yellow-400 mt-4" id="mst-clock">--:--:-- MST</p>
+
+      <div class="absolute bottom-4 left-6">
+        <p class="text-[11px] font-bold text-yellow-400" id="mst-clock">--:--:-- MST</p>
       </div>
-    </aside>
+    </div>
 
-    <main class="flex-1 p-6 lg:p-10 max-w-[1800px] mx-auto w-full">
-      <section id="view-overview" class="dashboard-view active">
-        <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-8">
-          <div>
-            <h1 class="text-3xl font-black text-gray-900">HR & Recruitment Overview</h1>
-            <p class="text-sm text-gray-500 mt-1">Recruiter-only workspace for agent onboarding and training performance.</p>
-          </div>
-          <button onclick="refreshRecruitmentDashboard()" class="px-4 py-2 rounded-xl bg-yellow-500 text-gray-900 text-xs font-black hover:bg-yellow-400">Refresh</button>
+    <div class="flex-1 p-6 lg:p-10">
+      <div id="view-overview" class="dashboard-view active">
+        <div class="flex justify-between items-center mb-8">
+          <h1 class="text-3xl font-bold text-gray-900">Performance Overview</h1>
+          <div class="flex items-center space-x-3">
+
+  <div class="flex flex-wrap items-center gap-2">
+
+  <!-- TIMEFRAME -->
+  <select id="timeframe-filter"
+    class="p-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-sm focus:ring-2 focus:ring-yellow-400 outline-none">
+    <option value="today">Today</option>
+    <option value="this-week" selected>Current Week</option>
+    <option value="previous-week">Previous Week</option>
+    <option value="30-days">Last 30 Days</option>
+    <option value="4-weeks">Last 4 Weeks</option>
+    <option value="6-weeks">Last 6 Weeks</option>
+    <option value="all-time">All Time Records</option>
+  </select>
+
+  <!-- CUSTOM RANGE -->
+  <input type="date" id="custom-start"
+    class="p-2 border border-gray-200 rounded-lg text-sm" />
+
+  <input type="date" id="custom-end"
+    class="p-2 border border-gray-200 rounded-lg text-sm" />
+
+  <button id="apply-custom-range"
+  class="px-3 py-2 bg-gray-900 text-white text-sm rounded-lg">
+  Clear
+</button>
+
+</div>
         </div>
+          </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
-          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Active Agents</p>
-            <p id="stat-active-agents" class="text-3xl font-black text-gray-900 mt-2">0</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div class="metric-card bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Appointments</h3>
+            <p class="text-3xl font-bold text-gray-900" id="stat-appointments">0</p>
           </div>
-          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Training Incomplete</p>
-            <p id="stat-training-incomplete" class="text-3xl font-black text-orange-600 mt-2">0</p>
+          <div class="metric-card bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Cancellation Rate</h3>
+            <p class="text-3xl font-bold text-gray-900" id="stat-cancel-rate">0%</p>
           </div>
-          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Book Completed</p>
-            <p id="stat-book-complete" class="text-3xl font-black text-blue-700 mt-2">0</p>
+          <div class="metric-card bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Incentives</h3>
+            <p class="text-3xl font-bold text-yellow-600" id="stat-incentives">$0.00</p>
           </div>
-          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Video Completed</p>
-            <p id="stat-video-complete" class="text-3xl font-black text-green-700 mt-2">0</p>
-          </div>
-        </div>
-
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-black text-gray-900">Training Waves</h2>
-            <p class="text-xs text-gray-500">Grouped by recruiter/start date when available.</p>
-          </div>
-          <div id="training-waves-list" class="space-y-4">
-            <p class="text-sm text-gray-400 italic">Loading training waves...</p>
-          </div>
-        </div>
-      </section>
-
-      <section id="view-directory" class="dashboard-view">
-        <div class="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-4 mb-8">
-          <div>
-            <h1 class="text-3xl font-black text-gray-900">Agent Directory</h1>
-            <p class="text-sm text-gray-500 mt-1">Add, edit, and review agent records.</p>
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <input id="directory-search" type="text" placeholder="Search name or email..." class="px-4 py-2 border border-gray-200 rounded-xl text-sm outline-none w-64" />
-            <select id="directory-status-filter" class="px-4 py-2 border border-gray-200 rounded-xl bg-white text-sm outline-none">
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="backend">Backend</option>
-              <option value="offboarded">Offboarded</option>
-              <option value="blacklisted">Blacklisted</option>
-            </select>
-            <button onclick="openAgentModal()" class="px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-black hover:bg-gray-800">Add Agent</button>
+          <div class="metric-card bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Hours Worked</h3>
+            <p class="text-3xl font-bold text-gray-900" id="stat-hours">0</p>
           </div>
         </div>
 
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div class="overflow-x-auto thin-scroll">
-            <table class="min-w-full divide-y divide-gray-100 text-sm">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th class="px-5 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Agent</th>
-                  <th class="px-5 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Email</th>
-                  <th class="px-5 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
-                  <th class="px-5 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Position</th>
-                  <th class="px-5 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Recruiter</th>
-                  <th class="px-5 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Book</th>
-                  <th class="px-5 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Video</th>
-                  <th class="px-5 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Action</th>
-                </tr>
-              </thead>
-              <tbody id="directory-table-body" class="divide-y divide-gray-100 bg-white">
-                <tr><td colspan="8" class="px-5 py-8 text-center text-gray-400 italic">Loading agents...</td></tr>
-              </tbody>
-            </table>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+            <h3 class="text-lg font-bold text-gray-900 mb-2">Monthly Incentive ($100)</h3>
+            <p class="text-xs text-gray-500 mb-4">Consistency incentive: 8 qualified appointments for 4 consecutive weeks.</p>
+            <div class="p-4 rounded-xl bg-gray-50 border border-gray-100">
+              <p class="text-sm font-bold text-gray-900" id="monthly-incentive-status-ov">Loading...</p>
+            </div>
           </div>
-        </div>
-      </section>
-
-      <section id="view-performance" class="dashboard-view">
-        <div class="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-4 mb-8">
-          <div>
-            <h1 class="text-3xl font-black text-gray-900">Recruit Training Performance</h1>
-            <p class="text-sm text-gray-500 mt-1">Qualified lead performance for agents in training.</p>
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <input id="performance-search" type="text" placeholder="Search agent..." class="px-4 py-2 border border-gray-200 rounded-xl text-sm outline-none w-64" />
-            <button onclick="refreshRecruitmentDashboard()" class="px-4 py-2 rounded-xl bg-yellow-500 text-gray-900 text-xs font-black hover:bg-yellow-400">Refresh</button>
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+            <h3 class="text-lg font-bold text-gray-900 mb-2">Monthly Raffle ($250)</h3>
+            <p class="text-xs text-gray-500 mb-4">Earn 1 raffle entry for any week with 9 qualified appointments. Monthly cancellation must stay under 20%.</p>
+            <div class="p-4 rounded-xl bg-gray-50 border border-gray-100">
+              <p class="text-sm font-bold text-gray-900" id="monthly-raffle-status-ov">Loading...</p>
+            </div>
           </div>
         </div>
 
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div class="overflow-x-auto thin-scroll">
-            <table class="min-w-full divide-y divide-gray-100 text-sm">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th class="px-5 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Agent</th>
-                  <th class="px-5 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Recruiter</th>
-                  <th class="px-5 py-4 text-left text-[10px] font-black text-blue-600 uppercase tracking-widest">Week 1 Qualified</th>
-                  <th class="px-5 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Week 1 Result</th>
-                  <th class="px-5 py-4 text-left text-[10px] font-black text-blue-600 uppercase tracking-widest">Week 2 Qualified</th>
-                  <th class="px-5 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Week 2 Result</th>
-                  <th class="px-5 py-4 text-left text-[10px] font-black text-green-600 uppercase tracking-widest">Recruiter Bonus</th>
-                </tr>
-              </thead>
-              <tbody id="performance-table-body" class="divide-y divide-gray-100 bg-white">
-                <tr><td colspan="7" class="px-5 py-8 text-center text-gray-400 italic">Loading performance...</td></tr>
-              </tbody>
-            </table>
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
+          <h3 class="text-lg font-bold text-gray-900 mb-4">Incentive Tier Progress</h3>
+          <div class="space-y-4">
+            <div class="flex justify-between items-center">
+              <span class="text-sm font-medium text-gray-500" id="tier-status-text">Loading tier...</span>
+<span class="text-sm font-bold text-gray-900" id="tier-count-display">0 qualified appointments</span>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
+              <div id="tier-progress-bar" class="progress-bar h-full rounded-full" style="width: 0%"></div>
+            </div>
+            <p class="text-xs text-gray-500 italic" id="tier-note-7th"></p>
           </div>
         </div>
-      </section>
-    </main>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-bold mb-6 text-gray-900">Weekly Appointment Trends</h3>
+            <div id="appointmentsChart" class="chart-container"></div>
+          </div>
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-bold mb-6 text-gray-900">Incentive Earning Trends</h3>
+            <div id="incentivesChart" class="chart-container"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="view-leads" class="dashboard-view">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8 gap-3">
+
+  <div>
+  <h2 class="text-3xl font-bold text-gray-900">My Submitted Leads</h2>
+  <p id="leads-count-display" class="text-sm text-gray-500 mt-1">0 leads</p>
+</div>
+
+  <div class="flex flex-wrap items-center gap-2">
+
+    <!-- SEARCH -->
+    <input
+      id="leads-search"
+      type="text"
+      placeholder="Search homeowner..."
+      class="p-2.5 border border-gray-200 rounded-xl text-sm outline-none w-56"
+    />
+
+    <!-- STATUS -->
+    <select id="status-filter"
+  class="p-2.5 border border-gray-200 rounded-xl bg-white text-sm outline-none">
+  <option value="all">All Status</option>
+  <option value="approved">Approved</option>
+  <option value="rejected">Rejected</option>
+  <option value="credited">Credited</option>
+  <option value="pending review">Pending Review</option>
+</select>
+
+    <!-- TIMEFRAME -->
+    <select id="leads-timeframe"
+      class="p-2.5 border border-gray-200 rounded-xl bg-white text-sm outline-none">
+      <option value="today">Today</option>
+      <option value="this-week" selected>Current Week</option>
+      <option value="previous-week">Previous Week</option>
+      <option value="30-days">Last 30 Days</option>
+      <option value="4-weeks">Last 4 Weeks</option>
+      <option value="6-weeks">Last 6 Weeks</option>
+      <option value="all-time">All Time</option>
+    </select>
+
+    <!-- CUSTOM RANGE -->
+    <input type="date" id="leads-start"
+      class="p-2 border border-gray-200 rounded-lg text-sm" />
+
+    <input type="date" id="leads-end"
+      class="p-2 border border-gray-200 rounded-lg text-sm" />
+
+    <button id="apply-leads-range"
+      class="px-3 py-2 bg-gray-900 text-white text-sm rounded-lg">
+  Clear
+</button>
+
   </div>
 
-  <div id="agent-modal" class="hidden fixed inset-0 bg-gray-900/50 z-50 items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden">
-      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-        <h3 id="agent-modal-title" class="text-lg font-black text-gray-900">Add Agent</h3>
-        <button onclick="closeAgentModal()" class="text-gray-400 hover:text-gray-900 text-2xl leading-none">&times;</button>
-      </div>
-      <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <input type="hidden" id="agent-id" />
-        <label class="text-xs font-black text-gray-500 uppercase">Agent Name<input id="agent-name" class="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm normal-case font-normal" /></label>
-        <label class="text-xs font-black text-gray-500 uppercase">Agent Email<input id="agent-email" class="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm normal-case font-normal" /></label>
-        <label class="text-xs font-black text-gray-500 uppercase">Legal Name<input id="legal-name" class="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm normal-case font-normal" /></label>
-        <label class="text-xs font-black text-gray-500 uppercase">Country<input id="country" class="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm normal-case font-normal" /></label>
-        <label class="text-xs font-black text-gray-500 uppercase">Status
-          <select id="employment-status" class="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm normal-case font-normal bg-white">
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="backend">Backend</option>
-            <option value="offboarded">Offboarded</option>
-            <option value="blacklisted">Blacklisted</option>
-          </select>
-        </label>
-        <label class="text-xs font-black text-gray-500 uppercase">Position<input id="position" class="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm normal-case font-normal" /></label>
-        <label class="text-xs font-black text-gray-500 uppercase">Recruiter Name<input id="recruiter-name" class="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm normal-case font-normal" /></label>
-        <label class="text-xs font-black text-gray-500 uppercase">Recruiter Email<input id="recruiter-email" class="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm normal-case font-normal" /></label>
-        <label class="text-xs font-black text-gray-500 uppercase">Start Date<input id="start-date" type="date" class="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm normal-case font-normal" /></label>
-        <div class="flex items-center gap-5 pt-6">
-          <label class="flex items-center gap-2 text-sm font-bold"><input id="training-book-read" type="checkbox" class="w-4 h-4" /> Book read</label>
-          <label class="flex items-center gap-2 text-sm font-bold"><input id="training-video-watched" type="checkbox" class="w-4 h-4" /> Video watched</label>
+</div>
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+  <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Date Submitted</th>
+  <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Homeowner Name</th>
+  <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
+  <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Feedback</th>
+</tr>
+            </thead>
+            <tbody id="leads-table-body" class="bg-white divide-y divide-gray-100"></tbody>
+          </table>
         </div>
-        <label class="md:col-span-2 text-xs font-black text-gray-500 uppercase">HR Notes<textarea id="hr-notes" rows="3" class="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm normal-case font-normal"></textarea></label>
       </div>
-      <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-2 bg-gray-50">
-        <button onclick="closeAgentModal()" class="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 text-xs font-black">Cancel</button>
-        <button onclick="saveAgent()" class="px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-black">Save Agent</button>
+
+     <div id="view-profile" class="dashboard-view">
+  <div class="space-y-6">
+    <h2 class="text-3xl font-bold text-gray-900">Profile Information</h2>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <div class="flex flex-col md:flex-row md:items-center gap-6">
+        <div class="flex flex-col items-center gap-3">
+          <img id="profile-avatar-preview"
+               src=""
+               alt="Profile Picture"
+               class="w-28 h-28 rounded-full object-cover border border-gray-200 bg-gray-100" />
+          <label class="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm cursor-pointer">
+            Upload Photo
+            <input id="profile-avatar-input" type="file" accept="image/*" class="hidden" />
+          </label>
+          <button id="profile-avatar-save"
+  class="px-4 py-2 bg-yellow-500 text-gray-900 rounded-lg text-sm font-semibold hidden">
+  Save Photo
+</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
+          <div><p class="text-xs uppercase text-gray-500">Name</p><p id="profile-full-name" class="font-semibold text-gray-900">—</p></div>
+          <div><p class="text-xs uppercase text-gray-500">Email</p><p id="profile-email" class="font-semibold text-gray-900">—</p></div>
+          <div><p class="text-xs uppercase text-gray-500">Position</p><p id="profile-position" class="font-semibold text-gray-900">—</p></div>
+          <div><p class="text-xs uppercase text-gray-500">Employment Status</p><p id="profile-employment-status" class="font-semibold text-gray-900">—</p></div>
+          <div><p class="text-xs uppercase text-gray-500">Base Rate</p><p id="profile-base-rate" class="font-semibold text-gray-900">—</p></div>
+          <div><p class="text-xs uppercase text-gray-500">Weekly Hours</p><p id="profile-weekly-hours" class="font-semibold text-gray-900">—</p></div>
+          <div><p class="text-xs uppercase text-gray-500">Start Date</p><p id="profile-start-date" class="font-semibold text-gray-900">—</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <h3 class="text-lg font-bold text-gray-900 mb-4">Performance-Based Tier Increase</h3>
+      <div class="space-y-4">
+        <div class="p-4 rounded-xl bg-yellow-50 border border-yellow-100">
+          <p class="text-sm font-semibold text-gray-900 mb-1">90-Day Milestone</p>
+          <p id="milestone-90-day" class="text-sm text-gray-700">Not evaluated yet.</p>
+        </div>
+        <div class="p-4 rounded-xl bg-blue-50 border border-blue-100">
+          <p class="text-sm font-semibold text-gray-900 mb-1">1-Year Milestone</p>
+          <p id="milestone-1-year" class="text-sm text-gray-700">Not evaluated yet.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <h3 class="text-xl font-bold text-gray-900 mb-6">Incentive Structure Reference</h3>
+
+      <div class="mb-6 p-4 rounded-xl bg-yellow-50 border border-yellow-100">
+        <p class="text-sm font-semibold text-gray-900">
+          Incentives are counted ONLY for <span class="font-bold text-yellow-700">qualified appointments</span>.
+        </p>
+      </div>
+
+      <div class="overflow-hidden rounded-2xl border border-gray-200 shadow-sm bg-white mb-12">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Appointment Range</th>
+              <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Standard Bonus</th>
+              <th class="px-6 py-4 text-left text-[10px] font-bold text-yellow-700 uppercase tracking-widest bg-yellow-50">High Perf. (&lt;25% Cancel)</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-100">
+            <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">6th Qualified Apt</td><td class="px-6 py-4 text-sm text-gray-600">$50 (Flat)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$50 (Flat)</td></tr>
+            <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">7th Qualified Apt</td><td class="px-6 py-4 text-sm text-gray-600">$0 (No Bonus)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$0 (No Bonus)</td></tr>
+            <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">8th Qualified Apt</td><td class="px-6 py-4 text-sm text-gray-600">$30 (Flat)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$50 (Flat)</td></tr>
+            <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">9th - 12th Qualified</td><td class="px-6 py-4 text-sm text-gray-600">$15 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$17 (Per Apt)</td></tr>
+            <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">13th+ Qualified</td><td class="px-6 py-4 text-sm text-gray-600">$25 (Per Apt)</td><td class="px-6 py-4 text-sm font-bold text-yellow-600 bg-yellow-50/30">$27 (Per Apt)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="overflow-hidden rounded-2xl border border-gray-200 shadow-sm bg-white">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Milestone</th>
+              <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Increase</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-100">
+            <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">90 Days</td><td class="px-6 py-4 text-sm text-gray-600">+$0.50/hr (Standard) or +$0.75/hr (High)</td></tr>
+            <tr><td class="px-6 py-4 text-sm font-bold text-gray-900">1 Year</td><td class="px-6 py-4 text-sm text-gray-600">+$0.75/hr (Standard) or +$1.50/hr (High)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+        <div id="view-payroll" class="dashboard-view">
+  <div class="space-y-6">
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+      <h2 class="text-3xl font-bold text-gray-900">Payroll</h2>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <select id="payroll-timeframe"
+          class="p-2.5 border border-gray-200 rounded-xl bg-white text-sm outline-none">
+          <option value="today">Today</option>
+          <option value="this-week">Current Week</option>
+          <option value="previous-week">Previous Week</option>
+          <option value="30-days">Last 30 Days</option>
+          <option value="4-weeks" selected>Last 4 Weeks</option>
+          <option value="6-weeks">Last 6 Weeks</option>
+          <option value="all-time">All Time</option>
+        </select>
+
+        <input type="date" id="payroll-start" class="p-2 border border-gray-200 rounded-lg text-sm" />
+        <input type="date" id="payroll-end" class="p-2 border border-gray-200 rounded-lg text-sm" />
+        <button id="apply-payroll-range" class="px-3 py-2 bg-gray-900 text-white text-sm rounded-lg">Clear</button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <p class="text-xs uppercase text-gray-500">Weekly Rows</p>
+        <p id="payroll-week-count" class="text-2xl font-bold text-gray-900 mt-2">0</p>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <p class="text-xs uppercase text-gray-500">Hours Worked</p>
+        <p id="payroll-total-hours" class="text-2xl font-bold text-gray-900 mt-2">0</p>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <p class="text-xs uppercase text-gray-500">Auto Incentives</p>
+        <p id="payroll-total-bonus" class="text-2xl font-bold text-yellow-700 mt-2">$0.00</p>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <p class="text-xs uppercase text-gray-500">Final Pay Total</p>
+        <p id="payroll-final-pay" class="text-2xl font-bold text-green-700 mt-2">$0.00</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <h3 class="text-lg font-bold text-gray-900 mb-4">Weekly Payroll Summary</h3>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500 border-b">
+              <th class="py-3 pr-4">Week</th>
+              <th class="py-3 pr-4">Hours</th>
+              <th class="py-3 pr-4">Qualified</th>
+              <th class="py-3 pr-4">Rejected</th>
+              <th class="py-3 pr-4">Credited</th>
+              <th class="py-3 pr-4">Auto Bonus</th>
+              <th class="py-3 pr-4">Manual Adj.</th>
+              <th class="py-3 pr-4">Final Pay</th>
+              <th class="py-3 pr-4">Paid</th>
+            </tr>
+          </thead>
+          <tbody id="payroll-weekly-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <h3 class="text-lg font-bold text-gray-900 mb-4">Daily Time Logs</h3>
+      <div class="overflow-x-auto overflow-y-auto max-h-[420px] pr-2">
+        <table class="min-w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500 border-b">
+              <th class="py-3 pr-4">Date</th>
+              <th class="py-3 pr-4">First In</th>
+              <th class="py-3 pr-4">Last Out</th>
+              <th class="py-3 pr-4">Hours</th>
+              <th class="py-3 pr-4">Sessions</th>
+            </tr>
+          </thead>
+          <tbody id="payroll-daily-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+      <div id="view-timeoff" class="dashboard-view">
+        <div class="max-w-6xl mx-auto">
+          <h2 class="text-3xl font-bold text-gray-900 mb-2">Request Time Off</h2>
+          <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <div class="lg:col-span-1 bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+              <h3 class="text-xs font-bold text-gray-400 uppercase mb-6 tracking-widest">My Request History</h3>
+              <div id="timeoff-history-list" class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                <p class="text-xs text-gray-400 italic">No history found.</p>
+              </div>
+            </div>
+            <div class="lg:col-span-3 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col md:flex-row">
+              <div class="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-gray-100 p-8 bg-gray-50/50">
+                <h3 class="text-xl font-bold text-gray-900 mb-4">Range Selection</h3>
+                <div id="range-preview" class="hidden space-y-6">
+                  <div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase">Reason</p>
+                    <select id="timeoff-reason" class="w-full mt-2 p-3 border border-gray-200 rounded-xl bg-white text-sm outline-none">
+                      <option value="Sick Leave">Sick Leave</option>
+                      <option value="Vacation Leave" selected>Vacation Leave</option>
+                      <option value="Personal Leave">Personal Leave</option>
+                    </select>
+                  </div>
+                  <div><p class="text-[10px] font-bold text-gray-400 uppercase">Start Date</p><p class="text-sm font-bold text-yellow-600" id="display-start-date">--</p></div>
+                  <div><p class="text-[10px] font-bold text-gray-400 uppercase">End Date</p><p class="text-sm font-bold text-yellow-600" id="display-end-date">--</p></div>
+                  <button id="btn-submit-timeoff" class="w-full bg-yellow-500 text-gray-900 font-bold py-4 rounded-xl hover:bg-yellow-600 transition-all">Submit Request</button>
+                </div>
+                <p id="range-hint" class="text-sm text-gray-400 italic">Click a start date, then an end date on the calendar.</p>
+              </div>
+              <div class="flex-1 p-8">
+                <div class="flex items-center justify-between mb-8">
+                  <h4 class="text-xl font-bold text-gray-900" id="calendar-month-year">January 2026</h4>
+                  <div class="flex space-x-2">
+                    <button onclick="changeMonth(-1)" class="p-2 hover:bg-gray-100 rounded-full text-gray-400">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                    </button>
+                    <button onclick="changeMonth(1)" class="p-2 hover:bg-gray-100 rounded-full text-gray-400">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                    </button>
+                  </div>
+                </div>
+                <div class="grid grid-cols-7 gap-4 text-center text-[10px] font-bold text-gray-400 uppercase mb-6">
+                  <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                </div>
+                <div id="calendar-grid" class="grid grid-cols-7 gap-2 text-center"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="main.js"></script>
+
   <script>
-    let recruitmentAgents = [];
-    let recruitmentProfile = null;
-
-    function getSupabaseClient() {
-      return window.supabaseClient || window.chlSupabase || window.db || window.portal?.supabase || window.portal?.client || null;
-    }
-
-    function safeLogout() {
-      if (window.portal?.logout) return window.portal.logout();
-      const client = getSupabaseClient();
-      if (client?.auth?.signOut) client.auth.signOut().finally(() => window.location.href = 'index.html');
-      else window.location.href = 'index.html';
-    }
-
-    function tickMstClock() {
-      const el = document.getElementById('mst-clock');
-      if (!el) return;
-      const text = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'America/Denver', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
-      }).format(new Date());
-      el.textContent = `${text} MST`;
-    }
-
     document.querySelectorAll('.nav-item').forEach(item => {
       item.addEventListener('click', (e) => {
         e.preventDefault();
@@ -258,222 +480,81 @@
         document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
         item.classList.add('active');
         document.querySelectorAll('.dashboard-view').forEach(view => view.classList.remove('active'));
-        document.getElementById(targetId)?.classList.add('active');
+        const targetView = document.getElementById(targetId);
+        if (targetView) targetView.classList.add('active');
+        if (targetId === 'view-overview') {
+          setTimeout(() => { portal.charts?.appointments?.resize(); portal.charts?.incentives?.resize(); }, 100);
+        }
       });
     });
 
-    function statusClass(status) {
-      const s = String(status || '').toLowerCase();
-      if (s === 'active') return 'status-active';
-      if (s === 'offboarded' || s === 'blacklisted') return 'status-offboarded';
-      return 'status-backend';
-    }
+    let currentMonth = new Date().getMonth();
+    let currentYear = new Date().getFullYear();
+    let rangeStart = null;
+    let rangeEnd = null;
 
-    function yesNo(value) {
-      return value ? '<span class="text-green-700 font-black">Yes</span>' : '<span class="text-gray-400 font-bold">No</span>';
-    }
+    function renderCalendar() {
+      const grid = document.getElementById('calendar-grid');
+      const monthYearLabel = document.getElementById('calendar-month-year');
+      const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-    async function loadCurrentRecruiterProfile() {
-      const client = getSupabaseClient();
-      if (!client?.auth?.getUser) return null;
-      const { data: userData } = await client.auth.getUser();
-      const user = userData?.user;
-      if (!user) return null;
+      monthYearLabel.innerText = `${months[currentMonth]} ${currentYear}`;
+      grid.innerHTML = '';
+      for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
 
-      const { data, error } = await client
-        .from('profiles')
-        .select('id,email,display_name,full_name,role,is_active,can_access_recruitment_dashboard,organization_id')
-        .eq('auth_user_id', user.id)
-        .single();
+      const today = new Date(); today.setHours(0,0,0,0);
 
-      if (error) throw error;
-      recruitmentProfile = data;
-      document.getElementById('nav-user-name').textContent = data.display_name || data.full_name || data.email || 'Recruiter';
-      if (!data?.can_access_recruitment_dashboard) {
-        alert('You do not have access to the Recruitment Dashboard.');
-        window.location.href = 'agent-dashboard.html';
-        return null;
-      }
-      return data;
-    }
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateObj = new Date(currentYear, currentMonth, day);
+        const dayEl = document.createElement('div');
+        dayEl.className = "calendar-day w-10 h-10 flex items-center justify-center border border-gray-50 rounded-full cursor-pointer text-xs font-semibold mx-auto";
+        dayEl.innerText = day;
 
-    async function loadAgents() {
-      const client = getSupabaseClient();
-      if (!client?.from) throw new Error('Supabase client not found. Check main.js exposes the client globally.');
+        if (dateObj < today) {
+          dayEl.classList.add('text-gray-200', 'cursor-not-allowed', 'disabled');
+        } else {
+          if (rangeStart && dateObj.getTime() === rangeStart.getTime()) dayEl.classList.add('selected');
+          if (rangeEnd && dateObj.getTime() === rangeEnd.getTime()) dayEl.classList.add('selected');
+          if (rangeStart && rangeEnd && dateObj > rangeStart && dateObj < rangeEnd) dayEl.classList.add('in-range');
 
-      const { data, error } = await client
-        .from('agents')
-        .select('id,agent_name,agent_email,legal_name,country,employment_status,role,position,start_date,active_start_date,recruiter_name,recruiter_email,training_book_read,training_video_watched,hr_notes,organization_id')
-        .eq('organization_id', recruitmentProfile.organization_id)
-        .order('agent_name', { ascending: true });
-
-      if (error) throw error;
-      recruitmentAgents = data || [];
-      renderOverview();
-      renderDirectory();
-      renderPerformance();
-    }
-
-    function renderOverview() {
-      const active = recruitmentAgents.filter(a => String(a.employment_status || '').toLowerCase() === 'active');
-      const book = recruitmentAgents.filter(a => a.training_book_read).length;
-      const video = recruitmentAgents.filter(a => a.training_video_watched).length;
-      const incomplete = recruitmentAgents.filter(a => !a.training_book_read || !a.training_video_watched).length;
-      document.getElementById('stat-active-agents').textContent = active.length;
-      document.getElementById('stat-training-incomplete').textContent = incomplete;
-      document.getElementById('stat-book-complete').textContent = book;
-      document.getElementById('stat-video-complete').textContent = video;
-
-      const groups = new Map();
-      recruitmentAgents.forEach(a => {
-        const key = `${a.active_start_date || a.start_date || 'No start date'}|${a.recruiter_name || 'No recruiter'}`;
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key).push(a);
-      });
-
-      const list = document.getElementById('training-waves-list');
-      if (!groups.size) {
-        list.innerHTML = '<p class="text-sm text-gray-400 italic">No training waves found.</p>';
-        return;
-      }
-      list.innerHTML = [...groups.entries()].map(([key, rows], idx) => {
-        const [start, recruiter] = key.split('|');
-        const done = rows.filter(a => a.training_book_read && a.training_video_watched).length;
-        return `<div class="border border-gray-100 rounded-2xl p-5 bg-gray-50/50">
-          <div class="flex items-center justify-between gap-3">
-            <div><p class="text-lg font-black text-gray-900">Wave ${idx + 1}</p><p class="text-xs text-gray-500">Start: ${start} • Recruiter: ${recruiter} • Agents: ${rows.length}</p></div>
-            <p class="text-sm font-black text-green-700">${done}/${rows.length} completed</p>
-          </div>
-        </div>`;
-      }).join('');
-    }
-
-    function filteredDirectoryAgents() {
-      const q = document.getElementById('directory-search')?.value?.toLowerCase().trim() || '';
-      const status = document.getElementById('directory-status-filter')?.value || 'all';
-      return recruitmentAgents.filter(a => {
-        const haystack = `${a.agent_name || ''} ${a.agent_email || ''} ${a.legal_name || ''}`.toLowerCase();
-        const statusOk = status === 'all' || String(a.employment_status || '').toLowerCase() === status;
-        return statusOk && (!q || haystack.includes(q));
-      });
-    }
-
-    function renderDirectory() {
-      const body = document.getElementById('directory-table-body');
-      const rows = filteredDirectoryAgents();
-      if (!rows.length) {
-        body.innerHTML = '<tr><td colspan="8" class="px-5 py-8 text-center text-gray-400 italic">No agents found.</td></tr>';
-        return;
-      }
-      body.innerHTML = rows.map(a => `<tr class="hover:bg-gray-50">
-        <td class="px-5 py-4 font-black text-gray-900">${a.agent_name || a.legal_name || '—'}</td>
-        <td class="px-5 py-4 text-gray-600">${a.agent_email || '—'}</td>
-        <td class="px-5 py-4"><span class="status-pill ${statusClass(a.employment_status)}">${a.employment_status || '—'}</span></td>
-        <td class="px-5 py-4 text-gray-600">${a.position || a.role || '—'}</td>
-        <td class="px-5 py-4 text-gray-600">${a.recruiter_name || '—'}</td>
-        <td class="px-5 py-4">${yesNo(a.training_book_read)}</td>
-        <td class="px-5 py-4">${yesNo(a.training_video_watched)}</td>
-        <td class="px-5 py-4 text-right"><button onclick="openAgentModal('${a.id}')" class="px-3 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-black">Edit</button></td>
-      </tr>`).join('');
-    }
-
-    function renderPerformance() {
-      const body = document.getElementById('performance-table-body');
-      const q = document.getElementById('performance-search')?.value?.toLowerCase().trim() || '';
-      const rows = recruitmentAgents.filter(a => !q || `${a.agent_name || ''} ${a.agent_email || ''}`.toLowerCase().includes(q));
-      if (!rows.length) {
-        body.innerHTML = '<tr><td colspan="7" class="px-5 py-8 text-center text-gray-400 italic">No performance rows found.</td></tr>';
-        return;
-      }
-      body.innerHTML = rows.map(a => `<tr class="hover:bg-gray-50">
-        <td class="px-5 py-4 font-black text-gray-900">${a.agent_name || '—'}</td>
-        <td class="px-5 py-4 text-gray-600">${a.recruiter_name || '—'}</td>
-        <td class="px-5 py-4 font-black text-blue-700">—</td>
-        <td class="px-5 py-4"><span class="status-pill status-backend">Pending View</span></td>
-        <td class="px-5 py-4 font-black text-blue-700">—</td>
-        <td class="px-5 py-4"><span class="status-pill status-backend">Pending View</span></td>
-        <td class="px-5 py-4 font-black text-green-700">—</td>
-      </tr>`).join('');
-    }
-
-    function openAgentModal(id) {
-      const agent = id ? recruitmentAgents.find(a => a.id === id) : null;
-      document.getElementById('agent-modal-title').textContent = agent ? 'Edit Agent' : 'Add Agent';
-      document.getElementById('agent-id').value = agent?.id || '';
-      document.getElementById('agent-name').value = agent?.agent_name || '';
-      document.getElementById('agent-email').value = agent?.agent_email || '';
-      document.getElementById('legal-name').value = agent?.legal_name || '';
-      document.getElementById('country').value = agent?.country || '';
-      document.getElementById('employment-status').value = agent?.employment_status || 'active';
-      document.getElementById('position').value = agent?.position || agent?.role || 'Agent';
-      document.getElementById('recruiter-name').value = agent?.recruiter_name || recruitmentProfile?.display_name || recruitmentProfile?.full_name || '';
-      document.getElementById('recruiter-email').value = agent?.recruiter_email || recruitmentProfile?.email || '';
-      document.getElementById('start-date').value = agent?.active_start_date || agent?.start_date || '';
-      document.getElementById('training-book-read').checked = !!agent?.training_book_read;
-      document.getElementById('training-video-watched').checked = !!agent?.training_video_watched;
-      document.getElementById('hr-notes').value = agent?.hr_notes || '';
-      const modal = document.getElementById('agent-modal');
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-    }
-
-    function closeAgentModal() {
-      const modal = document.getElementById('agent-modal');
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-    }
-
-    async function saveAgent() {
-      const client = getSupabaseClient();
-      if (!client?.from) return alert('Supabase client not found.');
-      const id = document.getElementById('agent-id').value;
-      const payload = {
-        agent_name: document.getElementById('agent-name').value.trim(),
-        agent_email: document.getElementById('agent-email').value.trim().toLowerCase(),
-        legal_name: document.getElementById('legal-name').value.trim() || null,
-        country: document.getElementById('country').value.trim() || null,
-        employment_status: document.getElementById('employment-status').value,
-        role: 'Agent',
-        position: document.getElementById('position').value.trim() || 'Agent',
-        recruiter_name: document.getElementById('recruiter-name').value.trim() || null,
-        recruiter_email: document.getElementById('recruiter-email').value.trim().toLowerCase() || null,
-        start_date: document.getElementById('start-date').value || null,
-        active_start_date: document.getElementById('start-date').value || null,
-        training_book_read: document.getElementById('training-book-read').checked,
-        training_video_watched: document.getElementById('training-video-watched').checked,
-        hr_notes: document.getElementById('hr-notes').value.trim() || null,
-        organization_id: recruitmentProfile.organization_id
-      };
-      if (!payload.agent_name || !payload.agent_email) return alert('Agent name and email are required.');
-
-      const query = id
-        ? client.from('agents').update(payload).eq('id', id).select().single()
-        : client.from('agents').insert(payload).select().single();
-      const { error } = await query;
-      if (error) return alert(error.message || 'Could not save agent.');
-      closeAgentModal();
-      await refreshRecruitmentDashboard();
-    }
-
-    async function refreshRecruitmentDashboard() {
-      try {
-        if (!recruitmentProfile) await loadCurrentRecruiterProfile();
-        if (recruitmentProfile) await loadAgents();
-      } catch (err) {
-        console.error(err);
-        const message = err?.message || 'Could not load recruitment dashboard.';
-        document.getElementById('directory-table-body').innerHTML = `<tr><td colspan="8" class="px-5 py-8 text-center text-red-500 font-bold">${message}</td></tr>`;
-        document.getElementById('performance-table-body').innerHTML = `<tr><td colspan="7" class="px-5 py-8 text-center text-red-500 font-bold">${message}</td></tr>`;
+          dayEl.onclick = () => {
+            if (!rangeStart || (rangeStart && rangeEnd)) {
+              rangeStart = dateObj; rangeEnd = null;
+            } else if (dateObj < rangeStart) {
+              rangeStart = dateObj;
+            } else {
+              rangeEnd = dateObj;
+            }
+            updateRangeUI();
+            renderCalendar();
+          };
+        }
+        grid.appendChild(dayEl);
       }
     }
 
-    document.getElementById('directory-search').addEventListener('input', renderDirectory);
-    document.getElementById('directory-status-filter').addEventListener('change', renderDirectory);
-    document.getElementById('performance-search').addEventListener('input', renderPerformance);
+    function updateRangeUI() {
+      const preview = document.getElementById('range-preview');
+      const hint = document.getElementById('range-hint');
+      if (rangeStart) {
+        preview.classList.remove('hidden'); hint.classList.add('hidden');
+        document.getElementById('display-start-date').innerText = rangeStart.toDateString();
+        document.getElementById('display-end-date').innerText = rangeEnd ? rangeEnd.toDateString() : 'Select end date...';
+      } else {
+        preview.classList.add('hidden'); hint.classList.remove('hidden');
+      }
+    }
 
-    tickMstClock();
-    setInterval(tickMstClock, 1000);
-    setTimeout(refreshRecruitmentDashboard, 300);
+    function changeMonth(step) {
+      currentMonth += step;
+      if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+      if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+      renderCalendar();
+    }
+
+    renderCalendar();
   </script>
 </body>
 </html>
