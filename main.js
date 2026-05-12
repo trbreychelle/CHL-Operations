@@ -103,7 +103,7 @@ class CallHammerPortal {
   role === 'agent' &&
   user?.can_access_recruitment_dashboard === true
 ) {
-  return 'agent-dashboard.html';
+  return 'recruitment-dashboard.html';
 }
 
   if (role === 'admin') return 'admin-dashboard.html';
@@ -928,12 +928,12 @@ const onRecruitment = path.includes('recruitment-dashboard');
   !onAgent
 ) {
   window.location.href = 'agent-dashboard.html';
-} else if (
+}else if (
   role === 'agent' &&
   this.currentUser?.can_access_recruitment_dashboard !== true &&
-  !onAgent
+  !onRecruitment
 ) {
-  window.location.href = 'agent-dashboard.html';
+  window.location.href = 'recruitment-dashboard.html';
 }
 }
   
