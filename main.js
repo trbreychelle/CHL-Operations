@@ -953,16 +953,17 @@ const onRecruitment = path.includes('recruitment-dashboard');
       return;
     }
 
-    const user = {
-      id: profile.id,
-      auth_user_id: profile.auth_user_id,
-      organization_id: profile.organization_id,
-      email: profile.email,
-      name: profile.display_name || profile.full_name || profile.email,
-      role: profile.role,
-can_access_recruitment_dashboard: profile.can_access_recruitment_dashboard === true
-    };
-
+   const user = {
+  id: profile.id,
+  auth_user_id: profile.auth_user_id,
+  organization_id: profile.organization_id,
+  email: profile.email,
+  name: profile.display_name || profile.full_name || profile.email,
+  full_name: profile.full_name,
+  display_name: profile.display_name,
+  role: profile.role,
+  can_access_recruitment_dashboard: profile.can_access_recruitment_dashboard === true
+};
     this.saveSession(user);
 
   } catch (e) {
@@ -1495,11 +1496,10 @@ if ((customStart && !customEnd) || (!customStart && customEnd)) {
 });
 
     if (overviewError) {
-      console.error('❌ Agent overview load failed:', overviewError);
-      return;
-    }
+  console.error('❌ Agent overview load failed:', overviewError);
+}
 
-    const ov = overview?.[0] || {};
+const ov = overview?.[0] || {};
 
     const setText = (id, val) => {
       const el = document.getElementById(id);
