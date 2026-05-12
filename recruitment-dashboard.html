@@ -574,6 +574,27 @@
         </div>
       </div>
 
+      <div id="hr-group-modal" class="hidden fixed inset-0 z-[130]">
+  <div class="absolute inset-0 bg-black/50" onclick="closeHRGroupModal()"></div>
+
+  <div class="relative mx-auto mt-6 w-[97%] max-w-7xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+    <div class="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-blue-50 flex items-center justify-between">
+      <div>
+        <h3 id="hr-group-modal-title" class="text-2xl font-black text-gray-900">Training Cohort</h3>
+        <p id="hr-group-modal-sub" class="text-sm text-gray-500 mt-1">Weekly cohort analytics</p>
+      </div>
+
+      <button onclick="closeHRGroupModal()" class="w-11 h-11 rounded-2xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-100">
+        ✕
+      </button>
+    </div>
+
+    <div id="hr-group-modal-content" class="p-6 overflow-y-auto max-h-[82vh]">
+      <div class="text-sm text-gray-400 italic">Loading group performance...</div>
+    </div>
+  </div>
+</div>
+
       <div id="agent-modal" class="hidden fixed inset-0 bg-gray-900/50 z-50 items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden">
           <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -1087,6 +1108,189 @@ document.getElementById('nav-user-role').textContent = 'Agent / Recruiter';
       </div>
     `;
   }).join('');
+}
+
+    function closeHRGroupModal() {
+  document.getElementById('hr-group-modal')?.classList.add('hidden');
+}
+
+    function openHRGroupModal(group) {
+  if (!group) return;
+
+  window.activeRecruitmentHRGroup = group;
+
+  const modal = document.getElementById('hr-group-modal');
+  const titleEl = document.getElementById('hr-group-modal-title');
+  const subEl = document.getElementById('hr-group-modal-sub');
+  const content = document.getElementById('hr-group-modal-content');
+
+  if (!modal || !titleEl || !subEl || !content) return;
+
+  titleEl.textContent = `Wave ${group.wave_number || ''}`;
+  subEl.textContent = `Started ${group.active_start_date || '—'} • Recruiter: ${group.recruiter_name || '—'} • ${group.total_agents || 0} agents`;
+
+  const weeks = [1, 2, 3, 4].map(n => ({
+    week: n,
+    total: Number(group[`week${n}_total`] || 0),
+    qualified: Number(group[`week${n}_qualified_total`] || 0),
+    rejected: Number(group[`week${n}_rejected_total`] || 0),
+    credited: Number(group[`week${n}_credited_total`] || 0),
+    cancel: Number(group[`week${n}_cancellation_rate`] || 0),
+    goal: Number(group[`week${n}_goal`] || 0),
+    passed: group[`week${n}_group_passed`] === true || String(group[`week${n}_group_passed`]).toLowerCase() === 'true'
+  }));
+
+  content.innerHTML = `
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      ${weeks.map(w => `
+        <button
+          type="button"
+          onclick="renderRecruitmentHRGroupWeekBreakdown(${w.week})"
+          class="text-left rounded-3xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md hover:border-blue-200 transition bg-white"
+        >
+          <div class="px-5 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+            <div>
+              <div class="text-lg font-black text-gray-900">Week ${w.week}</div>
+              <div class="text-xs text-gray-500 mt-1">Goal: ${w.goal} qualified leads</div>
+            </div>
+
+            ${
+              w.passed
+                ? `<span class="px-3 py-1 rounded-full bg-emerald-500 text-white text-xs font-black">PASSED</span>`
+                : `<span class="px-3 py-1 rounded-full bg-red-500 text-white text-xs font-black">NOT MET</span>`
+            }
+          </div>
+
+          <div class="p-5 grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div class="rounded-2xl bg-gray-50 border border-gray-100 p-4 text-center">
+              <div class="text-xs font-black text-gray-400 uppercase">Total</div>
+              <div class="text-2xl font-black text-gray-900 mt-2">${w.total}</div>
+            </div>
+
+            <div class="rounded-2xl bg-blue-50 border border-blue-100 p-4 text-center">
+              <div class="text-xs font-black text-blue-400 uppercase">Qualified</div>
+              <div class="text-2xl font-black text-blue-700 mt-2">${w.qualified}</div>
+            </div>
+
+            <div class="rounded-2xl bg-red-50 border border-red-100 p-4 text-center">
+              <div class="text-xs font-black text-red-400 uppercase">Rejected</div>
+              <div class="text-2xl font-black text-red-600 mt-2">${w.rejected}</div>
+            </div>
+
+            <div class="rounded-2xl bg-purple-50 border border-purple-100 p-4 text-center">
+              <div class="text-xs font-black text-purple-400 uppercase">Credited</div>
+              <div class="text-2xl font-black text-purple-700 mt-2">${w.credited}</div>
+            </div>
+
+            <div class="rounded-2xl bg-yellow-50 border border-yellow-100 p-4 text-center">
+              <div class="text-xs font-black text-yellow-500 uppercase">Cancel</div>
+              <div class="text-2xl font-black text-yellow-700 mt-2">${w.cancel.toFixed(2)}%</div>
+            </div>
+          </div>
+
+          <div class="px-5 pb-4 text-xs font-black text-blue-600">
+            Click to view agent breakdown →
+          </div>
+        </button>
+      `).join('')}
+    </div>
+  `;
+
+  modal.classList.remove('hidden');
+}
+
+    function renderRecruitmentHRGroupWeekBreakdown(weekNumber) {
+  const group = window.activeRecruitmentHRGroup;
+  if (!group) return;
+
+  const content = document.getElementById('hr-group-modal-content');
+  if (!content) return;
+
+  const agents = (recruitmentPerformanceRows || [])
+    .filter(r =>
+      String(r.active_start_date || '') === String(group.active_start_date || '') &&
+      String(r.recruiter_name || '') === String(group.recruiter_name || '')
+    )
+    .sort((a, b) => String(a.agent_name || '').localeCompare(String(b.agent_name || '')));
+
+  content.innerHTML = `
+    <div class="mb-4 flex items-center justify-between gap-3">
+      <div>
+        <div class="text-xl font-black text-gray-900">Week ${weekNumber} Agent Breakdown</div>
+        <div class="text-sm text-gray-500 mt-1">Wave ${group.wave_number || ''} • ${group.active_start_date || '—'}</div>
+      </div>
+
+      <button
+        type="button"
+        onclick="openHRGroupModal(window.activeRecruitmentHRGroup)"
+        class="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 text-xs font-black hover:bg-gray-200"
+      >
+        ← Back to Weeks
+      </button>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm whitespace-nowrap">
+          <thead class="bg-gray-50 text-[10px] font-black text-gray-400 uppercase border-b border-gray-100">
+            <tr>
+              <th class="p-3">Agent</th>
+              <th class="p-3">Status</th>
+              <th class="p-3 text-center">Total Leads</th>
+              <th class="p-3 text-center text-red-500">QC Rejected</th>
+              <th class="p-3 text-center text-blue-600">Qualified</th>
+              <th class="p-3 text-center text-purple-600">Credited</th>
+              <th class="p-3 text-center">Cancel Rate</th>
+              <th class="p-3 text-center">Result</th>
+            </tr>
+          </thead>
+
+          <tbody class="divide-y divide-gray-50">
+            ${agents.length ? agents.map(a => {
+              const total = Number(a[`week${weekNumber}_total`] || 0);
+              const rejected = Number(a[`week${weekNumber}_rejected`] || 0);
+              const qualified = Number(a[`week${weekNumber}_qualified`] || 0);
+              const credited = Number(a[`week${weekNumber}_credited`] || 0);
+              const cancel = Number(a[`week${weekNumber}_cancellation_rate`] || 0);
+              const passed =
+                a[`week${weekNumber}_passed`] === true ||
+                String(a[`week${weekNumber}_passed`]).toLowerCase() === 'true';
+
+              return `
+                <tr class="hover:bg-gray-50">
+                  <td class="p-3 font-black text-gray-900">
+                    ${a.agent_name || 'Unknown'}
+                    <div class="text-[11px] text-gray-400 font-semibold">${a.agent_email || '—'}</div>
+                  </td>
+
+                  <td class="p-3">${a.employment_status || '—'}</td>
+                  <td class="p-3 text-center font-black text-gray-900">${total}</td>
+                  <td class="p-3 text-center font-black text-red-500">${rejected}</td>
+                  <td class="p-3 text-center font-black text-blue-600">${qualified}</td>
+                  <td class="p-3 text-center font-black text-purple-600">${credited}</td>
+                  <td class="p-3 text-center font-black ${cancel >= 25 ? 'text-red-600' : 'text-emerald-600'}">${cancel.toFixed(2)}%</td>
+
+                  <td class="p-3 text-center">
+                    ${
+                      passed
+                        ? `<span class="px-2 py-1 rounded bg-emerald-100 text-emerald-700 text-[10px] font-black">PASSED</span>`
+                        : `<span class="px-2 py-1 rounded bg-orange-100 text-orange-700 text-[10px] font-black">NOT MET</span>`
+                    }
+                  </td>
+                </tr>
+              `;
+            }).join('') : `
+              <tr>
+                <td colspan="8" class="p-6 text-center text-gray-400 italic">
+                  No agents found for this wave.
+                </td>
+              </tr>
+            `}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
 }
     
     function openAgentModal(id) {
