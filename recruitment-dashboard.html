@@ -913,23 +913,39 @@ document.getElementById('nav-user-role').textContent = 'Agent / Recruiter';
 
   const q = document.getElementById('performance-search')?.value?.toLowerCase().trim() || '';
 
-  const rawGroups = Array.isArray(recruitmentGroupRows) ? recruitmentGroupRows : [];
-  const perfRows = Array.isArray(recruitmentPerformanceRows) ? recruitmentPerformanceRows : [];
+  const rawGroups = Array.isArray(recruitmentGroupRows)
+    ? recruitmentGroupRows
+    : [];
+
+  const perfRows = Array.isArray(recruitmentPerformanceRows)
+    ? recruitmentPerformanceRows
+    : [];
 
   const chronologicalGroups = [...rawGroups].sort((a, b) =>
     String(a.active_start_date || '').localeCompare(String(b.active_start_date || ''))
   );
 
   const waveMap = new Map();
+
   chronologicalGroups.forEach((g, idx) => {
-    waveMap.set(`${g.active_start_date}_${g.recruiter_name}`, idx + 1);
+    waveMap.set(
+      `${g.active_start_date}_${g.recruiter_name}`,
+      idx + 1
+    );
   });
 
   let groups = [...rawGroups]
-    .sort((a, b) => String(b.active_start_date || '').localeCompare(String(a.active_start_date || '')))
+    .sort((a, b) =>
+      String(b.active_start_date || '').localeCompare(
+        String(a.active_start_date || '')
+      )
+    )
     .map(g => ({
       ...g,
-      wave_number: waveMap.get(`${g.active_start_date}_${g.recruiter_name}`) || 1
+      wave_number:
+        waveMap.get(
+          `${g.active_start_date}_${g.recruiter_name}`
+        ) || 1
     }));
 
   if (q) {
@@ -950,7 +966,11 @@ document.getElementById('nav-user-role').textContent = 'Agent / Recruiter';
   }
 
   if (!groups.length) {
-    list.innerHTML = `<p class="text-sm text-gray-400 italic">No active training waves found.</p>`;
+    list.innerHTML = `
+      <p class="text-sm text-gray-400 italic">
+        No active training waves found.
+      </p>
+    `;
     return;
   }
 
@@ -959,15 +979,29 @@ document.getElementById('nav-user-role').textContent = 'Agent / Recruiter';
   list.innerHTML = groups.map((g, index) => {
     const totalBonus = Number(g.recruiter_total_bonus || 0);
 
+    const rows = perfRows.filter(r =>
+      String(r.active_start_date || '') === String(g.active_start_date || '') &&
+      String(r.recruiter_name || '') === String(g.recruiter_name || '')
+    );
+
     return `
       <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+
         <div class="p-5 border-b border-gray-100 bg-gray-50 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
-            <div class="text-xl font-black text-gray-900">Wave ${g.wave_number}</div>
+            <div class="text-xl font-black text-gray-900">
+              Wave ${g.wave_number}
+            </div>
+
             <div class="text-xs text-gray-500 mt-1">
-              Wave Start: <span class="font-black">${g.active_start_date || '—'}</span>
-              • Recruiter: <span class="font-black">${g.recruiter_name || '—'}</span>
-              • Agents: <span class="font-black">${g.total_agents || 0}</span>
+              Wave Start:
+              <span class="font-black">${g.active_start_date || '—'}</span>
+
+              • Recruiter:
+              <span class="font-black">${g.recruiter_name || '—'}</span>
+
+              • Agents:
+              <span class="font-black">${g.total_agents || 0}</span>
             </div>
           </div>
 
@@ -975,6 +1009,7 @@ document.getElementById('nav-user-role').textContent = 'Agent / Recruiter';
             <div class="text-[10px] uppercase tracking-wide text-gray-400 font-black">
               Total Recruiter Bonus
             </div>
+
             <div class="text-xl font-black text-emerald-600">
               $${totalBonus.toFixed(2)}
             </div>
@@ -986,6 +1021,68 @@ document.getElementById('nav-user-role').textContent = 'Agent / Recruiter';
             class="px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-black hover:bg-gray-800">
             View Wave
           </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-100 text-sm">
+            <thead class="bg-white">
+              <tr>
+                <th class="px-4 py-3 text-left text-[10px] uppercase text-gray-400 font-black">Agent</th>
+                <th class="px-4 py-3 text-left text-[10px] uppercase text-gray-400 font-black">Book</th>
+                <th class="px-4 py-3 text-left text-[10px] uppercase text-gray-400 font-black">Video</th>
+                <th class="px-4 py-3 text-left text-[10px] uppercase text-gray-400 font-black">Status</th>
+                <th class="px-4 py-3 text-left text-[10px] uppercase text-blue-600 font-black">Week 1 Qualified</th>
+                <th class="px-4 py-3 text-left text-[10px] uppercase text-gray-400 font-black">Week 1 Result</th>
+                <th class="px-4 py-3 text-left text-[10px] uppercase text-blue-600 font-black">Week 2 Qualified</th>
+                <th class="px-4 py-3 text-left text-[10px] uppercase text-gray-400 font-black">Week 2 Result</th>
+                <th class="px-4 py-3 text-right text-[10px] uppercase text-emerald-600 font-black">Recruiter Bonus</th>
+              </tr>
+            </thead>
+
+            <tbody class="divide-y divide-gray-100 bg-white">
+              ${rows.map(r => `
+                <tr class="hover:bg-gray-50">
+                  <td class="px-4 py-3 font-black text-gray-900">
+                    ${r.agent_name || '—'}
+                  </td>
+
+                  <td class="px-4 py-3">
+                    ${r.training_book_read ? 'Yes' : 'No'}
+                  </td>
+
+                  <td class="px-4 py-3">
+                    ${r.training_video_watched ? 'Yes' : 'No'}
+                  </td>
+
+                  <td class="px-4 py-3">
+                    <span class="status-pill ${statusClass(r.employment_status)}">
+                      ${r.employment_status || '—'}
+                    </span>
+                  </td>
+
+                  <td class="px-4 py-3 text-blue-600 font-black">
+                    ${r.week_1_qualified || 0}
+                  </td>
+
+                  <td class="px-4 py-3">
+                    ${r.week_1_result || '—'}
+                  </td>
+
+                  <td class="px-4 py-3 text-blue-600 font-black">
+                    ${r.week_2_qualified || 0}
+                  </td>
+
+                  <td class="px-4 py-3">
+                    ${r.week_2_result || '—'}
+                  </td>
+
+                  <td class="px-4 py-3 text-right font-black text-emerald-600">
+                    $${Number(r.recruiter_bonus || 0).toFixed(2)}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
         </div>
       </div>
     `;
