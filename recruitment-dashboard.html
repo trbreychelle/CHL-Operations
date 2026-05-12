@@ -772,6 +772,10 @@
 
       if (error) throw error;
       recruitmentProfile = data;
+      document.getElementById('nav-user-name').textContent =
+  data.display_name || data.full_name || data.email || 'Recruiter';
+
+document.getElementById('nav-user-role').textContent = 'Agent / Recruiter';
 
       if (!data?.can_access_recruitment_dashboard) {
         const hrNav = document.querySelector('a[href="#hr"]');
@@ -877,18 +881,38 @@
   const list = document.getElementById('training-waves-list');
   if (!list) return;
 
-  const q =
-    document.getElementById('performance-search')
-      ?.value?.toLowerCase().trim() || '';
+  const q = document.getElementById('performance-search')?.value?.toLowerCase().trim() || '';
 
-  let groups = [...recruitmentGroupRows];
+  const rawGroups = Array.isArray(recruitmentGroupRows) ? recruitmentGroupRows : [];
+  const perfRows = Array.isArray(recruitmentPerformanceRows) ? recruitmentPerformanceRows : [];
+
+  const chronologicalGroups = [...rawGroups].sort((a, b) =>
+    String(a.active_start_date || '').localeCompare(String(b.active_start_date || ''))
+  );
+
+  const waveMap = new Map();
+  chronologicalGroups.forEach((g, idx) => {
+    waveMap.set(`${g.active_start_date}_${g.recruiter_name}`, idx + 1);
+  });
+
+  let groups = [...rawGroups]
+    .sort((a, b) => String(b.active_start_date || '').localeCompare(String(a.active_start_date || '')))
+    .map(g => ({
+      ...g,
+      wave_number: waveMap.get(`${g.active_start_date}_${g.recruiter_name}`) || 1
+    }));
 
   if (q) {
-    groups = groups.filter(group => {
+    groups = groups.filter(g => {
+      const cohortAgents = perfRows.filter(r =>
+        String(r.active_start_date || '') === String(g.active_start_date || '') &&
+        String(r.recruiter_name || '') === String(g.recruiter_name || '')
+      );
+
       const haystack = `
-        ${group.recruiter_name || ''}
-        ${group.wave_label || ''}
-        ${group.agent_names || ''}
+        ${g.active_start_date || ''}
+        ${g.recruiter_name || ''}
+        ${cohortAgents.map(a => a.agent_name || '').join(' ')}
       `.toLowerCase();
 
       return haystack.includes(q);
@@ -896,68 +920,48 @@
   }
 
   if (!groups.length) {
-    list.innerHTML = `
-      <p class="text-sm text-gray-400 italic">
-        No training waves found.
-      </p>
-    `;
+    list.innerHTML = `<p class="text-sm text-gray-400 italic">No active training waves found.</p>`;
     return;
   }
 
-  list.innerHTML = groups.map(group => {
+  window.recruitmentRenderedGroups = groups;
 
-    const totalBonus =
-      Number(group.total_recruiter_bonus || 0);
+  list.innerHTML = groups.map((g, index) => {
+    const totalBonus = Number(g.recruiter_total_bonus || 0);
 
     return `
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-
-        <div class="px-5 py-4 bg-gray-50 flex items-center justify-between gap-4">
-
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-gray-100 bg-gray-50 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
-            <p class="text-lg font-black text-gray-900">
-              ${group.wave_label || 'Wave'}
-            </p>
-
-            <p class="text-xs text-gray-500">
-              Wave Start:
-              ${group.wave_start || '—'}
-              • Recruiter:
-              ${group.recruiter_name || '—'}
-              • Agents:
-              ${group.total_agents || 0}
-            </p>
-          </div>
-
-          <div class="flex items-center gap-4">
-
-            <div class="text-right">
-              <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                Total Recruiter Bonus
-              </p>
-
-              <p class="text-2xl font-black text-green-700">
-                ${
-                  window.portal?.formatCurrency
-                    ? window.portal.formatCurrency(totalBonus)
-                    : '$' + totalBonus.toFixed(2)
-                }
-              </p>
+            <div class="text-xl font-black text-gray-900">Wave ${g.wave_number}</div>
+            <div class="text-xs text-gray-500 mt-1">
+              Wave Start: <span class="font-black">${g.active_start_date || '—'}</span>
+              • Recruiter: <span class="font-black">${g.recruiter_name || '—'}</span>
+              • Agents: <span class="font-black">${g.total_agents || 0}</span>
             </div>
-
-            <button
-              onclick="openHRGroupModal('${group.wave_key}')"
-              class="px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-black hover:bg-gray-800"
-            >
-              View Wave
-            </button>
-
           </div>
+
+          <div class="md:ml-auto md:mr-4 text-right">
+            <div class="text-[10px] uppercase tracking-wide text-gray-400 font-black">
+              Total Recruiter Bonus
+            </div>
+            <div class="text-xl font-black text-emerald-600">
+              $${totalBonus.toFixed(2)}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onclick="openHRGroupModal(window.recruitmentRenderedGroups[${index}])"
+            class="px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-black hover:bg-gray-800">
+            View Wave
+          </button>
         </div>
       </div>
     `;
   }).join('');
 }
+    
     function openAgentModal(id) {
       const agent = id ? recruitmentAgents.find(a => a.id === id) : null;
       document.getElementById('agent-modal-title').textContent = agent ? 'Edit Agent' : 'Add Agent';
