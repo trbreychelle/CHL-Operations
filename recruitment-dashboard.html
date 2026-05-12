@@ -1153,6 +1153,10 @@ document.getElementById('nav-user-role').textContent = 'Agent / Recruiter';
   }).join('');
 }
 
+    function closeHRLeadModal() {
+  document.getElementById('hr-lead-modal')?.classList.add('hidden');
+}
+
     function closeHRGroupModal() {
   document.getElementById('hr-group-modal')?.classList.add('hidden');
 }
@@ -1307,10 +1311,21 @@ document.getElementById('nav-user-role').textContent = 'Agent / Recruiter';
                   </td>
 
                   <td class="p-3">${a.employment_status || '—'}</td>
-                  <td class="p-3 text-center font-black text-gray-900">${total}</td>
-                  <td class="p-3 text-center font-black text-red-500">${rejected}</td>
-                  <td class="p-3 text-center font-black text-blue-600">${qualified}</td>
-                  <td class="p-3 text-center font-black text-purple-600">${credited}</td>
+                  <td class="p-3 text-center">
+  <button onclick="openRecruitmentLeadDrilldown('${a.agent_name || ''}', 'all')" class="font-black text-gray-900 hover:underline">${total}</button>
+</td>
+
+<td class="p-3 text-center">
+  <button onclick="openRecruitmentLeadDrilldown('${a.agent_name || ''}', 'rejected')" class="font-black text-red-500 hover:underline">${rejected}</button>
+</td>
+
+<td class="p-3 text-center">
+  <button onclick="openRecruitmentLeadDrilldown('${a.agent_name || ''}', 'qualified')" class="font-black text-blue-600 hover:underline">${qualified}</button>
+</td>
+
+<td class="p-3 text-center">
+  <button onclick="openRecruitmentLeadDrilldown('${a.agent_name || ''}', 'credited')" class="font-black text-purple-600 hover:underline">${credited}</button>
+</td>
                   <td class="p-3 text-center font-black ${cancel >= 25 ? 'text-red-600' : 'text-emerald-600'}">${cancel.toFixed(2)}%</td>
 
                   <td class="p-3 text-center">
@@ -1334,6 +1349,91 @@ document.getElementById('nav-user-role').textContent = 'Agent / Recruiter';
       </div>
     </div>
   `;
+}
+
+    function openRecruitmentLeadDrilldown(agentName, statusType) {
+  const leads = Array.isArray(window.portal?.adminState?.leads)
+    ? window.portal.adminState.leads
+    : [];
+
+  const modal = document.getElementById('hr-lead-modal');
+  const titleEl = document.getElementById('hr-lead-modal-title');
+  const subEl = document.getElementById('hr-lead-modal-sub');
+  const body = document.getElementById('hr-lead-modal-body');
+
+  if (!modal || !titleEl || !subEl || !body) return;
+
+  const filtered = leads.filter(l => {
+    const coordinator =
+      String(
+        l.appointment_coordinator_name ||
+        l["Appointment Coordinator Name"] ||
+        ''
+      ).trim().toLowerCase();
+
+    if (coordinator !== String(agentName || '').trim().toLowerCase()) {
+      return false;
+    }
+
+    const status =
+      String(l.status || l.Status || '').toLowerCase();
+
+    if (statusType === 'qualified') {
+      return status.includes('approv') || status.includes('confirm');
+    }
+
+    if (statusType === 'rejected') {
+      return status.includes('reject');
+    }
+
+    if (statusType === 'credited') {
+      return status.includes('credit');
+    }
+
+    return true;
+  });
+
+  titleEl.textContent = `${agentName} — ${statusType.toUpperCase()} Leads`;
+  subEl.textContent = `${filtered.length} lead(s) found`;
+
+  if (!filtered.length) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="9" class="p-6 text-center text-gray-400 italic">
+          No leads found.
+        </td>
+      </tr>
+    `;
+
+    modal.classList.remove('hidden');
+    return;
+  }
+
+  body.innerHTML = filtered.map(l => {
+    const status = String(l.status || l.Status || '');
+
+    return `
+      <tr class="hover:bg-gray-50">
+        <td class="p-3">${l.date_submitted || l["Date Submitted"] || '—'}</td>
+        <td class="p-3 font-bold text-gray-900">
+          ${l.appointment_coordinator_name || l["Appointment Coordinator Name"] || '—'}
+        </td>
+        <td class="p-3">${l.homeowner_names || l["Homeowner Name(s)"] || '—'}</td>
+        <td class="p-3">${l.company_name || l["Company Name"] || '—'}</td>
+        <td class="p-3">${l.homeowner_phone_numbers || l["Homeowner Phone Number"] || '—'}</td>
+        <td class="p-3">${l.appointment_date_time || l["Appointment Date /Time"] || '—'}</td>
+        <td class="p-3">${l.address || '—'}</td>
+        <td class="p-3">
+          <span class="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-[11px] font-black">
+            ${status}
+          </span>
+        </td>
+        <td class="p-3">${l.rejection_reason || '—'}</td>
+      </tr>
+    `;
+  }).join('');
+
+  modal.classList.remove('hidden');
 }
     
     function openAgentModal(id) {
