@@ -855,10 +855,10 @@ const isCommandCenter =
   isSalesRepPage ||
   isManagementPage ||
   isRecruitmentPage;
-const isOldAgentDash = pathName.includes('agent-dashboard');
+const isOldAgentDash = isAgentPage;
 
     // Load Agent Dashboard
-   if (this.currentUser && isOldAgentDash && !isRecruitmentPage) {
+   if (this.currentUser && isOldAgentDash) {
   console.log("🔥 AGENT DASHBOARD ONLY");
 
   const isAgentDOM = document.getElementById('stat-appointments');
