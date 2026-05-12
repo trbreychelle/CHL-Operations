@@ -927,7 +927,7 @@ const onRecruitment = path.includes('recruitment-dashboard');
   !onRecruitment &&
   !onAgent
 ) {
-  window.location.href = 'agent-dashboard.html';
+  return 'recruitment-dashboard.html';
 }else if (
   role === 'agent' &&
   this.currentUser?.can_access_recruitment_dashboard !== true &&
