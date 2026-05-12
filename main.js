@@ -1,4 +1,4 @@
-  Call Hammer Leads - Unified Application Logic
+// Call Hammer Leads - Unified Application Logic
 class CallHammerPortal {
   constructor() {
     this.currentUser = null;
@@ -88,11 +88,11 @@ class CallHammerPortal {
   const role = String(roleRaw || '').toLowerCase();
 
   if (
-  role === 'agent' &&
-  user?.can_access_recruitment_dashboard === true
-) {
-  return 'recruitment-dashboard.html';
-}
+    role === 'agent' &&
+    user?.can_access_recruitment_dashboard === true
+  ) {
+    return 'recruitment-dashboard.html';
+  }
 
   if (role === 'admin') return 'admin-dashboard.html';
   if (role === 'management') return 'management-dashboard.html';
@@ -841,9 +841,7 @@ this.bindPassbookUpdateButton();
     }
 
    const pathName = (window.location.pathname || '').toLowerCase();
-const isAgentPage =
-  pathName.includes('agent-dashboard') ||
-  pathName.includes('recruitment-dashboard');
+const isAgentPage = pathName.includes('agent-dashboard');
 const isAdminPage = pathName.includes('admin-dashboard');
 const isSalesPage = pathName.includes('salesdashboard');
 const isSalesRepPage = pathName.includes('salesrep-dashboard');
@@ -855,25 +853,25 @@ const isCommandCenter =
   isSalesRepPage ||
   isManagementPage ||
   isRecruitmentPage;
-const isOldAgentDash = pathName.includes('agent-dashboard');
-const isRecruitmentAgentDash = pathName.includes('recruitment-dashboard');
+const isOldAgentDash = isAgentPage;
 
-// Load Agent Dashboard OR Recruitment Agent Sections
-if (this.currentUser && (isOldAgentDash || isRecruitmentAgentDash)) {
-  console.log("🔥 AGENT DATA LOADING");
+    // Load Agent Dashboard
+   if (this.currentUser && isOldAgentDash && !isCommandCenter) {
+  console.log("🔥 AGENT DASHBOARD ONLY");
 
-  const hasAgentStats = document.getElementById('stat-appointments');
+  const isAgentDOM = document.getElementById('stat-appointments');
 
-  if (hasAgentStats) {
-    setTimeout(async () => {
-      await this.fetchAllData();
-      await this.loadAgentLeadsWithFilters();
-      this.startMSTClock();
-      await this.loadTimeOffHistory();
-    }, 300);
-  } else {
-    console.log("ℹ️ Agent stats not on this tab, continuing dashboard load.");
+  if (!isAgentDOM) {
+    console.log("⛔ Not agent DOM, skipping agent load");
+    return;
   }
+
+  setTimeout(async () => {
+  await this.fetchAllData();
+  await this.loadAgentLeadsWithFilters();
+  this.startMSTClock();
+  await this.loadTimeOffHistory();
+}, 300);
 }
    // Load Admin OR Sales Dashboard
 if (isCommandCenter) {
@@ -900,12 +898,11 @@ if (isCommandCenter) {
 
   if (!path.includes('dashboard') && !path.includes('admin') && !path.includes('management') && !path.includes('salesrep')) return;
 
-const onAdmin = path.includes('admin-dashboard');
-const onAgent = path.includes('agent-dashboard');
-const onSales = path.includes('salesdashboard');
-const onSalesRep = path.includes('salesrep-dashboard');
-const onManagement = path.includes('management-dashboard');
-const onRecruitment = path.includes('recruitment-dashboard');
+  const onAdmin = path.includes('admin-dashboard');
+  const onAgent = path.includes('agent-dashboard');
+  const onSales = path.includes('salesdashboard');
+  const onSalesRep = path.includes('salesrep-dashboard');
+  const onRecruitment = path.includes('recruitment-dashboard');
 
       if (role === 'admin' && !onAdmin) window.location.href = 'admin-dashboard.html';
     else if (role === 'management' && !onManagement) window.location.href = 'management-dashboard.html';
@@ -914,7 +911,8 @@ const onRecruitment = path.includes('recruitment-dashboard');
     else if (
   role === 'agent' &&
   this.currentUser?.can_access_recruitment_dashboard === true &&
-  !onRecruitment
+  !onRecruitment &&
+  !onAgent
 ) {
   window.location.href = 'recruitment-dashboard.html';
 } else if (
@@ -953,17 +951,16 @@ const onRecruitment = path.includes('recruitment-dashboard');
       return;
     }
 
-   const user = {
-  id: profile.id,
-  auth_user_id: profile.auth_user_id,
-  organization_id: profile.organization_id,
-  email: profile.email,
-  name: profile.display_name || profile.full_name || profile.email,
-  full_name: profile.full_name,
-  display_name: profile.display_name,
-  role: profile.role,
-  can_access_recruitment_dashboard: profile.can_access_recruitment_dashboard === true
-};
+    const user = {
+      id: profile.id,
+      auth_user_id: profile.auth_user_id,
+      organization_id: profile.organization_id,
+      email: profile.email,
+      name: profile.display_name || profile.full_name || profile.email,
+      role: profile.role,
+can_access_recruitment_dashboard: profile.can_access_recruitment_dashboard === true
+    };
+
     this.saveSession(user);
 
   } catch (e) {
@@ -974,9 +971,7 @@ const onRecruitment = path.includes('recruitment-dashboard');
 
  bindEvents() {
   const pathName = (window.location.pathname || '').toLowerCase();
-  const isAgentPage =
-  pathName.includes('agent-dashboard') ||
-  pathName.includes('recruitment-dashboard');
+  const isAgentPage = pathName.includes('agent-dashboard');
 
   if (!isAgentPage) return;
 
@@ -1496,10 +1491,11 @@ if ((customStart && !customEnd) || (!customStart && customEnd)) {
 });
 
     if (overviewError) {
-  console.error('❌ Agent overview load failed:', overviewError);
-}
+      console.error('❌ Agent overview load failed:', overviewError);
+      return;
+    }
 
-const ov = overview?.[0] || {};
+    const ov = overview?.[0] || {};
 
     const setText = (id, val) => {
       const el = document.getElementById(id);
@@ -4029,4 +4025,3 @@ document.getElementById('btn-submit-timeoff')?.addEventListener('click', async (
     alert('Failed to submit request');
   }
 });
-   
