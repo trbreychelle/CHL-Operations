@@ -855,25 +855,25 @@ const isCommandCenter =
   isSalesRepPage ||
   isManagementPage ||
   isRecruitmentPage;
-const isOldAgentDash = isAgentPage;
+const isOldAgentDash = pathName.includes('agent-dashboard');
+const isRecruitmentAgentDash = pathName.includes('recruitment-dashboard');
 
-    // Load Agent Dashboard
-   if (this.currentUser && isOldAgentDash) {
-  console.log("🔥 AGENT DASHBOARD ONLY");
+// Load Agent Dashboard OR Recruitment Agent Sections
+if (this.currentUser && (isOldAgentDash || isRecruitmentAgentDash)) {
+  console.log("🔥 AGENT DATA LOADING");
 
-  const isAgentDOM = document.getElementById('stat-appointments');
+  const hasAgentStats = document.getElementById('stat-appointments');
 
-  if (!isAgentDOM) {
-    console.log("⛔ Not agent DOM, skipping agent load");
-    return;
+  if (hasAgentStats) {
+    setTimeout(async () => {
+      await this.fetchAllData();
+      await this.loadAgentLeadsWithFilters();
+      this.startMSTClock();
+      await this.loadTimeOffHistory();
+    }, 300);
+  } else {
+    console.log("ℹ️ Agent stats not on this tab, continuing dashboard load.");
   }
-
-  setTimeout(async () => {
-  await this.fetchAllData();
-  await this.loadAgentLeadsWithFilters();
-  this.startMSTClock();
-  await this.loadTimeOffHistory();
-}, 300);
 }
    // Load Admin OR Sales Dashboard
 if (isCommandCenter) {
