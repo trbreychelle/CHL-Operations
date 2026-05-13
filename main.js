@@ -239,8 +239,8 @@ can_access_recruitment_dashboard: profile.can_access_recruitment_dashboard === t
 
 const allowedModules =
   teamKey === 'admin_management'
-    ? ['sales_pipeline', 'time_off', 'passbook_clients']
-    : ['sales_pipeline', 'passbook_clients'];
+    ? ['sales_pipeline', 'time_off']
+    : ['sales_pipeline'];
 
   try {
     const { data, error } = await supaClient
