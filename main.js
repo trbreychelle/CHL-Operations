@@ -273,9 +273,9 @@ const allowedModules =
           created_at
         )
       `)
-      .eq('team_key', teamKey)
-      .order('updated_at', { ascending: false })
-      .limit(limit);
+     .eq('team_key', teamKey)
+.order('updated_at', { ascending: false })
+.limit(Math.max(limit, 300));
 
     if (error) {
       console.error('Failed to fetch notifications:', error);
