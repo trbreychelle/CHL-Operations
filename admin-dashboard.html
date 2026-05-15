@@ -6103,10 +6103,9 @@ document.getElementById("passbook-count").textContent = rows.length;
     if (q && !name.toLowerCase().includes(q)) return;
 
     const activeCallingDate =
-      a.active_start_date ||
-      a.active_calling_date ||
-      a.start_date ||
-      "No Active Calling Date";
+  a.active_start_date ||
+  a.active_calling_date ||
+  "";
 
     agentRows.push({
       name,
@@ -6137,7 +6136,13 @@ document.getElementById("passbook-count").textContent = rows.length;
     waveNumberByDate.set(dateKey, idx + 1);
   });
 
-  const waveDatesNewestFirst = [...waveDatesOldestFirst].reverse();
+ const waveDatesNewestFirst = [...waveDatesOldestFirst]
+  .filter(d => d !== "No Active Calling Date")
+  .reverse();
+
+if (grouped.has("No Active Calling Date")) {
+  waveDatesNewestFirst.push("No Active Calling Date");
+}
 
   const countEl = document.getElementById("team-count");
   if (countEl) countEl.textContent = agentRows.length;
@@ -6185,19 +6190,27 @@ document.getElementById("passbook-count").textContent = rows.length;
     else rows = [...rows].sort((a, b) => a.name.localeCompare(b.name));
 
     html += `
-      <tr class="bg-gray-900 text-white">
-        <td colspan="7" class="p-4">
-          <div class="flex items-center justify-between gap-3">
-            <div class="font-black">
+  <tr>
+    <td colspan="7" class="p-0">
+      <div class="m-3 rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 px-5 py-4 shadow-sm">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <div class="text-lg font-black text-gray-900">
               Wave ${waveNo}
             </div>
-            <div class="text-xs font-bold text-gray-300">
-              Active Calling Date: ${formatDate(dateKey)} • ${rows.length} agent${rows.length === 1 ? "" : "s"}
+            <div class="text-xs font-bold text-gray-500 mt-1">
+              Active Calling Date: ${formatDate(dateKey)}
             </div>
           </div>
-        </td>
-      </tr>
-    `;
+
+          <div class="px-3 py-1 rounded-full bg-white border border-gray-200 text-xs font-black text-gray-700">
+            ${rows.length} agent${rows.length === 1 ? "" : "s"}
+          </div>
+        </div>
+      </div>
+    </td>
+  </tr>
+`;
 
     html += rows.map(r => `
       <tr class="hover:bg-gray-50">
