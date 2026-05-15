@@ -6438,8 +6438,11 @@ if (activeStartRaw) {
 
   if (!isNaN(activeStart.getTime())) {
     const expectedWeeks = [];
-    let cursor = new Date(activeStart);
-    cursor.setHours(0, 0, 0, 0);
+    let cursor = window.portal?.getPayrollWeekStart
+  ? window.portal.getPayrollWeekStart(activeStart)
+  : new Date(activeStart);
+
+cursor.setHours(0, 0, 0, 0);
 
     while (cursor <= today) {
       const start = new Date(cursor);
@@ -6447,12 +6450,7 @@ if (activeStartRaw) {
 
       const day = start.getDay();
 
-      if (expectedWeeks.length === 0 && day !== 6) {
-        const daysUntilFriday = (5 - day + 7) % 7;
-        end.setDate(start.getDate() + daysUntilFriday);
-      } else {
-        end.setDate(start.getDate() + 6);
-      }
+     end.setDate(start.getDate() + 6);
 
       const key = start.toISOString();
 
@@ -6514,7 +6512,7 @@ return `
   <tr class="hover:bg-gray-50 border-b border-gray-100">
 
     <td class="p-4 font-black text-gray-900 text-sm">
-      Week ${idx + 1}
+      Week ${weeks.length - idx}
     </td>
 
     <td class="p-4 font-bold text-gray-700">
