@@ -6108,13 +6108,13 @@ document.getElementById("passbook-count").textContent = rows.length;
   "";
 
     agentRows.push({
-      name,
-      stage,
-      warned,
-      activeCallingDate,
-      ...this._computeAgentMetrics(name, leads, start, end)
-    });
-  });
+  name,
+  email: String(a.agent_email || a.email || "").trim().toLowerCase(),
+  stage,
+  warned,
+  activeCallingDate,
+  ...this._computeAgentMetrics(name, leads, start, end)
+});
 
   const grouped = new Map();
 
@@ -6215,7 +6215,7 @@ if (grouped.has("No Active Calling Date")) {
     html += rows.map(r => `
       <tr class="hover:bg-gray-50">
         <td class="p-4 font-bold text-gray-900">
-          <button class="hover:underline" onclick="Admin.openAgentModal('${String(r.name).replace(/'/g,"\\'")}')">${r.name}</button>
+          <button class="hover:underline" onclick="Admin.openAgentModal('${String(r.name).replace(/'/g,"\\'")}', '${String(r.email || "").replace(/'/g,"\\'")}')">${r.name}</button>
           <div class="mt-1">${stageBadge()} ${r.warned ? `<span class="ml-2 text-[10px] font-extrabold text-orange-600">WARNED</span>` : ""}</div>
         </td>
         <td class="p-4 text-center text-gray-700 font-semibold">${r.total}</td>
@@ -6230,7 +6230,9 @@ if (grouped.has("No Active Calling Date")) {
 
   tbody.innerHTML = html;
 },
-      openAgentModal(name) {
+      openAgentModal(name, email = "") {
+  this._agentSelectedName = name;
+  this._agentSelectedEmail = String(email || "").trim().toLowerCase();
         this._agentSelectedName = name;
         this.bindAgentUI();
         this.agentPeriod = this.teamPeriod || "today";
@@ -6329,7 +6331,7 @@ if (grouped.has("No Active Calling Date")) {
       renderAgentLeads() {
   const state = this.getState();
   const leads = Array.isArray(state?.leads) ? state.leads : [];
-  const name = this._agentSelectedName || "Agent";
+  const selectedEmail = String(this._agentSelectedEmail || "").trim().toLowerCase();
 
   const titleEl = document.getElementById("agent-modal-title");
   if (titleEl) {
@@ -6371,7 +6373,11 @@ const agentLeads = leads.filter(l => {
     ""
   );
 
-  return normalizeAgent(rawAgent) === agentKey;
+ const leadEmail = String(
+  this.getLeadField(l, ["agent_email", "Agent Email", "appointment_coordinator_email"], "")
+).trim().toLowerCase();
+
+return normalizeAgent(rawAgent) === agentKey || (selectedEmail && leadEmail === selectedEmail);
 });
 
   const weekMap = new Map();
