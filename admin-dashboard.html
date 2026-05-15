@@ -6115,6 +6115,7 @@ document.getElementById("passbook-count").textContent = rows.length;
   activeCallingDate,
   ...this._computeAgentMetrics(name, leads, start, end)
 });
+  });
 
   const grouped = new Map();
 
@@ -6331,7 +6332,8 @@ if (grouped.has("No Active Calling Date")) {
       renderAgentLeads() {
   const state = this.getState();
   const leads = Array.isArray(state?.leads) ? state.leads : [];
-  const selectedEmail = String(this._agentSelectedEmail || "").trim().toLowerCase();
+const name = this._agentSelectedName || "Agent";
+const selectedEmail = String(this._agentSelectedEmail || "").trim().toLowerCase();
 
   const titleEl = document.getElementById("agent-modal-title");
   if (titleEl) {
