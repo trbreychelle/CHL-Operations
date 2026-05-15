@@ -1341,86 +1341,103 @@ body.client-health-lock {
               </div>
 
               <div class="flex items-center gap-2 flex-wrap">
-                <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
-                  <button onclick="Admin.setAgentPeriod('today', this)" class="agent-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
-                  <button onclick="Admin.setAgentPeriod('this-week', this)" class="agent-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
-                  <button onclick="Admin.setAgentPeriod('previous-week', this)" class="agent-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Previous Week</button>
-                  <button onclick="Admin.setAgentPeriod('4-weeks', this)" class="agent-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">4 Weeks</button>
-                  <button onclick="Admin.setAgentPeriod('6-weeks', this)" class="agent-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">6 Weeks</button>
-                  <button onclick="Admin.setAgentPeriod('all-time', this)" class="agent-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
-                </div>
+  <button class="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+          onclick="Admin.closeAgentModal()">
+    <i class="fa-solid fa-xmark"></i>
+  </button>
+</div>
 
-                <div class="relative">
-                  <button id="agent-custom-toggle"
-                          class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                    <i class="fa-regular fa-calendar"></i> Custom
-                  </button>
+           <div class="p-4 space-y-6">
 
-                  <div id="agent-custom-popover"
-                       class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50">
-                    <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">
-                      Custom Timeframe
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                      <div>
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
-                        <input id="agent-custom-start" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
-                      </div>
-                      <div>
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
-                        <input id="agent-custom-end" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"/>
-                      </div>
-                    </div>
-                    <div class="flex justify-end gap-2 mt-3">
-                      <button id="agent-custom-clear"
-                              class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50">
-                        Clear
-                      </button>
-                      <button id="agent-custom-apply"
-                              class="px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800">
-                        Apply
-                      </button>
-                    </div>
-                  </div>
-                </div>
+  <!-- WEEKLY PERFORMANCE -->
+  <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
 
-                <button class="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
-                        onclick="Admin.closeAgentModal()">
-                  <i class="fa-solid fa-xmark"></i>
-                </button>
-              </div>
-            </div>
+    <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+      <div>
+        <div class="text-sm font-black text-gray-900">
+          Weekly Performance History
+        </div>
 
-            <div class="p-4">
-              <div class="text-xs text-gray-500 mb-3">
-                Showing <span class="font-bold" id="agent-leads-count">0</span> leads
-                <span class="ml-2 text-gray-400" id="agent-range-label">—</span>
-              </div>
-              <div class="overflow-x-auto">
-                <table class="min-w-[1400px] w-full text-left text-sm whitespace-nowrap">
-                  <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
-                    <tr>
-                      <th class="p-3">Date Submitted</th>
-                      <th class="p-3">Lead ID</th>
-                      <th class="p-3">Roofing Company</th>
-                      <th class="p-3">Appointment Coordinator Name</th>
-                      <th class="p-3">Homeowner Name(s)</th>
-                      <th class="p-3">Email of Homeowner</th>
-                      <th class="p-3">Homeowner Phone Number</th>
-                      <th class="p-3">Appointment Date / Time</th>
-                      <th class="p-3">Address</th>
-                      <th class="p-3">Age of Roof</th>
-                      <th class="p-3">Insurance Company</th>
-                      <th class="p-3">Additional Notes</th>
-                      <th class="p-3">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody id="agent-leads-body" class="divide-y divide-gray-50">
-                    <tr><td colspan="14" class="p-6 text-center text-gray-400 italic">Loading leads...</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
+        <div class="text-xs text-gray-500 mt-1">
+          Most recent week shown first
+        </div>
+      </div>
+    </div>
+
+    <div class="overflow-auto max-h-[420px]">
+      <table class="min-w-full text-left text-sm whitespace-nowrap">
+        <thead class="bg-white text-[10px] font-black text-gray-400 uppercase border-b border-gray-100 sticky top-0 z-10">
+          <tr>
+            <th class="p-3">Week</th>
+            <th class="p-3 text-center">Total</th>
+            <th class="p-3 text-center text-red-500">QC Rejected</th>
+            <th class="p-3 text-center text-blue-600">Qualified</th>
+            <th class="p-3 text-center text-purple-600">Credited</th>
+            <th class="p-3 text-center text-yellow-600">Pending</th>
+            <th class="p-3 text-center">Cancel Rate</th>
+          </tr>
+        </thead>
+
+        <tbody id="agent-weekly-performance-body" class="divide-y divide-gray-50">
+          <tr>
+            <td colspan="7" class="p-6 text-center text-gray-400 italic">
+              Loading weekly performance...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- LEAD DRILLDOWN -->
+  <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+
+    <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+      <div>
+        <div class="text-sm font-black text-gray-900">
+          Lead Drilldown
+        </div>
+
+        <div
+          id="agent-drilldown-label"
+          class="text-xs text-gray-500 mt-1"
+        >
+          Click a weekly metric to view leads
+        </div>
+      </div>
+    </div>
+
+    <div class="overflow-auto max-h-[420px]">
+      <table class="min-w-[1400px] w-full text-left text-sm whitespace-nowrap">
+        <thead class="bg-white text-[10px] font-black text-gray-400 uppercase border-b border-gray-100 sticky top-0 z-10">
+          <tr>
+            <th class="p-3">Date Submitted</th>
+            <th class="p-3">Roofing Company</th>
+            <th class="p-3">Homeowner Name</th>
+            <th class="p-3">Email</th>
+            <th class="p-3">Phone</th>
+            <th class="p-3">Appointment</th>
+            <th class="p-3">Address</th>
+            <th class="p-3">Age of Roof</th>
+            <th class="p-3">Insurance Company</th>
+            <th class="p-3">Additional Notes</th>
+            <th class="p-3">Rejection Reason</th>
+            <th class="p-3">Status</th>
+          </tr>
+        </thead>
+
+        <tbody id="agent-leads-body" class="divide-y divide-gray-50">
+          <tr>
+            <td colspan="12" class="p-6 text-center text-gray-400 italic">
+              Click a metric number above to view leads
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
           </div>
         </div>
       </div>
@@ -6253,85 +6270,250 @@ document.getElementById("passbook-count").textContent = rows.length;
       },
 
       renderAgentLeads() {
-        const state = this.getState();
-        const leads = state?.leads || [];
-        const name = this._agentSelectedName || "Agent";
+  const state = this.getState();
+  const leads = Array.isArray(state?.leads) ? state.leads : [];
+  const name = this._agentSelectedName || "Agent";
 
-        const { start, end, label } = this.getAgentRangeFor();
-        const m = this._computeAgentMetrics(name, leads, start, end);
+  const titleEl = document.getElementById("agent-modal-title");
+  if (titleEl) {
+    titleEl.textContent = `${name} — Weekly Performance`;
+  }
 
-        const titleEl = document.getElementById("agent-modal-title");
-        if (titleEl) titleEl.textContent = `${name} — Leads`;
+  const subEl = document.getElementById("agent-modal-sub");
+  if (subEl) {
+    subEl.textContent = "Most recent week shown first";
+  }
 
-        const countEl = document.getElementById("agent-leads-count");
-        if (countEl) countEl.textContent = m.leads.length;
+  const weeklyBody = document.getElementById("agent-weekly-performance-body");
+  const leadsBody = document.getElementById("agent-leads-body");
 
-        const rangeEl = document.getElementById("agent-range-label");
-        if (rangeEl) rangeEl.textContent = `${label}: ${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
+  if (!weeklyBody || !leadsBody) return;
 
-        const tbody = document.getElementById("agent-leads-body");
-        if (!tbody) return;
+ const normalizeAgent = (raw) => {
+  const picked = String(raw || "").trim();
+  if (!picked) return "";
 
-        if (!m.leads.length) {
-          tbody.innerHTML = `<tr><td colspan="14" class="p-6 text-center text-gray-400 italic">No leads in this period.</td></tr>`;
-          return;
-        }
+  if (typeof this.getOfficialAgentName === "function") {
+    return String(this.getOfficialAgentName(picked)).trim().toLowerCase();
+  }
 
-       tbody.innerHTML = m.leads.map(l => `
-          <tr>
-            <td class="p-3">${this.getLeadField(l, ["date_submitted", "Date Submitted"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["lead_id", "LEAD ID"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["company_name", "Company Name", "Roofing Company"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["appointment_coordinator_name", "Appointment Coordinator Name", "agent_name"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["homeowner_names", "Homeowner Name(s)"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["email_of_homeowner", "Email of Homeowner"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["homeowner_phone_numbers", "Homeowner Phone Number"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["appointment_date_time", "Appointment Date /Time"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["address", "Address"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["age_of_roof", "Age of Roof"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["insurance_company", "Insurance Company"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["additional_notes", "Additional Notes"])}</td>
-            <td class="p-3">${this.statusBadge(this.getLeadField(l, ["status", "Status", "STATUS"]))}</td>
-          </tr>
-        `).join("");
-      },
+  return picked.toLowerCase();
+};
 
-      // --- OVERVIEW CUSTOM CALENDAR FIX ---
-      bindOverviewAnalyticsUI() {
-        const toggle = document.getElementById("custom-range-toggle");
-        const pop = document.getElementById("custom-range-popover");
-        const apply = document.getElementById("custom-apply");
-        const clear = document.getElementById("custom-clear");
+const agentKey = normalizeAgent(name);
 
-        if (toggle && pop && !toggle.dataset.bound) {
-          toggle.dataset.bound = "true";
-          toggle.addEventListener("click", (e) => { e.preventDefault(); pop.classList.toggle("hidden"); });
-          document.addEventListener("click", (e) => {
-            if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) pop.classList.add("hidden");
-          });
-          
-          if (apply) apply.addEventListener("click", () => {
-            const s = document.getElementById("custom-start")?.value;
-            const e = document.getElementById("custom-end")?.value;
-            if (!s || !e) return;
-            this._customRange.active = true;
-            this._customRange.start = s;
-            this._customRange.end = e;
-            this.setAnalyticsPeriod("custom", null);
-            this._setCustomActive("custom-range-toggle", true);
-            pop.classList.add("hidden");
-          });
+const agentLeads = leads.filter(l => {
+  const rawAgent = this.getLeadField(
+    l,
+    [
+      "appointment_coordinator_name",
+      "Appointment Coordinator Name",
+      "agent_name",
+      "Agent Name"
+    ],
+    ""
+  );
 
-          if (clear) clear.addEventListener("click", () => {
-            document.getElementById("custom-start").value = "";
-            document.getElementById("custom-end").value = "";
-            this._customRange.active = false;
-            this.setAnalyticsPeriod("today", document.querySelector('.analytics-btn'));
-            this._setCustomActive("custom-range-toggle", false);
-            pop.classList.add("hidden");
-          });
-        }
-      },
+  return normalizeAgent(rawAgent) === agentKey;
+});
+
+  const weekMap = new Map();
+
+  agentLeads.forEach(l => {
+    const dt = this.getLeadDateObj(l);
+    if (!dt || isNaN(dt.getTime())) return;
+
+    const weekStart = window.portal?.getPayrollWeekStart
+      ? window.portal.getPayrollWeekStart(dt)
+      : dt;
+
+    const start = new Date(weekStart);
+    start.setHours(0,0,0,0);
+
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+
+    const key = start.toISOString();
+
+    if (!weekMap.has(key)) {
+      weekMap.set(key, {
+        start,
+        end,
+        leads: []
+      });
+    }
+
+    weekMap.get(key).leads.push(l);
+  });
+
+  const weeks = Array.from(weekMap.values())
+    .sort((a, b) => b.start - a.start);
+
+  if (!weeks.length) {
+    weeklyBody.innerHTML = `
+      <tr>
+        <td colspan="7" class="p-6 text-center text-gray-400 italic">
+          No weekly data found.
+        </td>
+      </tr>
+    `;
+
+    return;
+  }
+
+  weeklyBody.innerHTML = weeks.map((week, idx) => {
+
+    let total = 0;
+    let qualified = 0;
+    let rejected = 0;
+    let credited = 0;
+    let pending = 0;
+
+    week.leads.forEach(l => {
+      total++;
+
+      const st = String(
+        this.getLeadField(l, ["status", "Status"], "")
+      ).toLowerCase();
+
+      if (this.isQualified(st)) qualified++;
+      else if (this.isRejected(st)) rejected++;
+      else if (this.isCredited(st)) credited++;
+      else pending++;
+    });
+
+    const cancelRate =
+      (qualified + credited) > 0
+        ? Math.round((credited / (qualified + credited)) * 100)
+        : 0;
+
+    const startLabel = week.start.toLocaleDateString();
+    const endLabel = week.end.toLocaleDateString();
+
+    const renderMetric = (label, value, colorClass) => {
+      return `
+        <button
+          onclick="Admin.openAgentLeadDrilldown(${idx}, '${label}')"
+          class="${colorClass} font-black hover:underline"
+        >
+          ${value}
+        </button>
+      `;
+    };
+
+    return `
+      <tr class="hover:bg-gray-50">
+
+        <td class="p-3 font-bold text-gray-900">
+          ${startLabel} → ${endLabel}
+        </td>
+
+        <td class="p-3 text-center">
+          ${renderMetric("total", total, "text-gray-900")}
+        </td>
+
+        <td class="p-3 text-center">
+          ${renderMetric("rejected", rejected, "text-red-500")}
+        </td>
+
+        <td class="p-3 text-center">
+          ${renderMetric("qualified", qualified, "text-blue-600")}
+        </td>
+
+        <td class="p-3 text-center">
+          ${renderMetric("credited", credited, "text-purple-600")}
+        </td>
+
+        <td class="p-3 text-center">
+          ${renderMetric("pending", pending, "text-yellow-600")}
+        </td>
+
+        <td class="p-3 text-center font-black text-gray-700">
+          ${cancelRate}%
+        </td>
+
+      </tr>
+    `;
+  }).join("");
+
+  this._agentWeeklyRows = weeks;
+
+  leadsBody.innerHTML = `
+    <tr>
+      <td colspan="12" class="p-6 text-center text-gray-400 italic">
+        Click a metric number above to view leads
+      </td>
+    </tr>
+  `;
+},
+
+      openAgentLeadDrilldown(weekIndex, statusType = "total") {
+  const weeks = Array.isArray(this._agentWeeklyRows) ? this._agentWeeklyRows : [];
+  const week = weeks[weekIndex];
+
+  if (!week) return;
+
+  const leadsBody = document.getElementById("agent-leads-body");
+  const labelEl = document.getElementById("agent-drilldown-label");
+
+  if (!leadsBody) return;
+
+  const type = String(statusType || "total").toLowerCase();
+
+  const filtered = week.leads.filter(l => {
+    const st = String(this.getLeadField(l, ["status", "Status"], "")).toLowerCase();
+
+    if (type === "qualified") return this.isQualified(st);
+    if (type === "rejected") return this.isRejected(st);
+    if (type === "credited") return this.isCredited(st);
+    if (type === "pending") return this.isPendingReview(st);
+
+    return true;
+  });
+
+  const startLabel = week.start.toLocaleDateString();
+  const endLabel = week.end.toLocaleDateString();
+
+  if (labelEl) {
+    labelEl.textContent = `${String(type).toUpperCase()} leads for ${startLabel} → ${endLabel}`;
+  }
+
+  if (!filtered.length) {
+    leadsBody.innerHTML = `
+      <tr>
+        <td colspan="12" class="p-6 text-center text-gray-400 italic">
+          No leads found for this metric.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  leadsBody.innerHTML = filtered.map(l => {
+    const status = this.getLeadField(l, ["status", "Status", "STATUS"], "—");
+
+    return `
+      <tr class="hover:bg-gray-50">
+        <td class="p-3">${this.getLeadField(l, ["date_submitted", "Date Submitted"], "—")}</td>
+        <td class="p-3">${this.getLeadField(l, ["company_name", "Company Name", "Roofing Company", "roofing_company"], "—")}</td>
+        <td class="p-3">${this.getLeadField(l, ["homeowner_names", "Homeowner Name(s)", "homeowner_name"], "—")}</td>
+        <td class="p-3">${this.getLeadField(l, ["email_of_homeowner", "Email of Homeowner", "email"], "—")}</td>
+        <td class="p-3">${this.getLeadField(l, ["homeowner_phone_numbers", "Homeowner Phone Number", "Homeowner Phone Number(s)", "phone"], "—")}</td>
+        <td class="p-3">${this.getLeadField(l, ["appointment_date_time", "Appointment Date /Time", "appointment_datetime"], "—")}</td>
+        <td class="p-3">${this.getLeadField(l, ["address", "Address"], "—")}</td>
+        <td class="p-3">${this.getLeadField(l, ["age_of_roof", "Age of Roof"], "—")}</td>
+        <td class="p-3">${this.getLeadField(l, ["insurance_company", "Insurance Company"], "—")}</td>
+        <td class="p-3 max-w-[320px] truncate" title="${String(this.getLeadField(l, ["additional_notes", "Additional Notes"], "—")).replace(/"/g, "&quot;")}">
+          ${this.getLeadField(l, ["additional_notes", "Additional Notes"], "—")}
+        </td>
+        <td class="p-3 max-w-[320px] truncate" title="${String(this.getLeadField(l, ["rejection_reason", "Rejection Reason"], "—")).replace(/"/g, "&quot;")}">
+          ${this.getLeadField(l, ["rejection_reason", "Rejection Reason"], "—")}
+        </td>
+        <td class="p-3">${this.statusBadge(status)}</td>
+      </tr>
+    `;
+  }).join("");
+},
 
       // --- DAILY STRATEGY TAB LOGIC ---
   async renderDailyTab() {
