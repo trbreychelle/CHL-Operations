@@ -6074,93 +6074,149 @@ document.getElementById("passbook-count").textContent = rows.length;
         return { total: inRange.length, qualified: q, credited: c, rejected: r, pending: p, cancelRate: (q + c > 0) ? Math.round((c / (q + c)) * 100) : 0, leads: inRange };
       },
       
-      renderTeam() {
-        const state = this.getState();
-        const leads = Array.isArray(state?.leads) ? state.leads : [];
-        const agents = Array.isArray(state?.agents) ? state.agents : [];
+     renderTeam() {
+  const state = this.getState();
+  const leads = Array.isArray(state?.leads) ? state.leads : [];
+  const agents = Array.isArray(state?.agents) ? state.agents : [];
 
-        const { start, end, label } = this.getTeamRangeFor();
+  const { start, end, label } = this.getTeamRangeFor();
 
-        const q = String(document.getElementById("team-search")?.value || "").toLowerCase().trim();
-        const stageFilter = document.getElementById("team-stage-filter")?.value || "active";
-        const warnedFilter = document.getElementById("team-warned-filter")?.value || "all";
+  const q = String(document.getElementById("team-search")?.value || "").toLowerCase().trim();
+  const stageFilter = document.getElementById("team-stage-filter")?.value || "active";
+  const warnedFilter = document.getElementById("team-warned-filter")?.value || "all";
 
-        // ONLY SHOW ACTIVE AGENTS (Exclude Admin, Offboarded, Resigned)
-                const uniqueAgentNames = new Set();
-        agents.forEach(a => {
-          if (!a) return;
+  const agentRows = [];
 
-          const stage = this.getAgentStage(a);
-          if (stageFilter !== "all" && stage !== stageFilter) return;
+  agents.forEach(a => {
+    if (!a) return;
 
-          // Team tab should only show setter/tracker workforce
-          if (!this.isSetterAnalyticsAgent(a) && stage === "active") return;
+    const stage = this.getAgentStage(a);
+    if (stageFilter !== "all" && stage !== stageFilter) return;
+    if (!this.isSetterAnalyticsAgent(a) && stage === "active") return;
 
-          const name = String(a.name || a.agent_name || "").trim();
-          if (name) uniqueAgentNames.add(name);
-        });
+    const name = String(a.name || a.agent_name || "").trim();
+    if (!name) return;
 
-        let rows = Array.from(uniqueAgentNames).map(agentName => {
-          const dbAgent = agents.find(a => a && String(a.name || a.agent_name || "").trim() === agentName) || {};
-          const warned = this.isAgentWarned(dbAgent);
+    const warned = this.isAgentWarned(a);
+    if (warnedFilter === "warned" && !warned) return;
+    if (warnedFilter === "not-warned" && warned) return;
+    if (q && !name.toLowerCase().includes(q)) return;
 
-          return {
-            name: agentName,
-            stage: "active",
-            warned,
-            ...this._computeAgentMetrics(agentName, leads, start, end)
-          };
-        });
+    const activeCallingDate =
+      a.active_start_date ||
+      a.active_calling_date ||
+      a.start_date ||
+      "No Active Calling Date";
 
-        if (warnedFilter === "warned") rows = rows.filter(r => r.warned);
-        if (warnedFilter === "not-warned") rows = rows.filter(r => !r.warned);
-        if (q) rows = rows.filter(r => String(r.name).toLowerCase().includes(q));
+    agentRows.push({
+      name,
+      stage,
+      warned,
+      activeCallingDate,
+      ...this._computeAgentMetrics(name, leads, start, end)
+    });
+  });
 
-        const key = this.teamSortKey;
-        const dir = this.teamSortDir === "asc" ? 1 : -1;
+  const grouped = new Map();
 
-        const sorters = {
-          name: (a,b) => a.name.localeCompare(b.name) * dir,
-          total: (a,b) => (a.total - b.total) * dir,
-          rejected: (a,b) => (a.rejected - b.rejected) * dir,
-          qualified: (a,b) => (a.qualified - b.qualified) * dir,
-          credited: (a,b) => (a.credited - b.credited) * dir,
-          pending: (a,b) => (a.pending - b.pending) * dir,
-          cancelRate: (a,b) => (a.cancelRate - b.cancelRate) * dir,
-        };
+  agentRows.forEach(row => {
+    const key = String(row.activeCallingDate || "No Active Calling Date").trim();
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(row);
+  });
 
-        if (sorters[key]) rows.sort(sorters[key]);
+  const waveDatesOldestFirst = Array.from(grouped.keys())
+    .sort((a, b) => {
+      if (a === "No Active Calling Date") return 1;
+      if (b === "No Active Calling Date") return -1;
+      return new Date(a) - new Date(b);
+    });
 
-        const countEl = document.getElementById("team-count");
-        if (countEl) countEl.textContent = rows.length;
+  const waveNumberByDate = new Map();
+  waveDatesOldestFirst.forEach((dateKey, idx) => {
+    waveNumberByDate.set(dateKey, idx + 1);
+  });
 
-        const rangeEl = document.getElementById("team-range-label");
-        if (rangeEl) rangeEl.textContent = `${label}: ${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
+  const waveDatesNewestFirst = [...waveDatesOldestFirst].reverse();
 
-        const stageBadge = () => `<span class="text-[10px] font-extrabold uppercase text-emerald-600">ACTIVE</span>`;
+  const countEl = document.getElementById("team-count");
+  if (countEl) countEl.textContent = agentRows.length;
 
-        const tbody = document.getElementById("team-body");
-        if (!rows.length) {
-          tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No agents found matching criteria.</td></tr>`;
-          return;
-        }
+  const rangeEl = document.getElementById("team-range-label");
+  if (rangeEl) rangeEl.textContent = `${label}: ${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
 
-        tbody.innerHTML = rows.map(r => `
-          <tr class="hover:bg-gray-50">
-            <td class="p-4 font-bold text-gray-900">
-              <button class="hover:underline" onclick="Admin.openAgentModal('${String(r.name).replace(/'/g,"\\'")}')">${r.name}</button>
-              <div class="mt-1">${stageBadge()} ${r.warned ? `<span class="ml-2 text-[10px] font-extrabold text-orange-600">WARNED</span>` : ""}</div>
-            </td>
-            <td class="p-4 text-center text-gray-700 font-semibold">${r.total}</td>
-            <td class="p-4 text-center text-red-500 font-bold">${r.rejected}</td>
-            <td class="p-4 text-center text-blue-500 font-bold">${r.qualified}</td>
-            <td class="p-4 text-center text-purple-500 font-bold">${r.credited}</td>
-            <td class="p-4 text-center text-yellow-600 font-bold">${r.pending}</td>
-            <td class="p-4 text-center text-gray-700 font-semibold">${r.cancelRate}%</td>
-          </tr>
-        `).join("");
-      },
+  const tbody = document.getElementById("team-body");
+  if (!tbody) return;
 
+  if (!agentRows.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No agents found matching criteria.</td></tr>`;
+    return;
+  }
+
+  const stageBadge = () => `<span class="text-[10px] font-extrabold uppercase text-emerald-600">ACTIVE</span>`;
+
+  const formatDate = (value) => {
+    if (!value || value === "No Active Calling Date") return "No Active Calling Date";
+    const d = new Date(`${value}T00:00:00`);
+    if (isNaN(d.getTime())) return value;
+    return d.toLocaleDateString();
+  };
+
+  const key = this.teamSortKey;
+  const dir = this.teamSortDir === "asc" ? 1 : -1;
+
+  const sorters = {
+    name: (a,b) => a.name.localeCompare(b.name) * dir,
+    total: (a,b) => (a.total - b.total) * dir,
+    rejected: (a,b) => (a.rejected - b.rejected) * dir,
+    qualified: (a,b) => (a.qualified - b.qualified) * dir,
+    credited: (a,b) => (a.credited - b.credited) * dir,
+    pending: (a,b) => (a.pending - b.pending) * dir,
+    cancelRate: (a,b) => (a.cancelRate - b.cancelRate) * dir,
+  };
+
+  let html = "";
+
+  waveDatesNewestFirst.forEach(dateKey => {
+    const waveNo = waveNumberByDate.get(dateKey);
+    let rows = grouped.get(dateKey) || [];
+
+    if (sorters[key]) rows = [...rows].sort(sorters[key]);
+    else rows = [...rows].sort((a, b) => a.name.localeCompare(b.name));
+
+    html += `
+      <tr class="bg-gray-900 text-white">
+        <td colspan="7" class="p-4">
+          <div class="flex items-center justify-between gap-3">
+            <div class="font-black">
+              Wave ${waveNo}
+            </div>
+            <div class="text-xs font-bold text-gray-300">
+              Active Calling Date: ${formatDate(dateKey)} • ${rows.length} agent${rows.length === 1 ? "" : "s"}
+            </div>
+          </div>
+        </td>
+      </tr>
+    `;
+
+    html += rows.map(r => `
+      <tr class="hover:bg-gray-50">
+        <td class="p-4 font-bold text-gray-900">
+          <button class="hover:underline" onclick="Admin.openAgentModal('${String(r.name).replace(/'/g,"\\'")}')">${r.name}</button>
+          <div class="mt-1">${stageBadge()} ${r.warned ? `<span class="ml-2 text-[10px] font-extrabold text-orange-600">WARNED</span>` : ""}</div>
+        </td>
+        <td class="p-4 text-center text-gray-700 font-semibold">${r.total}</td>
+        <td class="p-4 text-center text-red-500 font-bold">${r.rejected}</td>
+        <td class="p-4 text-center text-blue-500 font-bold">${r.qualified}</td>
+        <td class="p-4 text-center text-purple-500 font-bold">${r.credited}</td>
+        <td class="p-4 text-center text-yellow-600 font-bold">${r.pending}</td>
+        <td class="p-4 text-center text-gray-700 font-semibold">${r.cancelRate}%</td>
+      </tr>
+    `).join("");
+  });
+
+  tbody.innerHTML = html;
+},
       openAgentModal(name) {
         this._agentSelectedName = name;
         this.bindAgentUI();
