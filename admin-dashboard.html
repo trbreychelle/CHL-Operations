@@ -1351,18 +1351,6 @@ body.client-health-lock {
   <!-- WEEKLY PERFORMANCE -->
   <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
 
-    <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-      <div>
-        <div class="text-sm font-black text-gray-900">
-          Weekly Performance History
-        </div>
-
-        <div class="text-xs text-gray-500 mt-1">
-          Most recent week shown first
-        </div>
-      </div>
-    </div>
-
     <div class="overflow-auto max-h-[420px]">
       <table class="min-w-full text-left text-sm whitespace-nowrap">
         <thead class="bg-white text-[10px] font-black text-gray-400 uppercase border-b border-gray-100 sticky top-0 z-10">
@@ -1389,7 +1377,7 @@ body.client-health-lock {
   </div>
 
   <!-- LEAD DRILLDOWN -->
-             <div class="hidden bg-white rounded-2xl border border-gray-100 overflow-hidden">
+             <div id="agent-drilldown-section" class="hidden bg-white rounded-2xl border border-gray-100 overflow-hidden">
   <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
 
     <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
@@ -3746,36 +3734,36 @@ const safeAgentName = String(a.agent_name || "Unknown").replace(/'/g, "\\'");
 
               return `
                 <tr class="hover:bg-gray-50">
-                  <td class="p-3 font-black text-gray-900">
+                  <td class="p-4 font-black text-gray-900">
                     ${a.agent_name || "Unknown"}
                     <div class="text-[11px] text-gray-400 font-semibold">${a.agent_email || "—"}</div>
                   </td>
-                  <td class="p-3">${a.employment_status || "—"}</td>
-                  <td class="p-3 text-center">
+                  <td class="p-4">${a.employment_status || "—"}</td>
+                  <td class="p-4 text-center">
   <button onclick="Admin.openHRAgentLeadDrilldown('${safeAgentName}', 'all', '${startDate}', '${endDate}')" class="font-black text-gray-900 hover:underline">
     ${total}
   </button>
 </td>
 
-<td class="p-3 text-center">
+<td class="p-4 text-center">
   <button onclick="Admin.openHRAgentLeadDrilldown('${safeAgentName}', 'rejected', '${startDate}', '${endDate}')" class="font-black text-red-500 hover:underline">
     ${rejected}
   </button>
 </td>
 
-<td class="p-3 text-center">
+<td class="p-4 text-center">
   <button onclick="Admin.openHRAgentLeadDrilldown('${safeAgentName}', 'qualified', '${startDate}', '${endDate}')" class="font-black text-blue-600 hover:underline">
     ${qualified}
   </button>
 </td>
 
-<td class="p-3 text-center">
+<td class="p-4 text-center">
   <button onclick="Admin.openHRAgentLeadDrilldown('${safeAgentName}', 'credited', '${startDate}', '${endDate}')" class="font-black text-purple-600 hover:underline">
     ${credited}
   </button>
 </td>
-                  <td class="p-3 text-center font-black ${cancel >= 25 ? "text-red-600" : "text-emerald-600"}">${cancel.toFixed(2)}%</td>
-                  <td class="p-3 text-center">
+                  <td class="p-4 text-center font-black ${cancel >= 25 ? "text-red-600" : "text-emerald-600"}">${cancel.toFixed(2)}%</td>
+                  <td class="p-4 text-center">
                     ${
                       passed
                         ? `<span class="px-2 py-1 rounded bg-emerald-100 text-emerald-700 text-[10px] font-black">PASSED</span>`
@@ -6401,39 +6389,45 @@ const agentLeads = leads.filter(l => {
       `;
     };
 
-    return `
-      <tr class="hover:bg-gray-50">
+return `
+  <tr class="hover:bg-gray-50 border-b border-gray-100">
 
-       <td class="p-3 font-black text-gray-900">
-  Week ${weeks.length - idx}
-</td>
+    <td class="p-4 font-black text-gray-900 text-sm">
+      Week ${idx + 1}
+    </td>
 
-<td class="p-3 font-bold text-gray-700">
-  ${startLabel} → ${endLabel}
-</td>
+    <td class="p-4 font-bold text-gray-700">
+      ${startLabel} → ${endLabel}
+    </td>
 
-        <td class="p-3 text-center">
-          ${renderMetric("total", total, "text-gray-900")}
-        </td>
+    <td class="p-4 text-center">
+      ${renderMetric("total", total, "text-gray-900")}
+    </td>
 
-        <td class="p-3 text-center">
-          ${renderMetric("rejected", rejected, "text-red-500")}
-        </td>
+    <td class="p-4 text-center">
+      ${renderMetric("rejected", rejected, "text-red-500")}
+    </td>
 
-        <td class="p-3 text-center">
-          ${renderMetric("qualified", qualified, "text-blue-600")}
-        </td>
+    <td class="p-4 text-center">
+      ${renderMetric("qualified", qualified, "text-blue-600")}
+    </td>
 
-        <td class="p-3 text-center">
-          ${renderMetric("credited", credited, "text-purple-600")}
-        </td>
+    <td class="p-4 text-center">
+      ${renderMetric("credited", credited, "text-purple-600")}
+    </td>
 
-        <td class="p-3 text-center font-black text-gray-700">
-          ${cancelRate}%
-        </td>
+    <td class="p-4 text-center font-black text-sm ${
+      cancelRate >= 25
+        ? 'text-red-600'
+        : cancelRate >= 15
+          ? 'text-yellow-600'
+          : 'text-emerald-600'
+    }">
+      ${cancelRate}%
+    </td>
 
-      </tr>
-    `;
+  </tr>
+`;
   }).join("");
 
   this._agentWeeklyRows = weeks;
@@ -6455,6 +6449,7 @@ const agentLeads = leads.filter(l => {
 
   const leadsBody = document.getElementById("agent-leads-body");
   const labelEl = document.getElementById("agent-drilldown-label");
+        document.getElementById("agent-drilldown-section")?.classList.remove("hidden");
 
   if (!leadsBody) return;
 
