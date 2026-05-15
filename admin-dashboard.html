@@ -6411,21 +6411,64 @@ return normalizeAgent(rawAgent) === agentKey || (selectedEmail && leadEmail === 
     weekMap.get(key).leads.push(l);
   });
 
-  const weeks = Array.from(weekMap.values())
-    .sort((a, b) => b.start - a.start);
+  let weeks = Array.from(weekMap.values())
+  .sort((a, b) => b.start - a.start);
 
-  if (!weeks.length) {
-    weeklyBody.innerHTML = `
-      <tr>
-        <td colspan="7" class="p-6 text-center text-gray-400 italic">
-          No weekly data found.
-        </td>
-      </tr>
-    `;
+const stateAgents = Array.isArray(state?.agents) ? state.agents : [];
+const selectedAgent = stateAgents.find(a => {
+  const agentName = String(a.agent_name || a.name || "").trim().toLowerCase();
+  const agentEmail = String(a.agent_email || a.email || "").trim().toLowerCase();
 
-    return;
+  return (
+    agentName === String(name || "").trim().toLowerCase() ||
+    (selectedEmail && agentEmail === selectedEmail)
+  );
+});
+
+const activeStartRaw =
+  selectedAgent?.active_start_date ||
+  selectedAgent?.active_calling_date ||
+  "";
+
+if (activeStartRaw) {
+  const activeStart = new Date(`${activeStartRaw}T00:00:00`);
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+
+  if (!isNaN(activeStart.getTime())) {
+    const expectedWeeks = [];
+    let cursor = new Date(activeStart);
+    cursor.setHours(0, 0, 0, 0);
+
+    while (cursor <= today) {
+      const start = new Date(cursor);
+      const end = new Date(cursor);
+
+      const day = start.getDay();
+
+      if (expectedWeeks.length === 0 && day !== 6) {
+        const daysUntilFriday = (5 - day + 7) % 7;
+        end.setDate(start.getDate() + daysUntilFriday);
+      } else {
+        end.setDate(start.getDate() + 6);
+      }
+
+      const key = start.toISOString();
+
+      expectedWeeks.push({
+        start,
+        end,
+        leads: weekMap.get(key)?.leads || []
+      });
+
+      const nextStart = new Date(end);
+      nextStart.setDate(end.getDate() + 1);
+      cursor = nextStart;
+    }
+
+    weeks = expectedWeeks.sort((a, b) => b.start - a.start);
   }
-
+}
   weeklyBody.innerHTML = weeks.map((week, idx) => {
 
     let total = 0;
