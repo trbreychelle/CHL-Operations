@@ -1334,13 +1334,12 @@ body.client-health-lock {
         <div id="agent-modal" class="hidden fixed inset-0 z-50">
           <div class="absolute inset-0 bg-black/40" onclick="Admin.closeAgentModal()"></div>
           <div class="relative mx-auto mt-10 w-[94%] max-w-6xl bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-            <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-gray-50/50">
-              <div>
-                <h3 class="font-extrabold text-gray-900" id="agent-modal-title">Agent Leads</h3>
-                <p class="text-xs text-gray-500 mt-1" id="agent-modal-sub">—</p>
-              </div>
+          <div class="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+  <div>
+    <h3 class="font-extrabold text-gray-900" id="agent-modal-title">Agent Weekly Performance</h3>
+    <p class="text-xs text-gray-500 mt-1" id="agent-modal-sub">Most recent week shown first</p>
+  </div>
 
-              <div class="flex items-center gap-2 flex-wrap">
   <button class="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
           onclick="Admin.closeAgentModal()">
     <i class="fa-solid fa-xmark"></i>
