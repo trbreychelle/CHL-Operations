@@ -1369,11 +1369,11 @@ body.client-health-lock {
         <thead class="bg-white text-[10px] font-black text-gray-400 uppercase border-b border-gray-100 sticky top-0 z-10">
           <tr>
             <th class="p-3">Week</th>
+            <th class="p-3">Week Range</th>
             <th class="p-3 text-center">Total</th>
             <th class="p-3 text-center text-red-500">QC Rejected</th>
             <th class="p-3 text-center text-blue-600">Qualified</th>
             <th class="p-3 text-center text-purple-600">Credited</th>
-            <th class="p-3 text-center text-yellow-600">Pending</th>
             <th class="p-3 text-center">Cancel Rate</th>
           </tr>
         </thead>
@@ -1390,6 +1390,7 @@ body.client-health-lock {
   </div>
 
   <!-- LEAD DRILLDOWN -->
+             <div class="hidden bg-white rounded-2xl border border-gray-100 overflow-hidden">
   <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
 
     <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
@@ -6404,9 +6405,13 @@ const agentLeads = leads.filter(l => {
     return `
       <tr class="hover:bg-gray-50">
 
-        <td class="p-3 font-bold text-gray-900">
-          ${startLabel} → ${endLabel}
-        </td>
+       <td class="p-3 font-black text-gray-900">
+  Week ${weeks.length - idx}
+</td>
+
+<td class="p-3 font-bold text-gray-700">
+  ${startLabel} → ${endLabel}
+</td>
 
         <td class="p-3 text-center">
           ${renderMetric("total", total, "text-gray-900")}
@@ -6422,10 +6427,6 @@ const agentLeads = leads.filter(l => {
 
         <td class="p-3 text-center">
           ${renderMetric("credited", credited, "text-purple-600")}
-        </td>
-
-        <td class="p-3 text-center">
-          ${renderMetric("pending", pending, "text-yellow-600")}
         </td>
 
         <td class="p-3 text-center font-black text-gray-700">
