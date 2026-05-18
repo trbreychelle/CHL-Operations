@@ -1232,13 +1232,51 @@ body.client-health-lock {
 
           <div class="flex items-center gap-2 flex-wrap">
             <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
-              <button onclick="Admin.setTeamPeriod('today', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
-              <button onclick="Admin.setTeamPeriod('this-week', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
-              <button onclick="Admin.setTeamPeriod('previous-week', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Previous Week</button>
-              <button onclick="Admin.setTeamPeriod('4-weeks', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">4 Weeks</button>
-              <button onclick="Admin.setTeamPeriod('6-weeks', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">6 Weeks</button>
-              <button onclick="Admin.setTeamPeriod('all-time', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
+
+  <button onclick="Admin.setTeamPeriod('today', this)"
+    class="team-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">
+    Today
+  </button>
+
+  <button onclick="Admin.setTeamPeriod('current-week', this)"
+    class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">
+    Current Week
+  </button>
+
+  <button onclick="Admin.setTeamPeriod('previous-week', this)"
+    class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">
+    Previous Week
+  </button>
+
+  <button onclick="Admin.setTeamPeriod('4-weeks', this)"
+    class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">
+    4 Weeks
+  </button>
+
+  <button onclick="Admin.setTeamPeriod('30-days', this)"
+    class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">
+    30 Days
+  </button>
+
+  <button onclick="Admin.setTeamPeriod('6-weeks', this)"
+    class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">
+    6 Weeks
+  </button>
+
+  <button onclick="Admin.setTeamPeriod('all-time', this)"
+    class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">
+    All Time
+  </button>
+
+</div>
             </div>
+
+          <select
+  id="team-week-select"
+  class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-blue-700 min-w-[220px]"
+>
+  <option value="">Select Week</option>
+</select>
 
             <div class="relative">
               <button id="team-custom-toggle"
@@ -1295,12 +1333,16 @@ body.client-health-lock {
                 <option value="onboarding">Onboarding</option>
                 <option value="offboarded">Offboarded</option>
               </select>
-              <select id="team-warned-filter"
-                      class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
-                <option value="all" selected>Warned: All</option>
-                <option value="warned">Warned Only</option>
-                <option value="not-warned">Not Warned</option>
-              </select>
+              <select id="team-week-filter"
+  class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
+
+  <option value="all">All Agents</option>
+  <option value="1">First Week</option>
+  <option value="2">Second Week</option>
+  <option value="3">Third Week</option>
+  <option value="4">Fourth Week</option>
+
+</select>
             </div>
           </div>
 
@@ -1329,9 +1371,6 @@ body.client-health-lock {
                   </th>
                   <th class="p-4 text-center text-purple-500 cursor-pointer select-none" onclick="Admin.setTeamSort('credited')">
                     Credited <span id="team-sort-credited" class="text-[10px] ml-1 text-gray-300">↕</span>
-                  </th>
-                  <th class="p-4 text-center text-yellow-500 cursor-pointer select-none" onclick="Admin.setTeamSort('pending')">
-                    Pending <span id="team-sort-pending" class="text-[10px] ml-1 text-gray-300">↕</span>
                   </th>
                   <th class="p-4 text-center cursor-pointer select-none" onclick="Admin.setTeamSort('cancelRate')">
                     Cancellation Rate <span id="team-sort-cancelRate" class="text-[10px] ml-1 text-gray-300">↕</span>
