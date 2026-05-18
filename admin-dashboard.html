@@ -634,7 +634,24 @@ body.client-health-lock {
       <div id="dailyStrategyWeekLabel" class="text-xs font-black text-blue-100">Loading week...</div>
     </div>
 
-    <div class="flex items-center gap-2 mb-4">
+    <div class="flex flex-wrap items-center gap-2 mb-4">
+  <button
+    id="daily-shift-morning"
+    type="button"
+    onclick="Admin.setDailyStrategyShift('morning')"
+    class="px-4 py-2 rounded-2xl bg-yellow-400 text-gray-900 text-xs font-black shadow"
+  >
+    Morning Shift
+  </button>
+
+  <button
+    id="daily-shift-afternoon"
+    type="button"
+    onclick="Admin.setDailyStrategyShift('afternoon')"
+    class="px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black"
+  >
+    Afternoon Shift
+  </button>
       <button
         id="daily-tab-board"
         type="button"
@@ -2062,6 +2079,7 @@ body.client-health-lock {
 dailyStrategySelectedDate: null,
 dailyStrategyAssignments: [],
       dailyStrategySubtab: 'board',
+      dailyStrategyShift: 'morning',
 dailyStrategyHistoryRows: [],
             clientHealthExpanded: false,
       _clientHealthExpandBound: false,
@@ -2190,6 +2208,27 @@ closeAdminFireNoteModal() {
   if (window.portal?.fetchAdminData) {
     await window.portal.fetchAdminData(true);
   }
+},
+
+      setDailyStrategyShift(shift) {
+  this.dailyStrategyShift = shift === 'afternoon'
+    ? 'afternoon'
+    : 'morning';
+
+  const morningBtn = document.getElementById('daily-shift-morning');
+  const afternoonBtn = document.getElementById('daily-shift-afternoon');
+
+  if (morningBtn && afternoonBtn) {
+    if (this.dailyStrategyShift === 'morning') {
+      morningBtn.className = 'px-4 py-2 rounded-2xl bg-yellow-400 text-gray-900 text-xs font-black shadow';
+      afternoonBtn.className = 'px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black';
+    } else {
+      afternoonBtn.className = 'px-4 py-2 rounded-2xl bg-yellow-400 text-gray-900 text-xs font-black shadow';
+      morningBtn.className = 'px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black';
+    }
+  }
+
+  this.renderDailyTab();
 },
 
       async loadPassbookAuditForCode(codeName) {
@@ -6720,6 +6759,7 @@ return `
       .eq("organization_id", orgId)
       .eq("week_start", selectedWeekStart)
       .eq("strategy_date", this.dailyStrategySelectedDate)
+      .eq("shift_key", this.dailyStrategyShift)
       .order("lane", { ascending: true })
       .order("position_index", { ascending: true });
 
@@ -7654,9 +7694,12 @@ openNotificationById(eventId) {
     return;
   }
 
-  const existingAssignments = Array.isArray(this.dailyStrategyAssignments)
-    ? this.dailyStrategyAssignments.filter(r => String(r.client_code || "").trim().toLowerCase() === codeKey)
-    : [];
+ const existingAssignments = Array.isArray(this.dailyStrategyAssignments)
+  ? this.dailyStrategyAssignments.filter(r =>
+      String(r.client_code || "").trim().toLowerCase() === codeKey &&
+      String(r.shift_key || "morning") === String(this.dailyStrategyShift || "morning")
+    )
+  : [];
 
   if (existingAssignments.length) {
     return;
@@ -7677,11 +7720,12 @@ openNotificationById(eventId) {
 const dailyGoal = 0;
 
    const { error } = await supaClient.rpc("add_daily_strategy_assignment", {
-    p_organization_id: orgId,
-    p_strategy_date: this.dailyStrategySelectedDate,
-    p_client_id: rawClient.id,
-    p_lane: "next_up",
-    p_assigned_agents: assignedAgents || "",
+   p_organization_id: orgId,
+p_strategy_date: this.dailyStrategySelectedDate,
+p_client_id: rawClient.id,
+p_lane: "next_up",
+p_shift_key: this.dailyStrategyShift || "morning",
+p_assigned_agents: assignedAgents || "",
     p_daily_goal: dailyGoal || 0,
     p_notes: "",
     p_actor_profile_id: null,
@@ -7772,9 +7816,11 @@ async moveDailyAssignment(assignmentId, targetLane) {
     return;
   }
 
-  const laneRows = (this.dailyStrategyAssignments || []).filter(
-    r => String(r.lane || "") === String(targetLane || "")
-  );
+ const laneRows = (this.dailyStrategyAssignments || []).filter(
+  r =>
+    String(r.lane || "") === String(targetLane || "") &&
+    String(r.shift_key || "morning") === String(this.dailyStrategyShift || "morning")
+);
 
   const nextPosition = laneRows.reduce(
     (max, r) => Math.max(max, Number(r.position_index || 0)),
