@@ -1230,55 +1230,22 @@ body.client-health-lock {
             <p class="text-sm text-gray-500 mt-1">Monitor all agents + drill into each agent’s leads.</p>
           </div>
 
-          <div class="flex items-center gap-2 flex-wrap">
-            <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
+         <div class="flex items-center gap-2 flex-wrap">
+  <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
+    <button onclick="Admin.setTeamPeriod('today', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">Today</button>
+    <button onclick="Admin.setTeamPeriod('this-week', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Current Week</button>
+    <button onclick="Admin.setTeamPeriod('previous-week', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Previous Week</button>
+    <button onclick="Admin.setTeamPeriod('4-weeks', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">4 Weeks</button>
+    <button onclick="Admin.setTeamPeriod('30-days', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">30 Days</button>
+    <button onclick="Admin.setTeamPeriod('6-weeks', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">6 Weeks</button>
+    <button onclick="Admin.setTeamPeriod('all-time', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All Time</button>
+  </div>
 
-  <button onclick="Admin.setTeamPeriod('today', this)"
-    class="team-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">
-    Today
-  </button>
+  <select id="team-week-select" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-blue-700 min-w-[220px]">
+    <option value="">Select Week</option>
+  </select>
 
-  <button onclick="Admin.setTeamPeriod('current-week', this)"
-    class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">
-    Current Week
-  </button>
-
-  <button onclick="Admin.setTeamPeriod('previous-week', this)"
-    class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">
-    Previous Week
-  </button>
-
-  <button onclick="Admin.setTeamPeriod('4-weeks', this)"
-    class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">
-    4 Weeks
-  </button>
-
-  <button onclick="Admin.setTeamPeriod('30-days', this)"
-    class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">
-    30 Days
-  </button>
-
-  <button onclick="Admin.setTeamPeriod('6-weeks', this)"
-    class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">
-    6 Weeks
-  </button>
-
-  <button onclick="Admin.setTeamPeriod('all-time', this)"
-    class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">
-    All Time
-  </button>
-
-</div>
-            </div>
-
-          <select
-  id="team-week-select"
-  class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-blue-700 min-w-[220px]"
->
-  <option value="">Select Week</option>
-</select>
-
-            <div class="relative">
+  <div class="relative">
               <button id="team-custom-toggle"
                       class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2">
                 <i class="fa-regular fa-calendar"></i> Custom
@@ -1326,22 +1293,13 @@ body.client-health-lock {
               />
             </div>
             <div class="flex items-center gap-2">
-              <select id="team-stage-filter"
-                      class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
-                <option value="all">All Stages</option>
-                <option value="active" selected>Active</option>
-                <option value="onboarding">Onboarding</option>
-                <option value="offboarded">Offboarded</option>
-              </select>
               <select id="team-week-filter"
   class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700">
-
   <option value="all">All Agents</option>
   <option value="1">First Week</option>
   <option value="2">Second Week</option>
   <option value="3">Third Week</option>
   <option value="4">Fourth Week</option>
-
 </select>
             </div>
           </div>
@@ -1378,7 +1336,7 @@ body.client-health-lock {
                 </tr>
               </thead>
               <tbody id="team-body" class="divide-y divide-gray-50">
-                <tr><td colspan="7" class="p-6 text-center text-gray-400 italic">Loading team performance...</td></tr>
+                <tr><td colspan="6" class="p-6 text-center text-gray-400 italic">Loading team performance...</td></tr>
               </tbody>
             </table>
           </div>
@@ -2136,10 +2094,11 @@ hrSubtab: 'overview',
       teamPeriod: 'today',
       _teamCustomRange: { active: false, start: null, end: null },
       teamStageFilter: 'active',
-      teamWarnedFilter: 'all',
-      teamSortKey: 'default',
-      teamSortDir: 'asc',
-      _teamBound: false,
+teamWeekFilter: 'all',
+teamSortKey: 'name',
+teamSortDir: 'asc',
+_teamSelectedWeek: '',
+_teamBound: false,
 
       // AGENT DRILLDOWN STATE
       _agentSelectedName: null,
@@ -5983,269 +5942,291 @@ document.getElementById("passbook-count").textContent = rows.length;
         this.renderTeam();
       },
       
-      getTeamRangeFor() {
-        const state = this.getState();
-        const leads = state?.leads || [];
+  getTeamRangeFor() {
+  const state = this.getState();
+  const leads = state?.leads || [];
 
-        if (this.teamPeriod === "custom" && this._teamCustomRange.active) {
-          const start = new Date(this._teamCustomRange.start + "T00:00:00");
-          const end = new Date(this._teamCustomRange.end + "T23:59:59");
-          return { start, end, grain: "day", label: "Custom Range" };
-        }
+  if (this.teamPeriod === "selected-week" && this._teamSelectedWeek) {
+    const [s, e] = this._teamSelectedWeek.split("|");
+    return {
+      start: new Date(s + "T00:00:00"),
+      end: new Date(e + "T23:59:59"),
+      grain: "day",
+      label: "Selected Week"
+    };
+  }
 
-        return this.getRangeFor(this.teamPeriod, leads);
-      },
-      
-      bindTeamUI() {
-        if (this._teamBound) return;
-        this._teamBound = true;
+  if (this.teamPeriod === "custom" && this._teamCustomRange.active) {
+    return {
+      start: new Date(this._teamCustomRange.start + "T00:00:00"),
+      end: new Date(this._teamCustomRange.end + "T23:59:59"),
+      grain: "day",
+      label: "Custom Range"
+    };
+  }
 
-        const search = document.getElementById("team-search");
-        const stageSel = document.getElementById("team-stage-filter");
-        const warnedSel = document.getElementById("team-warned-filter");
+  return this.getRangeFor(this.teamPeriod, leads);
+},
 
-        if (search) search.addEventListener("input", () => this.renderTeam());
-        if (stageSel) {
-          stageSel.addEventListener("change", () => {
-            this.teamStageFilter = stageSel.value; 
-            this.renderTeam();
-          });
-        }
-        if (warnedSel) {
-          warnedSel.addEventListener("change", () => {
-            this.teamWarnedFilter = warnedSel.value; 
-            this.renderTeam();
-          });
-        }
+bindTeamUI() {
+  if (this._teamBound) return;
+  this._teamBound = true;
 
-        const toggle = document.getElementById("team-custom-toggle");
-        const pop = document.getElementById("team-custom-popover");
-        const apply = document.getElementById("team-custom-apply");
-        const clear = document.getElementById("team-custom-clear");
+  const search = document.getElementById("team-search");
+  const weekFilterSel = document.getElementById("team-week-filter");
+  const weekSelect = document.getElementById("team-week-select");
 
-        if (toggle && pop) {
-          toggle.addEventListener("click", (e) => {
-            e.preventDefault();
-            pop.classList.toggle("hidden");
-          });
-          document.addEventListener("click", (e) => {
-            if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
-              pop.classList.add("hidden");
-            }
-          });
-        }
+  if (search) search.addEventListener("input", () => this.renderTeam());
 
-        if (apply) {
-          apply.addEventListener("click", () => {
-            const s = document.getElementById("team-custom-start")?.value;
-            const e = document.getElementById("team-custom-end")?.value;
-            if (!s || !e) return;
+  if (weekFilterSel) {
+    weekFilterSel.addEventListener("change", () => {
+      this.teamWeekFilter = weekFilterSel.value;
+      this.renderTeam();
+    });
+  }
 
-            this._teamCustomRange.active = true;
-            this._teamCustomRange.start = s;
-            this._teamCustomRange.end = e;
-            this.teamPeriod = "custom";
-            pop?.classList.add("hidden");
-            this.renderTeam();
-          });
-        }
+  if (weekSelect) {
+    weekSelect.addEventListener("change", () => {
+      this._teamSelectedWeek = weekSelect.value || "";
+      if (this._teamSelectedWeek) {
+        this.teamPeriod = "selected-week";
+      }
+      this.renderTeam();
+    });
+  }
 
-        if (clear) {
-          clear.addEventListener("click", () => {
-            document.getElementById("team-custom-start").value = "";
-            document.getElementById("team-custom-end").value = "";
-            this._teamCustomRange.active = false;
-            this.teamPeriod = "today";
-            pop?.classList.add("hidden");
-            this.renderTeam();
-          });
-        }
-      },
-      
-      getAgentStage(agent) {
-        const s = String(this.pick(agent, [
-          "employment_status", "Employment Status", "Stage", "Status"
-        ], "active")).toLowerCase().trim();
+  this.populateTeamWeekDropdown();
 
-        if (s.includes("active")) return "active";
-        if (s.includes("onboard")) return "onboarding";
-        if (s.includes("offboard")) return "offboarded";
-        return "active"; 
-      },
-      
-      isAgentWarned(agent) { 
-          const s = String(this.pick(agent, ["Warned","Tags"], "")).toLowerCase(); 
-          return s.includes("warned"); 
-      },
-      
-      setTeamSort(key) {
-        if (this.teamSortKey === key) this.teamSortDir = this.teamSortDir === "asc" ? "desc" : "asc";
-        else { this.teamSortKey = key; this.teamSortDir = "desc"; }
-        this.renderTeam();
-      },
+  const toggle = document.getElementById("team-custom-toggle");
+  const pop = document.getElementById("team-custom-popover");
+  const apply = document.getElementById("team-custom-apply");
+  const clear = document.getElementById("team-custom-clear");
 
-            isSetterAnalyticsAgent(agent) {
-        if (!agent) return false;
+  if (toggle && pop) {
+    toggle.addEventListener("click", (e) => {
+      e.preventDefault();
+      pop.classList.toggle("hidden");
+    });
+  }
 
-        const employmentStatus = String(agent.employment_status || "").toLowerCase().trim();
-        const role = String(agent.role || agent.Role || "").toLowerCase().trim();
-        const position = String(agent.position || "").toLowerCase().trim();
-        const name = String(agent.agent_name || agent.name || "").trim().toLowerCase();
+  if (apply) {
+    apply.addEventListener("click", () => {
+      const s = document.getElementById("team-custom-start")?.value;
+      const e = document.getElementById("team-custom-end")?.value;
+      if (!s || !e) return;
 
-        // Exclude obvious non-setter system/admin records
-        if (!name) return false;
-        if (role === "admin") return false;
-        if (role === "team_leader") return false;
+      this._teamCustomRange.active = true;
+      this._teamCustomRange.start = s;
+      this._teamCustomRange.end = e;
+      this.teamPeriod = "custom";
+      this._teamSelectedWeek = "";
+      if (weekSelect) weekSelect.value = "";
 
-        // Only active setters belong in Team / Team Performance
-        if (employmentStatus !== "active") return false;
+      pop?.classList.add("hidden");
+      this.renderTeam();
+    });
+  }
 
-        // Exclude non-setter functional groups if they were accidentally left active
-        if (["backend", "sales", "admin", "operations", "operation", "management"].includes(employmentStatus)) return false;
-        if (["admin", "team lead", "team_leader", "sales", "manager", "operations manager", "backend"].includes(position)) return false;
+  if (clear) {
+    clear.addEventListener("click", () => {
+      document.getElementById("team-custom-start").value = "";
+      document.getElementById("team-custom-end").value = "";
+      this._teamCustomRange.active = false;
+      this.teamPeriod = "today";
+      this._teamSelectedWeek = "";
+      if (weekSelect) weekSelect.value = "";
 
-        return true;
-      },
+      pop?.classList.add("hidden");
+      this.renderTeam();
+    });
+  }
+},
 
-      // --- SMART NAME MATCHER ---
-      getOfficialAgentName(rawName) {
-          const agents = window.portal?.adminState?.agents || [];
-          let typed = String(rawName || "").toLowerCase().trim();
-          if (!typed || typed === "unknown") return "Unknown";
+populateTeamWeekDropdown() {
+  const select = document.getElementById("team-week-select");
+  if (!select) return;
 
-          // 1. Check for Exact Match
-          let match = agents.find(a => String(a.agent_name || a.name || "").toLowerCase().trim() === typed);
-          
-          // 2. Check for Partial Match ("Jane Tobias" inside "Charo Jane Tobias")
-          if (!match) {
-              match = agents.find(a => {
-                  const official = String(a.agent_name || a.name || "").toLowerCase().trim();
-                  return official && (official.includes(typed) || typed.includes(official));
-              });
-          }
+  const state = this.getState();
+  const rows = Array.isArray(state.payrollWeeklyFactView)
+    ? state.payrollWeeklyFactView
+    : [];
 
-          if (match) return String(match.agent_name || match.name || "").trim();
-          
-          // Fallback if not found
-          return typed.replace(/\b\w/g, char => char.toUpperCase());
-      },
+  const weeks = [];
+  const seen = new Set();
 
-      _computeAgentMetrics(name, leads, start, end) {
-        const inRange = leads.filter(l => {
-          const rawA = this.pick(l, ["appointment_coordinator_name", "Appointment Coordinator Name", "agent_name", "Agent Name", "AGENT"], "");
-          const a = this.getOfficialAgentName(rawA); // <-- USES SMART MATCHER
-          const dt = this.getLeadDateObj(l);
-          return dt && dt >= start && dt <= end && a.toLowerCase() === String(name).trim().toLowerCase();
-        });
+  rows.forEach(r => {
+    const start = r.week_start;
+    const end = r.week_end;
+    if (!start || !end) return;
 
-        let q = 0, c = 0, r = 0, p = 0;
+    const key = `${start}|${end}`;
+    if (seen.has(key)) return;
 
-        inRange.forEach(l => {
-          const st = String(l.status || l.STATUS || l.Lead_Status || "").toLowerCase();
-          if (st.includes('approv') || st.includes('confirm')) { q++; } 
-          else if (st.includes('credit')) { c++; } 
-          else if (st.includes('reject')) { r++; } 
-          else { p++; }
-        });
+    seen.add(key);
+    weeks.push({ start, end });
+  });
 
-        return { total: inRange.length, qualified: q, credited: c, rejected: r, pending: p, cancelRate: (q + c > 0) ? Math.round((c / (q + c)) * 100) : 0, leads: inRange };
-      },
-      
-     renderTeam() {
+  weeks.sort((a, b) => String(b.start).localeCompare(String(a.start)));
+
+  const currentValue = select.value;
+
+  select.innerHTML = `<option value="">Select Week</option>` + weeks.map(w => `
+    <option value="${w.start}|${w.end}">
+      ${w.start} → ${w.end}
+    </option>
+  `).join("");
+
+  if (currentValue && Array.from(select.options).some(o => o.value === currentValue)) {
+    select.value = currentValue;
+  }
+},
+
+getAgentStage(agent) {
+  const s = String(this.pick(agent, [
+    "employment_status", "Employment Status", "Stage", "Status"
+  ], "active")).toLowerCase().trim();
+
+  if (s.includes("active")) return "active";
+  if (s.includes("onboard")) return "onboarding";
+  if (s.includes("offboard")) return "offboarded";
+  return "active"; 
+},
+
+isAgentWarned(agent) { 
+  return String(agent.team_tag || "").toLowerCase().trim() === "warned";
+},
+
+setTeamSort(key) {
+  if (this.teamSortKey === key) {
+    this.teamSortDir = this.teamSortDir === "asc" ? "desc" : "asc";
+  } else {
+    this.teamSortKey = key;
+    this.teamSortDir = key === "name" ? "asc" : "desc";
+  }
+
+  this.renderTeam();
+},
+
+isSetterAnalyticsAgent(agent) {
+  if (!agent) return false;
+
+  const employmentStatus = String(agent.employment_status || "").toLowerCase().trim();
+  const role = String(agent.role || agent.Role || "").toLowerCase().trim();
+  const position = String(agent.position || "").toLowerCase().trim();
+  const name = String(agent.agent_name || agent.name || "").trim().toLowerCase();
+
+  if (!name) return false;
+  if (role === "admin") return false;
+  if (role === "team_leader") return false;
+  if (employmentStatus !== "active") return false;
+
+  if (["backend", "sales", "admin", "operations", "operation", "management"].includes(employmentStatus)) return false;
+  if (["admin", "team lead", "team_leader", "sales", "manager", "operations manager", "backend"].includes(position)) return false;
+
+  return true;
+},
+
+getOfficialAgentName(rawName) {
+  const agents = window.portal?.adminState?.agents || [];
+  let typed = String(rawName || "").toLowerCase().trim();
+  if (!typed || typed === "unknown") return "Unknown";
+
+  let match = agents.find(a => String(a.agent_name || a.name || "").toLowerCase().trim() === typed);
+  
+  if (!match) {
+    match = agents.find(a => {
+      const official = String(a.agent_name || a.name || "").toLowerCase().trim();
+      return official && (official.includes(typed) || typed.includes(official));
+    });
+  }
+
+  if (match) return String(match.agent_name || match.name || "").trim();
+  
+  return typed.replace(/\b\w/g, char => char.toUpperCase());
+},
+
+_computeAgentMetrics(name, leads, start, end) {
+  const inRange = leads.filter(l => {
+    const rawA = this.pick(l, ["appointment_coordinator_name", "Appointment Coordinator Name", "agent_name", "Agent Name", "AGENT"], "");
+    const a = this.getOfficialAgentName(rawA);
+    const dt = this.getLeadDateObj(l);
+    return dt && dt >= start && dt <= end && a.toLowerCase() === String(name).trim().toLowerCase();
+  });
+
+  let q = 0, c = 0, r = 0, p = 0;
+
+  inRange.forEach(l => {
+    const st = String(l.status || l.STATUS || l.Lead_Status || "").toLowerCase();
+    if (st.includes("approv") || st.includes("confirm")) q++;
+    else if (st.includes("credit")) c++;
+    else if (st.includes("reject")) r++;
+    else p++;
+  });
+
+  return {
+    total: inRange.length,
+    qualified: q,
+    credited: c,
+    rejected: r,
+    pending: p,
+    cancelRate: (q + c > 0) ? Math.round((c / (q + c)) * 100) : 0,
+    leads: inRange
+  };
+},
+
+renderTeam() {
   const state = this.getState();
   const leads = Array.isArray(state?.leads) ? state.leads : [];
   const agents = Array.isArray(state?.agents) ? state.agents : [];
 
+  this.populateTeamWeekDropdown();
+
   const { start, end, label } = this.getTeamRangeFor();
 
   const q = String(document.getElementById("team-search")?.value || "").toLowerCase().trim();
-  const stageFilter = document.getElementById("team-stage-filter")?.value || "active";
-  const warnedFilter = document.getElementById("team-warned-filter")?.value || "all";
+  const weekFilter = document.getElementById("team-week-filter")?.value || "all";
 
-  const agentRows = [];
+  const getWeekNumber = (agent) => {
+    const raw = agent.active_start_date || agent.start_date || "";
+    if (!raw) return null;
 
-  agents.forEach(a => {
-    if (!a) return;
+    const activeStart = new Date(raw + "T00:00:00");
+    if (isNaN(activeStart.getTime())) return null;
 
-    const stage = this.getAgentStage(a);
-    if (stageFilter !== "all" && stage !== stageFilter) return;
-    if (!this.isSetterAnalyticsAgent(a) && stage === "active") return;
+    const diffDays = Math.floor((start - activeStart) / 86400000);
+    if (diffDays < 0) return 1;
 
-    const name = String(a.name || a.agent_name || "").trim();
-    if (!name) return;
-
-    const warned = this.isAgentWarned(a);
-    if (warnedFilter === "warned" && !warned) return;
-    if (warnedFilter === "not-warned" && warned) return;
-    if (q && !name.toLowerCase().includes(q)) return;
-
-    const activeCallingDate =
-  a.active_start_date ||
-  a.active_calling_date ||
-  "";
-
-    agentRows.push({
-  name,
-  email: String(a.agent_email || a.email || "").trim().toLowerCase(),
-  stage,
-  warned,
-  activeCallingDate,
-  ...this._computeAgentMetrics(name, leads, start, end)
-});
-  });
-
-  const grouped = new Map();
-
-  agentRows.forEach(row => {
-    const key = String(row.activeCallingDate || "No Active Calling Date").trim();
-    if (!grouped.has(key)) grouped.set(key, []);
-    grouped.get(key).push(row);
-  });
-
-  const waveDatesOldestFirst = Array.from(grouped.keys())
-    .sort((a, b) => {
-      if (a === "No Active Calling Date") return 1;
-      if (b === "No Active Calling Date") return -1;
-      return new Date(a) - new Date(b);
-    });
-
-  const waveNumberByDate = new Map();
-  waveDatesOldestFirst.forEach((dateKey, idx) => {
-    waveNumberByDate.set(dateKey, idx + 1);
-  });
-
- const waveDatesNewestFirst = [...waveDatesOldestFirst]
-  .filter(d => d !== "No Active Calling Date")
-  .reverse();
-
-if (grouped.has("No Active Calling Date")) {
-  waveDatesNewestFirst.push("No Active Calling Date");
-}
-
-  const countEl = document.getElementById("team-count");
-  if (countEl) countEl.textContent = agentRows.length;
-
-  const rangeEl = document.getElementById("team-range-label");
-  if (rangeEl) rangeEl.textContent = `${label}: ${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
-
-  const tbody = document.getElementById("team-body");
-  if (!tbody) return;
-
-  if (!agentRows.length) {
-    tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No agents found matching criteria.</td></tr>`;
-    return;
-  }
-
-  const stageBadge = () => `<span class="text-[10px] font-extrabold uppercase text-emerald-600">ACTIVE</span>`;
-
-  const formatDate = (value) => {
-    if (!value || value === "No Active Calling Date") return "No Active Calling Date";
-    const d = new Date(`${value}T00:00:00`);
-    if (isNaN(d.getTime())) return value;
-    return d.toLocaleDateString();
+    return Math.floor(diffDays / 7) + 1;
   };
 
-  const key = this.teamSortKey;
+  let rows = agents.map(a => {
+    const stage = this.getAgentStage(a);
+    const name = String(a.name || a.agent_name || "").trim();
+    if (!name) return null;
+
+    const weekNo = getWeekNumber(a);
+    const warned = this.isAgentWarned(a);
+
+    return {
+      id: String(a.id || ""),
+      name,
+      email: String(a.agent_email || a.email || "").trim().toLowerCase(),
+      stage,
+      warned,
+      weekNo,
+      ...this._computeAgentMetrics(name, leads, start, end)
+    };
+  }).filter(Boolean);
+
+  rows = rows.filter(r => {
+    if (r.stage === "offboarded") return false;
+    if (r.stage === "active" && !agents.find(a => String(a.id || "") === String(r.id || "") && this.isSetterAnalyticsAgent(a))) return false;
+    if (weekFilter !== "all" && String(r.weekNo || "") !== String(weekFilter)) return false;
+    if (q && !`${r.name} ${r.email}`.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  const key = this.teamSortKey || "name";
   const dir = this.teamSortDir === "asc" ? 1 : -1;
 
   const sorters = {
@@ -6254,59 +6235,123 @@ if (grouped.has("No Active Calling Date")) {
     rejected: (a,b) => (a.rejected - b.rejected) * dir,
     qualified: (a,b) => (a.qualified - b.qualified) * dir,
     credited: (a,b) => (a.credited - b.credited) * dir,
-    pending: (a,b) => (a.pending - b.pending) * dir,
     cancelRate: (a,b) => (a.cancelRate - b.cancelRate) * dir,
   };
 
-  let html = "";
+  rows = [...rows].sort(sorters[key] || sorters.name);
 
-  waveDatesNewestFirst.forEach(dateKey => {
-    const waveNo = waveNumberByDate.get(dateKey);
-    let rows = grouped.get(dateKey) || [];
+  const countEl = document.getElementById("team-count");
+  if (countEl) countEl.textContent = rows.length;
 
-    if (sorters[key]) rows = [...rows].sort(sorters[key]);
-    else rows = [...rows].sort((a, b) => a.name.localeCompare(b.name));
+  const rangeEl = document.getElementById("team-range-label");
+  if (rangeEl) rangeEl.textContent = `${label}: ${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
 
-    html += `
-  <tr>
-    <td colspan="7" class="p-0">
-      <div class="m-3 rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 px-5 py-4 shadow-sm">
-        <div class="flex items-center justify-between gap-3">
-          <div>
-            <div class="text-lg font-black text-gray-900">
-              Wave ${waveNo}
-            </div>
-            <div class="text-xs font-bold text-gray-500 mt-1">
-              Active Calling Date: ${formatDate(dateKey)}
-            </div>
-          </div>
+  const tbody = document.getElementById("team-body");
+  if (!tbody) return;
 
-          <div class="px-3 py-1 rounded-full bg-white border border-gray-200 text-xs font-black text-gray-700">
-            ${rows.length} agent${rows.length === 1 ? "" : "s"}
-          </div>
-        </div>
-      </div>
-    </td>
-  </tr>
-`;
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-gray-400 italic">No agents found matching criteria.</td></tr>`;
+    return;
+  }
 
-    html += rows.map(r => `
+  tbody.innerHTML = rows.map(r => {
+    const weekBadge = r.weekNo
+      ? `<span class="ml-2 text-[10px] font-black text-blue-700 bg-blue-50 border border-blue-100 px-2 py-1 rounded-full">Week ${r.weekNo}</span>`
+      : "";
+
+    const warnedBadge = r.warned
+      ? `<span class="ml-2 text-[10px] font-black text-orange-700 bg-orange-50 border border-orange-100 px-2 py-1 rounded-full">WARNED</span>`
+      : "";
+
+    const safeName = String(r.name).replace(/'/g,"\\'");
+    const safeEmail = String(r.email || "").replace(/'/g,"\\'");
+
+    return `
       <tr class="hover:bg-gray-50">
         <td class="p-4 font-bold text-gray-900">
-          <button class="hover:underline" onclick="Admin.openAgentModal('${String(r.name).replace(/'/g,"\\'")}', '${String(r.email || "").replace(/'/g,"\\'")}')">${r.name}</button>
-          <div class="mt-1">${stageBadge()} ${r.warned ? `<span class="ml-2 text-[10px] font-extrabold text-orange-600">WARNED</span>` : ""}</div>
+          <button class="hover:underline" onclick="Admin.openAgentModal('${safeName}', '${safeEmail}')">${r.name}</button>
+
+          <div class="mt-2 flex items-center gap-1 flex-wrap">
+            <select
+              class="border border-gray-200 rounded-lg px-2 py-1 text-[11px] font-black bg-white"
+              onchange="Admin.updateTeamAgentTag('${r.id}', this.value)"
+            >
+              <option value="active" ${r.stage === "active" && !r.warned ? "selected" : ""}>Active</option>
+              <option value="offboarded" ${r.stage === "offboarded" ? "selected" : ""}>Offboarded</option>
+              <option value="warned" ${r.warned ? "selected" : ""}>Warned</option>
+            </select>
+
+            ${weekBadge}
+            ${warnedBadge}
+          </div>
         </td>
-        <td class="p-4 text-center text-gray-700 font-semibold">${r.total}</td>
-        <td class="p-4 text-center text-red-500 font-bold">${r.rejected}</td>
-        <td class="p-4 text-center text-blue-500 font-bold">${r.qualified}</td>
-        <td class="p-4 text-center text-purple-500 font-bold">${r.credited}</td>
-        <td class="p-4 text-center text-yellow-600 font-bold">${r.pending}</td>
+
+        <td class="p-4 text-center text-gray-700 font-semibold">
+          <button class="hover:underline" onclick="Admin.openAgentModal('${safeName}', '${safeEmail}')">${r.total}</button>
+        </td>
+
+        <td class="p-4 text-center text-red-500 font-bold">
+          <button class="hover:underline" onclick="Admin.openAgentModal('${safeName}', '${safeEmail}')">${r.rejected}</button>
+        </td>
+
+        <td class="p-4 text-center text-blue-500 font-bold">
+          <button class="hover:underline" onclick="Admin.openAgentModal('${safeName}', '${safeEmail}')">${r.qualified}</button>
+        </td>
+
+        <td class="p-4 text-center text-purple-500 font-bold">
+          <button class="hover:underline" onclick="Admin.openAgentModal('${safeName}', '${safeEmail}')">${r.credited}</button>
+        </td>
+
         <td class="p-4 text-center text-gray-700 font-semibold">${r.cancelRate}%</td>
       </tr>
-    `).join("");
-  });
+    `;
+  }).join("");
+},
 
-  tbody.innerHTML = html;
+async updateTeamAgentTag(agentId, value) {
+  if (!agentId || !supaClient) {
+    alert("Database connection missing.");
+    return;
+  }
+
+  const v = String(value || "").toLowerCase();
+
+  let payload = {};
+
+  if (v === "warned") {
+    payload = {
+      team_tag: "warned"
+    };
+  } else if (v === "active") {
+    payload = {
+      employment_status: "active",
+      team_tag: "normal",
+      offboarded_date: null
+    };
+  } else if (v === "offboarded") {
+    payload = {
+      employment_status: "offboarded",
+      team_tag: "normal",
+      offboarded_date: new Date().toISOString().slice(0, 10)
+    };
+  }
+
+  const { error } = await supaClient
+    .from("agents")
+    .update(payload)
+    .eq("id", agentId);
+
+  if (error) {
+    console.error("Team tag/status update failed:", error);
+    alert("Failed to update agent.");
+    return;
+  }
+
+  if (window.portal?.fetchAdminData) {
+    await window.portal.fetchAdminData(true);
+  } else {
+    this.renderTeam();
+  }
 },
       openAgentModal(name, email = "") {
   this._agentSelectedName = name;
