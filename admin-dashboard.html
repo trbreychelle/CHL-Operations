@@ -970,7 +970,11 @@ body.client-health-lock {
       <option value="not_done">Not Done</option>
     </select>
 
-    <div></div>
+    <select id="ob-sort-mode" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+  <option value="latest" selected>Sort: Latest Sales/Renewal First</option>
+  <option value="code_asc">Code: Low to High</option>
+  <option value="code_desc">Code: High to Low</option>
+</select>
     <div></div>
     <div></div>
 
@@ -8786,29 +8790,60 @@ if (qualifiesRaffle) {
   const packages = Array.isArray(state?.packages) ? state.packages : [];
   const drafts = this._onboardingDrafts || {};
 
-  const packageClientCodes = new Set(
-    packages
-      .map(p => String(p.client_code || "").trim().toLowerCase())
-      .filter(Boolean)
-  );
+  const packageMetaByCode = new Map();
+
+  packages.forEach(p => {
+    const code = String(p.client_code || "").trim();
+    if (!code) return;
+
+    const key = code.toLowerCase();
+    const purchaseDate = p.purchase_date || p.created_at || null;
+    const current = packageMetaByCode.get(key);
+
+    const currentTime = current?.latest_package_date ? new Date(current.latest_package_date).getTime() : 0;
+    const nextTime = purchaseDate ? new Date(purchaseDate).getTime() : 0;
+
+    const dealType = String(p.deal_type || p.package_type || "").toLowerCase();
+    const isRenewal =
+      dealType.includes("renew") ||
+      Number(p.package_seq || 1) > 1;
+
+    if (!current || nextTime >= currentTime) {
+      packageMetaByCode.set(key, {
+        latest_package_date: purchaseDate,
+        is_renewal: isRenewal,
+        package_count: (current?.package_count || 0) + 1
+      });
+    } else {
+      current.package_count = (current.package_count || 0) + 1;
+      if (isRenewal) current.is_renewal = true;
+      packageMetaByCode.set(key, current);
+    }
+  });
 
   const byCode = new Map(
     onboarding.map(row => [String(row.client_code || "").trim().toLowerCase(), row])
   );
 
-  return clients
+  const rows = clients
     .filter(c => {
       const clientCode = String(c.client_code || c.code_name || "").trim().toLowerCase();
-      return clientCode && packageClientCodes.has(clientCode);
+      return clientCode && packageMetaByCode.has(clientCode);
     })
     .map(c => {
       const clientCode = String(c.client_code || c.code_name || "").trim();
       const saved = byCode.get(clientCode.toLowerCase()) || {};
       const draft = drafts[clientCode] || {};
+      const meta = packageMetaByCode.get(clientCode.toLowerCase()) || {};
+
+      const hasSavedOnboarding = !!saved.client_code;
 
       return {
         client_code: clientCode,
         company_name: c.company_name || c.roofing_company || "—",
+        latest_package_date: meta.latest_package_date || null,
+        is_renewal: !!meta.is_renewal || Number(meta.package_count || 0) > 1,
+        is_new_onboarding: !hasSavedOnboarding,
 
         client_paid: draft.client_paid ?? !!saved.client_paid,
         contract_sent: draft.contract_sent ?? !!saved.contract_sent,
@@ -8822,8 +8857,25 @@ if (qualifiesRaffle) {
 
         notes: draft.notes ?? (saved.notes || "")
       };
-    })
-    .sort((a, b) => a.company_name.localeCompare(b.company_name));
+    });
+
+  const sortMode = document.getElementById("ob-sort-mode")?.value || "latest";
+
+  const codeNum = code => {
+    const m = String(code || "").match(/(\d+)/);
+    return m ? Number(m[1]) : 999999;
+  };
+
+  rows.sort((a, b) => {
+    if (sortMode === "code_asc") return codeNum(a.client_code) - codeNum(b.client_code);
+    if (sortMode === "code_desc") return codeNum(b.client_code) - codeNum(a.client_code);
+
+    const at = a.latest_package_date ? new Date(a.latest_package_date).getTime() : 0;
+    const bt = b.latest_package_date ? new Date(b.latest_package_date).getTime() : 0;
+    return bt - at;
+  });
+
+  return rows;
 },
 
       
@@ -8863,7 +8915,7 @@ bindOnboardingFilters() {
   if (this._onboardingFiltersBound) return;
   this._onboardingFiltersBound = true;
 
-  const ids = [
+  const filterIds = [
     "onboarding-search",
     "ob-filter-paid",
     "ob-filter-contract-sent",
@@ -8876,9 +8928,15 @@ bindOnboardingFilters() {
     "ob-filter-ready"
   ];
 
-  ids.forEach(id => {
+  const allBoundIds = [
+    ...filterIds,
+    "ob-sort-mode"
+  ];
+
+  allBoundIds.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
+
     const evt = id === "onboarding-search" ? "input" : "change";
     el.addEventListener(evt, () => this.renderOnboardingTab());
   });
@@ -8889,11 +8947,14 @@ bindOnboardingFilters() {
       const search = document.getElementById("onboarding-search");
       if (search) search.value = "";
 
-      ids.forEach(id => {
+      filterIds.forEach(id => {
         if (id === "onboarding-search") return;
         const el = document.getElementById(id);
         if (el) el.value = "all";
       });
+
+      const sort = document.getElementById("ob-sort-mode");
+      if (sort) sort.value = "latest";
 
       this.renderOnboardingTab();
     });
@@ -8942,9 +9003,19 @@ renderOnboardingTab() {
 const rows = this.getFilteredOnboardingRows();
 
   tbody.innerHTML = rows.map(row => `
-  <tr class="border-b border-gray-100 hover:bg-gray-50 transition-all" data-onboarding-code="${row.client_code}">
+ <tr class="border-b border-gray-100 transition-all ${
+  row.is_new_onboarding
+    ? 'bg-emerald-50 ring-2 ring-emerald-200'
+    : 'hover:bg-gray-50'
+}" data-onboarding-code="${row.client_code}">
     <td class="p-3 font-semibold text-gray-700">${row.client_code}</td>
-    <td class="p-3 text-gray-800">${row.company_name}</td>
+   <td class="p-3 text-gray-800">
+  <div class="font-semibold">${row.company_name}</div>
+  <div class="flex gap-2 mt-1">
+    ${row.is_new_onboarding ? `<span class="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-black">NEW</span>` : ""}
+    ${row.is_renewal ? `<span class="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-black">RENEWAL</span>` : ""}
+  </div>
+</td>
 
     <td class="p-3">
       <input type="checkbox" class="onboard-checkbox"
