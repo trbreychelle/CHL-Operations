@@ -5929,18 +5929,26 @@ document.getElementById("passbook-count").textContent = rows.length;
         }
       },
 
-      setTeamPeriod(period, btnElement) {
-        this.teamPeriod = period;
-        if (period !== "custom") {
-          this._teamCustomRange.active = false;
-          this._setCustomActive("team-custom-toggle", false);
-          this._setActiveButton(".team-btn", btnElement);
-        } else {
-          this._setActiveButton(".team-btn", null);
-          this._setCustomActive("team-custom-toggle", true);
-        }
-        this.renderTeam();
-      },
+setTeamPeriod(period, btnElement) {
+  this.teamPeriod = period;
+
+  if (period !== "selected-week") {
+    this._teamSelectedWeek = "";
+    const weekSelect = document.getElementById("team-week-select");
+    if (weekSelect) weekSelect.value = "";
+  }
+
+  if (period !== "custom") {
+    this._teamCustomRange.active = false;
+    this._setCustomActive("team-custom-toggle", false);
+    this._setActiveButton(".team-btn", btnElement);
+  } else {
+    this._setActiveButton(".team-btn", null);
+    this._setCustomActive("team-custom-toggle", true);
+  }
+
+  this.renderTeam();
+},
       
   getTeamRangeFor() {
   const state = this.getState();
@@ -5976,7 +5984,12 @@ bindTeamUI() {
   const weekFilterSel = document.getElementById("team-week-filter");
   const weekSelect = document.getElementById("team-week-select");
 
-  if (search) search.addEventListener("input", () => this.renderTeam());
+ if (search) {
+  search.addEventListener("input", () => {
+    cancelAnimationFrame(this._teamSearchFrame);
+    this._teamSearchFrame = requestAnimationFrame(() => this.renderTeam());
+  });
+}
 
   if (weekFilterSel) {
     weekFilterSel.addEventListener("change", () => {
@@ -6199,33 +6212,43 @@ renderTeam() {
     return Math.floor(diffDays / 7) + 1;
   };
 
-  let rows = agents.map(a => {
-    const stage = this.getAgentStage(a);
-    const name = String(a.name || a.agent_name || "").trim();
-    if (!name) return null;
+let baseAgents = agents.map(a => {
+  const stage = this.getAgentStage(a);
+  const name = String(a.name || a.agent_name || "").trim();
+  if (!name) return null;
 
-    const weekNo = getWeekNumber(a);
-    const warned = this.isAgentWarned(a);
+  const weekNo = getWeekNumber(a);
+  const warned = this.isAgentWarned(a);
+  const email = String(a.agent_email || a.email || "").trim().toLowerCase();
 
-    return {
-      id: String(a.id || ""),
-      name,
-      email: String(a.agent_email || a.email || "").trim().toLowerCase(),
-      stage,
-      warned,
-      weekNo,
-      ...this._computeAgentMetrics(name, leads, start, end)
-    };
-  }).filter(Boolean);
+  return {
+    raw: a,
+    id: String(a.id || ""),
+    name,
+    email,
+    stage,
+    warned,
+    weekNo
+  };
+}).filter(Boolean);
 
-  rows = rows.filter(r => {
-    if (r.stage === "offboarded") return false;
-    if (r.stage === "active" && !agents.find(a => String(a.id || "") === String(r.id || "") && this.isSetterAnalyticsAgent(a))) return false;
-    if (weekFilter !== "all" && String(r.weekNo || "") !== String(weekFilter)) return false;
-    if (q && !`${r.name} ${r.email}`.toLowerCase().includes(q)) return false;
-    return true;
-  });
+baseAgents = baseAgents.filter(r => {
+  if (r.stage === "offboarded") return false;
+  if (r.stage === "active" && !this.isSetterAnalyticsAgent(r.raw)) return false;
+  if (weekFilter !== "all" && String(r.weekNo || "") !== String(weekFilter)) return false;
+  if (q && !`${r.name} ${r.email}`.toLowerCase().includes(q)) return false;
+  return true;
+});
 
+let rows = baseAgents.map(r => ({
+  id: r.id,
+  name: r.name,
+  email: r.email,
+  stage: r.stage,
+  warned: r.warned,
+  weekNo: r.weekNo,
+  ...this._computeAgentMetrics(r.name, leads, start, end)
+}));
   const key = this.teamSortKey || "name";
   const dir = this.teamSortDir === "asc" ? 1 : -1;
 
