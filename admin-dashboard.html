@@ -652,14 +652,7 @@ body.client-health-lock {
   >
     Afternoon Shift
   </button>
-      <button
-        id="daily-tab-board"
-        type="button"
-        onclick="Admin.setDailyStrategySubtab('board')"
-        class="px-4 py-2 rounded-2xl bg-white text-slate-900 text-xs font-black shadow"
-      >
-        Board
-      </button>
+     
       <button
         id="daily-tab-history"
         type="button"
@@ -6773,7 +6766,23 @@ return `
 
     const rawClients = Array.isArray(this.getState().rawClients) ? this.getState().rawClients : [];
     const timeEvents = Array.isArray(this.getState().timeEvents) ? this.getState().timeEvents : [];
-    const historyRows = Array.isArray(this.getState().clientPackageAllocationView) ? this.getState().clientPackageAllocationView : [];
+    let historyRows = [];
+
+const { data: strategyHistoryRows, error: strategyHistoryErr } = await supaClient
+  .from("daily_strategy_history_view")
+  .select("*")
+  .eq("organization_id", orgId)
+  .eq("week_start", selectedWeekStart)
+  .eq("shift_key", this.dailyStrategyShift)
+  .order("strategy_date", { ascending: true })
+  .order("lane", { ascending: true })
+  .order("position_index", { ascending: true });
+
+if (strategyHistoryErr) {
+  console.error("Daily strategy history load failed:", strategyHistoryErr);
+}
+
+historyRows = Array.isArray(strategyHistoryRows) ? strategyHistoryRows : [];
     const clientHealthRows = Array.isArray(this.clientHealthRaw) ? this.clientHealthRaw : [];
 
     const companyByCode = new Map(
@@ -7250,9 +7259,7 @@ if (isTodaySelected) {
       }).join("");
     }
 
-    this.dailyStrategyHistoryRows = historyRows
-      .filter(r => String(r.week_start || "") === String(selectedWeekStart || ""))
-      .filter(r => String(r.strategy_date || "") === String(this.dailyStrategySelectedDate || ""));
+this.dailyStrategyHistoryRows = historyRows;
 
     historyCountEl.textContent = `${this.dailyStrategyHistoryRows.length} row${this.dailyStrategyHistoryRows.length === 1 ? "" : "s"}`;
 
@@ -9174,29 +9181,19 @@ async saveOnboardingRow(clientCode) {
       setDailyStrategySubtab(tab) {
   this.dailyStrategySubtab = tab === 'history' ? 'history' : 'board';
 
-  const boardBtn = document.getElementById('daily-tab-board');
   const historyBtn = document.getElementById('daily-tab-history');
   const boardView = document.getElementById('dailyStrategyBoardView');
   const historyView = document.getElementById('dailyStrategyHistoryView');
 
-  if (boardBtn && historyBtn) {
-    if (this.dailyStrategySubtab === 'board') {
-      boardBtn.className = 'px-4 py-2 rounded-2xl bg-white text-slate-900 text-xs font-black shadow';
-      historyBtn.className = 'px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black';
-    } else {
-      historyBtn.className = 'px-4 py-2 rounded-2xl bg-white text-slate-900 text-xs font-black shadow';
-      boardBtn.className = 'px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black';
-    }
+  if (historyBtn) {
+    historyBtn.className = this.dailyStrategySubtab === 'history'
+      ? 'px-4 py-2 rounded-2xl bg-white text-slate-900 text-xs font-black shadow'
+      : 'px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black';
   }
 
   if (boardView && historyView) {
-    if (this.dailyStrategySubtab === 'board') {
-      boardView.classList.remove('hidden');
-      historyView.classList.add('hidden');
-    } else {
-      historyView.classList.remove('hidden');
-      boardView.classList.add('hidden');
-    }
+    boardView.classList.toggle('hidden', this.dailyStrategySubtab === 'history');
+    historyView.classList.toggle('hidden', this.dailyStrategySubtab !== 'history');
   }
 },
 
