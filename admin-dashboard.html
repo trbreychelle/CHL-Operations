@@ -4930,13 +4930,49 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
         if (period === "previous-week") return { start: startOfDay(prevWeekStart), end: endOfDay(prevWeekEndFinal), grain: "day", label: "Previous Week" };
 
         if (period === "4-weeks") {
-          const end = endOfDay(thisWeekEnd); const start = new Date(end); start.setDate(start.getDate() - 27); start.setHours(0,0,0,0);
-          return { start, end, grain: "week", label: "Last 4 Weeks" };
-        }
-        if (period === "6-weeks") {
-          const end = endOfDay(thisWeekEnd); const start = new Date(end); start.setDate(start.getDate() - 41); start.setHours(0,0,0,0);
-          return { start, end, grain: "week", label: "Last 6 Weeks" };
-        }
+  // Last 4 completed payroll weeks, NOT including current week
+  const end = endOfDay(prevWeekEndFinal);
+  const start = new Date(prevWeekStart);
+  start.setDate(start.getDate() - 21);
+  start.setHours(0,0,0,0);
+
+  return {
+    start,
+    end,
+    grain: "week",
+    label: "Last 4 Weeks"
+  };
+}
+
+if (period === "30-days") {
+  // Last 30 calendar days including today
+  const end = endOfDay(now);
+  const start = new Date(end);
+  start.setDate(start.getDate() - 29);
+  start.setHours(0,0,0,0);
+
+  return {
+    start,
+    end,
+    grain: "day",
+    label: "Last 30 Days"
+  };
+}
+
+if (period === "6-weeks") {
+  // Last 6 completed payroll weeks, NOT including current week
+  const end = endOfDay(prevWeekEndFinal);
+  const start = new Date(prevWeekStart);
+  start.setDate(start.getDate() - 35);
+  start.setHours(0,0,0,0);
+
+  return {
+    start,
+    end,
+    grain: "week",
+    label: "Last 6 Weeks"
+  };
+}
         return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "Today" };
       },
 
