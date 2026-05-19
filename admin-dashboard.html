@@ -6372,7 +6372,12 @@ let rows = baseAgents.map(r => ({
     return `
       <tr class="hover:bg-gray-50">
         <td class="p-4 font-bold text-gray-900">
-         <span>${r.name}</span>
+        <button
+  class="font-bold hover:text-blue-600 hover:underline"
+  onclick="Admin.openAgentModal('${safeName}', '${safeEmail}')"
+>
+  ${r.name}
+</button>
 
           <div class="mt-2 flex items-center gap-1 flex-wrap">
             <select
@@ -6660,163 +6665,136 @@ async updateTeamAgentTag(agentId, value) {
         this.renderAgentLeads();
       },
 
-      renderAgentLeads() {
+     renderAgentLeads() {
   const state = this.getState();
-  const leads = Array.isArray(state?.leads) ? state.leads : [];
-const name = this._agentSelectedName || "Agent";
-const selectedEmail = String(this._agentSelectedEmail || "").trim().toLowerCase();
 
-  const titleEl = document.getElementById("agent-modal-title");
-  if (titleEl) {
-    titleEl.textContent = `${name} — Weekly Performance`;
-  }
+  const leads = Array.isArray(state?.leads)
+    ? state.leads
+    : [];
 
-  const subEl = document.getElementById("agent-modal-sub");
-  if (subEl) {
-    subEl.textContent = "Most recent week shown first";
-  }
+  const agents = Array.isArray(state?.agents)
+    ? state.agents
+    : [];
+
+  const name = this._agentSelectedName || "Agent";
+  const selectedEmail = String(this._agentSelectedEmail || "")
+    .trim()
+    .toLowerCase();
 
   const weeklyBody = document.getElementById("agent-weekly-performance-body");
   const leadsBody = document.getElementById("agent-leads-body");
 
   if (!weeklyBody || !leadsBody) return;
 
- const normalizeAgent = (raw) => {
-  const picked = String(raw || "").trim();
-  if (!picked) return "";
+  const normalizeAgent = (raw) => {
+    return String(raw || "")
+      .trim()
+      .toLowerCase();
+  };
 
-  if (typeof this.getOfficialAgentName === "function") {
-    return String(this.getOfficialAgentName(picked)).trim().toLowerCase();
-  }
+  const agentKey = normalizeAgent(name);
 
-  return picked.toLowerCase();
-};
+  const selectedAgent = agents.find(a => {
+    const n = normalizeAgent(a.agent_name || a.name);
+    const e = String(a.agent_email || a.email || "")
+      .trim()
+      .toLowerCase();
 
-const agentKey = normalizeAgent(name);
-
-const agentLeads = leads.filter(l => {
-  const rawAgent = this.getLeadField(
-    l,
-    [
-      "appointment_coordinator_name",
-      "Appointment Coordinator Name",
-      "agent_name",
-      "Agent Name"
-    ],
-    ""
-  );
-
- const leadEmail = String(
-  this.getLeadField(l, ["agent_email", "Agent Email", "appointment_coordinator_email"], "")
-).trim().toLowerCase();
-
-return normalizeAgent(rawAgent) === agentKey || (selectedEmail && leadEmail === selectedEmail);
-});
-
-  const weekMap = new Map();
-
-  agentLeads.forEach(l => {
-    const dt = this.getLeadDateObj(l);
-    if (!dt || isNaN(dt.getTime())) return;
-
-    const weekStart = window.portal?.getPayrollWeekStart
-      ? window.portal.getPayrollWeekStart(dt)
-      : dt;
-
-    const start = new Date(weekStart);
-    start.setHours(0,0,0,0);
-
-    const end = new Date(start);
-    end.setDate(end.getDate() + 6);
-
-    const key = start.toISOString();
-
-    if (!weekMap.has(key)) {
-      weekMap.set(key, {
-        start,
-        end,
-        leads: []
-      });
-    }
-
-    weekMap.get(key).leads.push(l);
+    return n === agentKey || (selectedEmail && e === selectedEmail);
   });
 
-  let weeks = Array.from(weekMap.values())
-  .sort((a, b) => b.start - a.start);
+  if (!selectedAgent) {
+    weeklyBody.innerHTML = `
+      <tr>
+        <td colspan="7" class="p-6 text-center text-red-500 italic">
+          Agent record not found.
+        </td>
+      </tr>
+    `;
+    return;
+  }
 
-const stateAgents = Array.isArray(state?.agents) ? state.agents : [];
-const selectedAgent = stateAgents.find(a => {
-  const agentName = String(a.agent_name || a.name || "").trim().toLowerCase();
-  const agentEmail = String(a.agent_email || a.email || "").trim().toLowerCase();
+  const activeStartRaw =
+    selectedAgent.active_start_date ||
+    selectedAgent.start_date;
 
-  return (
-    agentName === String(name || "").trim().toLowerCase() ||
-    (selectedEmail && agentEmail === selectedEmail)
-  );
-});
+  if (!activeStartRaw) {
+    weeklyBody.innerHTML = `
+      <tr>
+        <td colspan="7" class="p-6 text-center text-red-500 italic">
+          Missing active_start_date.
+        </td>
+      </tr>
+    `;
+    return;
+  }
 
-const activeStartRaw =
-  selectedAgent?.active_start_date ||
-  selectedAgent?.active_calling_date ||
-  "";
+  const activeStart = new Date(activeStartRaw + "T00:00:00");
 
-if (activeStartRaw) {
-  const activeStart = new Date(`${activeStartRaw}T00:00:00`);
   const today = new Date();
   today.setHours(23, 59, 59, 999);
 
-  if (!isNaN(activeStart.getTime())) {
-    const expectedWeeks = [];
-    let cursor = window.portal?.getPayrollWeekStart
-  ? window.portal.getPayrollWeekStart(activeStart)
-  : new Date(activeStart);
+  const weeks = [];
 
-cursor.setHours(0, 0, 0, 0);
+  let cursor = new Date(activeStart);
 
-    while (cursor <= today) {
-      const start = new Date(cursor);
-      const end = new Date(cursor);
+  while (cursor <= today) {
 
-      const day = start.getDay();
+    const weekStart = new Date(cursor);
+    weekStart.setHours(0,0,0,0);
 
-     end.setDate(start.getDate() + 6);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    weekEnd.setHours(23,59,59,999);
 
-      const key = start.toISOString();
+    const weekLeads = leads.filter(l => {
 
-      expectedWeeks.push({
-        start,
-        end,
-        leads: weekMap.get(key)?.leads || []
-      });
+      const rawAgent =
+        l.appointment_coordinator_name ||
+        l["Appointment Coordinator Name"] ||
+        l.agent_name ||
+        "";
 
-      const nextStart = new Date(end);
-      nextStart.setDate(end.getDate() + 1);
-      cursor = nextStart;
-    }
+      const leadAgent = normalizeAgent(rawAgent);
 
-    weeks = expectedWeeks.sort((a, b) => b.start - a.start);
-  }
-}
-  weeklyBody.innerHTML = weeks.map((week, idx) => {
+      const leadEmail = String(
+        l.agent_email ||
+        l["Agent Email"] ||
+        ""
+      ).trim().toLowerCase();
+
+      if (
+        leadAgent !== agentKey &&
+        (!selectedEmail || leadEmail !== selectedEmail)
+      ) {
+        return false;
+      }
+
+      const dt = this.getLeadDateObj(l);
+
+      if (!dt || isNaN(dt.getTime())) return false;
+
+      return dt >= weekStart && dt <= weekEnd;
+    });
 
     let total = 0;
     let qualified = 0;
     let rejected = 0;
     let credited = 0;
-    let pending = 0;
 
-    week.leads.forEach(l => {
+    weekLeads.forEach(l => {
+
       total++;
 
       const st = String(
-        this.getLeadField(l, ["status", "Status"], "")
+        l.status ||
+        l.Status ||
+        ""
       ).toLowerCase();
 
       if (this.isQualified(st)) qualified++;
       else if (this.isRejected(st)) rejected++;
       else if (this.isCredited(st)) credited++;
-      else pending++;
     });
 
     const cancelRate =
@@ -6824,13 +6802,31 @@ cursor.setHours(0, 0, 0, 0);
         ? Math.round((credited / (qualified + credited)) * 100)
         : 0;
 
-    const startLabel = week.start.toLocaleDateString();
-    const endLabel = week.end.toLocaleDateString();
+    weeks.push({
+      weekNumber: weeks.length + 1,
+      start: new Date(weekStart),
+      end: new Date(weekEnd),
+      leads: weekLeads,
+      total,
+      qualified,
+      rejected,
+      credited,
+      cancelRate
+    });
 
-    const renderMetric = (label, value, colorClass) => {
+    cursor.setDate(cursor.getDate() + 7);
+  }
+
+  weeks.sort((a, b) => b.weekNumber - a.weekNumber);
+
+  this._agentWeeklyRows = weeks;
+
+  weeklyBody.innerHTML = weeks.map((week, idx) => {
+
+    const renderMetric = (type, value, colorClass) => {
       return `
         <button
-          onclick="Admin.openAgentLeadDrilldown(${idx}, '${label}')"
+          onclick="Admin.openAgentLeadDrilldown(${idx}, '${type}')"
           class="${colorClass} font-black hover:underline"
         >
           ${value}
@@ -6838,48 +6834,46 @@ cursor.setHours(0, 0, 0, 0);
       `;
     };
 
-return `
-  <tr class="hover:bg-gray-50 border-b border-gray-100">
+    return `
+      <tr class="hover:bg-gray-50 border-b border-gray-100">
 
-    <td class="p-4 font-black text-gray-900 text-sm">
-      Week ${weeks.length - idx}
-    </td>
+        <td class="p-4 font-black text-gray-900">
+          Week ${week.weekNumber}
+        </td>
 
-    <td class="p-4 font-bold text-gray-700">
-      ${startLabel} → ${endLabel}
-    </td>
+        <td class="p-4 font-bold text-gray-700">
+          ${week.start.toLocaleDateString()} → ${week.end.toLocaleDateString()}
+        </td>
 
-    <td class="p-4 text-center">
-      ${renderMetric("total", total, "text-gray-900")}
-    </td>
+        <td class="p-4 text-center">
+          ${renderMetric("total", week.total, "text-gray-900")}
+        </td>
 
-    <td class="p-4 text-center">
-      ${renderMetric("rejected", rejected, "text-red-500")}
-    </td>
+        <td class="p-4 text-center">
+          ${renderMetric("rejected", week.rejected, "text-red-500")}
+        </td>
 
-    <td class="p-4 text-center">
-      ${renderMetric("qualified", qualified, "text-blue-600")}
-    </td>
+        <td class="p-4 text-center">
+          ${renderMetric("qualified", week.qualified, "text-blue-600")}
+        </td>
 
-    <td class="p-4 text-center">
-      ${renderMetric("credited", credited, "text-purple-600")}
-    </td>
+        <td class="p-4 text-center">
+          ${renderMetric("credited", week.credited, "text-purple-600")}
+        </td>
 
-    <td class="p-4 text-center font-black text-sm ${
-      cancelRate >= 25
-        ? 'text-red-600'
-        : cancelRate >= 15
-          ? 'text-yellow-600'
-          : 'text-emerald-600'
-    }">
-      ${cancelRate}%
-    </td>
+        <td class="p-4 text-center font-black ${
+          week.cancelRate >= 25
+            ? 'text-red-600'
+            : week.cancelRate >= 15
+              ? 'text-yellow-600'
+              : 'text-emerald-600'
+        }">
+          ${week.cancelRate}%
+        </td>
 
-  </tr>
-`;
+      </tr>
+    `;
   }).join("");
-
-  this._agentWeeklyRows = weeks;
 
   leadsBody.innerHTML = `
     <tr>
