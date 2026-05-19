@@ -1245,8 +1245,6 @@ body.client-health-lock {
 
         <button onclick="Admin.setTeamPeriod('4-weeks', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">4 Weeks</button>
 
-        <button onclick="Admin.setTeamPeriod('30-days', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">30 Days</button>
-
         <button onclick="Admin.setTeamPeriod('6-weeks', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">6 Weeks</button>
 
         <button onclick="Admin.setTeamPeriod('all-time', this)" class="team-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All Time</button>
@@ -6567,8 +6565,14 @@ async updateTeamAgentTag(agentId, value) {
         this.agentPeriod = this.teamPeriod || "today";
         this._agentCustomRange.active = false;
         this._setCustomActive("agent-custom-toggle", false);
-        document.getElementById("agent-modal").classList.remove("hidden");
-        this.renderAgentLeads();
+       const titleEl = document.getElementById("agent-modal-title");
+if (titleEl) titleEl.textContent = `${name} — Weekly Performance`;
+
+const subEl = document.getElementById("agent-modal-sub");
+if (subEl) subEl.textContent = "Most recent week shown first";
+
+document.getElementById("agent-modal").classList.remove("hidden");
+this.renderAgentLeads();
       },
 
       bindAgentUI() {
