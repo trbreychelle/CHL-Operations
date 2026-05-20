@@ -6735,91 +6735,98 @@ this.renderAgentLeads();
 
   const activeStart = new Date(activeStartRaw + "T00:00:00");
 
-  const today = new Date();
-  today.setHours(23, 59, 59, 999);
+const today = new Date();
+today.setHours(23, 59, 59, 999);
 
-  const weeks = [];
+const getSaturdayOnOrAfter = (date) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
 
-  let cursor = new Date(activeStart);
+  const day = d.getDay(); // Sunday=0, Saturday=6
+  const daysUntilSaturday = (6 - day + 7) % 7;
 
-  while (cursor <= today) {
+  d.setDate(d.getDate() + daysUntilSaturday);
+  return d;
+};
 
-    const weekStart = new Date(cursor);
-    weekStart.setHours(0,0,0,0);
+const weeks = [];
 
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 6);
-    weekEnd.setHours(23,59,59,999);
+let cursor = getSaturdayOnOrAfter(activeStart);
 
-    const weekLeads = leads.filter(l => {
+while (cursor <= today) {
+  const weekStart = new Date(cursor);
+  weekStart.setHours(0, 0, 0, 0);
 
-      const rawAgent =
-        l.appointment_coordinator_name ||
-        l["Appointment Coordinator Name"] ||
-        l.agent_name ||
-        "";
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  weekEnd.setHours(23, 59, 59, 999);
 
-      const leadAgent = normalizeAgent(rawAgent);
+  const weekLeads = leads.filter(l => {
+    const rawAgent =
+      l.appointment_coordinator_name ||
+      l["Appointment Coordinator Name"] ||
+      l.agent_name ||
+      "";
 
-      const leadEmail = String(
-        l.agent_email ||
-        l["Agent Email"] ||
-        ""
-      ).trim().toLowerCase();
+    const leadAgent = normalizeAgent(rawAgent);
 
-      if (
-        leadAgent !== agentKey &&
-        (!selectedEmail || leadEmail !== selectedEmail)
-      ) {
-        return false;
-      }
+    const leadEmail = String(
+      l.agent_email ||
+      l["Agent Email"] ||
+      ""
+    ).trim().toLowerCase();
 
-      const dt = this.getLeadDateObj(l);
+    if (
+      leadAgent !== agentKey &&
+      (!selectedEmail || leadEmail !== selectedEmail)
+    ) {
+      return false;
+    }
 
-      if (!dt || isNaN(dt.getTime())) return false;
+    const dt = this.getLeadDateObj(l);
+    if (!dt || isNaN(dt.getTime())) return false;
 
-      return dt >= weekStart && dt <= weekEnd;
-    });
+    return dt >= weekStart && dt <= weekEnd;
+  });
 
-    let total = 0;
-    let qualified = 0;
-    let rejected = 0;
-    let credited = 0;
+  let total = 0;
+  let qualified = 0;
+  let rejected = 0;
+  let credited = 0;
 
-    weekLeads.forEach(l => {
+  weekLeads.forEach(l => {
+    total++;
 
-      total++;
+    const st = String(
+      l.status ||
+      l.Status ||
+      ""
+    ).toLowerCase();
 
-      const st = String(
-        l.status ||
-        l.Status ||
-        ""
-      ).toLowerCase();
+    if (this.isQualified(st)) qualified++;
+    else if (this.isRejected(st)) rejected++;
+    else if (this.isCredited(st)) credited++;
+  });
 
-      if (this.isQualified(st)) qualified++;
-      else if (this.isRejected(st)) rejected++;
-      else if (this.isCredited(st)) credited++;
-    });
+  const cancelRate =
+    (qualified + credited) > 0
+      ? Math.round((credited / (qualified + credited)) * 100)
+      : 0;
 
-    const cancelRate =
-      (qualified + credited) > 0
-        ? Math.round((credited / (qualified + credited)) * 100)
-        : 0;
+  weeks.push({
+    weekNumber: weeks.length + 1,
+    start: new Date(weekStart),
+    end: new Date(weekEnd),
+    leads: weekLeads,
+    total,
+    qualified,
+    rejected,
+    credited,
+    cancelRate
+  });
 
-    weeks.push({
-      weekNumber: weeks.length + 1,
-      start: new Date(weekStart),
-      end: new Date(weekEnd),
-      leads: weekLeads,
-      total,
-      qualified,
-      rejected,
-      credited,
-      cancelRate
-    });
-
-    cursor.setDate(cursor.getDate() + 7);
-  }
+  cursor.setDate(cursor.getDate() + 7);
+}
 
   weeks.sort((a, b) => b.weekNumber - a.weekNumber);
 
