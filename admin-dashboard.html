@@ -2250,6 +2250,7 @@ setDailyStrategyShift(shift) {
   const nextShift = shift === "afternoon" ? "afternoon" : "morning";
 
   this.dailyStrategyShift = nextShift;
+  this.dailyStrategySubtab = "shift";
 
   const morningBtn = document.getElementById("daily-shift-morning");
   const afternoonBtn = document.getElementById("daily-shift-afternoon");
@@ -2264,6 +2265,7 @@ setDailyStrategyShift(shift) {
       : "px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black";
   }
 
+  this.setDailyStrategySubtab("shift");
   this.renderDailyTab();
 },
       
@@ -9604,6 +9606,14 @@ async saveOnboardingRow(clientCode) {
         if (viewId === "payroll") {
           try { this.renderPayrollFinance(); } catch(e) {}
         }
+
+              if (viewId === "daily") {
+  try {
+    this.renderDailyTab();
+  } catch(e) {
+    console.error("Daily Strategy reload error:", e);
+  }
+}
 
         if (viewId === "notifications") {
           try {
