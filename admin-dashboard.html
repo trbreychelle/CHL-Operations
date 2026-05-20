@@ -9604,6 +9604,19 @@ async saveOnboardingRow(clientCode) {
 
         this.currentView = viewId;
 
+              if (viewId === "overview") {
+  try {
+    this.setupFilters(this.clientHealthRaw || []);
+    this.applyClientHealthFilters();
+    this.bindOverviewAnalyticsUI();
+    this.updateAnalytics(this.analyticsPeriod || "today");
+    this.bindOwedLeadsKPI();
+    this.updateOwedLeadsKPI();
+  } catch(e) {
+    console.error("Overview reload error:", e);
+  }
+},
+
         if (viewId === "payroll") {
           try { this.renderPayrollFinance(); } catch(e) {}
         }
