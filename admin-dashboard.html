@@ -652,6 +652,15 @@ body.client-health-lock {
   >
     Afternoon Shift
   </button>
+
+      <button
+  id="daily-tab-board"
+  type="button"
+  onclick="Admin.setDailyStrategySubtab('board')"
+  class="px-4 py-2 rounded-2xl bg-white text-slate-900 text-xs font-black shadow"
+>
+  Board
+</button>
      
       <button
         id="daily-tab-history"
@@ -2246,16 +2255,10 @@ closeAdminFireNoteModal() {
     await window.portal.fetchAdminData(true);
   }
 },
-
-     setDailyStrategyShift(shift) {
+setDailyStrategyShift(shift) {
   const nextShift = shift === "afternoon" ? "afternoon" : "morning";
 
-  if (this.dailyStrategyShift === nextShift && this.dailyStrategySubtab === "board") {
-    return;
-  }
-
   this.dailyStrategyShift = nextShift;
-  this.dailyStrategySubtab = "board";
 
   const morningBtn = document.getElementById("daily-shift-morning");
   const afternoonBtn = document.getElementById("daily-shift-afternoon");
@@ -7076,6 +7079,7 @@ const { data: strategyHistoryRows, error: strategyHistoryErr } = await supaClien
   .select("*")
   .eq("organization_id", orgId)
   .eq("week_start", selectedWeekStart)
+  .eq("strategy_date", this.dailyStrategySelectedDate)
   .eq("shift_key", this.dailyStrategyShift)
   .order("strategy_date", { ascending: true })
   .order("lane", { ascending: true })
@@ -9554,22 +9558,29 @@ async saveOnboardingRow(clientCode) {
         }
       },
 
-      setDailyStrategySubtab(tab) {
-  this.dailyStrategySubtab = tab === 'history' ? 'history' : 'board';
+    setDailyStrategySubtab(tab) {
+  this.dailyStrategySubtab = tab === "history" ? "history" : "board";
 
-  const historyBtn = document.getElementById('daily-tab-history');
-  const boardView = document.getElementById('dailyStrategyBoardView');
-  const historyView = document.getElementById('dailyStrategyHistoryView');
+  const boardBtn = document.getElementById("daily-tab-board");
+  const historyBtn = document.getElementById("daily-tab-history");
+  const boardView = document.getElementById("dailyStrategyBoardView");
+  const historyView = document.getElementById("dailyStrategyHistoryView");
+
+  if (boardBtn) {
+    boardBtn.className = this.dailyStrategySubtab === "board"
+      ? "px-4 py-2 rounded-2xl bg-white text-slate-900 text-xs font-black shadow"
+      : "px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black";
+  }
 
   if (historyBtn) {
-    historyBtn.className = this.dailyStrategySubtab === 'history'
-      ? 'px-4 py-2 rounded-2xl bg-white text-slate-900 text-xs font-black shadow'
-      : 'px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black';
+    historyBtn.className = this.dailyStrategySubtab === "history"
+      ? "px-4 py-2 rounded-2xl bg-white text-slate-900 text-xs font-black shadow"
+      : "px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black";
   }
 
   if (boardView && historyView) {
-    boardView.classList.toggle('hidden', this.dailyStrategySubtab === 'history');
-    historyView.classList.toggle('hidden', this.dailyStrategySubtab !== 'history');
+    boardView.classList.toggle("hidden", this.dailyStrategySubtab === "history");
+    historyView.classList.toggle("hidden", this.dailyStrategySubtab !== "history");
   }
 },
 
