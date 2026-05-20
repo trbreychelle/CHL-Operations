@@ -2247,28 +2247,32 @@ closeAdminFireNoteModal() {
   }
 },
 
-      setDailyStrategyShift(shift) {
-  this.dailyStrategyShift = shift === 'afternoon'
-    ? 'afternoon'
-    : 'morning';
+     setDailyStrategyShift(shift) {
+  const nextShift = shift === "afternoon" ? "afternoon" : "morning";
 
-  const morningBtn = document.getElementById('daily-shift-morning');
-  const afternoonBtn = document.getElementById('daily-shift-afternoon');
-
-  if (morningBtn && afternoonBtn) {
-    if (this.dailyStrategyShift === 'morning') {
-      morningBtn.className = 'px-4 py-2 rounded-2xl bg-yellow-400 text-gray-900 text-xs font-black shadow';
-      afternoonBtn.className = 'px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black';
-    } else {
-      afternoonBtn.className = 'px-4 py-2 rounded-2xl bg-yellow-400 text-gray-900 text-xs font-black shadow';
-      morningBtn.className = 'px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black';
-    }
+  if (this.dailyStrategyShift === nextShift && this.dailyStrategySubtab === "board") {
+    return;
   }
 
-  this.dailyStrategySubtab = 'board';
+  this.dailyStrategyShift = nextShift;
+  this.dailyStrategySubtab = "board";
+
+  const morningBtn = document.getElementById("daily-shift-morning");
+  const afternoonBtn = document.getElementById("daily-shift-afternoon");
+
+  if (morningBtn && afternoonBtn) {
+    morningBtn.className = this.dailyStrategyShift === "morning"
+      ? "px-4 py-2 rounded-2xl bg-yellow-400 text-gray-900 text-xs font-black shadow"
+      : "px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black";
+
+    afternoonBtn.className = this.dailyStrategyShift === "afternoon"
+      ? "px-4 py-2 rounded-2xl bg-yellow-400 text-gray-900 text-xs font-black shadow"
+      : "px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black";
+  }
+
   this.renderDailyTab();
 },
-
+      
       async loadPassbookAuditForCode(codeName) {
   if (!supaClient || !codeName) return [];
 
@@ -6961,6 +6965,8 @@ this.renderAgentLeads();
   async renderDailyTab() {
   const orgId = window.portal?.getCurrentOrganizationId?.();
   if (!orgId || !supaClient) return;
+    const renderToken = `${Date.now()}-${Math.random()}`;
+this._dailyStrategyRenderToken = renderToken;
 
   const weekLabelEl = document.getElementById("dailyStrategyWeekLabel");
   const tabsEl = document.getElementById("dailyStrategyTabs");
@@ -7059,6 +7065,7 @@ this.renderAgentLeads();
     }
 
     this.dailyStrategyAssignments = Array.isArray(assignments) ? assignments : [];
+    if (this._dailyStrategyRenderToken !== renderToken) return;
 
     const rawClients = Array.isArray(this.getState().rawClients) ? this.getState().rawClients : [];
     const timeEvents = Array.isArray(this.getState().timeEvents) ? this.getState().timeEvents : [];
@@ -7510,27 +7517,33 @@ const rosterRows = Array.from(rosterMap.values())
 
         let badgeClass = "bg-gray-100 text-gray-700";
 let label = "Offline";
-        const isTodaySelected = this.dailyStrategySelectedDate === new Date().toISOString().split("T")[0];
+        const mstToday = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Denver",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+}).format(new Date());
 
-if (isTodaySelected) {
-  if (
-    st.includes("clock_in") ||
-    st.includes("resume") ||
-    st.includes("break_end") ||
-    st.includes("in")
-  ) {
+const isTodaySelected = this.dailyStrategySelectedDate === mstToday;
+
+const normalizedStatus = st.replace(/[_-]+/g, " ");
+
+if (
+  normalizedStatus.includes("clock in") ||
+  normalizedStatus.includes("resume") ||
+  normalizedStatus.includes("break end")
+) {
     badgeClass = "bg-emerald-100 text-emerald-700";
     label = "Working";
   } else if (
-    st.includes("break") ||
-    st.includes("break_start")
+    normalizedStatus.includes("break start") ||
+normalizedStatus === "break"
   ) {
     badgeClass = "bg-amber-100 text-amber-700";
     label = "On Break";
   } else if (
-    st.includes("clock_out") ||
-    st.includes("out") ||
-    st.includes("offline")
+    normalizedStatus.includes("clock out") ||
+normalizedStatus.includes("offline")
   ) {
     badgeClass = "bg-gray-100 text-gray-700";
     label = "Offline";
