@@ -652,15 +652,6 @@ body.client-health-lock {
   >
     Afternoon Shift
   </button>
-
-      <button
-  id="daily-tab-board"
-  type="button"
-  onclick="Admin.setDailyStrategySubtab('board')"
-  class="px-4 py-2 rounded-2xl bg-white text-slate-900 text-xs font-black shadow"
->
-  Board
-</button>
      
       <button
         id="daily-tab-history"
@@ -7538,7 +7529,7 @@ if (
   normalizedStatus.includes("break end")
 ) {
     badgeClass = "bg-emerald-100 text-emerald-700";
-    label = "Working";
+    label = "Online";
   } else if (
     normalizedStatus.includes("break start") ||
 normalizedStatus === "break"
@@ -7611,7 +7602,7 @@ if (dailyStatusEl && !dailyStatusEl.dataset.bound) {
   dailyStatusEl.addEventListener("change", () => this.renderDailyTab());
 }
 
-    this.setDailyStrategySubtab(this.dailyStrategySubtab || 'board');
+    this.setDailyStrategySubtab(this.dailyStrategySubtab || 'shift');
   } catch (err) {
     console.error("renderDailyTab crashed:", err);
     boardEl.innerHTML = `<div class="bg-white rounded-2xl border border-red-100 shadow-sm p-5 text-sm text-red-600">Daily Strategy crashed while loading.</div>`;
@@ -9559,18 +9550,11 @@ async saveOnboardingRow(clientCode) {
       },
 
     setDailyStrategySubtab(tab) {
-  this.dailyStrategySubtab = tab === "history" ? "history" : "board";
+  this.dailyStrategySubtab = tab === "history" ? "history" : "shift";
 
-  const boardBtn = document.getElementById("daily-tab-board");
   const historyBtn = document.getElementById("daily-tab-history");
   const boardView = document.getElementById("dailyStrategyBoardView");
   const historyView = document.getElementById("dailyStrategyHistoryView");
-
-  if (boardBtn) {
-    boardBtn.className = this.dailyStrategySubtab === "board"
-      ? "px-4 py-2 rounded-2xl bg-white text-slate-900 text-xs font-black shadow"
-      : "px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black";
-  }
 
   if (historyBtn) {
     historyBtn.className = this.dailyStrategySubtab === "history"
