@@ -969,6 +969,8 @@ if (isCommandCenter) {
 
   if (!isAgentPage) return;
 
+   this.setupLeadSubmissionClientRoutes();
+
    // OVERVIEW FILTERS
 const overviewTimeframe = document.getElementById('timeframe-filter');
 if (overviewTimeframe && !overviewTimeframe.dataset.bound) {
@@ -1199,6 +1201,62 @@ if (payrollEnd && !payrollEnd.dataset.bound) {
   payrollEnd.addEventListener('change', maybeAutoLoadPayrollCustom);
   payrollEnd.dataset.bound = 'true';
 }
+}
+
+  async setupLeadSubmissionClientRoutes() {
+  if (!this.supabase) return;
+
+  const clientSelect = document.getElementById('submit-client');
+  const calendarWrapper = document.getElementById('client-calendar-wrapper');
+  const calendarFrame = document.getElementById('client-calendar-frame');
+  const openBtn = document.getElementById('open-calendar-btn');
+
+  if (!clientSelect) return;
+
+  try {
+    const { data, error } = await this.supabase
+      .from('client_submission_routes')
+      .select('*')
+      .eq('is_active', true)
+      .order('company_name', { ascending: true });
+
+    if (error) {
+      console.error('Failed loading client routes:', error);
+      return;
+    }
+
+    const routes = data || [];
+
+    clientSelect.innerHTML = `
+      <option value="">Select Client</option>
+      ${routes.map(route => `
+        <option value="${route.id}">
+          ${route.company_name}
+        </option>
+      `).join('')}
+    `;
+
+    clientSelect.addEventListener('change', () => {
+      const selected = routes.find(r => r.id === clientSelect.value);
+
+      if (!selected) {
+        calendarWrapper.classList.add('hidden');
+        calendarFrame.src = '';
+        return;
+      }
+
+      calendarWrapper.classList.remove('hidden');
+
+      calendarFrame.src = selected.ghl_calendar_url;
+      openBtn.href = selected.ghl_calendar_url;
+
+      clientSelect.dataset.clientCode = selected.client_code;
+      clientSelect.dataset.companyName = selected.company_name;
+    });
+
+  } catch (err) {
+    console.error('setupLeadSubmissionClientRoutes failed:', err);
+  }
 }
   
   // ------------------------
