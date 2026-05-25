@@ -1205,15 +1205,36 @@ if (payrollEnd && !payrollEnd.dataset.bound) {
 }
 }
 
-  async setupLeadSubmissionClientRoutes() {
+async setupLeadSubmissionClientRoutes() {
   if (!this.supabase) return;
 
   const clientSelect = document.getElementById('submit-client');
   const calendarWrapper = document.getElementById('client-calendar-wrapper');
-  const calendarFrame = document.getElementById('client-calendar-frame');
+  const slotsStatus = document.getElementById('ghl-slots-status');
+  const slotsList = document.getElementById('ghl-slots-list');
   const openBtn = document.getElementById('open-calendar-btn');
+  const appointmentInput = document.getElementById('submit-appointment-datetime');
 
   if (!clientSelect) return;
+
+  const setStatus = (msg) => {
+    if (slotsStatus) slotsStatus.textContent = msg;
+  };
+
+  const formatSlot = (iso) => {
+    try {
+      return new Date(iso).toLocaleString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZoneName: 'short'
+      });
+    } catch {
+      return iso;
+    }
+  };
 
   try {
     const { data, error } = await this.supabase
@@ -1238,22 +1259,80 @@ if (payrollEnd && !payrollEnd.dataset.bound) {
       `).join('')}
     `;
 
-    clientSelect.addEventListener('change', () => {
+    clientSelect.addEventListener('change', async () => {
       const selected = routes.find(r => r.id === clientSelect.value);
 
       if (!selected) {
-        calendarWrapper.classList.add('hidden');
-        calendarFrame.src = '';
+        calendarWrapper?.classList.add('hidden');
+        if (slotsList) slotsList.innerHTML = '';
+        setStatus('Select a client to load slots.');
         return;
       }
 
-      calendarWrapper.classList.remove('hidden');
-
-      calendarFrame.src = selected.ghl_calendar_url;
-      openBtn.href = selected.ghl_calendar_url;
-
       clientSelect.dataset.clientCode = selected.client_code;
       clientSelect.dataset.companyName = selected.company_name;
+      clientSelect.dataset.calendarId = selected.ghl_calendar_id;
+      clientSelect.dataset.timezone = selected.timezone || 'America/New_York';
+
+      if (openBtn) openBtn.href = selected.ghl_calendar_url || '#';
+
+      calendarWrapper?.classList.remove('hidden');
+      if (slotsList) slotsList.innerHTML = '';
+      setStatus('Loading available slots...');
+
+      try {
+        const url = new URL(this.webhooks.getGhlAvailability);
+        url.searchParams.set('calendarId', selected.ghl_calendar_id);
+        url.searchParams.set('timezone', selected.timezone || 'America/New_York');
+
+        const res = await fetch(url.toString(), {
+          method: 'GET',
+          headers: { Accept: 'application/json' }
+        });
+
+        const json = await res.json();
+
+        const slotGroups = json?.data || json || {};
+        const slots = Object.values(slotGroups)
+          .flatMap(day => Array.isArray(day?.slots) ? day.slots : [])
+          .filter(Boolean);
+
+        if (!slots.length) {
+          setStatus('No available slots found.');
+          return;
+        }
+
+        setStatus(`${slots.length} available slot(s) found.`);
+
+        slotsList.innerHTML = slots.map(slot => `
+          <button
+            type="button"
+            data-slot="${slot}"
+            class="ghl-slot-btn p-3 rounded-xl border border-gray-200 bg-white hover:bg-yellow-50 hover:border-yellow-400 text-left text-sm font-semibold text-gray-800">
+            ${formatSlot(slot)}
+          </button>
+        `).join('');
+
+        slotsList.querySelectorAll('.ghl-slot-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            slotsList.querySelectorAll('.ghl-slot-btn').forEach(b => {
+              b.classList.remove('bg-yellow-100', 'border-yellow-500');
+            });
+
+            btn.classList.add('bg-yellow-100', 'border-yellow-500');
+
+            if (appointmentInput) {
+              appointmentInput.value = btn.dataset.slot;
+            }
+
+            clientSelect.dataset.selectedSlot = btn.dataset.slot;
+          });
+        });
+
+      } catch (slotErr) {
+        console.error('Failed loading GHL slots:', slotErr);
+        setStatus('Failed to load slots. Check console.');
+      }
     });
 
   } catch (err) {
