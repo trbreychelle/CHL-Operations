@@ -62,6 +62,8 @@ class CallHammerPortal {
       // ✅ ADD THESE TWO NEW WEBHOOKS FOR LEADS
       updateLead: 'https://automate.callhammerleads.com/webhook/update-lead',
       deleteLead: 'https://automate.callhammerleads.com/webhook/delete-lead',
+      getGhlAvailability: 'https://automate.callhammerleads.com/webhook/get-ghl-availability',
+bookGhlAppointment: 'https://automate.callhammerleads.com/webhook/book-ghl-appointment',
     };
 
     this.init();
