@@ -1209,23 +1209,52 @@ async setupLeadSubmissionClientRoutes() {
   if (!this.supabase) return;
 
   const clientSelect = document.getElementById('submit-client');
-  const appointmentSelect = document.getElementById('submit-appointment-datetime');
+  const calendarLabel = document.getElementById('selected-calendar-label');
+  const appointmentInput = document.getElementById('submit-appointment-datetime');
+  const calendarBox = document.getElementById('booking-calendar-box');
+  const monthLabel = document.getElementById('booking-month-label');
+  const daysGrid = document.getElementById('booking-calendar-days');
+  const slotStatus = document.getElementById('booking-slot-status');
+  const timeSlots = document.getElementById('booking-time-slots');
+  const prevBtn = document.getElementById('booking-prev-month');
+  const nextBtn = document.getElementById('booking-next-month');
 
-  if (!clientSelect || !appointmentSelect) return;
+  if (!clientSelect || !appointmentInput || !calendarBox || !daysGrid || !timeSlots) return;
 
-  const formatSlot = (iso, timezone) => {
+  let routes = [];
+  let selectedRoute = null;
+  let loadedSlots = [];
+  let visibleMonth = new Date();
+  visibleMonth.setDate(1);
+
+  const setSlotStatus = (msg) => {
+    if (slotStatus) slotStatus.textContent = msg;
+  };
+
+  const formatDateKey = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const formatSlotTime = (iso, timezone) => {
     try {
-      return new Date(iso).toLocaleString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
+      return new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
         hour: 'numeric',
         minute: '2-digit',
-        timeZone: timezone || 'America/New_York'
-      }) + ' - Client Time';
+        hour12: true
+      }).format(new Date(iso));
     } catch {
       return iso;
     }
+  };
+
+  const formatCalendarLabel = (route) => {
+    const name = route?.company_name || 'Selected Client';
+    const tz = route?.timezone || '';
+    return tz ? `${name} | ${tz}` : name;
   };
 
   const getAvailabilityRange = () => {
@@ -1233,13 +1262,182 @@ async setupLeadSubmissionClientRoutes() {
     start.setHours(0, 0, 0, 0);
 
     const end = new Date(start);
-    end.setDate(end.getDate() + 12);
+    end.setDate(end.getDate() + 12); // today through next 2 weeks-ish
     end.setHours(23, 59, 59, 999);
 
     return {
       startDate: start.getTime(),
       endDate: end.getTime()
     };
+  };
+
+  const slotDateKey = (iso, timezone) => {
+    try {
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).formatToParts(new Date(iso));
+
+      const y = parts.find(p => p.type === 'year')?.value;
+      const m = parts.find(p => p.type === 'month')?.value;
+      const d = parts.find(p => p.type === 'day')?.value;
+
+      return `${y}-${m}-${d}`;
+    } catch {
+      return String(iso).slice(0, 10);
+    }
+  };
+
+  const renderTimeSlotsForDate = (dateKey) => {
+    const timezone = selectedRoute?.timezone || 'America/New_York';
+
+    const daySlots = loadedSlots.filter(slot => slotDateKey(slot, timezone) === dateKey);
+
+    timeSlots.innerHTML = '';
+    appointmentInput.value = '';
+
+    if (!daySlots.length) {
+      setSlotStatus('No available times for this date.');
+      return;
+    }
+
+    setSlotStatus(`${daySlots.length} available time(s).`);
+
+    timeSlots.innerHTML = daySlots.map(slot => `
+      <button
+        type="button"
+        data-slot="${slot}"
+        class="booking-time-btn w-full p-3 rounded-xl border border-gray-200 bg-white hover:bg-yellow-50 hover:border-yellow-400 text-sm font-bold text-gray-800 text-center">
+        ${formatSlotTime(slot, timezone)}
+      </button>
+    `).join('');
+
+    timeSlots.querySelectorAll('.booking-time-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        timeSlots.querySelectorAll('.booking-time-btn').forEach(b => {
+          b.classList.remove('bg-yellow-100', 'border-yellow-500');
+        });
+
+        btn.classList.add('bg-yellow-100', 'border-yellow-500');
+        appointmentInput.value = btn.dataset.slot;
+        clientSelect.dataset.selectedSlot = btn.dataset.slot;
+      });
+    });
+  };
+
+  const renderCalendar = () => {
+    const timezone = selectedRoute?.timezone || 'America/New_York';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const rangeEnd = new Date(today);
+    rangeEnd.setDate(rangeEnd.getDate() + 12);
+    rangeEnd.setHours(23, 59, 59, 999);
+
+    const monthName = visibleMonth.toLocaleString('en-US', {
+      month: 'long',
+      year: 'numeric'
+    });
+
+    if (monthLabel) monthLabel.textContent = monthName;
+
+    const firstDay = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1);
+    const daysInMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0).getDate();
+    const startBlank = firstDay.getDay();
+
+    const availableDates = new Set(loadedSlots.map(slot => slotDateKey(slot, timezone)));
+
+    daysGrid.innerHTML = '';
+
+    for (let i = 0; i < startBlank; i++) {
+      daysGrid.appendChild(document.createElement('div'));
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateObj = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), day);
+      dateObj.setHours(0, 0, 0, 0);
+
+      const dateKey = formatDateKey(dateObj);
+      const hasSlots = availableDates.has(dateKey);
+      const outsideRange = dateObj < today || dateObj > rangeEnd;
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = String(day);
+      btn.dataset.date = dateKey;
+      btn.className = 'h-10 rounded-full text-sm font-semibold border transition-all';
+
+      if (outsideRange || !hasSlots) {
+        btn.disabled = true;
+        btn.className += ' text-gray-300 border-gray-100 bg-gray-50 cursor-not-allowed';
+      } else {
+        btn.className += ' text-gray-900 border-yellow-300 bg-yellow-50 hover:bg-yellow-200';
+        btn.addEventListener('click', () => {
+          daysGrid.querySelectorAll('button').forEach(b => {
+            b.classList.remove('bg-yellow-500', 'text-gray-900', 'border-yellow-600');
+          });
+
+          btn.classList.add('bg-yellow-500', 'text-gray-900', 'border-yellow-600');
+          renderTimeSlotsForDate(dateKey);
+        });
+      }
+
+      daysGrid.appendChild(btn);
+    }
+  };
+
+  const loadSlotsForClient = async (route) => {
+    selectedRoute = route;
+    loadedSlots = [];
+    appointmentInput.value = '';
+    clientSelect.dataset.selectedSlot = '';
+
+    calendarBox.classList.remove('hidden');
+    timeSlots.innerHTML = '';
+    setSlotStatus('Loading available slots...');
+
+    if (calendarLabel) {
+      calendarLabel.textContent = formatCalendarLabel(route);
+    }
+
+    const timezone = route.timezone || 'America/New_York';
+    const range = getAvailabilityRange();
+
+    clientSelect.dataset.clientCode = route.client_code;
+    clientSelect.dataset.companyName = route.company_name;
+    clientSelect.dataset.calendarId = route.ghl_calendar_id;
+    clientSelect.dataset.timezone = timezone;
+
+    const url = new URL(this.webhooks.getGhlAvailability);
+    url.searchParams.set('clientCode', route.client_code);
+    url.searchParams.set('startDate', range.startDate);
+    url.searchParams.set('endDate', range.endDate);
+    url.searchParams.set('timezone', timezone);
+
+    const res = await fetch(url.toString(), {
+      method: 'GET',
+      headers: { Accept: 'application/json' }
+    });
+
+    const json = await res.json();
+    const slotGroups = json?.data || json || {};
+
+    loadedSlots = Object.values(slotGroups)
+      .flatMap(day => Array.isArray(day?.slots) ? day.slots : [])
+      .filter(Boolean);
+
+    if (!loadedSlots.length) {
+      setSlotStatus('No available slots found for this client.');
+      renderCalendar();
+      return;
+    }
+
+    setSlotStatus('Select a date.');
+    visibleMonth = new Date();
+    visibleMonth.setDate(1);
+    renderCalendar();
   };
 
   try {
@@ -1254,7 +1452,7 @@ async setupLeadSubmissionClientRoutes() {
       return;
     }
 
-    const routes = data || [];
+    routes = data || [];
 
     clientSelect.innerHTML = `
       <option value="">Select Client</option>
@@ -1266,60 +1464,39 @@ async setupLeadSubmissionClientRoutes() {
     clientSelect.addEventListener('change', async () => {
       const selected = routes.find(r => r.id === clientSelect.value);
 
-      appointmentSelect.innerHTML = `<option value="">Loading slots...</option>`;
-      appointmentSelect.disabled = true;
-
       if (!selected) {
-        appointmentSelect.innerHTML = `<option value="">Select client first</option>`;
+        selectedRoute = null;
+        loadedSlots = [];
+        appointmentInput.value = '';
+        calendarBox.classList.add('hidden');
+        timeSlots.innerHTML = '';
+        if (calendarLabel) calendarLabel.textContent = 'Select client first';
         return;
       }
 
-      const timezone = selected.timezone || 'America/New_York';
-      const range = getAvailabilityRange();
-
-      clientSelect.dataset.clientCode = selected.client_code;
-      clientSelect.dataset.companyName = selected.company_name;
-      clientSelect.dataset.calendarId = selected.ghl_calendar_id;
-      clientSelect.dataset.timezone = timezone;
-
       try {
-        const url = new URL(this.webhooks.getGhlAvailability);
-        url.searchParams.set('clientCode', selected.client_code);
-        url.searchParams.set('startDate', range.startDate);
-        url.searchParams.set('endDate', range.endDate);
-        url.searchParams.set('timezone', timezone);
-
-        const res = await fetch(url.toString(), {
-          method: 'GET',
-          headers: { Accept: 'application/json' }
-        });
-
-        const json = await res.json();
-        const slotGroups = json?.data || json || {};
-
-        const slots = Object.values(slotGroups)
-          .flatMap(day => Array.isArray(day?.slots) ? day.slots : [])
-          .filter(Boolean);
-
-        if (!slots.length) {
-          appointmentSelect.innerHTML = `<option value="">No available slots found</option>`;
-          return;
-        }
-
-        appointmentSelect.innerHTML = `
-          <option value="">Select appointment slot</option>
-          ${slots.map(slot => `
-            <option value="${slot}">${formatSlot(slot, timezone)}</option>
-          `).join('')}
-        `;
-
-        appointmentSelect.disabled = false;
-
+        await loadSlotsForClient(selected);
       } catch (err) {
         console.error('Failed loading GHL slots:', err);
-        appointmentSelect.innerHTML = `<option value="">Failed to load slots</option>`;
+        setSlotStatus('Failed to load slots. Check console.');
       }
     });
+
+    if (prevBtn && !prevBtn.dataset.bound) {
+      prevBtn.addEventListener('click', () => {
+        visibleMonth.setMonth(visibleMonth.getMonth() - 1);
+        renderCalendar();
+      });
+      prevBtn.dataset.bound = 'true';
+    }
+
+    if (nextBtn && !nextBtn.dataset.bound) {
+      nextBtn.addEventListener('click', () => {
+        visibleMonth.setMonth(visibleMonth.getMonth() + 1);
+        renderCalendar();
+      });
+      nextBtn.dataset.bound = 'true';
+    }
 
   } catch (err) {
     console.error('setupLeadSubmissionClientRoutes failed:', err);
