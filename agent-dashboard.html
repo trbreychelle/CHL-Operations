@@ -444,18 +444,38 @@
           </select>
         </div>
 
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-2">
-            Appointment Date & Time
-          </label>
+      <div>
+  <label class="block text-sm font-semibold text-gray-700 mb-2">Appointment Date & Time</label>
 
-          <select
-  id="submit-appointment-datetime"
-  class="w-full p-3 border border-gray-200 rounded-xl"
-  disabled>
-  <option value="">Select client first</option>
-</select>
-        </div>
+  <div id="selected-calendar-label" class="text-xs font-semibold text-gray-500 mb-2">
+    Select client first
+  </div>
+
+  <input
+    type="hidden"
+    id="submit-appointment-datetime"
+  />
+
+  <div id="booking-calendar-box" class="hidden border border-gray-200 rounded-xl p-4 bg-white">
+    <div class="flex items-center justify-between mb-3">
+      <button type="button" id="booking-prev-month" class="px-3 py-1 rounded-lg border text-sm">‹</button>
+      <div id="booking-month-label" class="font-bold text-gray-900"></div>
+      <button type="button" id="booking-next-month" class="px-3 py-1 rounded-lg border text-sm">›</button>
+    </div>
+
+    <div class="grid grid-cols-7 gap-1 text-center text-xs font-bold text-gray-500 mb-2">
+      <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+    </div>
+
+    <div id="booking-calendar-days" class="grid grid-cols-7 gap-1"></div>
+
+    <div class="mt-4">
+      <div class="text-sm font-bold text-gray-800 mb-2">Available Times</div>
+      <div id="booking-slot-status" class="text-xs text-gray-500 mb-2">Select a date.</div>
+      <div id="booking-time-slots" class="grid grid-cols-1 gap-2"></div>
+    </div>
+  </div>
+</div>
 
       </div>
 
@@ -550,15 +570,7 @@
           class="w-full p-3 border border-gray-200 rounded-xl"
         ></textarea>
       </div>
-
-  
-  <div id="ghl-slots-status" class="text-sm text-gray-500 mb-3">
-    Select a client to load slots.
-  </div>
-
-  <div id="ghl-slots-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
-</div>
-
+      
       <div class="mt-8 flex justify-end">
         <button
           id="submit-lead-btn"
