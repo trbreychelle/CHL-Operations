@@ -1209,19 +1209,11 @@ async setupLeadSubmissionClientRoutes() {
   if (!this.supabase) return;
 
   const clientSelect = document.getElementById('submit-client');
-  const calendarWrapper = document.getElementById('client-calendar-wrapper');
-  const slotsStatus = document.getElementById('ghl-slots-status');
-  const slotsList = document.getElementById('ghl-slots-list');
-  const openBtn = document.getElementById('open-calendar-btn');
-  const appointmentInput = document.getElementById('submit-appointment-datetime');
+  const appointmentSelect = document.getElementById('submit-appointment-datetime');
 
-  if (!clientSelect) return;
+  if (!clientSelect || !appointmentSelect) return;
 
-  const setStatus = (msg) => {
-    if (slotsStatus) slotsStatus.textContent = msg;
-  };
-
-  const formatSlot = (iso) => {
+  const formatSlot = (iso, timezone) => {
     try {
       return new Date(iso).toLocaleString('en-US', {
         weekday: 'short',
@@ -1229,11 +1221,25 @@ async setupLeadSubmissionClientRoutes() {
         day: 'numeric',
         hour: 'numeric',
         minute: '2-digit',
-        timeZoneName: 'short'
-      });
+        timeZone: timezone || 'America/New_York'
+      }) + ' - Client Time';
     } catch {
       return iso;
     }
+  };
+
+  const getAvailabilityRange = () => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(start);
+    end.setDate(end.getDate() + 12);
+    end.setHours(23, 59, 59, 999);
+
+    return {
+      startDate: start.getTime(),
+      endDate: end.getTime()
+    };
   };
 
   try {
@@ -1253,36 +1259,35 @@ async setupLeadSubmissionClientRoutes() {
     clientSelect.innerHTML = `
       <option value="">Select Client</option>
       ${routes.map(route => `
-        <option value="${route.id}">
-          ${route.company_name}
-        </option>
+        <option value="${route.id}">${route.company_name}</option>
       `).join('')}
     `;
 
     clientSelect.addEventListener('change', async () => {
       const selected = routes.find(r => r.id === clientSelect.value);
 
+      appointmentSelect.innerHTML = `<option value="">Loading slots...</option>`;
+      appointmentSelect.disabled = true;
+
       if (!selected) {
-        calendarWrapper?.classList.add('hidden');
-        if (slotsList) slotsList.innerHTML = '';
-        setStatus('Select a client to load slots.');
+        appointmentSelect.innerHTML = `<option value="">Select client first</option>`;
         return;
       }
+
+      const timezone = selected.timezone || 'America/New_York';
+      const range = getAvailabilityRange();
 
       clientSelect.dataset.clientCode = selected.client_code;
       clientSelect.dataset.companyName = selected.company_name;
       clientSelect.dataset.calendarId = selected.ghl_calendar_id;
-      clientSelect.dataset.timezone = selected.timezone || 'America/New_York';
-
-      if (openBtn) openBtn.href = selected.ghl_calendar_url || '#';
-
-      calendarWrapper?.classList.remove('hidden');
-      if (slotsList) slotsList.innerHTML = '';
-      setStatus('Loading available slots...');
+      clientSelect.dataset.timezone = timezone;
 
       try {
         const url = new URL(this.webhooks.getGhlAvailability);
-       url.searchParams.set('clientCode', selected.client_code);
+        url.searchParams.set('clientCode', selected.client_code);
+        url.searchParams.set('startDate', range.startDate);
+        url.searchParams.set('endDate', range.endDate);
+        url.searchParams.set('timezone', timezone);
 
         const res = await fetch(url.toString(), {
           method: 'GET',
@@ -1290,47 +1295,29 @@ async setupLeadSubmissionClientRoutes() {
         });
 
         const json = await res.json();
-
         const slotGroups = json?.data || json || {};
+
         const slots = Object.values(slotGroups)
           .flatMap(day => Array.isArray(day?.slots) ? day.slots : [])
           .filter(Boolean);
 
         if (!slots.length) {
-          setStatus('No available slots found.');
+          appointmentSelect.innerHTML = `<option value="">No available slots found</option>`;
           return;
         }
 
-        setStatus(`${slots.length} available slot(s) found.`);
+        appointmentSelect.innerHTML = `
+          <option value="">Select appointment slot</option>
+          ${slots.map(slot => `
+            <option value="${slot}">${formatSlot(slot, timezone)}</option>
+          `).join('')}
+        `;
 
-        slotsList.innerHTML = slots.map(slot => `
-          <button
-            type="button"
-            data-slot="${slot}"
-            class="ghl-slot-btn p-3 rounded-xl border border-gray-200 bg-white hover:bg-yellow-50 hover:border-yellow-400 text-left text-sm font-semibold text-gray-800">
-            ${formatSlot(slot)}
-          </button>
-        `).join('');
+        appointmentSelect.disabled = false;
 
-        slotsList.querySelectorAll('.ghl-slot-btn').forEach(btn => {
-          btn.addEventListener('click', () => {
-            slotsList.querySelectorAll('.ghl-slot-btn').forEach(b => {
-              b.classList.remove('bg-yellow-100', 'border-yellow-500');
-            });
-
-            btn.classList.add('bg-yellow-100', 'border-yellow-500');
-
-            if (appointmentInput) {
-              appointmentInput.value = btn.dataset.slot;
-            }
-
-            clientSelect.dataset.selectedSlot = btn.dataset.slot;
-          });
-        });
-
-      } catch (slotErr) {
-        console.error('Failed loading GHL slots:', slotErr);
-        setStatus('Failed to load slots. Check console.');
+      } catch (err) {
+        console.error('Failed loading GHL slots:', err);
+        appointmentSelect.innerHTML = `<option value="">Failed to load slots</option>`;
       }
     });
 
