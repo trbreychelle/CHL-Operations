@@ -449,12 +449,12 @@
             Appointment Date & Time
           </label>
 
-          <input
-            type="text"
-            id="submit-appointment-datetime"
-            class="w-full p-3 border border-gray-200 rounded-xl"
-            placeholder="MM/DD/YYYY HH:MM"
-          />
+          <select
+  id="submit-appointment-datetime"
+  class="w-full p-3 border border-gray-200 rounded-xl"
+  disabled>
+  <option value="">Select client first</option>
+</select>
         </div>
 
       </div>
@@ -551,14 +551,7 @@
         ></textarea>
       </div>
 
-      <div id="client-calendar-wrapper" class="mt-8 hidden">
-  <div class="flex items-center justify-between mb-3">
-    <h3 class="text-lg font-bold text-gray-900">Available Appointment Slots</h3>
-    <a id="open-calendar-btn" href="#" target="_blank" class="text-sm font-semibold text-yellow-600 hover:text-yellow-700">
-      Open Full Calendar
-    </a>
-  </div>
-
+  
   <div id="ghl-slots-status" class="text-sm text-gray-500 mb-3">
     Select a client to load slots.
   </div>
