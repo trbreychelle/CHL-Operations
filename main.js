@@ -62,7 +62,7 @@ class CallHammerPortal {
       // ✅ ADD THESE TWO NEW WEBHOOKS FOR LEADS
       updateLead: 'https://automate.callhammerleads.com/webhook/update-lead',
       deleteLead: 'https://automate.callhammerleads.com/webhook/delete-lead',
-      getGhlAvailability: 'https://automate.callhammerleads.com/webhook/get-ghl-availability',
+      getGhlAvailability: 'https://automate.callhammerleads.com/webhook/agent-get-availability',
 bookGhlAppointment: 'https://automate.callhammerleads.com/webhook/book-ghl-appointment',
     };
 
@@ -1282,8 +1282,7 @@ async setupLeadSubmissionClientRoutes() {
 
       try {
         const url = new URL(this.webhooks.getGhlAvailability);
-        url.searchParams.set('calendarId', selected.ghl_calendar_id);
-        url.searchParams.set('timezone', selected.timezone || 'America/New_York');
+       url.searchParams.set('clientCode', selected.client_code);
 
         const res = await fetch(url.toString(), {
           method: 'GET',
