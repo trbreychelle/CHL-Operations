@@ -552,31 +552,18 @@
       </div>
 
       <div id="client-calendar-wrapper" class="mt-8 hidden">
-
   <div class="flex items-center justify-between mb-3">
-    <h3 class="text-lg font-bold text-gray-900">
-      Client Calendar Availability
-    </h3>
-
-    <a
-      id="open-calendar-btn"
-      href="#"
-      target="_blank"
-      class="text-sm font-semibold text-yellow-600 hover:text-yellow-700">
+    <h3 class="text-lg font-bold text-gray-900">Available Appointment Slots</h3>
+    <a id="open-calendar-btn" href="#" target="_blank" class="text-sm font-semibold text-yellow-600 hover:text-yellow-700">
       Open Full Calendar
     </a>
   </div>
 
-  <div class="border border-gray-200 rounded-2xl overflow-hidden bg-gray-50">
-    <iframe
-      id="client-calendar-frame"
-      src=""
-      class="w-full"
-      style="height: 700px;"
-      frameborder="0">
-    </iframe>
+  <div id="ghl-slots-status" class="text-sm text-gray-500 mb-3">
+    Select a client to load slots.
   </div>
 
+  <div id="ghl-slots-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
 </div>
 
       <div class="mt-8 flex justify-end">
