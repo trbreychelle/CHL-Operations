@@ -1209,207 +1209,11 @@ async setupLeadSubmissionClientRoutes() {
   if (!this.supabase) return;
 
   const clientSelect = document.getElementById('submit-client');
+  const calendarWrapper = document.getElementById('client-calendar-wrapper');
+  const calendarFrame = document.getElementById('client-calendar-frame');
   const calendarLabel = document.getElementById('selected-calendar-label');
-  const appointmentInput = document.getElementById('submit-appointment-datetime');
 
-  const calendarBox = document.getElementById('booking-calendar-box');
-  const monthLabel = document.getElementById('booking-month-label');
-  const daysGrid = document.getElementById('booking-calendar-days');
-
-  const slotStatus = document.getElementById('booking-slot-status');
-  const timeSlots = document.getElementById('booking-time-slots');
-
-  const prevBtn = document.getElementById('booking-prev-month');
-  const nextBtn = document.getElementById('booking-next-month');
-
-  const leadDetails = document.getElementById('lead-details-section');
-
-  if (!clientSelect || !calendarBox) return;
-
-  let routes = [];
-  let selectedRoute = null;
-  let loadedSlots = [];
-  let currentMonth = new Date();
-
-  const timezoneOptions = [
-    { label: 'EST', value: 'America/New_York' },
-    { label: 'CST', value: 'America/Belize' },
-    { label: 'MST', value: 'America/Denver' },
-    { label: 'PST', value: 'America/Los_Angeles' }
-  ];
-
-  const timezoneDropdownHtml = `
-    <div class="mt-4">
-      <label class="block text-xs font-bold text-gray-500 uppercase mb-2">
-        Calendar Timezone
-      </label>
-
-      <select
-        id="booking-timezone-select"
-        class="w-full p-3 border border-gray-200 rounded-xl bg-white text-sm">
-        ${timezoneOptions.map(tz => `
-          <option value="${tz.value}">
-            ${tz.label}
-          </option>
-        `).join('')}
-      </select>
-    </div>
-  `;
-
-  const getDateKey = (date) => {
-    return new Date(date).toISOString().split('T')[0];
-  };
-
-  const formatSlot = (iso, timezone) => {
-    try {
-      return new Intl.DateTimeFormat('en-US', {
-        timeZone: timezone,
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      }).format(new Date(iso));
-    } catch {
-      return iso;
-    }
-  };
-
-  const getRange = () => {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-
-    const end = new Date();
-    end.setDate(end.getDate() + 12);
-    end.setHours(23, 59, 59, 999);
-
-    return {
-      startDate: start.getTime(),
-      endDate: end.getTime()
-    };
-  };
-
-  const renderCalendar = (timezone) => {
-    if (!daysGrid) return;
-
-    const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth();
-
-    const firstDay = new Date(year, month, 1);
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-    monthLabel.textContent = firstDay.toLocaleString('en-US', {
-      month: 'long',
-      year: 'numeric'
-    });
-
-    daysGrid.innerHTML = '';
-
-    for (let i = 0; i < firstDay.getDay(); i++) {
-      daysGrid.innerHTML += `<div></div>`;
-    }
-
-    const availableDates = new Set(
-      loadedSlots.map(slot =>
-        new Intl.DateTimeFormat('en-CA', {
-          timeZone: timezone,
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        }).format(new Date(slot))
-      )
-    );
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dateObj = new Date(year, month, day);
-      const formatted = new Intl.DateTimeFormat('en-CA', {
-        timeZone: timezone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      }).format(dateObj);
-
-      const hasSlots = availableDates.has(formatted);
-
-      const btnClass = hasSlots
-        ? 'bg-yellow-50 border-yellow-300 hover:bg-yellow-200 cursor-pointer'
-        : 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed';
-
-      daysGrid.innerHTML += `
-        <button
-          type="button"
-          class="calendar-slot-day h-10 rounded-full border text-sm font-semibold ${btnClass}"
-          data-date="${formatted}"
-          ${hasSlots ? '' : 'disabled'}>
-          ${day}
-        </button>
-      `;
-    }
-
-    document.querySelectorAll('.calendar-slot-day').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.calendar-slot-day').forEach(b => {
-          b.classList.remove('bg-yellow-500', 'text-gray-900');
-        });
-
-        btn.classList.add('bg-yellow-500', 'text-gray-900');
-
-        const selectedDate = btn.dataset.date;
-
-        const filteredSlots = loadedSlots.filter(slot => {
-          const slotDate = new Intl.DateTimeFormat('en-CA', {
-            timeZone: timezone,
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-          }).format(new Date(slot));
-
-          return slotDate === selectedDate;
-        });
-
-        renderSlots(filteredSlots, timezone);
-      });
-    });
-  };
-
-  const renderSlots = (slots, timezone) => {
-    if (!timeSlots) return;
-
-    timeSlots.innerHTML = '';
-
-    if (!slots.length) {
-      slotStatus.textContent = 'No available slots.';
-      return;
-    }
-
-    slotStatus.textContent = `${slots.length} available slot(s).`;
-
-    timeSlots.innerHTML = slots.map(slot => `
-      <button
-        type="button"
-        class="booking-slot-btn p-3 rounded-xl border border-gray-200 bg-white hover:bg-yellow-50 hover:border-yellow-400 text-sm font-bold"
-        data-slot="${slot}">
-        ${formatSlot(slot, timezone)}
-      </button>
-    `).join('');
-
-    document.querySelectorAll('.booking-slot-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.booking-slot-btn').forEach(b => {
-          b.classList.remove('bg-yellow-100', 'border-yellow-500');
-        });
-
-        btn.classList.add('bg-yellow-100', 'border-yellow-500');
-
-        appointmentInput.value = btn.dataset.slot;
-
-        if (leadDetails) {
-          leadDetails.classList.remove('hidden');
-        }
-      });
-    });
-  };
+  if (!clientSelect || !calendarWrapper || !calendarFrame) return;
 
   try {
     const { data, error } = await this.supabase
@@ -1419,11 +1223,11 @@ async setupLeadSubmissionClientRoutes() {
       .order('company_name', { ascending: true });
 
     if (error) {
-      console.error(error);
+      console.error('Failed loading client routes:', error);
       return;
     }
 
-    routes = data || [];
+    const routes = data || [];
 
     clientSelect.innerHTML = `
       <option value="">Select Client</option>
@@ -1434,93 +1238,44 @@ async setupLeadSubmissionClientRoutes() {
       `).join('')}
     `;
 
-    clientSelect.addEventListener('change', async () => {
+    clientSelect.addEventListener('change', () => {
       const selected = routes.find(r => r.id === clientSelect.value);
 
-      if (!selected) return;
-
-      selectedRoute = selected;
-
-      if (leadDetails) {
-        leadDetails.classList.add('hidden');
+      if (!selected) {
+        calendarWrapper.classList.add('hidden');
+        calendarFrame.src = '';
+        if (calendarLabel) calendarLabel.textContent = '';
+        return;
       }
 
-      appointmentInput.value = '';
+      const agentName =
+        this.currentUser?.display_name ||
+        this.currentUser?.full_name ||
+        this.currentUser?.name ||
+        '';
 
-      calendarBox.classList.remove('hidden');
+      const agentEmail = this.currentUser?.email || '';
 
-      calendarLabel.innerHTML = `
-        <div class="font-bold text-gray-900">
-          ${selected.company_name}
-        </div>
+      const url = new URL(selected.ghl_calendar_url);
 
-        ${timezoneDropdownHtml}
-      `;
+      url.searchParams.set('chl_agent_name', agentName);
+      url.searchParams.set('chl_agent_email', agentEmail);
+      url.searchParams.set('chl_client_code', selected.client_code || '');
+      url.searchParams.set('chl_client_name', selected.company_name || '');
+      url.searchParams.set('chl_calendar_id', selected.ghl_calendar_id || '');
+      url.searchParams.set('chl_timezone', selected.timezone || '');
 
-      const timezoneSelect = document.getElementById('booking-timezone-select');
+      calendarWrapper.classList.remove('hidden');
+      calendarFrame.src = url.toString();
 
-      timezoneSelect.value = selected.timezone || 'America/Belize';
+      if (calendarLabel) {
+        calendarLabel.textContent = selected.company_name || 'Selected Client';
+      }
 
-      const loadAvailability = async (timezone) => {
-        slotStatus.textContent = 'Loading slots...';
-        timeSlots.innerHTML = '';
-
-        const range = getRange();
-
-        const url = new URL(this.webhooks.getGhlAvailability);
-
-        url.searchParams.set('clientCode', selected.client_code);
-        url.searchParams.set('startDate', range.startDate);
-        url.searchParams.set('endDate', range.endDate);
-        url.searchParams.set('timezone', timezone);
-
-        const res = await fetch(url.toString(), {
-          method: 'GET',
-          headers: {
-            Accept: 'application/json'
-          }
-        });
-
-        const json = await res.json();
-
-        const slotGroups = json?.data || json || {};
-
-        loadedSlots = Object.values(slotGroups)
-          .flatMap(day =>
-            Array.isArray(day?.slots)
-              ? day.slots
-              : []
-          )
-          .filter(Boolean);
-
-        renderCalendar(timezone);
-      };
-
-      await loadAvailability(timezoneSelect.value);
-
-      timezoneSelect.addEventListener('change', async () => {
-        await loadAvailability(timezoneSelect.value);
-      });
-    });
-
-    prevBtn?.addEventListener('click', () => {
-      currentMonth.setMonth(currentMonth.getMonth() - 1);
-
-      const timezone =
-        document.getElementById('booking-timezone-select')?.value
-        || 'America/Belize';
-
-      renderCalendar(timezone);
-    });
-
-    nextBtn?.addEventListener('click', () => {
-      currentMonth.setMonth(currentMonth.getMonth() + 1);
-
-      const timezone =
-        document.getElementById('booking-timezone-select')?.value
-        || 'America/Belize';
-
-      renderCalendar(timezone);
+      clientSelect.dataset.clientCode = selected.client_code || '';
+      clientSelect.dataset.companyName = selected.company_name || '';
+      clientSelect.dataset.calendarId = selected.ghl_calendar_id || '';
+      clientSelect.dataset.timezone = selected.timezone || '';
     });
 
   } catch (err) {
