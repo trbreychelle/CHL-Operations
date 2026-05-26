@@ -61,6 +61,9 @@
         <a href="#submitlead" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium">
   <span>Submit Lead</span>
 </a>
+        <a href="#leaderboards" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium">
+  <span>Leaderboards</span>
+</a>
         <a href="#overview" class="nav-item active flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Performance Overview</span></a>
 <a href="#leads" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>My Leads</span></a>
 <a href="#profile" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg font-medium"><span>Profile Info</span></a>
@@ -411,6 +414,72 @@
             </tr>
           </thead>
           <tbody id="payroll-daily-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+      <div id="view-leaderboards" class="dashboard-view">
+  <div class="space-y-6">
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div>
+        <h2 class="text-3xl font-bold text-gray-900">Team Leaderboards</h2>
+        <p class="text-sm text-gray-500 mt-1">Ranked by qualified leads, cancellation rate, then total leads.</p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <select id="leaderboard-timeframe" class="p-2.5 border border-gray-200 rounded-xl bg-white text-sm outline-none">
+          <option value="today" selected>Today</option>
+          <option value="this-week">Current Week</option>
+          <option value="previous-week">Previous Week</option>
+          <option value="30-days">30 Days</option>
+          <option value="6-weeks">Six Weeks</option>
+          <option value="all-time">All Time</option>
+          <option value="selected-week">Select Week</option>
+          <option value="custom">Custom Date</option>
+        </select>
+
+        <select id="leaderboard-week-select" class="hidden p-2.5 border border-gray-200 rounded-xl bg-white text-sm outline-none min-w-[220px]">
+          <option value="">Select week</option>
+        </select>
+
+        <input type="date" id="leaderboard-start" class="hidden p-2 border border-gray-200 rounded-lg text-sm" />
+        <input type="date" id="leaderboard-end" class="hidden p-2 border border-gray-200 rounded-lg text-sm" />
+      </div>
+    </div>
+
+    <div class="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl border border-yellow-100 p-6">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-2xl bg-yellow-400 flex items-center justify-center text-xl">⭐</div>
+        <div>
+          <h3 class="text-lg font-black text-gray-900">Spotlight Highlights</h3>
+          <p class="text-xs text-gray-500">Highlighted feedback from admin lead review.</p>
+        </div>
+      </div>
+      <div id="leaderboard-highlights" class="space-y-3">
+        <div class="text-sm text-gray-400 italic">Loading highlights...</div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-gray-50 text-xs font-bold text-gray-400 uppercase tracking-widest">
+            <tr>
+              <th class="px-6 py-4 text-left">Placement</th>
+              <th class="px-6 py-4 text-left">Agent</th>
+              <th class="px-6 py-4 text-center">Total Leads</th>
+              <th class="px-6 py-4 text-center text-red-500">QC Rejected</th>
+              <th class="px-6 py-4 text-center text-blue-500">Qualified</th>
+              <th class="px-6 py-4 text-center text-purple-500">Credited</th>
+              <th class="px-6 py-4 text-center text-yellow-500">Pending</th>
+              <th class="px-6 py-4 text-center">Cancellation Rate</th>
+            </tr>
+          </thead>
+          <tbody id="team-leaderboard-body" class="divide-y divide-gray-100">
+            <tr><td colspan="8" class="p-6 text-center text-gray-400 italic">Loading leaderboard...</td></tr>
+          </tbody>
         </table>
       </div>
     </div>
