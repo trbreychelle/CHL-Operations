@@ -914,8 +914,8 @@ body.client-health-lock {
 <div class="relative bg-white rounded-2xl shadow-xl w-[92%] max-w-lg p-6 border border-gray-100">
 <div class="flex items-center justify-between mb-4">
 <div>
-<h3 class="text-xl font-bold text-gray-900">Add Rejection Reason</h3>
-<p class="text-sm text-gray-500 mt-1">This note will be saved for QC and shared later with the agent dashboard.</p>
+<h3 class="text-xl font-bold text-gray-900">Add Feedback</h3>
+<p class="text-sm text-gray-500 mt-1">This feedback will be saved and shared later with the agent dashboard.</p>
 </div>
 <button class="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50" onclick="Admin.closeRejectionReasonModal()" type="button">
 <i class="fa-solid fa-xmark"></i>
@@ -925,15 +925,25 @@ body.client-health-lock {
 <input id="rejection-modal-next-status" type="hidden">
 <div class="mb-4">
 <label class="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-2">
-          Rejection Reason
+          Feedback
         </label>
-<textarea class="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-400" id="rejection-modal-text" placeholder="Enter the reason why this lead is rejected..." rows="5"></textarea>
+<textarea class="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-400" id="rejection-modal-text" placeholder="Enter feedback for this lead..." rows="5"></textarea>
+    <div class="mb-4 flex items-center gap-2">
+  <input
+    type="checkbox"
+    id="rejection-modal-highlight"
+    class="w-4 h-4 rounded border-gray-300 text-yellow-500 focus:ring-yellow-400"
+  >
+  <label for="rejection-modal-highlight" class="text-sm font-semibold text-gray-700">
+    Highlight this feedback
+  </label>
+</div>
 </div>
 <div class="flex items-center justify-end gap-2">
 <button class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50" onclick="Admin.closeRejectionReasonModal()" type="button">
           Cancel
         </button>
-<button class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-extrabold hover:bg-red-700" onclick="Admin.saveRejectionReasonModal()" type="button">
+<button class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800" onclick="Admin.saveRejectionReasonModal()" type="button">
           Save
         </button>
 </div>
@@ -1504,7 +1514,7 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
           { key: "age_of_roof", label: "Age of Roof", keys: ["Age of Roof", "age_of_roof"] },
           { key: "insurance_company", label: "Insurance Company", keys: ["Insurance Company", "insurance_company"] },
           { key: "additional_notes", label: "Additional Notes", keys: ["Additional Notes", "additional_notes"] },
-          { key: "rejection_reason", label: "Rejection Reason", keys: ["rejection_reason", "Rejection Reason"] },
+          { key: "feedback", label: "Feedback", keys: ["feedback", "Feedback", "rejection_reason", "Rejection Reason"] },
           { key: "status", label: "Status", keys: ["Status", "status"] },
         ];
       },
@@ -1515,7 +1525,7 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
           "homeowner_name",
           "appointment_coordinator",
           "roofing_company",
-          "rejection_reason",
+          "feedback",
           "status"
         ]);
       },
@@ -2342,12 +2352,17 @@ const renderBottomRow = (a) => {
         const leadIdEl = document.getElementById("rejection-modal-lead-id");
         const statusEl = document.getElementById("rejection-modal-next-status");
         const textEl = document.getElementById("rejection-modal-text");
+        const highlightEl = document.getElementById("rejection-modal-highlight");
 
         if (!modal || !leadIdEl || !statusEl || !textEl) return;
 
         leadIdEl.value = leadId || "";
         statusEl.value = nextStatus || "REJECTED";
         textEl.value = existingReason || "";
+        if (highlightEl) {
+  const lead = (this.getState().leads || []).find(l => String(l.lead_id) === String(leadId));
+  highlightEl.checked = lead?.feedback_highlight === true;
+}
 
         modal.classList.remove("hidden");
 
@@ -2362,31 +2377,28 @@ const renderBottomRow = (a) => {
         const leadIdEl = document.getElementById("rejection-modal-lead-id");
         const statusEl = document.getElementById("rejection-modal-next-status");
         const textEl = document.getElementById("rejection-modal-text");
+        const highlightEl = document.getElementById("rejection-modal-highlight");
 
         if (modal) modal.classList.add("hidden");
         if (leadIdEl) leadIdEl.value = "";
         if (statusEl) statusEl.value = "";
         if (textEl) textEl.value = "";
+        if (highlightEl) highlightEl.checked = false;
       },
 
       async saveRejectionReasonModal() {
-        const leadId = document.getElementById("rejection-modal-lead-id")?.value || "";
-        const nextStatus = document.getElementById("rejection-modal-next-status")?.value || "REJECTED";
-        const reason = String(document.getElementById("rejection-modal-text")?.value || "").trim();
+  const leadId = document.getElementById("rejection-modal-lead-id")?.value || "";
+  const feedback = String(document.getElementById("rejection-modal-text")?.value || "").trim();
+  const highlighted = document.getElementById("rejection-modal-highlight")?.checked === true;
 
-        if (!leadId) {
-          alert("Missing lead ID.");
-          return;
-        }
+  if (!leadId) {
+    alert("Missing lead ID.");
+    return;
+  }
 
-        if (!reason) {
-          alert("Rejection reason is required.");
-          return;
-        }
-
-        await updateLeadStatus(leadId, nextStatus, reason);
-        this.closeRejectionReasonModal();
-      },
+  await updateLeadFeedback(leadId, feedback, highlighted);
+  this.closeRejectionReasonModal();
+},
 
       editRejectionReason(leadId, currentReason = "", currentStatus = "REJECTED") {
         this.openRejectionReasonModal(leadId, currentStatus, currentReason);
@@ -2631,13 +2643,13 @@ async openNotification(item) {
           const leadId = this.getLeadField(l, ["LEAD ID", "lead_id", "ID"], "unknown");
           const currentStatusRaw = this.getLeadField(l, ["status", "Status", "STATUS", "Lead_Status"], "");
           const safeVal = String(currentStatusRaw).toUpperCase();
-          const rejectionReason = this.getLeadField(l, ["rejection_reason", "Rejection Reason"], "");
+          const rejectionReason = this.getLeadField(l, ["feedback", "Feedback", "rejection_reason", "Rejection Reason"], "");
 
           return `<tr class="hover:bg-gray-50 transition-colors">
             ${visibleCols.map(c => {
               const rawVal = this.getLeadField(l, c.keys);
 
-              if (c.key === "rejection_reason") {
+              if (c.key === "feedback") {
                 const safeReason = String(rawVal || "");
                 const safeLeadId = String(leadId).replace(/'/g, "\\'");
                 const safeReasonHtml = safeReason
@@ -2651,9 +2663,10 @@ async openNotification(item) {
                     type="button"
                     onclick="Admin.editRejectionReason('${safeLeadId}', '${safeReasonHtml}', '${safeStatusHtml}')"
                     class="text-left w-full ${safeReason ? 'text-gray-700' : 'text-gray-400 italic'} hover:underline"
-                    title="Edit rejection reason"
+                    title="Edit feedback"
                   >
-                    ${safeReason ? safeReasonHtml : "No rejection reason"}
+                    ${safeReason ? safeReasonHtml : "No feedback"}
+${l.feedback_highlight ? '<div class="text-yellow-500 text-xs font-black mt-1">⭐ Highlighted</div>' : ''}
                   </button>
                 </td>`;
               }
