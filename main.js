@@ -1913,6 +1913,100 @@ async loadTeamLeaderboards() {
   this.renderTeamLeaderboards(data || []);
 }
 
+  renderTeamLeaderboards(rows) {
+  const body = document.getElementById('team-leaderboard-body');
+  const highlights = document.getElementById('leaderboard-highlights');
+
+  if (!body) return;
+
+  const sorted = (Array.isArray(rows) ? rows : [])
+    .map(r => ({
+      agent_name: r.agent_name || 'Unknown',
+      total_leads: Number(r.total_leads || 0),
+      qc_rejected: Number(r.qc_rejected || 0),
+      qualified_leads: Number(r.qualified_leads || 0),
+      credited_leads: Number(r.credited_leads || 0),
+      pending_leads: Number(r.pending_leads || 0),
+      cancellation_rate: Number(r.cancellation_rate || 0),
+      latest_highlight: r.latest_highlight || '',
+      latest_highlight_date: r.latest_highlight_date || ''
+    }))
+    .filter(r => String(r.agent_name).trim().toLowerCase() !== 'call hammer leads')
+    .sort((a, b) =>
+      (b.qualified_leads - a.qualified_leads) ||
+      (a.cancellation_rate - b.cancellation_rate) ||
+      (b.total_leads - a.total_leads) ||
+      (a.qc_rejected - b.qc_rejected) ||
+      a.agent_name.localeCompare(b.agent_name)
+    );
+
+  let lastRank = 0;
+  let lastQualified = null;
+  let lastCancel = null;
+  let lastTotal = null;
+  let lastRejected = null;
+
+  const ranked = sorted.map((a, index) => {
+    const sameAsPrev =
+      lastQualified === a.qualified_leads &&
+      lastCancel === a.cancellation_rate &&
+      lastTotal === a.total_leads &&
+      lastRejected === a.qc_rejected;
+
+    const rank = sameAsPrev ? lastRank : index + 1;
+
+    lastRank = rank;
+    lastQualified = a.qualified_leads;
+    lastCancel = a.cancellation_rate;
+    lastTotal = a.total_leads;
+    lastRejected = a.qc_rejected;
+
+    return { ...a, rank };
+  });
+
+  const placeLabel = (rank) => {
+    if (rank === 1) return '🥇 Top 1';
+    if (rank === 2) return '🥈 Top 2';
+    if (rank === 3) return '🥉 Top 3';
+    return `#${rank}`;
+  };
+
+  body.innerHTML = ranked.length ? ranked.map(r => `
+    <tr class="hover:bg-gray-50">
+      <td class="px-6 py-4 font-black text-gray-900">${placeLabel(r.rank)}</td>
+      <td class="px-6 py-4 font-bold text-gray-900">${r.agent_name}</td>
+      <td class="px-6 py-4 text-center font-bold text-gray-700">${r.total_leads}</td>
+      <td class="px-6 py-4 text-center font-bold text-red-500">${r.qc_rejected}</td>
+      <td class="px-6 py-4 text-center font-black text-blue-600">${r.qualified_leads}</td>
+      <td class="px-6 py-4 text-center font-bold text-purple-600">${r.credited_leads}</td>
+      <td class="px-6 py-4 text-center font-bold text-yellow-600">${r.pending_leads}</td>
+      <td class="px-6 py-4 text-center font-bold text-gray-700">${r.cancellation_rate}%</td>
+    </tr>
+  `).join('') : `
+    <tr>
+      <td colspan="8" class="p-6 text-center text-gray-400 italic">
+        No leaderboard data found.
+      </td>
+    </tr>
+  `;
+
+  const highlighted = ranked.filter(r => r.latest_highlight).slice(0, 5);
+
+  if (highlights) {
+    highlights.innerHTML = highlighted.length ? highlighted.map(r => `
+      <div class="rounded-2xl bg-white border border-yellow-100 p-4 shadow-sm">
+        <div class="text-sm font-black text-gray-900">🎉 ${r.agent_name}</div>
+        <div class="text-sm text-gray-700 mt-1">${r.latest_highlight}</div>
+        <div class="text-xs text-gray-400 mt-2">${r.latest_highlight_date || ''}</div>
+      </div>
+    `).join('') : `
+      <div class="text-sm text-gray-400 italic">
+        No highlighted feedback for this timeframe yet.
+      </div>
+    `;
+  }
+}
+
   async loadTimeOffHistory() {
  const { data, error } = await this.supabase
   .from('time_off_requests')
