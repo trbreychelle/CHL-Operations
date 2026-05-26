@@ -737,14 +737,29 @@ body.client-health-lock {
     <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
       <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-violet-50 to-fuchsia-50">
         <div class="flex items-center justify-between gap-3">
-          <div>
-            <h3 class="font-black text-gray-900 flex items-center gap-2">
-              <i class="fa-solid fa-clock-rotate-left text-violet-600"></i> Strategy History
-            </h3>
-            <p class="text-xs text-gray-500 mt-1">Planned clients and actual lead output for the selected day.</p>
-          </div>
-          <div id="dailyHistoryCount" class="text-xs font-black text-gray-400">0 rows</div>
-        </div>
+  <div>
+    <h3 class="font-black text-gray-900 flex items-center gap-2">
+      <i class="fa-solid fa-clock-rotate-left text-violet-600"></i> Strategy History
+    </h3>
+
+    <p class="text-xs text-gray-500 mt-1">
+      Weekly strategy history and actual lead output.
+    </p>
+  </div>
+
+  <div class="flex items-center gap-3">
+    <select
+      id="daily-history-week-select"
+      class="px-3 py-2 border border-gray-200 rounded-xl text-xs font-black bg-white text-violet-700 min-w-[240px]"
+    >
+      <option value="">Loading weeks...</option>
+    </select>
+
+    <div id="dailyHistoryCount" class="text-xs font-black text-gray-400">
+      0 rows
+    </div>
+  </div>
+</div>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm whitespace-nowrap">
@@ -752,19 +767,17 @@ body.client-health-lock {
             <tr>
               <th class="p-4">Date</th>
               <th class="p-4">Day</th>
-              <th class="p-4">Lane</th>
-              <th class="p-4">Position</th>
               <th class="p-4">Client Code</th>
               <th class="p-4">Company</th>
               <th class="p-4 text-center">Total Leads</th>
               <th class="p-4 text-center text-blue-600">Qualified</th>
               <th class="p-4 text-center text-purple-600">Credited</th>
-              <th class="p-4 text-center text-yellow-600">Pending</th>
               <th class="p-4 text-center text-red-500">Rejected</th>
+              <th class="p-4">Assigned Agents</th>
             </tr>
           </thead>
           <tbody id="dailyStrategyHistoryBody" class="divide-y divide-gray-50">
-            <tr><td colspan="11" class="p-6 text-center text-gray-400 italic">Loading history...</td></tr>
+            <tr><td colspan="9" class="p-6 text-center text-gray-400 italic">Loading history...</td></tr>
           </tbody>
         </table>
       </div>
@@ -7040,7 +7053,7 @@ this._dailyStrategyRenderToken = renderToken;
       boardEl.innerHTML = `<div class="bg-white rounded-2xl border border-red-100 shadow-sm p-5 text-sm text-red-600">Failed to load strategy week.</div>`;
       clientPoolEl.innerHTML = `<div class="text-sm text-red-500">Failed to load client pool.</div>`;
       rosterEl.innerHTML = `<div class="text-sm text-red-500">Failed to load roster.</div>`;
-      historyBodyEl.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-red-500 italic">Failed to load history.</td></tr>`;
+      historyBodyEl.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-red-500 italic">Failed to load history.</td></tr>`;
       return;
     }
 
@@ -7052,7 +7065,7 @@ this._dailyStrategyRenderToken = renderToken;
       boardEl.innerHTML = `<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm text-gray-400 italic">No strategy week available.</div>`;
       clientPoolEl.innerHTML = `<div class="text-sm text-gray-400 italic">No client pool available.</div>`;
       rosterEl.innerHTML = `<div class="text-sm text-gray-400 italic">No roster available.</div>`;
-      historyBodyEl.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-gray-400 italic">No history available.</td></tr>`;
+      historyBodyEl.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-400 italic">No history available.</td></tr>`;
       return;
     }
 
@@ -7112,24 +7125,57 @@ this._dailyStrategyRenderToken = renderToken;
 
     const rawClients = Array.isArray(this.getState().rawClients) ? this.getState().rawClients : [];
     const timeEvents = Array.isArray(this.getState().timeEvents) ? this.getState().timeEvents : [];
-    let historyRows = [];
+
+let historyRows = [];
+
+const historyWeekSelect = document.getElementById("daily-history-week-select");
 
 const { data: strategyHistoryRows, error: strategyHistoryErr } = await supaClient
   .from("daily_strategy_history_view")
   .select("*")
   .eq("organization_id", orgId)
-  .eq("week_start", selectedWeekStart)
-  .eq("strategy_date", this.dailyStrategySelectedDate)
-  .eq("shift_key", this.dailyStrategyShift)
-  .order("strategy_date", { ascending: true })
-  .order("lane", { ascending: true })
-  .order("position_index", { ascending: true });
+  .order("week_start", { ascending: false })
+  .order("strategy_date", { ascending: true });
 
 if (strategyHistoryErr) {
   console.error("Daily strategy history load failed:", strategyHistoryErr);
 }
 
-historyRows = Array.isArray(strategyHistoryRows) ? strategyHistoryRows : [];
+const allHistoryRows = Array.isArray(strategyHistoryRows)
+  ? strategyHistoryRows
+  : [];
+
+const uniqueWeeks = [
+  ...new Set(allHistoryRows.map(r => r.week_start))
+].sort((a, b) => String(b).localeCompare(String(a)));
+
+if (!this.dailyStrategyHistoryWeekStart) {
+  this.dailyStrategyHistoryWeekStart =
+    uniqueWeeks[0] || selectedWeekStart;
+}
+
+if (historyWeekSelect) {
+  historyWeekSelect.innerHTML = uniqueWeeks.map(w => `
+    <option value="${w}" ${String(w) === String(this.dailyStrategyHistoryWeekStart) ? "selected" : ""}>
+      Week of ${w}
+    </option>
+  `).join("");
+
+  if (!historyWeekSelect.dataset.bound) {
+    historyWeekSelect.dataset.bound = "true";
+
+    historyWeekSelect.addEventListener("change", () => {
+      this.dailyStrategyHistoryWeekStart =
+        historyWeekSelect.value;
+
+      this.renderDailyTab();
+    });
+  }
+}
+
+historyRows = allHistoryRows.filter(r =>
+  String(r.week_start) === String(this.dailyStrategyHistoryWeekStart)
+);
     const clientHealthRows = Array.isArray(this.clientHealthRaw) ? this.clientHealthRaw : [];
 
     const companyByCode = new Map(
@@ -7617,21 +7663,19 @@ this.dailyStrategyHistoryRows = historyRows;
     historyCountEl.textContent = `${this.dailyStrategyHistoryRows.length} row${this.dailyStrategyHistoryRows.length === 1 ? "" : "s"}`;
 
     if (!this.dailyStrategyHistoryRows.length) {
-      historyBodyEl.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-gray-400 italic">No history rows for this day.</td></tr>`;
+      historyBodyEl.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-400 italic">No history rows for this week.</td></tr>`;
     } else {
       historyBodyEl.innerHTML = this.dailyStrategyHistoryRows.map(row => `
         <tr class="hover:bg-gray-50">
           <td class="p-4">${row.strategy_date || '—'}</td>
           <td class="p-4">${row.day_key || '—'}</td>
-          <td class="p-4 font-bold text-gray-700">${row.lane || '—'}</td>
-          <td class="p-4">${row.position_index ?? '—'}</td>
           <td class="p-4 font-bold text-gray-900">${row.client_code || '—'}</td>
           <td class="p-4">${row.company_name || '—'}</td>
           <td class="p-4 text-center font-bold text-gray-700">${row.total_leads_set ?? 0}</td>
           <td class="p-4 text-center font-black text-blue-600">${row.qualified_leads_set ?? 0}</td>
           <td class="p-4 text-center font-black text-purple-600">${row.credited_leads_set ?? 0}</td>
-          <td class="p-4 text-center font-black text-yellow-600">${row.pending_leads_set ?? 0}</td>
           <td class="p-4 text-center font-black text-red-500">${row.rejected_leads_set ?? 0}</td>
+          <td class="p-4 text-gray-700">${row.assigned_agents || '—'}</td>
         </tr>
       `).join("");
     }
@@ -7657,7 +7701,7 @@ if (dailyStatusEl && !dailyStatusEl.dataset.bound) {
     boardEl.innerHTML = `<div class="bg-white rounded-2xl border border-red-100 shadow-sm p-5 text-sm text-red-600">Daily Strategy crashed while loading.</div>`;
     clientPoolEl.innerHTML = `<div class="text-sm text-red-500">Client pool failed to load.</div>`;
     rosterEl.innerHTML = `<div class="text-sm text-red-500">Roster failed to load.</div>`;
-    historyBodyEl.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-red-500 italic">History failed to load.</td></tr>`;
+    historyBodyEl.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-red-500 italic">History failed to load.</td></tr>`;
   }
 },
 
