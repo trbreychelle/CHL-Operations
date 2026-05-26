@@ -428,26 +428,25 @@
         <p class="text-sm text-gray-500 mt-1">Ranked by qualified leads, cancellation rate, then total leads.</p>
       </div>
 
-      <div class="flex flex-wrap items-center gap-2">
-        <select id="leaderboard-timeframe" class="p-2.5 border border-gray-200 rounded-xl bg-white text-sm outline-none">
-          <option value="today" selected>Today</option>
-          <option value="this-week">Current Week</option>
-          <option value="previous-week">Previous Week</option>
-          <option value="30-days">30 Days</option>
-          <option value="6-weeks">Six Weeks</option>
-          <option value="all-time">All Time</option>
-          <option value="selected-week">Select Week</option>
-          <option value="custom">Custom Date</option>
-        </select>
+     <div class="flex flex-wrap items-center gap-2">
+  <button data-leaderboard-period="today" class="px-3 py-2 rounded-lg text-xs font-bold bg-gray-900 text-white border">Today</button>
+  <button data-leaderboard-period="this-week" class="px-3 py-2 rounded-lg text-xs font-bold bg-white border">Current Week</button>
+  <button data-leaderboard-period="previous-week" class="px-3 py-2 rounded-lg text-xs font-bold bg-white border">Previous Week</button>
+  <button data-leaderboard-period="30-days" class="px-3 py-2 rounded-lg text-xs font-bold bg-white border">30 Days</button>
+  <button data-leaderboard-period="6-weeks" class="px-3 py-2 rounded-lg text-xs font-bold bg-white border">6 Weeks</button>
+  <button data-leaderboard-period="all-time" class="px-3 py-2 rounded-lg text-xs font-bold bg-white border">All Time</button>
+  <button data-leaderboard-period="selected-week" class="px-3 py-2 rounded-lg text-xs font-bold bg-white border">Select Week</button>
+  <button data-leaderboard-period="custom" class="px-3 py-2 rounded-lg text-xs font-bold bg-white border">Custom</button>
 
-        <select id="leaderboard-week-select" class="hidden p-2.5 border border-gray-200 rounded-xl bg-white text-sm outline-none min-w-[220px]">
-          <option value="">Select week</option>
-        </select>
+  <select id="leaderboard-week-select" class="hidden p-2 border border-gray-200 rounded-lg text-sm min-w-[220px]">
+    <option value="">Select week</option>
+  </select>
 
-        <input type="date" id="leaderboard-start" class="hidden p-2 border border-gray-200 rounded-lg text-sm" />
-        <input type="date" id="leaderboard-end" class="hidden p-2 border border-gray-200 rounded-lg text-sm" />
-      </div>
-    </div>
+  <div id="leaderboard-custom-wrap" class="hidden flex items-center gap-2">
+    <input type="date" id="leaderboard-start" class="p-2 border border-gray-200 rounded-lg text-sm" />
+    <input type="date" id="leaderboard-end" class="p-2 border border-gray-200 rounded-lg text-sm" />
+  </div>
+</div>
 
     <div class="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl border border-yellow-100 p-6">
       <div class="flex items-center gap-3 mb-4">
