@@ -4760,6 +4760,25 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
             this.applyLeadsFilters();
           });
         }
+        const leadsBody = document.getElementById("leads-table-body");
+
+if (leadsBody && !leadsBody.dataset.feedbackBound) {
+  leadsBody.dataset.feedbackBound = "true";
+
+  leadsBody.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-feedback-edit='true']");
+    if (!btn) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const leadId = decodeURIComponent(btn.dataset.leadId || "");
+    const feedback = decodeURIComponent(btn.dataset.feedback || "");
+    const highlighted = btn.dataset.highlighted === "true";
+
+    this.editFeedback(leadId, feedback, highlighted);
+  });
+}
       },
 
       normalizeCompanyName(name) {
@@ -5879,15 +5898,18 @@ if (window.portal && typeof window.portal.bindPassbookUpdateButton === "function
     .replace(/"/g, "&quot;");
 
   return `<td class="p-4">
-    <button
-      type="button"
-      onclick="Admin.editFeedback(decodeURIComponent('${encodeURIComponent(String(leadId))}'), decodeURIComponent('${encodeURIComponent(String(feedback || ""))}'), ${highlighted})"
-      class="text-left w-full ${feedback ? 'text-gray-700' : 'text-gray-400 italic'} hover:underline"
-      title="Edit feedback"
-    >
-      ${highlighted ? '⭐ ' : ''}${feedback ? safeFeedbackHtml : "Add feedback"}
-    </button>
-  </td>`;
+  <button
+    type="button"
+    data-feedback-edit="true"
+    data-lead-id="${encodeURIComponent(String(leadId))}"
+    data-feedback="${encodeURIComponent(String(feedback || ""))}"
+    data-highlighted="${highlighted ? "true" : "false"}"
+    class="text-left w-full ${feedback ? 'text-gray-700' : 'text-gray-400 italic'} hover:underline"
+    title="Edit feedback"
+  >
+    ${highlighted ? '⭐ ' : ''}${feedback ? safeFeedbackHtml : "Add feedback"}
+  </button>
+</td>`;
 }
 
 if (c.key === "feedback_highlight") {
