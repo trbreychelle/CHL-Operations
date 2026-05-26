@@ -1972,11 +1972,12 @@ body.client-health-lock {
           Cancel
         </button>
         <button
-          type="button"
-          onclick="Admin.saveRejectionReasonModal()"
-          class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800"
-          Save
-        </button>
+  type="button"
+  onclick="Admin.saveRejectionReasonModal()"
+  class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800"
+>
+  Save
+</button>
       </div>
     </div>
   </div>
@@ -5880,7 +5881,7 @@ if (window.portal && typeof window.portal.bindPassbookUpdateButton === "function
   return `<td class="p-4">
     <button
       type="button"
-      onclick="Admin.editFeedback('${safeLeadId}', '${safeFeedbackHtml}', ${highlighted})"
+      onclick='Admin.editFeedback(${JSON.stringify(String(leadId))}, ${JSON.stringify(String(feedback || ""))}, ${highlighted})'
       class="text-left w-full ${feedback ? 'text-gray-700' : 'text-gray-400 italic'} hover:underline"
       title="Edit feedback"
     >
