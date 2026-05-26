@@ -767,14 +767,22 @@ body.client-health-lock {
             <tr>
               <th class="p-4">Date</th>
               <th class="p-4">Day</th>
-              <th class="p-4 cursor-pointer select-none" onclick="Admin.toggleDailyHistorySort()">
-  Client Code <span id="daily-history-code-sort">↕</span>
+         <th class="p-4 cursor-pointer select-none" onclick="Admin.setDailyHistorySort('client_code')">
+  Client Code <span id="daily-history-sort-client_code">↕</span>
 </th>
-              <th class="p-4">Company</th>
-              <th class="p-4 text-center">Total Leads</th>
-              <th class="p-4 text-center text-blue-600">Qualified</th>
-              <th class="p-4 text-center text-purple-600">Credited</th>
-              <th class="p-4 text-center text-red-500">Rejected</th>
+<th class="p-4">Company</th>
+<th class="p-4 text-center cursor-pointer select-none" onclick="Admin.setDailyHistorySort('total_leads_set')">
+  Total Leads <span id="daily-history-sort-total_leads_set">↕</span>
+</th>
+<th class="p-4 text-center text-blue-600 cursor-pointer select-none" onclick="Admin.setDailyHistorySort('qualified_leads_set')">
+  Qualified <span id="daily-history-sort-qualified_leads_set">↕</span>
+</th>
+<th class="p-4 text-center text-purple-600 cursor-pointer select-none" onclick="Admin.setDailyHistorySort('credited_leads_set')">
+  Credited <span id="daily-history-sort-credited_leads_set">↕</span>
+</th>
+<th class="p-4 text-center text-red-500 cursor-pointer select-none" onclick="Admin.setDailyHistorySort('rejected_leads_set')">
+  Rejected <span id="daily-history-sort-rejected_leads_set">↕</span>
+</th>
               <th class="p-4">Assigned Agents</th>
             </tr>
           </thead>
@@ -7254,15 +7262,32 @@ historyRows = allHistoryRows
     };
   });
 
+const sortKey = this.dailyStrategyHistorySort?.key || "client_code";
 const sortDir = this.dailyStrategyHistorySort?.dir || "asc";
 
 historyRows.sort((a, b) => {
-  const diff = getCodeNumber(a.client_code) - getCodeNumber(b.client_code);
+  let diff = 0;
+
+  if (sortKey === "client_code") {
+    diff = getCodeNumber(a.client_code) - getCodeNumber(b.client_code);
+  } else {
+    diff = Number(a[sortKey] || 0) - Number(b[sortKey] || 0);
+  }
+
   return sortDir === "asc" ? diff : -diff;
 });
 
-const sortIcon = document.getElementById("daily-history-code-sort");
-if (sortIcon) sortIcon.textContent = sortDir === "asc" ? "↑" : "↓";
+[
+  "client_code",
+  "total_leads_set",
+  "qualified_leads_set",
+  "credited_leads_set",
+  "rejected_leads_set"
+].forEach(key => {
+  const icon = document.getElementById(`daily-history-sort-${key}`);
+  if (!icon) return;
+  icon.textContent = key === sortKey ? (sortDir === "asc" ? "↑" : "↓") : "↕";
+});
     
     const clientHealthRows = Array.isArray(this.clientHealthRaw) ? this.clientHealthRaw : [];
 
@@ -9754,9 +9779,18 @@ async saveOnboardingRow(clientCode) {
   this.renderDailyTab();
 },
 
-      toggleDailyHistorySort() {
-  this.dailyStrategyHistorySort.dir =
-    this.dailyStrategyHistorySort.dir === "asc" ? "desc" : "asc";
+     setDailyHistorySort(key) {
+  if (!this.dailyStrategyHistorySort) {
+    this.dailyStrategyHistorySort = { key: "client_code", dir: "asc" };
+  }
+
+  if (this.dailyStrategyHistorySort.key === key) {
+    this.dailyStrategyHistorySort.dir =
+      this.dailyStrategyHistorySort.dir === "asc" ? "desc" : "asc";
+  } else {
+    this.dailyStrategyHistorySort.key = key;
+    this.dailyStrategyHistorySort.dir = key === "client_code" ? "asc" : "desc";
+  }
 
   this.renderDailyTab();
 },
