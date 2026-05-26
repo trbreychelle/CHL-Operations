@@ -1679,6 +1679,30 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
             this.applyLeadsFilters();
           });
         }
+          const leadsBody = document.getElementById("leads-table-body");
+
+if (leadsBody && !leadsBody.dataset.feedbackBound) {
+  leadsBody.dataset.feedbackBound = "true";
+
+  leadsBody.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-feedback-edit='true']");
+    if (!btn) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const leadId = decodeURIComponent(btn.dataset.leadId || "");
+    const feedback = decodeURIComponent(btn.dataset.feedback || "");
+    const highlighted = btn.dataset.highlighted === "true";
+
+    this.editRejectionReason(leadId, feedback, "EDIT");
+    
+    const highlightEl = document.getElementById("rejection-modal-highlight");
+    if (highlightEl) {
+      highlightEl.checked = highlighted;
+    }
+  });
+}
       },
 
       normalizeCompanyName(name) {
@@ -2658,17 +2682,20 @@ async openNotification(item) {
                 const safeStatusHtml = String(safeVal || "")
                   .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-                return `<td class="p-4">
-                  <button
-                    type="button"
-                    onclick="Admin.editRejectionReason('${safeLeadId}', '${safeReasonHtml}', '${safeStatusHtml}')"
-                    class="text-left w-full ${safeReason ? 'text-gray-700' : 'text-gray-400 italic'} hover:underline"
-                    title="Edit feedback"
-                  >
-                    ${safeReason ? safeReasonHtml : "No feedback"}
-${l.feedback_highlight ? '<div class="text-yellow-500 text-xs font-black mt-1">⭐ Highlighted</div>' : ''}
-                  </button>
-                </td>`;
+              return `<td class="p-4">
+  <button
+    type="button"
+    data-feedback-edit="true"
+    data-lead-id="${encodeURIComponent(String(leadId))}"
+    data-feedback="${encodeURIComponent(String(safeReason || ""))}"
+    data-highlighted="${l.feedback_highlight ? "true" : "false"}"
+    class="text-left w-full ${safeReason ? 'text-gray-700' : 'text-gray-400 italic'} hover:underline"
+    title="Edit feedback"
+  >
+    ${safeReason ? safeReasonHtml : "No feedback"}
+    ${l.feedback_highlight ? '<div class="text-yellow-500 text-xs font-black mt-1">⭐ Highlighted</div>' : ''}
+  </button>
+</td>`;
               }
 
               if (c.key === "status") {
