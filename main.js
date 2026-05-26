@@ -3481,7 +3481,7 @@ async function updateLeadStatus(leadId, newStatus, rejectionReason = null) {
     }
 
     try {
-        const trackedFields = ["status", "rejection_reason"];
+        const trackedFields = ["status", "feedback", "feedback_highlight", "rejection_reason"];
         const newLead = { ...(oldLead || {}), ...updatePayload };
 
         await window.portal?.createCommandCenterEvent?.({
@@ -3612,6 +3612,29 @@ async function deleteLead(leadId) {
     } catch (e) {
         console.error("Sheet sync failed", e);
     }
+}
+
+async function updateLeadFeedback(leadId, feedback = "", feedbackHighlight = false) {
+  if (!supaClient) return alert("Database connection missing.");
+  if (!leadId || leadId === "unknown") return alert("Cannot update: Lead ID is missing.");
+
+  const updatePayload = {
+    feedback: String(feedback || "").trim(),
+    feedback_highlight: !!feedbackHighlight
+  };
+
+  const { error } = await supaClient
+    .from("leads_raw")
+    .update(updatePayload)
+    .eq("lead_id", leadId);
+
+  if (error) {
+    console.error("Failed to update lead feedback:", error);
+    alert("Failed to save feedback.");
+    return;
+  }
+
+  window.portal.fetchAdminData(true);
 }
 
 // ==========================================
