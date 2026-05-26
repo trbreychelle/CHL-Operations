@@ -557,26 +557,20 @@ body.client-health-lock {
           </div>
         </div>
 
-        <div class="flex items-center gap-2 mb-4">
-  <button
-    id="notifications-tab-open"
-    onclick="Admin.setNotificationsTab('open')"
-    class="px-4 py-2 rounded-2xl bg-gray-900 text-white text-xs font-extrabold"
-  >
+       <div class="flex items-center gap-2 mb-4">
+  <button id="notifications-tab-time_off" onclick="Admin.setNotificationsTab('time_off')" class="px-4 py-2 rounded-2xl bg-white border border-gray-200 text-gray-600 text-xs font-extrabold">
+    Time Off Requests
+  </button>
+
+  <button id="notifications-tab-open" onclick="Admin.setNotificationsTab('open')" class="px-4 py-2 rounded-2xl bg-gray-900 text-white text-xs font-extrabold">
     Open
   </button>
-  <button
-    id="notifications-tab-done"
-    onclick="Admin.setNotificationsTab('done')"
-    class="px-4 py-2 rounded-2xl bg-white border border-gray-200 text-gray-600 text-xs font-extrabold"
-  >
+
+  <button id="notifications-tab-done" onclick="Admin.setNotificationsTab('done')" class="px-4 py-2 rounded-2xl bg-white border border-gray-200 text-gray-600 text-xs font-extrabold">
     Done
   </button>
-  <button
-    id="notifications-tab-all"
-    onclick="Admin.setNotificationsTab('all')"
-    class="px-4 py-2 rounded-2xl bg-white border border-gray-200 text-gray-600 text-xs font-extrabold"
-  >
+
+  <button id="notifications-tab-all" onclick="Admin.setNotificationsTab('all')" class="px-4 py-2 rounded-2xl bg-white border border-gray-200 text-gray-600 text-xs font-extrabold">
     All
   </button>
 </div>
@@ -7826,7 +7820,35 @@ if (dailyStatusEl && !dailyStatusEl.dataset.bound) {
   const allRows = Array.isArray(this.notifications) ? this.notifications : [];
 let rows = [...allRows];
 
-if (this.notificationsTab === 'open') {
+if (this.notificationsTab === 'time_off') {
+  rows = rows.filter(x => x?.command_center_events?.module_key === 'time_off');
+
+  rows.sort((a, b) => {
+    const getStatus = (item) => {
+      const ev = item?.command_center_events || {};
+      let data = ev.new_data || {};
+
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch (e) { data = {}; }
+      }
+
+      return String(data.decision_status || data.status || '').toLowerCase();
+    };
+
+    const aStatus = getStatus(a);
+    const bStatus = getStatus(b);
+
+    const aResolved = aStatus === 'approved' || aStatus === 'declined';
+    const bResolved = bStatus === 'approved' || bStatus === 'declined';
+
+    if (aResolved !== bResolved) return aResolved ? 1 : -1;
+
+    const aTime = new Date(a?.command_center_events?.created_at || 0).getTime();
+    const bTime = new Date(b?.command_center_events?.created_at || 0).getTime();
+
+    return bTime - aTime;
+  });
+} else if (this.notificationsTab === 'open') {
   rows = rows.filter(x => !x.is_done);
 } else if (this.notificationsTab === 'done') {
   rows = rows.filter(x => !!x.is_done);
@@ -9848,7 +9870,7 @@ async saveOnboardingRow(clientCode) {
     AdminDashboard.setNotificationsTab = function(tab) {
   this.notificationsTab = tab || 'open';
 
-  const tabs = ['open', 'done', 'all'];
+  const tabs = ['time_off', 'open', 'done', 'all'];
   tabs.forEach(key => {
     const btn = document.getElementById(`notifications-tab-${key}`);
     if (!btn) return;
