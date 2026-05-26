@@ -767,7 +767,9 @@ body.client-health-lock {
             <tr>
               <th class="p-4">Date</th>
               <th class="p-4">Day</th>
-              <th class="p-4">Client Code</th>
+              <th class="p-4 cursor-pointer select-none" onclick="Admin.toggleDailyHistorySort()">
+  Client Code <span id="daily-history-code-sort">↕</span>
+</th>
               <th class="p-4">Company</th>
               <th class="p-4 text-center">Total Leads</th>
               <th class="p-4 text-center text-blue-600">Qualified</th>
@@ -2135,6 +2137,7 @@ dailyStrategyAssignments: [],
       dailyStrategySubtab: 'board',
       dailyStrategyShift: 'morning',
 dailyStrategyHistoryRows: [],
+dailyStrategyHistorySort: { key: "client_code", dir: "asc" },
             clientHealthExpanded: false,
       _clientHealthExpandBound: false,
 _firstLoadDone: false,
@@ -7130,6 +7133,30 @@ let historyRows = [];
 
 const historyWeekSelect = document.getElementById("daily-history-week-select");
 
+const formatHistoryWeekLabel = (weekStart) => {
+  if (!weekStart) return "—";
+
+  const start = new Date(`${weekStart}T00:00:00`);
+  if (isNaN(start.getTime())) return weekStart;
+
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+
+  return `${start.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric"
+  })} to ${end.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  })}`;
+};
+
+const getCodeNumber = (code) => {
+  const m = String(code || "").match(/(\d+)/);
+  return m ? Number(m[1]) : 999999;
+};
+
 const { data: strategyHistoryRows, error: strategyHistoryErr } = await supaClient
   .from("daily_strategy_history_view")
   .select("*")
@@ -7141,41 +7168,102 @@ if (strategyHistoryErr) {
   console.error("Daily strategy history load failed:", strategyHistoryErr);
 }
 
-const allHistoryRows = Array.isArray(strategyHistoryRows)
-  ? strategyHistoryRows
-  : [];
+const allHistoryRows = Array.isArray(strategyHistoryRows) ? strategyHistoryRows : [];
 
 const uniqueWeeks = [
-  ...new Set(allHistoryRows.map(r => r.week_start))
+  ...new Set(allHistoryRows.map(r => r.week_start).filter(Boolean))
 ].sort((a, b) => String(b).localeCompare(String(a)));
 
 if (!this.dailyStrategyHistoryWeekStart) {
-  this.dailyStrategyHistoryWeekStart =
-    uniqueWeeks[0] || selectedWeekStart;
+  this.dailyStrategyHistoryWeekStart = uniqueWeeks[0] || selectedWeekStart;
 }
 
 if (historyWeekSelect) {
   historyWeekSelect.innerHTML = uniqueWeeks.map(w => `
     <option value="${w}" ${String(w) === String(this.dailyStrategyHistoryWeekStart) ? "selected" : ""}>
-      Week of ${w}
+      ${formatHistoryWeekLabel(w)}
     </option>
   `).join("");
 
   if (!historyWeekSelect.dataset.bound) {
     historyWeekSelect.dataset.bound = "true";
-
     historyWeekSelect.addEventListener("change", () => {
-      this.dailyStrategyHistoryWeekStart =
-        historyWeekSelect.value;
-
+      this.dailyStrategyHistoryWeekStart = historyWeekSelect.value;
       this.renderDailyTab();
     });
   }
 }
 
-historyRows = allHistoryRows.filter(r =>
-  String(r.week_start) === String(this.dailyStrategyHistoryWeekStart)
-);
+const allLeads = Array.isArray(this.getState().leads) ? this.getState().leads : [];
+
+historyRows = allHistoryRows
+  .filter(r => String(r.week_start) === String(this.dailyStrategyHistoryWeekStart))
+  .map(row => {
+    const rowDate = String(row.strategy_date || "").slice(0, 10);
+    const rowCompany = this.normalizeCompanyName(row.company_name || "");
+    const rowCode = String(row.client_code || "").trim().toLowerCase();
+
+    const matchedLeads = allLeads.filter(l => {
+      const dt = this.getLeadDateObj(l);
+      if (!dt || isNaN(dt.getTime())) return false;
+
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, "0");
+      const d = String(dt.getDate()).padStart(2, "0");
+      const leadDate = `${y}-${m}-${d}`;
+
+      if (leadDate !== rowDate) return false;
+
+      const leadCode = String(this.getLeadField(l, [
+        "client_code",
+        "Client Code",
+        "CODE NAME",
+        "Code Name"
+      ], "")).trim().toLowerCase();
+
+      const leadCompany = this.normalizeCompanyName(this.getLeadField(l, [
+        "company_name",
+        "Company Name",
+        "roofing_company"
+      ], ""));
+
+      return (rowCode && leadCode === rowCode) || (rowCompany && leadCompany === rowCompany);
+    });
+
+    let qualified = 0;
+    let credited = 0;
+    let rejected = 0;
+    let pending = 0;
+
+    matchedLeads.forEach(l => {
+      const st = String(this.getLeadField(l, ["status", "Status"], "")).toLowerCase();
+
+      if (this.isQualified(st)) qualified++;
+      else if (this.isCredited(st)) credited++;
+      else if (this.isRejected(st)) rejected++;
+      else pending++;
+    });
+
+    return {
+      ...row,
+      total_leads_set: matchedLeads.length,
+      qualified_leads_set: qualified,
+      credited_leads_set: credited,
+      rejected_leads_set: rejected,
+      pending_leads_set: pending
+    };
+  });
+
+const sortDir = this.dailyStrategyHistorySort?.dir || "asc";
+
+historyRows.sort((a, b) => {
+  const diff = getCodeNumber(a.client_code) - getCodeNumber(b.client_code);
+  return sortDir === "asc" ? diff : -diff;
+});
+
+const sortIcon = document.getElementById("daily-history-code-sort");
+if (sortIcon) sortIcon.textContent = sortDir === "asc" ? "↑" : "↓";
+    
     const clientHealthRows = Array.isArray(this.clientHealthRaw) ? this.clientHealthRaw : [];
 
     const companyByCode = new Map(
@@ -9663,6 +9751,13 @@ async saveOnboardingRow(clientCode) {
 
       selectDailyStrategyDate(dateStr) {
   this.dailyStrategySelectedDate = dateStr;
+  this.renderDailyTab();
+},
+
+      toggleDailyHistorySort() {
+  this.dailyStrategyHistorySort.dir =
+    this.dailyStrategyHistorySort.dir === "asc" ? "desc" : "asc";
+
   this.renderDailyTab();
 },
 
