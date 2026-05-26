@@ -1818,8 +1818,13 @@ if (countEl) {
 
   buttons.forEach(btn => {
     btn.addEventListener('click', async () => {
-      buttons.forEach(b => b.classList.remove('bg-gray-900', 'text-white'));
-      btn.classList.add('bg-gray-900', 'text-white');
+     buttons.forEach(b => {
+  b.classList.remove('bg-gray-900', 'text-white', 'border-yellow-400', 'bg-yellow-50', 'text-yellow-800');
+  b.classList.add('bg-white', 'text-gray-700', 'border-gray-200');
+});
+
+btn.classList.remove('bg-white', 'text-gray-700', 'border-gray-200');
+btn.classList.add('bg-yellow-50', 'text-yellow-800', 'border-yellow-400');
 
       const period = btn.dataset.leaderboardPeriod;
 
@@ -1875,7 +1880,7 @@ async populateLeaderboardWeekSelect() {
 }
 
 async loadTeamLeaderboards() {
-  const activeBtn = document.querySelector('[data-leaderboard-period].bg-gray-900');
+  const activeBtn = document.querySelector('[data-leaderboard-period].border-yellow-400');
   const weekSelect = document.getElementById('leaderboard-week-select');
   const startEl = document.getElementById('leaderboard-start');
   const endEl = document.getElementById('leaderboard-end');
