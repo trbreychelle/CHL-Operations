@@ -2541,7 +2541,8 @@ async fetchAdminData(forceRefresh = false) {
     supaPayrollWorkers = [],
     supaClientOnboarding = [],
     supaHRTrainingPerformance = [],
-    supaHRTrainingGroups = [];
+    supaHRTrainingGroups = [],
+supaPayrollConsistencyBonusStatus = [];
 
 if (supaClient) {
   const [
@@ -2560,7 +2561,8 @@ if (supaClient) {
   pwwRes,
   coRes,
   hrPerfRes,
-  hrGroupRes
+  hrGroupRes,
+consistencyBonusRes
 ] = await Promise.all([
   supaClient.from('leads_raw').select('*'),
   supaClient.from('packages').select('*'),
@@ -2577,7 +2579,8 @@ if (supaClient) {
   supaClient.from('payroll_workers').select('*'),
   supaClient.from('client_onboarding').select('*'),
   supaClient.from('hr_training_group_performance_v2').select('*'),
-  supaClient.from('hr_training_group_summary_v2').select('*')
+  supaClient.from('hr_training_group_summary_v2').select('*'),
+supaClient.from('payroll_consistency_bonus_status_view').select('*')
 ]);
 
   console.log('pwfRes error:', pwfRes.error);
@@ -2601,6 +2604,7 @@ supaPayrollWorkers = pwwRes.data || [];
 supaClientOnboarding = coRes.data || [];
 supaHRTrainingPerformance = hrPerfRes.data || [];
 supaHRTrainingGroups = hrGroupRes.data || [];
+  supaPayrollConsistencyBonusStatus = consistencyBonusRes.data || [];
 }
       
       this.adminState.rawClients = supaClients.length > 0 ? supaClients : (dataRoot.clients || []);
@@ -2623,6 +2627,7 @@ this.adminState.clientPackageStatusView = supaClientPackageStatus;
 this.adminState.clientPackageAllocationView = supaClientPackageAllocation;
 this.adminState.hrTrainingPerformance = supaHRTrainingPerformance;
 this.adminState.hrTrainingGroups = supaHRTrainingGroups;
+this.adminState.payrollConsistencyBonusStatus = supaPayrollConsistencyBonusStatus;
 
       console.log('clientPackageStatusView rows:', this.adminState.clientPackageStatusView.length);
 
