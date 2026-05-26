@@ -5881,7 +5881,7 @@ if (window.portal && typeof window.portal.bindPassbookUpdateButton === "function
   return `<td class="p-4">
     <button
       type="button"
-      onclick='Admin.editFeedback(${JSON.stringify(String(leadId))}, ${JSON.stringify(String(feedback || ""))}, ${highlighted})'
+      onclick="Admin.editFeedback(decodeURIComponent('${encodeURIComponent(String(leadId))}'), decodeURIComponent('${encodeURIComponent(String(feedback || ""))}'), ${highlighted})"
       class="text-left w-full ${feedback ? 'text-gray-700' : 'text-gray-400 italic'} hover:underline"
       title="Edit feedback"
     >
