@@ -1934,7 +1934,7 @@ body.client-health-lock {
     <div class="relative bg-white rounded-2xl shadow-xl w-[92%] max-w-lg p-6 border border-gray-100">
       <div class="flex items-center justify-between mb-4">
         <div>
-          <h3 class="text-xl font-bold text-gray-900">Add Rejection Reason</h3>
+          <h3 class="text-xl font-bold text-gray-900">Add Feedback</h3>
           <p class="text-sm text-gray-500 mt-1">This note will be saved for QC and shared later with the agent dashboard.</p>
         </div>
         <button
@@ -1950,14 +1950,18 @@ body.client-health-lock {
 
       <div class="mb-4">
         <label class="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-2">
-          Rejection Reason
+          Feedback
         </label>
         <textarea
           id="rejection-modal-text"
           rows="5"
-          placeholder="Enter the reason why this lead is rejected..."
+          placeholder="Enter feedback for this lead..."
           class="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
         ></textarea>
+        <label class="flex items-center gap-2 mt-3 text-sm font-bold text-gray-700">
+  <input id="feedback-modal-highlight" type="checkbox" class="w-4 h-4">
+  Highlight this feedback
+</label>
       </div>
 
       <div class="flex items-center justify-end gap-2">
@@ -1970,7 +1974,7 @@ body.client-health-lock {
         <button
           type="button"
           onclick="Admin.saveRejectionReasonModal()"
-          class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-extrabold hover:bg-red-700">
+          class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800"
           Save
         </button>
       </div>
@@ -2090,7 +2094,7 @@ body.client-health-lock {
             <th class="p-3">Appointment</th>
             <th class="p-3">Address</th>
             <th class="p-3">Status</th>
-            <th class="p-3">Rejection Reason</th>
+            <th class="p-3">Feedback</th>
           </tr>
         </thead>
 
@@ -4588,7 +4592,8 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
           { key: "age_of_roof", label: "Age of Roof", keys: ["Age of Roof", "age_of_roof"] },
           { key: "insurance_company", label: "Insurance Company", keys: ["Insurance Company", "insurance_company"] },
           { key: "additional_notes", label: "Additional Notes", keys: ["Additional Notes", "additional_notes"] },
-          { key: "rejection_reason", label: "Rejection Reason", keys: ["rejection_reason", "Rejection Reason"] },
+          { key: "feedback", label: "Feedback", keys: ["feedback", "Feedback", "rejection_reason", "Rejection Reason"] },
+          { key: "feedback_highlight", label: "Highlight", keys: ["feedback_highlight"] },
           { key: "status", label: "Status", keys: ["Status", "status"] },
         ];
       },
@@ -4599,7 +4604,8 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
           "homeowner_name",
           "appointment_coordinator",
           "roofing_company",
-          "rejection_reason",
+          "feedback",
+          "feedback_highlight",
           "status"
         ]);
       },
@@ -5545,28 +5551,32 @@ const renderBottomRow = (a) => {
         if (textEl) textEl.value = "";
       },
 
-      async saveRejectionReasonModal() {
-        const leadId = document.getElementById("rejection-modal-lead-id")?.value || "";
-        const nextStatus = document.getElementById("rejection-modal-next-status")?.value || "REJECTED";
-        const reason = String(document.getElementById("rejection-modal-text")?.value || "").trim();
+     async saveRejectionReasonModal() {
+  const leadId = document.getElementById("rejection-modal-lead-id")?.value || "";
+  const feedback = String(document.getElementById("rejection-modal-text")?.value || "").trim();
+  const highlighted = document.getElementById("feedback-modal-highlight")?.checked === true;
 
-        if (!leadId) {
-          alert("Missing lead ID.");
-          return;
-        }
+  if (!leadId) {
+    alert("Missing lead ID.");
+    return;
+  }
 
-        if (!reason) {
-          alert("Rejection reason is required.");
-          return;
-        }
+  await updateLeadFeedback(leadId, feedback, highlighted);
+  this.closeRejectionReasonModal();
+},
+     editFeedback(leadId, currentFeedback = "", currentHighlight = false) {
+  document.getElementById("rejection-modal-lead-id").value = leadId || "";
+  document.getElementById("rejection-modal-text").value = currentFeedback || "";
 
-        await updateLeadStatus(leadId, nextStatus, reason);
-        this.closeRejectionReasonModal();
-      },
+  const highlightEl = document.getElementById("feedback-modal-highlight");
+  if (highlightEl) highlightEl.checked = !!currentHighlight;
 
-      editRejectionReason(leadId, currentReason = "", currentStatus = "REJECTED") {
-        this.openRejectionReasonModal(leadId, currentStatus, currentReason);
-      },
+  document.getElementById("rejection-reason-modal").classList.remove("hidden");
+},
+
+editRejectionReason(leadId, currentReason = "", currentStatus = "REJECTED") {
+  this.editFeedback(leadId, currentReason, false);
+},
 
       async loadNotifications(force = false) {
   if (!window.portal) return;
@@ -5856,26 +5866,33 @@ if (window.portal && typeof window.portal.bindPassbookUpdateButton === "function
             ${visibleCols.map(c => {
               const rawVal = this.getLeadField(l, c.keys);
 
-              if (c.key === "rejection_reason") {
-                const safeReason = String(rawVal || "");
-                const safeLeadId = String(leadId).replace(/'/g, "\\'");
-                const safeReasonHtml = safeReason
-                  ? safeReason.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
-                  : "";
-                const safeStatusHtml = String(safeVal || "")
-                  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+             if (c.key === "feedback") {
+  const feedback = this.getLeadField(l, ["feedback", "Feedback", "rejection_reason", "Rejection Reason"], "");
+  const highlighted = l.feedback_highlight === true || String(l.feedback_highlight).toLowerCase() === "true";
 
-                return `<td class="p-4">
-                  <button
-                    type="button"
-                    onclick="Admin.editRejectionReason('${safeLeadId}', '${safeReasonHtml}', '${safeStatusHtml}')"
-                    class="text-left w-full ${safeReason ? 'text-gray-700' : 'text-gray-400 italic'} hover:underline"
-                    title="Edit rejection reason"
-                  >
-                    ${safeReason ? safeReasonHtml : "No rejection reason"}
-                  </button>
-                </td>`;
-              }
+  const safeLeadId = String(leadId).replace(/'/g, "\\'");
+  const safeFeedbackHtml = String(feedback || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
+  return `<td class="p-4">
+    <button
+      type="button"
+      onclick="Admin.editFeedback('${safeLeadId}', '${safeFeedbackHtml}', ${highlighted})"
+      class="text-left w-full ${feedback ? 'text-gray-700' : 'text-gray-400 italic'} hover:underline"
+      title="Edit feedback"
+    >
+      ${highlighted ? '⭐ ' : ''}${feedback ? safeFeedbackHtml : "Add feedback"}
+    </button>
+  </td>`;
+}
+
+if (c.key === "feedback_highlight") {
+  const highlighted = l.feedback_highlight === true || String(l.feedback_highlight).toLowerCase() === "true";
+  return `<td class="p-4 text-center">${highlighted ? "⭐ Highlighted" : "—"}</td>`;
+}
 
               if (c.key === "status") {
                 let bg = "bg-gray-100 text-gray-700";
