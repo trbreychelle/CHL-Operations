@@ -452,7 +452,9 @@
             </div>
             
             <select id="admin-sales-category-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[170px] text-blue-700">
-  <option value="Mikaela" selected>View: Mikaela Only</option>
+ <option value="All" selected>View: Mikaela + Hammer</option>
+<option value="Mikaela">View: Mikaela</option>
+<option value="Hammer">View: Hammer</option>
 </select>
 
             <select id="admin-sales-package-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[170px] text-gray-700">
@@ -570,7 +572,11 @@
             <option value="not_done">Not Done</option>
           </select>
 
-          <div></div>
+          <select id="ob-sort-mode" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+  <option value="latest" selected>Sort: Latest Sales/Renewal First</option>
+  <option value="code_asc">Code: Low to High</option>
+  <option value="code_desc">Code: High to Low</option>
+</select>
           <div></div>
           <div></div>
 
@@ -790,6 +796,7 @@
                   <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sale Category</label>
                   <select id="sale-category" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
   <option value="Mikaela" selected>Mikaela</option>
+<option value="Hammer">Hammer</option>
 </select>
                 </div>
             </div>
@@ -1818,7 +1825,10 @@ async deleteQuickNote(noteId) {
             });
         });
 
-        let filtered = [...packages].filter(p => String(p.sales_category || "").trim() === "Mikaela");
+       let filtered = [...packages].filter(p => {
+  const cat = String(p.sales_category || "").trim().toLowerCase();
+  return cat === "mikaela" || cat === "hammer";
+});
 
         const { start, end, label } = this.getRangeFor(this.salesPeriod, []);
         if (this.salesPeriod !== 'all-time') {
@@ -2408,6 +2418,22 @@ getFilteredOnboardingRows() {
     if (val === "not_done") rows = rows.filter(r => !r[field]);
   });
 
+  const sortMode = document.getElementById("ob-sort-mode")?.value || "latest";
+
+if (sortMode === "code_asc") {
+  rows.sort((a, b) =>
+    String(a.client_code).localeCompare(String(b.client_code), undefined, { numeric: true })
+  );
+} else if (sortMode === "code_desc") {
+  rows.sort((a, b) =>
+    String(b.client_code).localeCompare(String(a.client_code), undefined, { numeric: true })
+  );
+} else {
+  rows.sort((a, b) =>
+    new Date(b.created_at || 0) - new Date(a.created_at || 0)
+  );
+}
+  
   return rows;
 },
 
@@ -2493,7 +2519,7 @@ renderOnboardingTab() {
   const rows = this.getFilteredOnboardingRows();
 
   tbody.innerHTML = rows.map(row => `
-    <tr class="border-b border-gray-100 hover:bg-gray-50">
+    <tr class="border-b border-gray-100 hover:bg-gray-50 ${index < 3 ? 'bg-emerald-50' : ''}">
       <td class="p-3 font-semibold text-gray-700">${row.client_code}</td>
       <td class="p-3 text-gray-800">${row.company_name}</td>
 
@@ -2775,6 +2801,7 @@ async saveOnboardingRow(clientCode) {
                 company_name: companyName,
                 contact_person: poc,
                 client_status: "Active"
+              shared_with_sales: true,
             };
             const { error: cErr } = await supaClient.from('clients').insert([newClientPayload]);
             if (cErr) {
@@ -2794,7 +2821,7 @@ async saveOnboardingRow(clientCode) {
     status: "Active",
     deal_status: document.getElementById('sale-deal-status').value,
     deal_type: document.getElementById('sale-deal-type').value,
-    sales_category: "Mikaela"
+   sales_category: document.getElementById('sale-category').value
 };
 
         let error;
@@ -2810,7 +2837,10 @@ async saveOnboardingRow(clientCode) {
             console.error("Sale Save Error:", error);
             alert("Failed to save deal.");
         } else {
-            document.getElementById('add-sale-modal').classList.add('hidden');
+           await supaClient
+  .from('clients')
+  .update({ shared_with_sales: true })
+  .eq('client_code', clientCode);
             if (window.portal && typeof window.portal.fetchAdminData === 'function') window.portal.fetchAdminData(true);
         }
 
