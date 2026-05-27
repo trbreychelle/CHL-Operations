@@ -5604,9 +5604,12 @@ const renderBottomRow = (a) => {
     await updateLeadStatus(leadId, nextStatus, feedback);
   }
 
-  await updateLeadFeedback(leadId, feedback, highlighted);
+ const nextStatus = document.getElementById("rejection-modal-next-status")?.value || "REJECTED";
 
-  this.closeRejectionReasonModal();
+await updateLeadStatus(leadId, nextStatus, feedback);
+await updateLeadFeedback(leadId, feedback, highlighted);
+
+this.closeRejectionReasonModal();
 },
      editFeedback(leadId, currentFeedback = "", currentHighlight = false) {
   document.getElementById("rejection-modal-lead-id").value = leadId || "";
