@@ -5589,9 +5589,9 @@ const renderBottomRow = (a) => {
         if (textEl) textEl.value = "";
       },
 
-    async saveRejectionReasonModal() {
+   async saveRejectionReasonModal() {
   const leadId = document.getElementById("rejection-modal-lead-id")?.value || "";
-  const nextStatus = document.getElementById("rejection-modal-next-status")?.value || "";
+  const nextStatus = document.getElementById("rejection-modal-next-status")?.value || "REJECTED";
   const feedback = String(document.getElementById("rejection-modal-text")?.value || "").trim();
   const highlighted = document.getElementById("feedback-modal-highlight")?.checked === true;
 
@@ -5600,16 +5600,10 @@ const renderBottomRow = (a) => {
     return;
   }
 
-  if (nextStatus) {
-    await updateLeadStatus(leadId, nextStatus, feedback);
-  }
+  await updateLeadStatus(leadId, nextStatus, feedback);
+  await updateLeadFeedback(leadId, feedback, highlighted);
 
- const nextStatus = document.getElementById("rejection-modal-next-status")?.value || "REJECTED";
-
-await updateLeadStatus(leadId, nextStatus, feedback);
-await updateLeadFeedback(leadId, feedback, highlighted);
-
-this.closeRejectionReasonModal();
+  this.closeRejectionReasonModal();
 },
      editFeedback(leadId, currentFeedback = "", currentHighlight = false) {
   document.getElementById("rejection-modal-lead-id").value = leadId || "";
