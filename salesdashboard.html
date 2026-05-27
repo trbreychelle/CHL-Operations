@@ -2514,11 +2514,12 @@ async deleteQuickNote(noteId) {
           { key: "age_of_roof", label: "Age of Roof", keys: ["Age of Roof", "age_of_roof"] },
           { key: "insurance_company", label: "Insurance Company", keys: ["Insurance Company", "insurance_company"] },
           { key: "additional_notes", label: "Additional Notes", keys: ["Additional Notes", "additional_notes"] },
+          { key: "feedback", label: "Feedback", keys: ["feedback", "Feedback", "rejection_reason", "Rejection Reason"] },
           { key: "status", label: "Status", keys: ["Status", "status", "STATUS"] },
         ];
       },
 
-      getLeadsDefaultVisibleCols() { return new Set(["date_submitted","homeowner_name","appointment_coordinator","roofing_company","status"]); },
+      getLeadsDefaultVisibleCols() { return new Set(["date_submitted","homeowner_name","appointment_coordinator","roofing_company","feedback","status"]); },
 
       setupLeadFilters(leads) {
         const statusSel = document.getElementById("leads-filter-status");
