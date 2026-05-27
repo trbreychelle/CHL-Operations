@@ -2451,7 +2451,8 @@ bindOnboardingFilters() {
     "ob-filter-portal",
     "ob-filter-tracker",
     "ob-filter-demo",
-    "ob-filter-ready"
+    "ob-filter-ready",
+    "ob-sort-mode"
   ];
 
   ids.forEach(id => {
@@ -2518,7 +2519,7 @@ renderOnboardingTab() {
   this.bindOnboardingDraftTracking();
   const rows = this.getFilteredOnboardingRows();
 
-  tbody.innerHTML = rows.map(row => `
+  tbody.innerHTML = rows.map((row, index) => `
     <tr class="border-b border-gray-100 hover:bg-gray-50 ${index < 3 ? 'bg-emerald-50' : ''}">
       <td class="p-3 font-semibold text-gray-700">${row.client_code}</td>
       <td class="p-3 text-gray-800">${row.company_name}</td>
@@ -2800,7 +2801,7 @@ async saveOnboardingRow(clientCode) {
                 client_code: clientCode,
                 company_name: companyName,
                 contact_person: poc,
-                client_status: "Active"
+                client_status: "Active",
               shared_with_sales: true,
             };
             const { error: cErr } = await supaClient.from('clients').insert([newClientPayload]);
