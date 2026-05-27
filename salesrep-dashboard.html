@@ -808,6 +808,8 @@
     </div>
   </main>
 
+  <script src="main.js"></script>
+
   <script>
     const AdminDashboard = {
       analyticsPeriod: 'today',
@@ -2679,7 +2681,7 @@ async saveOnboardingRow(clientCode) {
     document.getElementById('sale-package-id').value = "";
     document.getElementById('sale-client-code').value = "";
     document.getElementById('sale-deal-type').value = "New Client";
-    document.getElementById('sale-category').value = pkg.sales_category || "Mikaela";
+    document.getElementById('sale-category').value = "Mikaela";
     document.getElementById('sale-modal-title').innerText = "Log New Deal";
     document.getElementById('save-sale-btn').innerText = "Save Deal";
     window.populateSalesClientDropdown();
@@ -2718,7 +2720,7 @@ async saveOnboardingRow(clientCode) {
     document.getElementById('sale-transaction-id').value = pkg.external_package_id || "";
     document.getElementById('sale-deal-status').value = pkg.deal_status || "Paid";
     document.getElementById('sale-deal-type').value = pkg.deal_type || "New Client";
-    document.getElementById('sale-category').value = "Mikaela";
+    document.getElementById('sale-category').value = pkg.sales_category || "Mikaela";
 
     document.getElementById('sale-modal-title').innerText = "Edit Deal Details";
     document.getElementById('save-sale-btn').innerText = "Update Deal";
@@ -2854,6 +2856,5 @@ async saveOnboardingRow(clientCode) {
         btn.disabled = false;
     };
   </script>
-  <script src="main.js"></script>
 </body>
 </html>
