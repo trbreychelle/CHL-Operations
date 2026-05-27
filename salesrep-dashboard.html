@@ -2849,7 +2849,12 @@ async saveOnboardingRow(clientCode) {
   .from('clients')
   .update({ shared_with_sales: true })
   .eq('client_code', clientCode);
-            if (window.portal && typeof window.portal.fetchAdminData === 'function') window.portal.fetchAdminData(true);
+           if (window.portal && typeof window.portal.fetchAdminData === 'function') {
+  await window.portal.fetchAdminData(true);
+}
+
+document.getElementById('add-sale-modal').classList.add('hidden');
+alert(pkgId ? "Deal updated successfully!" : "Deal saved successfully!");
         }
 
         btn.innerText = pkgId ? "Update Deal" : "Save Deal";
