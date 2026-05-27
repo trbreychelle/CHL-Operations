@@ -2679,7 +2679,7 @@ async saveOnboardingRow(clientCode) {
     document.getElementById('sale-package-id').value = "";
     document.getElementById('sale-client-code').value = "";
     document.getElementById('sale-deal-type').value = "New Client";
-    document.getElementById('sale-category').value = "Mikaela";
+    document.getElementById('sale-category').value = pkg.sales_category || "Mikaela";
     document.getElementById('sale-modal-title').innerText = "Log New Deal";
     document.getElementById('save-sale-btn').innerText = "Save Deal";
     window.populateSalesClientDropdown();
@@ -2812,6 +2812,11 @@ async saveOnboardingRow(clientCode) {
             }
         }
 
+      await supaClient
+  .from('clients')
+  .update({ shared_with_sales: true })
+  .eq('client_code', clientCode);
+
         const payload = {
     client_code: clientCode,
     purchased_leads: parseInt(document.getElementById('sale-leads').value) || 0,
@@ -2836,7 +2841,7 @@ async saveOnboardingRow(clientCode) {
 
         if (error) {
             console.error("Sale Save Error:", error);
-            alert("Failed to save deal.");
+            alert("Failed to save deal: " + (error?.message || JSON.stringify(error)));
         } else {
            await supaClient
   .from('clients')
