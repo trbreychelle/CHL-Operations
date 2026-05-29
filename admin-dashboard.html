@@ -2615,7 +2615,7 @@ const packages = state.packages || [];
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
         try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
         try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
-        try { this.bindPayrollUI(); this.renderPayrollFinance(); } catch(e) {}
+        try { this.bindPayrollUI(); if (this.currentView === 'payroll') this.renderPayrollFinance(); } catch(e) {}
         try { this.bindOverviewAnalyticsUI(); } catch(e) {} 
         try {
   const activeEl = document.activeElement;
@@ -8404,7 +8404,7 @@ async moveDailyAssignment(assignmentId, targetLane) {
                   view.classList.add("hidden");
               }
           });
-          if (tab === 'history') this.renderPayrollCharts();
+          if (tab === 'history' && typeof this.renderPayrollCharts === 'function') this.renderPayrollCharts();
       },
 
       calculateTieredBonus(qualified, credited) {
@@ -8865,7 +8865,8 @@ consistencyAlerts.forEach(alert => {
         document.getElementById("payroll-ledger-body").innerHTML =
           ledgerHtml || `<tr><td colspan="16" class="p-8 text-center text-gray-400 italic">No payroll rows for this week.</td></tr>`;
 
-        if (!document.getElementById("payroll-history-view").classList.contains("hidden")) {
+               if (!document.getElementById("payroll-history-view").classList.contains("hidden") &&
+            typeof this.renderPayrollCharts === "function") {
           this.renderPayrollCharts();
         }
       },
