@@ -2564,7 +2564,10 @@ if (supaClient) {
   hrGroupRes,
 consistencyBonusRes
 ] = await Promise.all([
-  supaClient.from('leads_raw').select('*'),
+  supaClient.from('leads_raw')
+  .select('*')
+  .order('created_at', { ascending: false })
+  .limit(5000),
   supaClient.from('packages').select('*'),
   supaClient.from('clients').select('*'),
   supaClient.from('time_events').select('*'),
@@ -2575,7 +2578,10 @@ consistencyBonusRes
   supaClient.from('client_package_allocation_view').select('*'),
   supaClient.from('profiles').select('*'),
   supaClient.from('agent_current_rate_view').select('*'),
-  supaClient.from('payroll_weekly_fact_v2').select('*'),
+  supaClient.from('payroll_weekly_fact_v2')
+  .select('*')
+  .order('week_start', { ascending: false })
+  .limit(1500),
   supaClient.from('payroll_workers').select('*'),
   supaClient.from('client_onboarding').select('*'),
   supaClient.from('hr_training_group_performance_v2').select('*'),
@@ -3029,7 +3035,7 @@ if (form) {
   }
 
   startAdminAutoRefresh() {
-    setInterval(() => { this.fetchAdminData(true); }, 20000);
+    setInterval(() => { this.fetchAdminData(true); }, 120000);
     document.addEventListener("visibilitychange", () => {
         if (!document.hidden) this.fetchAdminData(true);
     });
