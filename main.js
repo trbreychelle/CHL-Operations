@@ -2614,8 +2614,12 @@ this.adminState.timeEvents = supaTime;
 this.adminState.agents = supaAgents.length > 0 ? supaAgents : (dataRoot.agents || []);
 this.adminState.rawProfiles = supaProfiles || [];
 this.adminState.agentCurrentRates = supaAgentCurrentRates || [];
-this.adminState.payrollWeeklyFactView = supaPayrollWeeklyFactView || [];
-this.adminState.payrollWorkers = supaPayrollWorkers || [];
+if (!pwfRes.error && Array.isArray(supaPayrollWeeklyFactView) && supaPayrollWeeklyFactView.length > 0) {
+  this.adminState.payrollWeeklyFactView = supaPayrollWeeklyFactView;
+}
+if (!pwRes.error && Array.isArray(supaPayrollWorkers) && supaPayrollWorkers.length > 0) {
+  this.adminState.payrollWorkers = supaPayrollWorkers;
+}
 this.adminState.clientOnboarding = supaClientOnboarding || [];
 
 /* temporary backward compatibility */
