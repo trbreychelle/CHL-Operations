@@ -2520,6 +2520,12 @@ return fallbackEvent2?.id || null;
   // ✅ ADMIN: Fetch + Normalize
   // ------------------------
 async fetchAdminData(forceRefresh = false) {
+    if (this._adminFetchInFlight) {
+      console.log('Admin data fetch skipped: another refresh is already running.');
+      return this.adminState;
+    }
+
+    this._adminFetchInFlight = true;
     try {
       console.log('📡 Fetching Master Data...');
       const response = await fetch(this.webhooks.fetchAdminData);
@@ -2598,13 +2604,34 @@ console.log('pwwRes rows:', pwwRes.data?.length || 0);
   supaClientPackageStatus = cpsRes.data || [];
   supaClientPackageAllocation = cpaRes.data || [];
   supaProfiles = profRes.data || [];
-  supaAgentCurrentRates = acrRes.data || [];
-  supaPayrollWeeklyFactView = pwfRes.data || [];
-supaPayrollWorkers = pwwRes.data || [];
+   supaAgentCurrentRates = acrRes.data || [];
+
+  if (pwfRes.error) {
+    console.error('Payroll weekly fact load failed; keeping last good payroll rows:', pwfRes.error);
+    supaPayrollWeeklyFactView = Array.isArray(this.adminState.payrollWeeklyFactView)
+      ? this.adminState.payrollWeeklyFactView
+      : [];
+    this.adminState.payrollFetchError = pwfRes.error;
+  } else {
+    supaPayrollWeeklyFactView = pwfRes.data || [];
+    this.adminState.payrollFetchError = null;
+  }
+
+  if (pwwRes.error) {
+    console.error('Payroll workers load failed; keeping last good worker rows:', pwwRes.error);
+    supaPayrollWorkers = Array.isArray(this.adminState.payrollWorkers)
+      ? this.adminState.payrollWorkers
+      : [];
+  } else {
+    supaPayrollWorkers = pwwRes.data || [];
+  }
+
 supaClientOnboarding = coRes.data || [];
 supaHRTrainingPerformance = hrPerfRes.data || [];
 supaHRTrainingGroups = hrGroupRes.data || [];
-  supaPayrollConsistencyBonusStatus = consistencyBonusRes.data || [];
+  supaPayrollConsistencyBonusStatus = consistencyBonusRes.error
+    ? (Array.isArray(this.adminState.payrollConsistencyBonusStatus) ? this.adminState.payrollConsistencyBonusStatus : [])
+    : (consistencyBonusRes.data || []);
 }
       
       this.adminState.rawClients = supaClients.length > 0 ? supaClients : (dataRoot.clients || []);
@@ -2648,8 +2675,10 @@ if (this.adminState.clientHealthView.length > 0) {
       console.log('payrollWorkers rows:', this.adminState.payrollWorkers.length);
 
       this.triggerAdminRefresh();
-    } catch (err) {
+       } catch (err) {
       console.error('❌ fetchAdminData failed:', err);
+    } finally {
+      this._adminFetchInFlight = false;
     }
   }
 
@@ -3025,10 +3054,18 @@ if (form) {
   }
 
   startAdminAutoRefresh() {
-    setInterval(() => { this.fetchAdminData(true); }, 20000);
-    document.addEventListener("visibilitychange", () => {
+    clearInterval(this._adminAutoRefreshInterval);
+
+    this._adminAutoRefreshInterval = setInterval(() => {
+      if (!document.hidden) this.fetchAdminData(true);
+    }, 60000);
+
+    if (!this._adminVisibilityRefreshBound) {
+      document.addEventListener("visibilitychange", () => {
         if (!document.hidden) this.fetchAdminData(true);
-    });
+      });
+      this._adminVisibilityRefreshBound = true;
+    }
   }
 }
 
