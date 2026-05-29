@@ -2617,13 +2617,13 @@ this.adminState.agentCurrentRates = supaAgentCurrentRates || [];
 if (!pwfRes.error && Array.isArray(supaPayrollWeeklyFactView) && supaPayrollWeeklyFactView.length > 0) {
   this.adminState.payrollWeeklyFactView = supaPayrollWeeklyFactView;
 }
-if (!pwRes.error && Array.isArray(supaPayrollWorkers) && supaPayrollWorkers.length > 0) {
+if (!pwwRes.error && Array.isArray(supaPayrollWorkers) && supaPayrollWorkers.length > 0) {
   this.adminState.payrollWorkers = supaPayrollWorkers;
 }
 this.adminState.clientOnboarding = supaClientOnboarding || [];
 
 /* temporary backward compatibility */
-this.adminState.weeklyPayroll = supaPayrollWeeklyFactView || [];
+this.adminState.weeklyPayroll = this.adminState.payrollWeeklyFactView || [];
 
 this.adminState.clientHealthView = supaClientHealth;
 this.adminState.agentPerformanceView = supaAgentPerformance;
