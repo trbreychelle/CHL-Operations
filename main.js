@@ -3552,10 +3552,11 @@ async function updateLeadStatus(leadId, newStatus, rejectionReason = null) {
 
     const updatePayload = { status: normalizedStatus };
 
-    if (normalizedStatus.includes("REJECT")) {
+   if (normalizedStatus.includes("REJECT")) {
     updatePayload.rejection_reason = normalizedReason || "";
+    updatePayload.feedback = normalizedReason || "";
 }
-
+  
     const { data: oldLead, error: oldLeadError } = await supaClient
         .from('leads_raw')
         .select('*')
