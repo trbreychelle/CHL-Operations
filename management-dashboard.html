@@ -2410,8 +2410,9 @@ const renderBottomRow = (a) => {
         if (highlightEl) highlightEl.checked = false;
       },
 
-      async saveRejectionReasonModal() {
+     async saveRejectionReasonModal() {
   const leadId = document.getElementById("rejection-modal-lead-id")?.value || "";
+  const nextStatus = String(document.getElementById("rejection-modal-next-status")?.value || "").trim().toUpperCase();
   const feedback = String(document.getElementById("rejection-modal-text")?.value || "").trim();
   const highlighted = document.getElementById("rejection-modal-highlight")?.checked === true;
 
@@ -2420,7 +2421,13 @@ const renderBottomRow = (a) => {
     return;
   }
 
-  await updateLeadFeedback(leadId, feedback, highlighted);
+  if (nextStatus.includes("REJECT")) {
+    await updateLeadStatus(leadId, "REJECTED", feedback);
+    await updateLeadFeedback(leadId, feedback, highlighted);
+  } else {
+    await updateLeadFeedback(leadId, feedback, highlighted);
+  }
+
   this.closeRejectionReasonModal();
 },
 
