@@ -9857,6 +9857,13 @@ async saveOnboardingRow(clientCode) {
 
         this.currentView = viewId;
 
+              try {
+  localStorage.setItem('admin_current_view', viewId);
+  if (window.location.hash !== `#${viewId}`) {
+    history.replaceState(null, '', `#${viewId}`);
+  }
+} catch (e) {}
+
               if (viewId === "overview") {
   try {
     this.setupFilters(this.clientHealthRaw || []);
@@ -10081,6 +10088,19 @@ if (eventUpdateError) {
   alert('Time off request declined.');
   await this.loadNotifications(true);
 };
+
+    document.addEventListener('DOMContentLoaded', () => {
+  const savedView =
+    (window.location.hash || '').replace('#', '') ||
+    localStorage.getItem('admin_current_view') ||
+    'overview';
+
+  setTimeout(() => {
+    if (window.Admin?.setView) {
+      window.Admin.setView(savedView);
+    }
+  }, 500);
+});
     
     window.Admin = AdminDashboard;
 
