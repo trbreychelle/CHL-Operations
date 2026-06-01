@@ -790,8 +790,8 @@ await window.Admin?.loadSalesPassbookAckInbox?.();
   const debouncedRefresh = () => {
     clearTimeout(this._adminRealtimeRefreshTimer);
     this._adminRealtimeRefreshTimer = setTimeout(() => {
-      this.fetchAdminData(true);
-    }, 500);
+  this.fetchAdminData(true);
+}, 5000);
   };
 
   this._adminRealtimeChannel = supaClient
