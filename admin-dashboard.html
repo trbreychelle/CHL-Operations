@@ -4386,7 +4386,7 @@ openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
     `;
   }).join("");
 },
-      renderSalesTab() {
+     renderSalesTab() {
   const state = this.getState();
   const packages = Array.isArray(state.packages) ? [...state.packages] : [];
   const clients = Array.isArray(state.rawClients) ? state.rawClients : [];
@@ -4394,17 +4394,29 @@ openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
     ? state.clientPackageAllocationView
     : [];
 
+  const tbody = document.getElementById("admin-sales-table-body");
+  if (!tbody) return;
+
   const allocationMap = new Map();
-  allocation.forEach(a => allocationMap.set(a.package_id, a));
+  allocation.forEach(a => {
+    const key = String(a.package_id || a.id || "").trim();
+    if (key) allocationMap.set(key, a);
+  });
 
   const q = String(document.getElementById("admin-sales-search")?.value || "").toLowerCase().trim();
   const catFilter = document.getElementById("admin-sales-category-filter")?.value || "All";
   const pkgFilter = document.getElementById("admin-sales-package-filter")?.value || "all";
 
   let filtered = [...packages];
-        this.populateSalesWeekSelect(packages);
+
+  try {
+    this.populateSalesWeekSelect(packages);
+  } catch (e) {
+    console.error("Sales week dropdown error:", e);
+  }
 
   const { start, end, label } = this.getRangeFor(this.salesPeriod, []);
+
   if (this.salesPeriod !== "all-time") {
     filtered = filtered.filter(p => {
       if (!p.purchase_date) return false;
@@ -4413,22 +4425,26 @@ openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
     });
   }
 
- const lbl = document.getElementById("sales-range-label");
-const startKey = this._fmtDateKey(start);
-const endKey = this._fmtDateKey(end);
+  const lbl = document.getElementById("sales-range-label");
+  const startKey = this._fmtDateKey(start);
+  const endKey = this._fmtDateKey(end);
 
-if (lbl) {
-  lbl.textContent = this.salesPeriod === "custom"
-    ? `Showing: ${this.formatSalesWeekLabel(start, end)}`
-    : `Showing: ${label}`;
-}
+  if (lbl) {
+    lbl.textContent = this.salesPeriod === "custom"
+      ? `Showing: ${this.formatSalesWeekLabel(start, end)}`
+      : `Showing: ${label}`;
+  }
 
-this.renderSalesCommissionPaidButton(startKey, endKey);
-        
- let totalSales = 0;
-let totalProfit = 0;
-let totalCommissions = 0;
-let html = "";
+  try {
+    this.renderSalesCommissionPaidButton(startKey, endKey);
+  } catch (e) {
+    console.error("Commission paid button error:", e);
+  }
+
+  let totalSales = 0;
+  let totalProfit = 0;
+  let totalCommissions = 0;
+  let html = "";
 
   const normalizePkgStatus = (value) => {
     let s = String(value || "").toUpperCase().trim();
@@ -4440,11 +4456,12 @@ let html = "";
     .sort((a, b) => new Date(b.purchase_date || 0) - new Date(a.purchase_date || 0))
     .forEach(p => {
       const code = String(p.client_code || "").trim();
+
       const clientMatch = clients.find(c =>
         String(c.client_code || c.code_name || "").trim().toLowerCase() === code.toLowerCase()
       ) || {};
 
-      const alloc = allocationMap.get(p.id) || {};
+      const alloc = allocationMap.get(String(p.id || "").trim()) || {};
 
       const company = clientMatch.company_name || clientMatch.roofing_company || "Unknown Client";
       const poc = p.poc || clientMatch.contact_person || clientMatch.client_name || "—";
@@ -4452,64 +4469,67 @@ let html = "";
       const soldBy = p.sold_by || p.sales_category || "—";
 
       const ds = String(p.deal_status || "").toUpperCase().trim();
-const isNegotiating = ds === "NEGOTIATING";
+      const isNegotiating = ds === "NEGOTIATING";
 
       let st = normalizePkgStatus(alloc.package_status || p.status || "");
       if (ds === "REFUNDED") st = "REFUNDED";
 
       if (catFilter !== "All") {
-        const salesCat = String(p.sales_category || p.sold_by || "").toLowerCase();
+        const salesCat = String(p.sales_category || p.sold_by || "").trim().toLowerCase();
         if (salesCat !== catFilter.toLowerCase()) return;
       }
 
       if (pkgFilter !== "all") {
         let target = String(pkgFilter || "").toUpperCase().trim();
         if (target === "ACTIVE") target = "ONGOING";
-        if (target === "PAUSE") target = "PAUSE";
-        if (target === "COMPLETED") target = "COMPLETED";
-        if (target === "REFUNDED") target = "REFUNDED";
         if (target !== st) return;
       }
 
       const searchBlob = `${company} ${code} ${txn} ${poc} ${soldBy}`.toLowerCase();
       if (q && !searchBlob.includes(q)) return;
 
-      const dealVal = Number(p.deal_value || p.amount) || 0;
-      const purchasedAmount = Number(p.purchased_leads) || 0;
+      const dealVal = Number(p.deal_value || p.amount || 0) || 0;
+      const purchasedAmount = Number(p.purchased_leads || 0) || 0;
 
-      const purchaseDateObj = p.purchase_date ? new Date(String(p.purchase_date).trim() + "T00:00:00") : null;
-      const ratePerLead = purchaseDateObj && purchaseDateObj >= new Date("2026-03-09T00:00:00")
-        ? 135
-        : 125;
+      const purchaseDateObj = p.purchase_date
+        ? new Date(String(p.purchase_date).trim() + "T00:00:00")
+        : null;
+
+      const ratePerLead =
+        purchaseDateObj && purchaseDateObj >= new Date("2026-03-09T00:00:00")
+          ? 135
+          : 125;
+
+      const fallbackCommission = Math.max(0, dealVal - (purchasedAmount * ratePerLead));
 
       const originalCommission =
-  Number(p.commission_per_lead || p.total_commission || p.commission || 0) || 0;
+        Number(p.commission_per_lead || p.total_commission || p.commission || 0) || fallbackCommission;
 
-const refundLeadsDelivered = Number(p.refund_leads_delivered || 0) || 0;
-const refundAmount = Number(p.refund_amount || 0) || 0;
-const isRefunded = st === "REFUNDED" || ds === "REFUNDED";
+      const refundLeadsDelivered = Number(p.refund_leads_delivered || 0) || 0;
+      const refundAmount = Number(p.refund_amount || 0) || 0;
+      const isRefunded = st === "REFUNDED" || ds === "REFUNDED";
 
-let adjustedSales = dealVal;
-let adjustedCommission = originalCommission;
-let adjustedProfit = Math.max(0, dealVal - originalCommission);
+      let adjustedSales = dealVal;
+      let adjustedCommission = originalCommission;
+      let adjustedProfit = Math.max(0, adjustedSales - adjustedCommission);
 
-if (isRefunded && purchasedAmount > 0 && refundLeadsDelivered > 0) {
-  const deliveredRatio = Math.min(refundLeadsDelivered / purchasedAmount, 1);
+      if (isRefunded && purchasedAmount > 0 && refundLeadsDelivered > 0) {
+        const deliveredRatio = Math.min(refundLeadsDelivered / purchasedAmount, 1);
 
-  adjustedSales = refundLeadsDelivered * ratePerLead;
-  adjustedCommission = originalCommission * deliveredRatio;
-  adjustedProfit = Math.max(0, adjustedSales - adjustedCommission);
-} else if (isRefunded && refundAmount > 0) {
-  adjustedSales = Math.max(0, dealVal - refundAmount);
-  adjustedCommission = originalCommission;
-  adjustedProfit = Math.max(0, adjustedSales - adjustedCommission);
-}
+        adjustedSales = refundLeadsDelivered * ratePerLead;
+        adjustedCommission = originalCommission * deliveredRatio;
+        adjustedProfit = Math.max(0, adjustedSales - adjustedCommission);
+      } else if (isRefunded && refundAmount > 0) {
+        adjustedSales = Math.max(0, dealVal - refundAmount);
+        adjustedCommission = originalCommission;
+        adjustedProfit = Math.max(0, adjustedSales - adjustedCommission);
+      }
 
-if (!isNegotiating) {
-  totalSales += adjustedSales;
-  totalProfit += adjustedProfit;
-  totalCommissions += adjustedCommission;
-}
+      if (!isNegotiating) {
+        totalSales += adjustedSales;
+        totalProfit += adjustedProfit;
+        totalCommissions += adjustedCommission;
+      }
 
       let stBadge = "bg-gray-100 text-gray-700";
       if (st === "ONGOING") stBadge = "bg-emerald-100 text-emerald-800";
@@ -4542,6 +4562,9 @@ if (!isNegotiating) {
         return `${mst.getMonth() + 1}-${mst.getDate()}-${mst.getFullYear()}`;
       })();
 
+      const dealDisplay = adjustedSales;
+      const commissionDisplay = adjustedCommission;
+
       html += `
         <tr class="hover:bg-gray-50 border-b border-gray-50 transition-colors" data-sales-package-id="${p.id}">
           <td class="p-4 font-bold text-gray-700">${purchaseDateDisplay}</td>
@@ -4549,8 +4572,13 @@ if (!isNegotiating) {
           <td class="p-4 font-black text-gray-900">${company} <span class="text-[10px] text-gray-400 font-normal ml-1">(${code || "—"})</span></td>
           <td class="p-4 text-gray-600">${poc}</td>
           <td class="p-4 text-center font-bold">${purchasedAmount}</td>
-          <td class="p-4 text-emerald-600 font-black">$${dealVal.toLocaleString()}</td>
-          <td class="p-4 text-purple-600 font-black">$${commVal.toLocaleString()}</td>
+          <td class="p-4 text-emerald-600 font-black">
+            $${dealDisplay.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+            ${isRefunded ? `<div class="text-[10px] text-red-500 font-black mt-1">Adjusted Refund</div>` : ""}
+          </td>
+          <td class="p-4 text-purple-600 font-black">
+            $${commissionDisplay.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+          </td>
           <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${stBadge}">${st}</span></td>
           <td class="p-4 text-gray-600 font-bold">${soldBy}</td>
           <td class="p-4 text-blue-600 font-bold">${startedStr}</td>
@@ -4567,19 +4595,23 @@ if (!isNegotiating) {
       `;
     });
 
- document.getElementById("sales-commissions-kpi").textContent =
-  totalCommissions.toLocaleString("en-US", { style: "currency", currency: "USD" });
+  const setCurrency = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.textContent = Number(value || 0).toLocaleString("en-US", {
+        style: "currency",
+        currency: "USD"
+      });
+    }
+  };
 
-document.getElementById("sales-profit-kpi").textContent =
-  totalProfit.toLocaleString("en-US", { style: "currency", currency: "USD" });
+  setCurrency("sales-commissions-kpi", totalCommissions);
+  setCurrency("sales-profit-kpi", totalProfit);
+  setCurrency("sales-total-kpi", totalSales);
 
-document.getElementById("sales-total-kpi").textContent =
-  totalSales.toLocaleString("en-US", { style: "currency", currency: "USD" });
-
-  document.getElementById("admin-sales-table-body").innerHTML =
+  tbody.innerHTML =
     html || `<tr><td colspan="12" class="p-8 text-center text-gray-400 italic">No deals found for this range.</td></tr>`;
 },
-
       setupFilters(rows) {
         const statusPop = document.getElementById("health-status-popover");
         const statusBtn = document.getElementById("health-status-btn");
