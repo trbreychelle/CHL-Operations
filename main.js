@@ -2571,7 +2571,7 @@ if (supaClient) {
 consistencyBonusRes
 ] = await Promise.all([
   supaClient.from('leads_raw').select('*'),
-  supaClient.from('packages').select('*'),
+  supaClient.from('sales_pipeline_financials_view').select('*'),
   supaClient.from('clients').select('*'),
   supaClient.from('time_events').select('*'),
   supaClient.from('agents').select('*'),
