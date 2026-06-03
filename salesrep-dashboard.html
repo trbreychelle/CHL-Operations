@@ -1473,20 +1473,20 @@ async submitSalesFireNote() {
     return;
   }
 
- const { error } = await supaClient.rpc("add_daily_strategy_assignment", {
+const { error } = await supaClient.rpc("add_daily_strategy_assignment", {
   p_organization_id: orgId,
   p_strategy_date: this.dailyStrategySelectedDate,
   p_client_id: clientId,
   p_lane: "next_up",
-  p_shift_key: "sales_note",
-  p_assigned_agents: null,
+  p_shift_key: "morning",
+  p_assigned_agents: "",
   p_daily_goal: 0,
   p_notes: note,
   p_actor_profile_id: window.portal?.currentUser?.id || null,
   p_actor_name: window.portal?.currentUser?.name || window.portal?.currentUser?.email || "Sales",
   p_actor_role: window.portal?.currentUser?.role || "sales_rep"
 });
-
+  
   if (error) {
     console.error("Sales fire note failed:", error);
     alert(error.message || "Failed to add client to Next Up.");
