@@ -469,10 +469,6 @@
               <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TOTAL COMMISSIONS</p>
               <p class="text-xl font-bold text-purple-600" id="sales-commissions-kpi">$0.00</p>
             </div>
-            <div class="bg-white px-5 py-2 rounded-xl border border-gray-100 shadow-sm text-right">
-              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TOTAL SALES</p>
-              <p class="text-xl font-bold text-emerald-600" id="sales-total-kpi">$0.00</p>
-            </div>
             <button class="px-4 py-3 rounded-lg bg-emerald-600 text-white text-sm font-extrabold hover:bg-emerald-700 shadow-lg shadow-emerald-600/20" onclick="window.openAddDealModal()">
               <i class="fas fa-plus mr-2"></i> Add Deal
             </button>
@@ -484,10 +480,10 @@
               <div class="flex items-center gap-2 flex-wrap">
                 <div class="flex bg-gray-100 p-1 rounded-lg flex-wrap gap-1">
                   <button onclick="Admin.setSalesPeriod('today', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Today</button>
-                  <button onclick="Admin.setSalesPeriod('this-week', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
+                  <button onclick="Admin.setSalesPeriod('this-week', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">This Week</button>
                   <button onclick="Admin.setSalesPeriod('previous-week', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Previous Week</button>
                   <button onclick="Admin.setSalesPeriod('4-weeks', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">4 Weeks</button>
-                  <button onclick="Admin.setSalesPeriod('all-time', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">All-Time</button>
+                  <button onclick="Admin.setSalesPeriod('all-time', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
                 </div>
 
                 <div class="relative">
@@ -924,7 +920,7 @@
   <script>
     const AdminDashboard = {
       analyticsPeriod: 'today',
-      salesPeriod: 'all-time',
+      salesPeriod: 'this-week',
       _customRange: { active: false, start: null, end: null },
       notifications: [],
 notificationsLoading: false,
@@ -1365,7 +1361,8 @@ renderSalesDailyClientPool() {
     if (!code || existingCodes.has(code)) return false;
 
     const pkgStatus = String(r.packageStatus || "").toUpperCase();
-    if (status !== "ALL" && pkgStatus !== status) return false;
+    if (!["ONGOING", "PAUSE"].includes(pkgStatus)) return false;
+if (status !== "ALL" && pkgStatus !== status) return false;
 
     const blob = `${r.code} ${r.roofingCompany} ${r.clientName} ${r.cityState}`.toLowerCase();
     if (q && !blob.includes(q)) return false;
@@ -2399,7 +2396,10 @@ async deleteQuickNote(noteId) {
             });
         });
 
-        let filtered = [...packages];
+       let filtered = [...packages].filter(p => {
+  const cat = String(p.sales_category || "").trim().toLowerCase();
+  return cat === "hammer" || cat === "mikaela";
+});
 
         const { start, end, label } = this.getRangeFor(this.salesPeriod, []);
         if (this.salesPeriod !== 'all-time') {
