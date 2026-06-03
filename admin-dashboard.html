@@ -815,10 +815,10 @@ body.client-health-lock {
               <div class="flex items-center gap-2 flex-wrap">
                 <div class="flex bg-gray-100 p-1 rounded-lg flex-wrap gap-1">
                   <button onclick="Admin.setSalesPeriod('today', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Today</button>
-                  <button onclick="Admin.setSalesPeriod('this-week', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
+                  <button onclick="Admin.setSalesPeriod('this-week', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">This Week</button>
                   <button onclick="Admin.setSalesPeriod('previous-week', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Previous Week</button>
                   <button onclick="Admin.setSalesPeriod('4-weeks', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">4 Weeks</button>
-                  <button onclick="Admin.setSalesPeriod('all-time', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">All-Time</button>
+                  <button onclick="Admin.setSalesPeriod('all-time', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
                 </div>
 
                 <div class="relative">
@@ -845,7 +845,25 @@ body.client-health-lock {
                   </div>
                 </div>
               </div>
-              <div class="text-xs font-bold text-gray-400" id="sales-range-label">Showing: All-Time</div>
+              <div class="flex items-center gap-2 flex-wrap justify-end">
+  <select
+    id="sales-week-select"
+    class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-blue-700 min-w-[220px]"
+  >
+    <option value="">Loading weeks...</option>
+  </select>
+
+  <button
+    id="sales-commission-paid-toggle"
+    type="button"
+    onclick="Admin.toggleSalesCommissionPaid()"
+    class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-black text-gray-600 hover:bg-gray-50"
+  >
+    Commission: Not Paid
+  </button>
+
+  <div class="text-xs font-bold text-gray-400" id="sales-range-label">Showing: This Week</div>
+</div>
           </div>
 
           <div class="flex flex-col md:flex-row gap-3">
@@ -2801,9 +2819,182 @@ const healthStatus = String(health.health_status || "NOT STARTED").toUpperCase()
 },
 
       // --- NEW SALES PIPELINE ENGINE ---
-      salesPeriod: 'all-time',
+      salesPeriod: 'this-week',
+salesCommissionStatusByWeek: new Map(),
       _salesCustomRange: { active: false, start: null, end: null },
       _salesBound: false,
+
+      getSalesWeekRangeFromDate(dateValue) {
+  const d = dateValue ? new Date(dateValue) : new Date();
+  if (isNaN(d.getTime())) return null;
+
+  d.setHours(0, 0, 0, 0);
+
+  const day = d.getDay();
+  const diffToSaturday = day === 6 ? 0 : day + 1;
+
+  const start = new Date(d);
+  start.setDate(d.getDate() - diffToSaturday);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+},
+
+formatSalesWeekValue(start, end) {
+  return `${this._fmtDateKey(start)}|${this._fmtDateKey(end)}`;
+},
+
+formatSalesWeekLabel(start, end) {
+  const fmt = (d) => d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
+
+  return `${fmt(start)} → ${fmt(end)}`;
+},
+
+populateSalesWeekSelect(packages = []) {
+  const sel = document.getElementById("sales-week-select");
+  if (!sel) return;
+
+  const existingValue = sel.value;
+  const weeks = new Map();
+
+  packages.forEach(p => {
+    if (!p.purchase_date) return;
+
+    const range = this.getSalesWeekRangeFromDate(String(p.purchase_date).trim() + "T12:00:00");
+    if (!range) return;
+
+    const value = this.formatSalesWeekValue(range.start, range.end);
+
+    weeks.set(value, {
+      value,
+      start: this._fmtDateKey(range.start),
+      end: this._fmtDateKey(range.end),
+      label: this.formatSalesWeekLabel(range.start, range.end)
+    });
+  });
+
+  const sortedWeeks = [...weeks.values()].sort((a, b) => String(b.start).localeCompare(String(a.start)));
+
+  const thisWeek = this.getSalesWeekRangeFromDate(new Date());
+  const thisWeekValue = this.formatSalesWeekValue(thisWeek.start, thisWeek.end);
+
+  sel.innerHTML = `
+    <option value="${thisWeekValue}">Current Week: ${this.formatSalesWeekLabel(thisWeek.start, thisWeek.end)}</option>
+    ${sortedWeeks
+      .filter(w => w.value !== thisWeekValue)
+      .map(w => `<option value="${w.value}">${w.label}</option>`)
+      .join("")}
+  `;
+
+  sel.value = existingValue && [...sel.options].some(o => o.value === existingValue)
+    ? existingValue
+    : thisWeekValue;
+},
+
+async loadSalesCommissionWeekStatus(startKey, endKey) {
+  if (!supaClient || !startKey || !endKey) return false;
+
+  const orgId = window.portal?.currentUser?.organization_id;
+  if (!orgId) return false;
+
+  const cacheKey = `${startKey}|${endKey}`;
+  if (this.salesCommissionStatusByWeek?.has(cacheKey)) {
+    return this.salesCommissionStatusByWeek.get(cacheKey);
+  }
+
+  const { data, error } = await supaClient
+    .from("sales_commission_week_status")
+    .select("is_paid")
+    .eq("organization_id", orgId)
+    .eq("week_start", startKey)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Load sales commission status failed:", error);
+    return false;
+  }
+
+  const isPaid = !!data?.is_paid;
+  this.salesCommissionStatusByWeek.set(cacheKey, isPaid);
+  return isPaid;
+},
+
+async renderSalesCommissionPaidButton(startKey, endKey) {
+  const btn = document.getElementById("sales-commission-paid-toggle");
+  if (!btn) return;
+
+  if (!startKey || !endKey || this.salesPeriod === "all-time") {
+    btn.className = "hidden";
+    return;
+  }
+
+  btn.className = "px-3 py-2 rounded-lg border text-xs font-black hover:bg-gray-50";
+  btn.dataset.weekStart = startKey;
+  btn.dataset.weekEnd = endKey;
+
+  const isPaid = await this.loadSalesCommissionWeekStatus(startKey, endKey);
+
+  if (isPaid) {
+    btn.textContent = "Commission: Paid";
+    btn.className = "px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-xs font-black text-emerald-700 hover:bg-emerald-100";
+  } else {
+    btn.textContent = "Commission: Not Paid";
+    btn.className = "px-3 py-2 rounded-lg border border-orange-200 bg-orange-50 text-xs font-black text-orange-700 hover:bg-orange-100";
+  }
+},
+
+async toggleSalesCommissionPaid() {
+  if (!supaClient) {
+    alert("Database connection missing.");
+    return;
+  }
+
+  const btn = document.getElementById("sales-commission-paid-toggle");
+  const orgId = window.portal?.currentUser?.organization_id;
+  const weekStart = btn?.dataset.weekStart;
+  const weekEnd = btn?.dataset.weekEnd;
+
+  if (!orgId || !weekStart || !weekEnd) {
+    alert("Missing week details.");
+    return;
+  }
+
+  const cacheKey = `${weekStart}|${weekEnd}`;
+  const currentPaid = this.salesCommissionStatusByWeek?.get(cacheKey) === true;
+  const nextPaid = !currentPaid;
+
+  const payload = {
+    organization_id: orgId,
+    week_start: weekStart,
+    week_end: weekEnd,
+    is_paid: nextPaid,
+    paid_at: nextPaid ? new Date().toISOString() : null,
+    paid_by_profile_id: nextPaid ? (window.portal?.currentUser?.id || null) : null,
+    paid_by_name: nextPaid ? (window.portal?.currentUser?.name || window.portal?.currentUser?.email || "Admin") : null,
+    updated_at: new Date().toISOString()
+  };
+
+  const { error } = await supaClient
+    .from("sales_commission_week_status")
+    .upsert([payload], { onConflict: "organization_id,week_start" });
+
+  if (error) {
+    console.error("Save commission paid status failed:", error);
+    alert("Failed to save commission paid status.");
+    return;
+  }
+
+  this.salesCommissionStatusByWeek.set(cacheKey, nextPaid);
+  await this.renderSalesCommissionPaidButton(weekStart, weekEnd);
+},
 
       setSalesPeriod(period, btnElement) {
         this.salesPeriod = period;
@@ -2825,6 +3016,26 @@ const healthStatus = String(health.health_status || "NOT STARTED").toUpperCase()
         const search = document.getElementById("admin-sales-search");
         const catSel = document.getElementById("admin-sales-category-filter");
         const pkgSel = document.getElementById("admin-sales-package-filter");
+
+        const weekSel = document.getElementById("sales-week-select");
+
+if (weekSel && !weekSel.dataset.bound) {
+  weekSel.dataset.bound = "true";
+
+  weekSel.addEventListener("change", () => {
+    const [startKey, endKey] = String(weekSel.value || "").split("|");
+
+    if (!startKey || !endKey) return;
+
+    this._salesCustomRange = {
+      active: true,
+      start: startKey,
+      end: endKey
+    };
+
+    this.setSalesPeriod("custom", null);
+  });
+}
 
 if (search) {
   search.addEventListener("input", () => {
@@ -2946,7 +3157,7 @@ document.addEventListener("click", (e) => {
             document.getElementById("sales-custom-start").value = "";
             document.getElementById("sales-custom-end").value = "";
             this._salesCustomRange.active = false;
-            this.setSalesPeriod("all-time", document.querySelector('.sales-btn:last-child'));
+            this.setSalesPeriod("this-week", document.querySelector("button[onclick*=\"setSalesPeriod('this-week'\"]"));
             pop?.classList.add("hidden");
           });
         }
@@ -4185,6 +4396,7 @@ openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
   const pkgFilter = document.getElementById("admin-sales-package-filter")?.value || "all";
 
   let filtered = [...packages];
+        this.populateSalesWeekSelect(packages);
 
   const { start, end, label } = this.getRangeFor(this.salesPeriod, []);
   if (this.salesPeriod !== "all-time") {
@@ -4195,13 +4407,18 @@ openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
     });
   }
 
-  const lbl = document.getElementById("sales-range-label");
-  if (lbl) {
-    lbl.textContent = this.salesPeriod === "custom"
-      ? `Showing Custom: ${start.toLocaleDateString()} → ${end.toLocaleDateString()}`
-      : `Showing: ${label}`;
-  }
+ const lbl = document.getElementById("sales-range-label");
+const startKey = this._fmtDateKey(start);
+const endKey = this._fmtDateKey(end);
 
+if (lbl) {
+  lbl.textContent = this.salesPeriod === "custom"
+    ? `Showing: ${this.formatSalesWeekLabel(start, end)}`
+    : `Showing: ${label}`;
+}
+
+this.renderSalesCommissionPaidButton(startKey, endKey);
+        
   let totalSales = 0;
   let totalCommissions = 0;
   let html = "";
