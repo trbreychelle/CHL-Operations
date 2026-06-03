@@ -1476,11 +1476,6 @@ async submitSalesFireNote() {
     return;
   }
 
-  const rawClients = this.getState().rawClients || this.getState().clients || [];
-  const client = rawClients.find(c => String(c.id) === String(clientId)) || {};
-
-  const clientCode = client.client_code || client.code_name || null;
-
   const submitBtn = Array.from(document.querySelectorAll("button"))
     .find(btn => String(btn.textContent || "").trim() === "Add to Next Up");
 
@@ -1490,11 +1485,34 @@ async submitSalesFireNote() {
     submitBtn.classList.add("opacity-70", "cursor-not-allowed");
   }
 
-  const getNextPosition = async () => {
-    const { data, error } = await supaClient
+  try {
+    const rawClients = this.getState().rawClients || this.getState().clients || [];
+    const client = rawClients.find(c => String(c.id) === String(clientId)) || {};
+    const clientCode = client.client_code || client.code_name || null;
+
+    // Get the required strategy_week_id from an existing row for the same selected date.
+    const { data: weekRows, error: weekError } = await supaClient
+      .from("daily_strategy_assignments")
+      .select("strategy_week_id")
+      .eq("organization_id", orgId)
+      .eq("strategy_date", this.dailyStrategySelectedDate)
+      .not("strategy_week_id", "is", null)
+      .limit(1);
+
+    if (weekError) throw weekError;
+
+    const strategyWeekId = weekRows?.[0]?.strategy_week_id;
+
+    if (!strategyWeekId) {
+      throw new Error("No strategy week found for this selected date. Please create the daily strategy week from admin first.");
+    }
+
+    // Add Sales Rep / Sales Access suggestions to MORNING shift, NEXT UP lane.
+    const { data: posRows, error: posError } = await supaClient
       .from("daily_strategy_assignments")
       .select("position_index")
       .eq("organization_id", orgId)
+      .eq("strategy_week_id", strategyWeekId)
       .eq("strategy_date", this.dailyStrategySelectedDate)
       .eq("shift_key", "morning")
       .eq("lane", "next_up")
@@ -1502,42 +1520,55 @@ async submitSalesFireNote() {
       .order("position_index", { ascending: false })
       .limit(1);
 
-    if (error) throw error;
+    if (posError) throw posError;
 
-    const lastPosition = Number(data?.[0]?.position_index ?? -1);
-    return lastPosition + 1;
-  };
+    const nextPosition = Number(posRows?.[0]?.position_index ?? 0) + 1;
 
-  const buildPayload = (positionIndex) => ({
-    organization_id: orgId,
-    strategy_date: this.dailyStrategySelectedDate,
-    shift_key: "morning",
-    lane: "next_up",
-    position_index: positionIndex,
-    client_id: clientId,
-    client_code: clientCode,
-    assigned_agents: "",
-    daily_goal: 0,
-    notes: note,
-    is_active: true
-  });
+    const payload = {
+      strategy_week_id: strategyWeekId,
+      organization_id: orgId,
+      strategy_date: this.dailyStrategySelectedDate,
+      shift_key: "morning",
+      lane: "next_up",
+      position_index: nextPosition,
+      client_id: clientId,
+      client_code: clientCode,
+      assigned_agents: "",
+      daily_goal: 0,
+      notes: note,
+      is_active: true
+    };
 
-  try {
-    let nextPosition = await getNextPosition();
-
-    let result = await supaClient
+    let { error: insertError } = await supaClient
       .from("daily_strategy_assignments")
-      .insert([buildPayload(nextPosition)]);
+      .insert([payload]);
 
-    if (result.error && String(result.error.code) === "23505") {
-      nextPosition = await getNextPosition();
-
-      result = await supaClient
+    // Retry once if another person inserted at the same position at the same time.
+    if (insertError && String(insertError.code) === "23505") {
+      const { data: retryPosRows, error: retryPosError } = await supaClient
         .from("daily_strategy_assignments")
-        .insert([buildPayload(nextPosition)]);
+        .select("position_index")
+        .eq("organization_id", orgId)
+        .eq("strategy_week_id", strategyWeekId)
+        .eq("strategy_date", this.dailyStrategySelectedDate)
+        .eq("shift_key", "morning")
+        .eq("lane", "next_up")
+        .eq("is_active", true)
+        .order("position_index", { ascending: false })
+        .limit(1);
+
+      if (retryPosError) throw retryPosError;
+
+      payload.position_index = Number(retryPosRows?.[0]?.position_index ?? 0) + 1;
+
+      const retryResult = await supaClient
+        .from("daily_strategy_assignments")
+        .insert([payload]);
+
+      insertError = retryResult.error;
     }
 
-    if (result.error) throw result.error;
+    if (insertError) throw insertError;
 
     this.closeSalesFireNoteModal();
 
@@ -1551,7 +1582,7 @@ async submitSalesFireNote() {
 
   } catch (error) {
     console.error("Sales fire note failed:", error);
-    alert(error.message || "Failed to add client to Next Up.");
+    alert(error.message || "Failed to add client to Morning Next Up.");
   } finally {
     if (submitBtn) {
       submitBtn.disabled = false;
