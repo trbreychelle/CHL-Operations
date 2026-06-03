@@ -800,6 +800,49 @@
           </div>
         </div>
       </div>
+
+            <div id="sales-fire-note-modal" class="hidden fixed inset-0 z-[120]">
+        <div class="absolute inset-0 bg-black/40" onclick="Admin.closeSalesFireNoteModal()"></div>
+
+        <div class="relative mx-auto mt-24 w-[94%] max-w-lg bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+          <div class="p-5 border-b border-gray-100 bg-orange-50 flex items-center justify-between">
+            <div>
+              <h3 class="font-black text-gray-900">🔥 Add Sales Note</h3>
+              <p id="sales-fire-note-client-label" class="text-xs text-gray-500 mt-1">Client</p>
+            </div>
+
+            <button
+              type="button"
+              onclick="Admin.closeSalesFireNoteModal()"
+              class="w-9 h-9 rounded-xl bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div class="p-5">
+            <input type="hidden" id="sales-fire-note-client-id" />
+
+            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2">
+              Sales Note
+            </label>
+
+            <textarea
+              id="sales-fire-note-text"
+              class="w-full min-h-[130px] px-4 py-3 rounded-2xl border border-gray-200 bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400"
+              placeholder="Add context for admin strategy..."
+            ></textarea>
+
+            <button
+              type="button"
+              onclick="Admin.submitSalesFireNote()"
+              class="w-full mt-4 py-3 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-black shadow-lg"
+            >
+              Add to Next Up
+            </button>
+          </div>
+        </div>
+      </div>
       
       <div id="add-sale-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center">
         <div class="absolute inset-0 bg-black/40" onclick="document.getElementById('add-sale-modal').classList.add('hidden')"></div>
