@@ -140,7 +140,6 @@
 <a href="#clients" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('clients', this)">
   <i class="fa-solid fa-building w-5 text-center"></i>
   <span class="flex-1">Passbook Clients</span>
-  <span id="sales-passbook-tab-badge" class="hidden ml-2 min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-black inline-flex items-center justify-center">0</span>
 </a>
           <a href="#leads" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('leads', this)">
             <i class="fa-solid fa-list-check w-5 text-center"></i> Leads Tracker
@@ -510,7 +509,7 @@
                   </div>
                 </div>
               </div>
-              <div class="text-xs font-bold text-gray-400" id="sales-range-label">Showing: All-Time</div>
+              <div class="text-xs font-bold text-gray-400" id="sales-range-label">Showing: This Week</div>
           </div>
 
           <div class="flex flex-col md:flex-row gap-3">
@@ -519,11 +518,11 @@
               <input type="text" id="admin-sales-search" placeholder="Search deal, client name, package..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
             </div>
             
-            <select id="admin-sales-category-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[170px] text-blue-700">
-              <option value="All">View: ALL Sales</option>
-              <option value="CHL">View: CHL Only</option>
-              <option value="Sales Team">View: Sales Team</option>
-            </select>
+<select id="admin-sales-category-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[170px] text-blue-700">
+  <option value="All">View: Hammer + Mikaela</option>
+  <option value="Hammer">View: Hammer</option>
+  <option value="Mikaela">View: Mikaela</option>
+</select>
 
             <select id="admin-sales-package-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[170px] text-gray-700">
               <option value="all">All Package Statuses</option>
@@ -977,56 +976,9 @@ _onboardingDraftsBound: false,
   }
 },
 
-      async loadSalesPassbookAckInbox() {
-  if (!window.portal?.fetchSalesPassbookAcknowledgements) return;
-
-  const rows = await window.portal.fetchSalesPassbookAcknowledgements(100);
-  this.passbookAckInbox = Array.isArray(rows) ? rows : [];
-
-  const badge = document.getElementById("sales-passbook-tab-badge");
-  if (!badge) return;
-
-  const count = this.passbookAckInbox.length || 0;
-  badge.textContent = count;
-
-  if (count > 0) badge.classList.remove("hidden");
-  else badge.classList.add("hidden");
+     async loadSalesPassbookAckInbox() {
+  this.passbookAckInbox = [];
 },
-
-      async loadSalesPassbookAuditForCode(codeName) {
-  if (!supaClient || !codeName) {
-    this.passbookAuditRows = [];
-    return [];
-  }
-
-  const { data: events, error } = await supaClient
-    .from("command_center_events")
-    .select(`
-      id,
-      entity_code,
-      entity_label,
-      actor_name,
-      actor_role,
-      field_changes,
-      old_data,
-      new_data,
-      created_at
-    `)
-    .eq("module_key", "passbook_clients")
-    .eq("entity_code", codeName)
-    .order("created_at", { ascending: false })
-    .limit(25);
-
-  if (error) {
-    console.error("Sales passbook audit load failed:", error);
-    this.passbookAuditRows = [];
-    return [];
-  }
-
-  this.passbookAuditRows = events || [];
-  return this.passbookAuditRows;
-},
-
       refreshDashboard() {
         const state = this.getState();
         if (!state) return;
@@ -2445,7 +2397,11 @@ async deleteQuickNote(noteId) {
         const catFilter = document.getElementById("admin-sales-category-filter")?.value || "All";
         const pkgFilter = document.getElementById("admin-sales-package-filter")?.value || "all";
 
-        if (catFilter !== "All") filtered = filtered.filter(p => String(p.sale_category || "").toLowerCase() === catFilter.toLowerCase());
+       if (catFilter !== "All") {
+  filtered = filtered.filter(p =>
+    String(p.sales_category || "").trim().toLowerCase() === catFilter.toLowerCase()
+  );
+}
         
         if (pkgFilter !== "all") {
             filtered = filtered.filter(p => {
@@ -2520,8 +2476,7 @@ async deleteQuickNote(noteId) {
               </tr>
             `;
         });
-
-        document.getElementById("sales-total-kpi").textContent = totalSales.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        
         document.getElementById("sales-commissions-kpi").textContent = totalCommissions.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
         document.getElementById("admin-sales-table-body").innerHTML = html || `<tr><td colspan="12" class="p-8 text-center text-gray-400 italic">No deals found for this range.</td></tr>`;
       },
