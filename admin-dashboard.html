@@ -4525,11 +4525,15 @@ openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
         adjustedProfit = Math.max(0, adjustedSales - adjustedCommission);
       }
 
-      if (!isNegotiating) {
-        totalSales += adjustedSales;
-        totalProfit += adjustedProfit;
-        totalCommissions += adjustedCommission;
-      }
+      const backendAdjustedSales = Number(p.adjusted_sales_value ?? adjustedSales ?? 0) || 0;
+const backendAdjustedCommission = Number(p.adjusted_commission_value ?? adjustedCommission ?? 0) || 0;
+const backendAdjustedProfit = Number(p.adjusted_profit_value ?? adjustedProfit ?? 0) || 0;
+
+if (!isNegotiating) {
+  totalSales += backendAdjustedSales;
+  totalProfit += backendAdjustedProfit;
+  totalCommissions += backendAdjustedCommission;
+}
 
       let stBadge = "bg-gray-100 text-gray-700";
       if (st === "ONGOING") stBadge = "bg-emerald-100 text-emerald-800";
@@ -4562,8 +4566,8 @@ openHRAgentLeadDrilldown(agentName, statusType, startDate, endDate) {
         return `${mst.getMonth() + 1}-${mst.getDate()}-${mst.getFullYear()}`;
       })();
 
-      const dealDisplay = adjustedSales;
-      const commissionDisplay = adjustedCommission;
+      const dealDisplay = Number(p.adjusted_sales_value ?? adjustedSales ?? 0) || 0;
+const commissionDisplay = Number(p.adjusted_commission_value ?? adjustedCommission ?? 0) || 0;
 
       html += `
         <tr class="hover:bg-gray-50 border-b border-gray-50 transition-colors" data-sales-package-id="${p.id}">
