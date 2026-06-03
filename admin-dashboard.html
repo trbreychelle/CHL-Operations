@@ -797,13 +797,19 @@ body.client-health-lock {
           </div>
           <div class="flex gap-3 items-end">
             <div class="bg-white px-5 py-2 rounded-xl border border-gray-100 shadow-sm text-right">
-              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TOTAL COMMISSIONS</p>
-              <p class="text-xl font-bold text-purple-600" id="sales-commissions-kpi">$0.00</p>
-            </div>
-            <div class="bg-white px-5 py-2 rounded-xl border border-gray-100 shadow-sm text-right">
-              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TOTAL SALES</p>
-              <p class="text-xl font-bold text-emerald-600" id="sales-total-kpi">$0.00</p>
-            </div>
+  <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TOTAL COMMISSIONS</p>
+  <p class="text-xl font-bold text-purple-600" id="sales-commissions-kpi">$0.00</p>
+</div>
+
+<div class="bg-white px-5 py-2 rounded-xl border border-gray-100 shadow-sm text-right">
+  <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">PROFIT</p>
+  <p class="text-xl font-bold text-blue-600" id="sales-profit-kpi">$0.00</p>
+</div>
+
+<div class="bg-white px-5 py-2 rounded-xl border border-gray-100 shadow-sm text-right">
+  <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TOTAL SALES</p>
+  <p class="text-xl font-bold text-emerald-600" id="sales-total-kpi">$0.00</p>
+</div>
             <button class="px-4 py-3 rounded-lg bg-emerald-600 text-white text-sm font-extrabold hover:bg-emerald-700 shadow-lg shadow-emerald-600/20" onclick="window.openAddDealModal()">
               <i class="fas fa-plus mr-2"></i> Add Deal
             </button>
@@ -4419,9 +4425,10 @@ if (lbl) {
 
 this.renderSalesCommissionPaidButton(startKey, endKey);
         
-  let totalSales = 0;
-  let totalCommissions = 0;
-  let html = "";
+ let totalSales = 0;
+let totalProfit = 0;
+let totalCommissions = 0;
+let html = "";
 
   const normalizePkgStatus = (value) => {
     let s = String(value || "").toUpperCase().trim();
@@ -4475,12 +4482,33 @@ const isNegotiating = ds === "NEGOTIATING";
         ? 135
         : 125;
 
-      const totalLeadCost = purchasedAmount * ratePerLead;
-      const commVal = Math.max(0, dealVal - totalLeadCost);
+      const originalCommission =
+  Number(p.commission_per_lead || p.total_commission || p.commission || 0) || 0;
 
-      if (!isNegotiating) {
-  totalSales += dealVal;
-  totalCommissions += commVal;
+const refundLeadsDelivered = Number(p.refund_leads_delivered || 0) || 0;
+const refundAmount = Number(p.refund_amount || 0) || 0;
+const isRefunded = st === "REFUNDED" || ds === "REFUNDED";
+
+let adjustedSales = dealVal;
+let adjustedCommission = originalCommission;
+let adjustedProfit = Math.max(0, dealVal - originalCommission);
+
+if (isRefunded && purchasedAmount > 0 && refundLeadsDelivered > 0) {
+  const deliveredRatio = Math.min(refundLeadsDelivered / purchasedAmount, 1);
+
+  adjustedSales = refundLeadsDelivered * ratePerLead;
+  adjustedCommission = originalCommission * deliveredRatio;
+  adjustedProfit = Math.max(0, adjustedSales - adjustedCommission);
+} else if (isRefunded && refundAmount > 0) {
+  adjustedSales = Math.max(0, dealVal - refundAmount);
+  adjustedCommission = originalCommission;
+  adjustedProfit = Math.max(0, adjustedSales - adjustedCommission);
+}
+
+if (!isNegotiating) {
+  totalSales += adjustedSales;
+  totalProfit += adjustedProfit;
+  totalCommissions += adjustedCommission;
 }
 
       let stBadge = "bg-gray-100 text-gray-700";
@@ -4539,11 +4567,14 @@ const isNegotiating = ds === "NEGOTIATING";
       `;
     });
 
-  document.getElementById("sales-total-kpi").textContent =
-    totalSales.toLocaleString("en-US", { style: "currency", currency: "USD" });
+ document.getElementById("sales-commissions-kpi").textContent =
+  totalCommissions.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
-  document.getElementById("sales-commissions-kpi").textContent =
-    totalCommissions.toLocaleString("en-US", { style: "currency", currency: "USD" });
+document.getElementById("sales-profit-kpi").textContent =
+  totalProfit.toLocaleString("en-US", { style: "currency", currency: "USD" });
+
+document.getElementById("sales-total-kpi").textContent =
+  totalSales.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
   document.getElementById("admin-sales-table-body").innerHTML =
     html || `<tr><td colspan="12" class="p-8 text-center text-gray-400 italic">No deals found for this range.</td></tr>`;
