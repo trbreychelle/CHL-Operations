@@ -1460,7 +1460,10 @@ async submitSalesFireNote() {
   }
 
   const orgId = window.portal?.currentUser?.organization_id;
-  const clientId = this._salesFireClientId || document.getElementById("sales-fire-note-client-id")?.value;
+  const clientId =
+    this._salesFireClientId ||
+    document.getElementById("sales-fire-note-client-id")?.value;
+
   const note = String(document.getElementById("sales-fire-note-text")?.value || "").trim();
 
   if (!orgId || !clientId || !this.dailyStrategySelectedDate) {
@@ -1477,7 +1480,6 @@ async submitSalesFireNote() {
   const client = rawClients.find(c => String(c.id) === String(clientId)) || {};
 
   const clientCode = client.client_code || client.code_name || null;
-  const companyName = client.company_name || client.roofing_company || null;
 
   const submitBtn = Array.from(document.querySelectorAll("button"))
     .find(btn => String(btn.textContent || "").trim() === "Add to Next Up");
@@ -1488,30 +1490,13 @@ async submitSalesFireNote() {
     submitBtn.classList.add("opacity-70", "cursor-not-allowed");
   }
 
-  const buildPayload = (positionIndex) => ({
-    organization_id: orgId,
-    strategy_date: this.dailyStrategySelectedDate,
-    client_id: clientId,
-    client_code: clientCode,
-    company_name: companyName,
-    lane: "next_up",
-    shift_key: "morning",
-    assigned_agents: "",
-    daily_goal: 0,
-    notes: note,
-    position_index: positionIndex,
-    is_active: true,
-    actor_profile_id: window.portal?.currentUser?.id || null,
-    actor_name: window.portal?.currentUser?.name || window.portal?.currentUser?.email || "Sales",
-    actor_role: window.portal?.currentUser?.role || "sales_rep"
-  });
-
   const getNextPosition = async () => {
     const { data, error } = await supaClient
       .from("daily_strategy_assignments")
       .select("position_index")
       .eq("organization_id", orgId)
       .eq("strategy_date", this.dailyStrategySelectedDate)
+      .eq("shift_key", "morning")
       .eq("lane", "next_up")
       .eq("is_active", true)
       .order("position_index", { ascending: false })
@@ -1523,6 +1508,20 @@ async submitSalesFireNote() {
     return lastPosition + 1;
   };
 
+  const buildPayload = (positionIndex) => ({
+    organization_id: orgId,
+    strategy_date: this.dailyStrategySelectedDate,
+    shift_key: "morning",
+    lane: "next_up",
+    position_index: positionIndex,
+    client_id: clientId,
+    client_code: clientCode,
+    assigned_agents: "",
+    daily_goal: 0,
+    notes: note,
+    is_active: true
+  });
+
   try {
     let nextPosition = await getNextPosition();
 
@@ -1530,7 +1529,6 @@ async submitSalesFireNote() {
       .from("daily_strategy_assignments")
       .insert([buildPayload(nextPosition)]);
 
-    // If someone else added a row at the same time, retry once with the next position.
     if (result.error && String(result.error.code) === "23505") {
       nextPosition = await getNextPosition();
 
@@ -1549,7 +1547,7 @@ async submitSalesFireNote() {
       await this.renderDailyTab();
     }
 
-    alert("Added to Next Up.");
+    alert("Added to Morning Next Up.");
 
   } catch (error) {
     console.error("Sales fire note failed:", error);
