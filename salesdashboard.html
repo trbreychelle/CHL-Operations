@@ -1470,7 +1470,10 @@ async submitSalesFireNote() {
   }
 
   const orgId = window.portal?.currentUser?.organization_id;
-  const clientId = this._salesFireClientId || document.getElementById("sales-fire-note-client-id")?.value;
+  const clientId =
+    this._salesFireClientId ||
+    document.getElementById("sales-fire-note-client-id")?.value;
+
   const note = String(document.getElementById("sales-fire-note-text")?.value || "").trim();
 
   if (!orgId || !clientId || !this.dailyStrategySelectedDate) {
@@ -1483,29 +1486,54 @@ async submitSalesFireNote() {
     return;
   }
 
-  const { error } = await supaClient.rpc("add_daily_strategy_assignment", {
-    p_organization_id: orgId,
-    p_strategy_date: this.dailyStrategySelectedDate,
-    p_client_id: clientId,
-    p_lane: "next_up",
-    p_assigned_agents: null,
-    p_daily_goal: 0,
-    p_notes: note,
-    p_actor_profile_id: window.portal?.currentUser?.id || null,
-    p_actor_name: window.portal?.currentUser?.name || window.portal?.currentUser?.email || "Sales",
-    p_actor_role: window.portal?.currentUser?.role || "sales"
-  });
+  const submitBtn = Array.from(document.querySelectorAll("button"))
+    .find(btn => String(btn.textContent || "").trim() === "Add to Next Up");
 
-  if (error) {
-    console.error("Sales fire note failed:", error);
-    alert(error.message || "Failed to add client to Next Up.");
-    return;
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Adding...";
+    submitBtn.classList.add("opacity-70", "cursor-not-allowed");
   }
 
-    this.closeSalesFireNoteModal();
-  await this.renderDailyTab();
-},
+  try {
+    const { error } = await supaClient.rpc("add_daily_strategy_assignment", {
+      p_organization_id: orgId,
+      p_strategy_date: this.dailyStrategySelectedDate,
+      p_client_id: clientId,
+      p_lane: "next_up",
+      p_shift_key: "morning",
+      p_assigned_agents: "",
+      p_daily_goal: 0,
+      p_notes: note,
+      p_actor_profile_id: window.portal?.currentUser?.id || null,
+      p_actor_name: window.portal?.currentUser?.name || window.portal?.currentUser?.email || "Sales",
+      p_actor_role: window.portal?.currentUser?.role || "sales"
+    });
 
+    if (error) throw error;
+
+    this.closeSalesFireNoteModal();
+
+    if (window.portal && typeof window.portal.fetchAdminData === "function") {
+      await window.portal.fetchAdminData(true);
+    } else {
+      await this.renderDailyTab();
+    }
+
+    alert("Added to Morning Next Up.");
+
+  } catch (error) {
+    console.error("Sales fire note failed:", error);
+    alert(error.message || "Failed to add client to Morning Next Up.");
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Add to Next Up";
+      submitBtn.classList.remove("opacity-70", "cursor-not-allowed");
+    }
+  }
+},
+      
 refreshNotificationsTab() {
   const wrap = document.getElementById('notifications-feed');
   const badge = document.getElementById('notifications-unread-count');
