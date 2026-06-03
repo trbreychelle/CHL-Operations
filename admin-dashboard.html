@@ -5216,9 +5216,37 @@ if (leadsBody && !leadsBody.dataset.feedbackBound) {
         const prevWeekStart = (payrollPrev?.start && !isNaN(new Date(payrollPrev.start).getTime())) ? new Date(payrollPrev.start) : localPrev.start;
         const prevWeekEndFinal = (payrollPrev?.end && !isNaN(new Date(payrollPrev.end).getTime())) ? new Date(payrollPrev.end) : localPrev.end;
 
-        if (period === "custom" && this._customRange.active) {
-          return { start: startOfDay(new Date(this._customRange.start + "T00:00:00")), end: endOfDay(new Date(this._customRange.end + "T23:59:59")), grain: "day", label: "Custom Range" };
-        }
+       if (period === "custom") {
+  const isSalesView =
+    this.currentView === "sales" ||
+    document.getElementById("view-sales")?.classList.contains("active");
+
+  let r = null;
+
+  if (isSalesView && this._salesCustomRange?.active) {
+    r = this._salesCustomRange;
+  } else if (this._customRange?.active) {
+    r = this._customRange;
+  } else if (this._salesCustomRange?.active) {
+    r = this._salesCustomRange;
+  }
+
+  if (!r || !r.start || !r.end) {
+    return {
+      start: startOfDay(now),
+      end: endOfDay(now),
+      grain: "day",
+      label: "Custom Range"
+    };
+  }
+
+  return {
+    start: startOfDay(new Date(r.start + "T00:00:00")),
+    end: endOfDay(new Date(r.end + "T23:59:59")),
+    grain: "day",
+    label: "Custom Range"
+  };
+}
         
         if (period === "all-time") {
           const dates = (leads || []).map(l => this.getLeadDateObj(l)).filter(d => d && !isNaN(d.getTime())).sort((a,b) => a - b);
