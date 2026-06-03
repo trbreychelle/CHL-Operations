@@ -1486,89 +1486,21 @@ async submitSalesFireNote() {
   }
 
   try {
-    const rawClients = this.getState().rawClients || this.getState().clients || [];
-    const client = rawClients.find(c => String(c.id) === String(clientId)) || {};
-    const clientCode = client.client_code || client.code_name || null;
+    const { error } = await supaClient.rpc("add_daily_strategy_assignment", {
+      p_organization_id: orgId,
+      p_strategy_date: this.dailyStrategySelectedDate,
+      p_client_id: clientId,
+      p_lane: "next_up",
+      p_shift_key: "morning",
+      p_assigned_agents: "",
+      p_daily_goal: 0,
+      p_notes: note,
+      p_actor_profile_id: window.portal?.currentUser?.id || null,
+      p_actor_name: window.portal?.currentUser?.name || window.portal?.currentUser?.email || "Sales",
+      p_actor_role: window.portal?.currentUser?.role || "sales_rep"
+    });
 
-    // Get the required strategy_week_id from an existing row for the same selected date.
-    const { data: weekRows, error: weekError } = await supaClient
-      .from("daily_strategy_assignments")
-      .select("strategy_week_id")
-      .eq("organization_id", orgId)
-      .eq("strategy_date", this.dailyStrategySelectedDate)
-      .not("strategy_week_id", "is", null)
-      .limit(1);
-
-    if (weekError) throw weekError;
-
-    const strategyWeekId = weekRows?.[0]?.strategy_week_id;
-
-    if (!strategyWeekId) {
-      throw new Error("No strategy week found for this selected date. Please create the daily strategy week from admin first.");
-    }
-
-    // Add Sales Rep / Sales Access suggestions to MORNING shift, NEXT UP lane.
-    const { data: posRows, error: posError } = await supaClient
-      .from("daily_strategy_assignments")
-      .select("position_index")
-      .eq("organization_id", orgId)
-      .eq("strategy_week_id", strategyWeekId)
-      .eq("strategy_date", this.dailyStrategySelectedDate)
-      .eq("shift_key", "morning")
-      .eq("lane", "next_up")
-      .eq("is_active", true)
-      .order("position_index", { ascending: false })
-      .limit(1);
-
-    if (posError) throw posError;
-
-    const nextPosition = Number(posRows?.[0]?.position_index ?? 0) + 1;
-
-    const payload = {
-      strategy_week_id: strategyWeekId,
-      organization_id: orgId,
-      strategy_date: this.dailyStrategySelectedDate,
-      shift_key: "morning",
-      lane: "next_up",
-      position_index: nextPosition,
-      client_id: clientId,
-      client_code: clientCode,
-      assigned_agents: "",
-      daily_goal: 0,
-      notes: note,
-      is_active: true
-    };
-
-    let { error: insertError } = await supaClient
-      .from("daily_strategy_assignments")
-      .insert([payload]);
-
-    // Retry once if another person inserted at the same position at the same time.
-    if (insertError && String(insertError.code) === "23505") {
-      const { data: retryPosRows, error: retryPosError } = await supaClient
-        .from("daily_strategy_assignments")
-        .select("position_index")
-        .eq("organization_id", orgId)
-        .eq("strategy_week_id", strategyWeekId)
-        .eq("strategy_date", this.dailyStrategySelectedDate)
-        .eq("shift_key", "morning")
-        .eq("lane", "next_up")
-        .eq("is_active", true)
-        .order("position_index", { ascending: false })
-        .limit(1);
-
-      if (retryPosError) throw retryPosError;
-
-      payload.position_index = Number(retryPosRows?.[0]?.position_index ?? 0) + 1;
-
-      const retryResult = await supaClient
-        .from("daily_strategy_assignments")
-        .insert([payload]);
-
-      insertError = retryResult.error;
-    }
-
-    if (insertError) throw insertError;
+    if (error) throw error;
 
     this.closeSalesFireNoteModal();
 
