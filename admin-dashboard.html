@@ -1118,6 +1118,28 @@ body.client-health-lock {
           <div class="mt-3 text-xs text-gray-500">Showing <span class="font-bold" id="leads-count">0</span> leads</div>
         </div>
 
+        <div class="mt-3 flex items-center justify-between gap-3 text-xs">
+  <div id="leads-page-info" class="text-gray-500 font-bold">
+    Page 1
+  </div>
+
+  <div class="flex gap-2">
+    <button
+      id="leads-prev-page"
+      class="px-4 py-2 rounded-lg border border-gray-200 font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+    >
+      Previous
+    </button>
+
+    <button
+      id="leads-next-page"
+      class="px-4 py-2 rounded-lg bg-gray-900 text-white font-bold hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+    >
+      Next
+    </button>
+  </div>
+</div>
+
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div class="table-scroll max-h-[65vh] overflow-y-auto relative pb-4">
             <table class="table-min w-full text-left text-sm whitespace-nowrap">
@@ -2218,6 +2240,9 @@ _teamBound: false,
       _leadsVisibleCols: null,
       _leadsFiltersBound: false,
       _leadsSort: { key: "date_submitted", dir: "desc" }, 
+      _leadsPage: 1,
+      _leadsLimit: 200,
+      _leadsTotal: 0,
 
       // Passbook View state
       _passbookView: "cards",
@@ -4977,30 +5002,92 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
         renderChecks();
       },
 
-      applyLeadsFilters() {
-        const state = this.getState();
-        const leads = (state && Array.isArray(state.leads)) ? state.leads : [];
-
-        const q = String(document.getElementById("leads-search")?.value || "").toLowerCase().trim();
+      async applyLeadsFilters(page = 1) {
+        if (!supaClient) {
+          console.error("Database connection missing.");
+          return;
+        }
+      
+        this._leadsPage = Math.max(1, Number(page) || 1);
+      
+        const limit = this._leadsLimit || 200;
+        const from = (this._leadsPage - 1) * limit;
+        const to = from + limit - 1;
+      
+        const q = String(document.getElementById("leads-search")?.value || "").trim();
         const stVal = document.getElementById("leads-filter-status")?.value || "all";
         const sDate = document.getElementById("leads-date-start")?.value || "";
         const eDate = document.getElementById("leads-date-end")?.value || "";
-
-        const startDt = sDate ? new Date(sDate + "T00:00:00") : null;
-        const endDt = eDate ? new Date(eDate + "T23:59:59") : null;
-
-        let filtered = [...leads];
-
+      
+        let query = supaClient
+          .from("leads_raw")
+          .select("*", { count: "exact" })
+          .order("date_submitted", { ascending: false })
+          .range(from, to);
+      
         if (stVal !== "all") {
-          filtered = filtered.filter(l => {
-            const s = String(this.getLeadField(l, ["status", "Status", "STATUS", "Lead_Status"], "")).toUpperCase();
-            if (stVal === "APPROVED") return s.includes("APPROV") || s.includes("CONFIRM");
-            if (stVal === "REJECTED") return s.includes("REJECT");
-            if (stVal === "CREDITED") return s.includes("CREDIT");
-            if (stVal === "PENDING REVIEW") return s.includes("PENDING");
-            return s.includes(stVal);
-          });
+          if (stVal === "APPROVED") {
+            query = query.or("status.ilike.%APPROV%,status.ilike.%CONFIRM%");
+          } else if (stVal === "REJECTED") {
+            query = query.ilike("status", "%REJECT%");
+          } else if (stVal === "CREDITED") {
+            query = query.ilike("status", "%CREDIT%");
+          } else if (stVal === "PENDING REVIEW") {
+            query = query.ilike("status", "%PENDING%");
+          }
         }
+      
+        if (sDate) query = query.gte("date_submitted", sDate);
+        if (eDate) query = query.lte("date_submitted", eDate);
+      
+        if (q) {
+          query = query.or([
+            `homeowner_names.ilike.%${q}%`,
+            `appointment_coordinator_name.ilike.%${q}%`,
+            `roofing_company.ilike.%${q}%`,
+            `status.ilike.%${q}%`,
+            `lead_id.ilike.%${q}%`,
+            `email.ilike.%${q}%`,
+            `phone.ilike.%${q}%`
+          ].join(","));
+        }
+      
+        const { data, error, count } = await query;
+      
+        if (error) {
+          console.error("Leads page load failed:", error);
+          alert("Failed to load leads page. Check console.");
+          return;
+        }
+      
+        this._leadsTotal = count || 0;
+      
+        const countEl = document.getElementById("leads-count");
+        if (countEl) countEl.textContent = this._leadsTotal;
+      
+        this.renderLeads(data || []);
+        this.updateLeadsPager();
+      },
+
+      updateLeadsPager() {
+        const limit = this._leadsLimit || 200;
+        const page = this._leadsPage || 1;
+        const total = this._leadsTotal || 0;
+        const totalPages = Math.max(1, Math.ceil(total / limit));
+      
+        const info = document.getElementById("leads-page-info");
+        const prev = document.getElementById("leads-prev-page");
+        const next = document.getElementById("leads-next-page");
+      
+        if (info) {
+          const start = total === 0 ? 0 : ((page - 1) * limit) + 1;
+          const end = Math.min(page * limit, total);
+          info.textContent = `Page ${page} of ${totalPages} • Showing ${start}-${end} of ${total}`;
+        }
+      
+        if (prev) prev.disabled = page <= 1;
+        if (next) next.disabled = page >= totalPages;
+      }
 
         // BULLETPROOF SEARCH: Searches every single property of the lead
         if (q) {
@@ -5030,7 +5117,6 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
 
       bindLeadsMasterEvents() {
         if (this._leadsFiltersBound) return;
-        this._leadsFiltersBound = true;
 
         const els = [
           "leads-search",
@@ -5046,7 +5132,7 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
           const el = document.getElementById(id);
           if (!el) return;
           const evt = (id === "leads-search") ? "input" : "change";
-          el.addEventListener(evt, () => this.applyLeadsFilters());
+          el.addEventListener(evt, () => this.applyLeadsFilters(1));
         });
 
         const clearBtn = document.getElementById("leads-clear");
@@ -5059,9 +5145,24 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
             const d = document.getElementById("leads-filter-homeowner"); if (d) d.value = "all";
             const ds = document.getElementById("leads-date-start"); if (ds) ds.value = "";
             const de = document.getElementById("leads-date-end"); if (de) de.value = "";
-            this.applyLeadsFilters();
+            this.applyLeadsFilters(1);
           });
         }
+
+        const prevBtn = document.getElementById("leads-prev-page");
+          if (prevBtn) {
+            prevBtn.addEventListener("click", () => {
+              this.applyLeadsFilters((this._leadsPage || 1) - 1);
+            });
+          }
+          
+          const nextBtn = document.getElementById("leads-next-page");
+          if (nextBtn) {
+            nextBtn.addEventListener("click", () => {
+              this.applyLeadsFilters((this._leadsPage || 1) + 1);
+            });
+
+          }     
         const leadsBody = document.getElementById("leads-table-body");
 
 if (leadsBody && !leadsBody.dataset.feedbackBound) {
@@ -5081,6 +5182,7 @@ if (leadsBody && !leadsBody.dataset.feedbackBound) {
     this.editFeedback(leadId, feedback, highlighted);
   });
 }
+        this._leadsFiltersBound = true;  
       },
 
       normalizeCompanyName(name) {
