@@ -617,7 +617,25 @@ body.client-health-lock {
 </div>
 </div>
 </div>
-<div class="mt-3 text-xs text-gray-500">Showing <span class="font-bold" id="leads-count">0</span> leads</div>
+<div class="mt-3 text-xs text-gray-500">
+  Showing <span class="font-bold" id="leads-count">0</span> leads
+</div>
+
+<div class="mt-3 flex items-center justify-between gap-3 text-xs">
+  <div id="leads-page-info" class="text-gray-500 font-bold">
+    Page 1
+  </div>
+
+  <div class="flex gap-2">
+    <button id="leads-prev-page" class="px-4 py-2 rounded-lg border border-gray-200 font-bold">
+      Previous
+    </button>
+
+    <button id="leads-next-page" class="px-4 py-2 rounded-lg bg-gray-900 text-white font-bold">
+      Next
+    </button>
+  </div>
+</div>
 </div>
 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
 <div class="table-scroll max-h-[65vh] overflow-y-auto relative pb-4">
@@ -990,6 +1008,9 @@ _firstLoadDone: false,
       _leadsVisibleCols: null,
       _leadsFiltersBound: false,
       _leadsSort: { key: "date_submitted", dir: "desc" }, 
+        _leadsPage: 1,
+        _leadsLimit: 200,
+        _leadsTotal: 0,
 
       // Passbook View state
       _passbookView: "cards",
@@ -1594,7 +1615,7 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
         renderChecks();
       },
 
-      applyLeadsFilters() {
+      applyLeadsFilters(page = 1) {
         const state = this.getState();
         const leads = (state && Array.isArray(state.leads)) ? state.leads : [];
 
@@ -1638,12 +1659,41 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
             return (da.getTime() - db.getTime()) * dir;
           });
         }
-
+        this._leadsPage = Math.max(1, Number(page) || 1);
+        this._leadsTotal = filtered.length;
+        
+        const limit = this._leadsLimit || 200;
+        const from = (this._leadsPage - 1) * limit;
+        const to = from + limit;
+        
+        const pageRows = filtered.slice(from, to);
+        
         const countEl = document.getElementById("leads-count");
         if (countEl) countEl.textContent = filtered.length;
-
-        this.renderLeads(filtered);
+        
+        this.renderLeads(pageRows);
+        this.updateLeadsPager();
       },
+
+        updateLeadsPager() {
+          const limit = this._leadsLimit || 200;
+          const page = this._leadsPage || 1;
+          const total = this._leadsTotal || 0;
+          const totalPages = Math.max(1, Math.ceil(total / limit));
+        
+          const info = document.getElementById("leads-page-info");
+          const prev = document.getElementById("leads-prev-page");
+          const next = document.getElementById("leads-next-page");
+        
+          if (info) {
+            const start = total === 0 ? 0 : ((page - 1) * limit) + 1;
+            const end = Math.min(page * limit, total);
+            info.textContent = `Page ${page} of ${totalPages} - Showing ${start}-${end} of ${total}`;
+          }
+        
+          if (prev) prev.disabled = page <= 1;
+          if (next) next.disabled = page >= totalPages;
+        },
 
       bindLeadsMasterEvents() {
         if (this._leadsFiltersBound) return;
@@ -1663,7 +1713,7 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
           const el = document.getElementById(id);
           if (!el) return;
           const evt = (id === "leads-search") ? "input" : "change";
-          el.addEventListener(evt, () => this.applyLeadsFilters());
+          el.addEventListener(evt, () => this.applyLeadsFilters(1));
         });
 
         const clearBtn = document.getElementById("leads-clear");
@@ -1676,7 +1726,7 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
             const d = document.getElementById("leads-filter-homeowner"); if (d) d.value = "all";
             const ds = document.getElementById("leads-date-start"); if (ds) ds.value = "";
             const de = document.getElementById("leads-date-end"); if (de) de.value = "";
-            this.applyLeadsFilters();
+            this.applyLeadsFilters(1);
           });
         }
           const leadsBody = document.getElementById("leads-table-body");
