@@ -1140,7 +1140,6 @@ body.client-health-lock {
             </button>
           </div>
         </div>
-        
 
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div class="table-scroll max-h-[65vh] overflow-y-auto relative pb-4">
@@ -10290,20 +10289,6 @@ async saveOnboardingRow(clientCode) {
         }
       }
     };
-
-    if (viewId === "clients") {
-      try {
-        const clients = window.portal?.adminState?.rawClients || [];
-        this.bindPassbookUI(clients);
-        this.applyPassbookFilters(clients);
-    
-        if (typeof fetchAdminClients === "function") {
-          fetchAdminClients("Active");
-        }
-      } catch(e) {
-        console.error("Passbook Clients reload error:", e);
-      }
-    }
 
     AdminDashboard.setNotificationsTab = function(tab) {
   this.notificationsTab = tab || 'open';
