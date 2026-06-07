@@ -10257,7 +10257,9 @@ async saveOnboardingRow(clientCode) {
   try {
     this.setupFilters(this.clientHealthRaw || []);
     this.applyClientHealthFilters();
-    this.bindOverviewAnalyticsUI();
+    if (typeof this.bindOverviewAnalyticsUI === "function") {
+      this.bindOverviewAnalyticsUI();
+    }
     this.updateAnalytics(this.analyticsPeriod || "today");
     this.bindOwedLeadsKPI();
     this.updateOwedLeadsKPI();
