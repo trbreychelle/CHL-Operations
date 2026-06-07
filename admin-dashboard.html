@@ -5084,7 +5084,7 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
           const start = total === 0 ? 0 : ((page - 1) * limit) + 1;
           const end = Math.min(page * limit, total);
           info.textContent = `Page ${page} of ${totalPages} • Showing ${start}-${end} of ${total}`;
-        },
+        }
       
         if (prev) prev.disabled = page <= 1;
         if (next) next.disabled = page >= totalPages;
