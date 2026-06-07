@@ -5088,32 +5088,6 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
       
         if (prev) prev.disabled = page <= 1;
         if (next) next.disabled = page >= totalPages;
-      }
-
-        // BULLETPROOF SEARCH: Searches every single property of the lead
-        if (q) {
-          filtered = filtered.filter(l => {
-            const allValuesString = Object.values(l).join(" ").toLowerCase();
-            return allValuesString.includes(q);
-          });
-        }
-
-        if (this._leadsSort?.key === "date_submitted") {
-          const dir = this._leadsSort.dir === "asc" ? 1 : -1;
-          filtered.sort((a, b) => {
-            const da = this.getLeadDateObj(a);
-            const db = this.getLeadDateObj(b);
-            if (!da && !db) return 0;
-            if (!da) return 1;
-            if (!db) return -1;
-            return (da.getTime() - db.getTime()) * dir;
-          });
-        }
-
-        const countEl = document.getElementById("leads-count");
-        if (countEl) countEl.textContent = filtered.length;
-
-        this.renderLeads(filtered);
       },
 
       bindLeadsMasterEvents() {
