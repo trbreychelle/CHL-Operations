@@ -5004,7 +5004,6 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
 
         renderChecks();
       },
-
       async applyLeadsFilters(page = 1) {
         if (!supaClient) {
           console.error("Database connection missing.");
@@ -5024,10 +5023,9 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
       
         let query = supaClient
           .from("leads_raw")
-          .select("*", { count: "exact" })
-          .order("date_submitted", { ascending: false })
-          .range(from, to);
+          .select("*", { count: "exact" });
       
+        // Status filter
         if (stVal !== "all") {
           if (stVal === "APPROVED") {
             query = query.or("status.ilike.%APPROV%,status.ilike.%CONFIRM%");
@@ -5040,9 +5038,11 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
           }
         }
       
+        // Date filters
         if (sDate) query = query.gte("date_submitted", sDate);
         if (eDate) query = query.lte("date_submitted", eDate);
       
+        // Search filter
         if (q) {
           query = query.or([
             `homeowner_names.ilike.%${q}%`,
@@ -5055,7 +5055,10 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
           ].join(","));
         }
       
-        const { data, error, count } = await query;
+        // Sort and paginate LAST
+        const { data, error, count } = await query
+          .order("date_submitted", { ascending: false })
+          .range(from, to);
       
         if (error) {
           console.error("Leads page load failed:", error);
