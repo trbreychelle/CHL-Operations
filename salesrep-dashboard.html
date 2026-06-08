@@ -514,7 +514,25 @@
                   </div>
                 </div>
               </div>
-              <div class="text-xs font-bold text-gray-400" id="sales-range-label">Showing: All-Time</div>
+              <div class="flex items-center gap-2 flex-wrap justify-end">
+  <select
+    id="sales-week-select"
+    class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-blue-700 min-w-[220px]"
+  >
+    <option value="">Loading weeks...</option>
+  </select>
+
+  <button
+    id="sales-commission-paid-toggle"
+    type="button"
+    disabled
+    class="hidden"
+  >
+    Commission: Not Paid
+  </button>
+
+  <div class="text-xs font-bold text-gray-400" id="sales-range-label">Showing: All-Time</div>
+</div>
           </div>
 
           <div class="flex flex-col md:flex-row gap-3">
@@ -523,10 +541,10 @@
               <input type="text" id="admin-sales-search" placeholder="Search deal, client name, package..." class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
             </div>
             
-            <select id="admin-sales-category-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[170px] text-blue-700">
- <option value="All" selected>View: Mikaela + Hammer</option>
-<option value="Mikaela">View: Mikaela</option>
-<option value="Hammer">View: Hammer</option>
+           <select id="admin-sales-category-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[170px] text-blue-700">
+  <option value="All" selected>View: Mikaela + Hammer</option>
+  <option value="Mikaela">View: Mikaela</option>
+  <option value="Hammer">View: Hammer</option>
 </select>
 
             <select id="admin-sales-package-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[170px] text-gray-700">
@@ -928,7 +946,8 @@
   <script>
     const AdminDashboard = {
       analyticsPeriod: 'today',
-      salesPeriod: 'all-time',
+     salesPeriod: 'this-week',
+salesCommissionStatusByWeek: new Map(),
       _customRange: { active: false, start: null, end: null },
       notifications: [],
 notificationsLoading: false,
@@ -2288,6 +2307,199 @@ async deleteQuickNote(noteId) {
       },
 
       // --- SALES PIPELINE ENGINE ---
+      getSalesWeekRangeFromDate(dateValue) {
+  const d = dateValue ? new Date(dateValue) : new Date();
+  if (isNaN(d.getTime())) return null;
+
+  d.setHours(0, 0, 0, 0);
+
+  const day = d.getDay();
+  const diffToSaturday = day === 6 ? 0 : day + 1;
+
+  const start = new Date(d);
+  start.setDate(d.getDate() - diffToSaturday);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+},
+
+formatSalesWeekValue(start, end) {
+  return `${this._fmtDateKey(start)}|${this._fmtDateKey(end)}`;
+},
+
+formatSalesWeekLabel(start, end) {
+  const fmt = (d) => d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
+
+  return `${fmt(start)} → ${fmt(end)}`;
+},
+
+getSalesDateRange(period) {
+  const nowRange = this.getSalesWeekRangeFromDate(new Date());
+  const start = new Date(nowRange.start);
+  const end = new Date(nowRange.end);
+
+  if (period === "today") {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayEnd = new Date(today);
+    todayEnd.setHours(23, 59, 59, 999);
+
+    return {
+      start: today,
+      end: todayEnd,
+      label: "Today"
+    };
+  }
+
+  if (period === "previous-week") {
+    start.setDate(start.getDate() - 7);
+    end.setDate(end.getDate() - 7);
+
+    return {
+      start,
+      end,
+      label: "Previous Week"
+    };
+  }
+
+  if (period === "4-weeks") {
+    start.setDate(start.getDate() - 21);
+
+    return {
+      start,
+      end,
+      label: "Last 4 Weeks"
+    };
+  }
+
+  if (period === "custom" && this._salesCustomRange?.active) {
+    const customStart = new Date(this._salesCustomRange.start + "T00:00:00");
+    const customEnd = new Date(this._salesCustomRange.end + "T23:59:59");
+
+    return {
+      start: customStart,
+      end: customEnd,
+      label: this.formatSalesWeekLabel(customStart, customEnd)
+    };
+  }
+
+  if (period === "all-time") {
+    return {
+      start: new Date("2000-01-01T00:00:00"),
+      end: new Date("2999-12-31T23:59:59"),
+      label: "All-Time"
+    };
+  }
+
+  return {
+    start,
+    end,
+    label: "This Week"
+  };
+},
+
+populateSalesWeekSelect(packages = []) {
+  const sel = document.getElementById("sales-week-select");
+  if (!sel) return;
+
+  const existingValue = sel.value;
+  const weeks = new Map();
+
+  packages.forEach(p => {
+    const cat = String(p.sales_category || p.sold_by || "").trim().toLowerCase();
+    if (cat !== "mikaela" && cat !== "hammer") return;
+    if (!p.purchase_date) return;
+
+    const range = this.getSalesWeekRangeFromDate(String(p.purchase_date).trim() + "T12:00:00");
+    if (!range) return;
+
+    const value = this.formatSalesWeekValue(range.start, range.end);
+
+    weeks.set(value, {
+      value,
+      start: this._fmtDateKey(range.start),
+      end: this._fmtDateKey(range.end),
+      label: this.formatSalesWeekLabel(range.start, range.end)
+    });
+  });
+
+  const sortedWeeks = [...weeks.values()].sort((a, b) => String(b.start).localeCompare(String(a.start)));
+
+  const thisWeek = this.getSalesWeekRangeFromDate(new Date());
+  const thisWeekValue = this.formatSalesWeekValue(thisWeek.start, thisWeek.end);
+
+  sel.innerHTML = `
+    <option value="${thisWeekValue}">Current Week: ${this.formatSalesWeekLabel(thisWeek.start, thisWeek.end)}</option>
+    ${sortedWeeks
+      .filter(w => w.value !== thisWeekValue)
+      .map(w => `<option value="${w.value}">${w.label}</option>`)
+      .join("")}
+  `;
+
+  sel.value = existingValue && [...sel.options].some(o => o.value === existingValue)
+    ? existingValue
+    : thisWeekValue;
+},
+
+async loadSalesCommissionWeekStatus(startKey, endKey) {
+  if (!supaClient || !startKey || !endKey) return false;
+
+  const orgId = window.portal?.currentUser?.organization_id;
+  if (!orgId) return false;
+
+  const cacheKey = `${startKey}|${endKey}`;
+  if (this.salesCommissionStatusByWeek?.has(cacheKey)) {
+    return this.salesCommissionStatusByWeek.get(cacheKey);
+  }
+
+  const { data, error } = await supaClient
+    .from("sales_commission_week_status")
+    .select("is_paid")
+    .eq("organization_id", orgId)
+    .eq("week_start", startKey)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Load sales commission status failed:", error);
+    return false;
+  }
+
+  const isPaid = !!data?.is_paid;
+  this.salesCommissionStatusByWeek.set(cacheKey, isPaid);
+  return isPaid;
+},
+
+async renderSalesCommissionPaidButton(startKey, endKey) {
+  const btn = document.getElementById("sales-commission-paid-toggle");
+  if (!btn) return;
+
+  if (!startKey || !endKey || this.salesPeriod === "all-time") {
+    btn.className = "hidden";
+    return;
+  }
+
+  btn.dataset.weekStart = startKey;
+  btn.dataset.weekEnd = endKey;
+
+  const isPaid = await this.loadSalesCommissionWeekStatus(startKey, endKey);
+
+  if (isPaid) {
+    btn.textContent = "Commission: Paid";
+    btn.className = "px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-xs font-black text-emerald-700";
+  } else {
+    btn.textContent = "Commission: Not Paid";
+    btn.className = "px-3 py-2 rounded-lg border border-orange-200 bg-orange-50 text-xs font-black text-orange-700";
+  }
+},
       setSalesPeriod(period, btnElement) {
         this.salesPeriod = period;
         if (period !== "custom") {
@@ -2301,15 +2513,39 @@ async deleteQuickNote(noteId) {
         this.renderSalesTab();
       },
 
-      bindSalesUI() {
+          bindSalesUI() {
         if (this._salesBound) return;
         this._salesBound = true;
 
         const search = document.getElementById("admin-sales-search");
         const catSel = document.getElementById("admin-sales-category-filter");
         const pkgSel = document.getElementById("admin-sales-package-filter");
+        const weekSel = document.getElementById("sales-week-select");
 
-        if (search) search.addEventListener("input", () => this.renderSalesTab());
+        if (weekSel && !weekSel.dataset.bound) {
+          weekSel.dataset.bound = "true";
+
+          weekSel.addEventListener("change", () => {
+            const [startKey, endKey] = String(weekSel.value || "").split("|");
+            if (!startKey || !endKey) return;
+
+            this._salesCustomRange = {
+              active: true,
+              start: startKey,
+              end: endKey
+            };
+
+            this.setSalesPeriod("custom", null);
+          });
+        }
+
+        if (search) {
+          search.addEventListener("input", () => {
+            clearTimeout(this._salesSearchTimer);
+            this._salesSearchTimer = setTimeout(() => this.renderSalesTab(), 180);
+          });
+        }
+
         if (catSel) catSel.addEventListener("change", () => this.renderSalesTab());
         if (pkgSel) pkgSel.addEventListener("change", () => this.renderSalesTab());
 
@@ -2319,9 +2555,15 @@ async deleteQuickNote(noteId) {
         const clear = document.getElementById("sales-custom-clear");
 
         if (toggle && pop) {
-          toggle.addEventListener("click", (e) => { e.preventDefault(); pop.classList.toggle("hidden"); });
+          toggle.addEventListener("click", (e) => {
+            e.preventDefault();
+            pop.classList.toggle("hidden");
+          });
+
           document.addEventListener("click", (e) => {
-            if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) pop.classList.add("hidden");
+            if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
+              pop.classList.add("hidden");
+            }
           });
         }
 
@@ -2330,7 +2572,13 @@ async deleteQuickNote(noteId) {
             const s = document.getElementById("sales-custom-start")?.value;
             const e = document.getElementById("sales-custom-end")?.value;
             if (!s || !e) return;
-            this._salesCustomRange = { active: true, start: s, end: e };
+
+            this._salesCustomRange = {
+              active: true,
+              start: s,
+              end: e
+            };
+
             this.setSalesPeriod("custom", null);
             pop?.classList.add("hidden");
           });
@@ -2341,178 +2589,259 @@ async deleteQuickNote(noteId) {
             document.getElementById("sales-custom-start").value = "";
             document.getElementById("sales-custom-end").value = "";
             this._salesCustomRange.active = false;
-            this.setSalesPeriod("all-time", document.querySelector('.sales-btn:last-child'));
+            this.setSalesPeriod("this-week", document.querySelector("button[onclick*=\"setSalesPeriod('this-week'\"]"));
             pop?.classList.add("hidden");
           });
         }
       },
 
-      renderSalesTab() {
+           renderSalesTab() {
         const state = this.getState();
         const packages = Array.isArray(state.packages) ? [...state.packages] : [];
         const leads = Array.isArray(state.leads) ? state.leads : [];
-        const clients = Array.isArray(state.clients) ? state.clients : [];
+        const clients = Array.isArray(state.rawClients)
+          ? state.rawClients
+          : (Array.isArray(state.clients) ? state.clients : []);
+
+        const tbody = document.getElementById("admin-sales-table-body");
+        if (!tbody) return;
 
         const leadsByCompany = new Map();
+
         leads.forEach(l => {
-            const rawComp = this.getLeadField(l, ["Company Name", "company_name", "roofing_company", "Client"]);
-            const comp = this.normalizeCompanyName(rawComp);
-            if (comp) {
-                if (!leadsByCompany.has(comp)) leadsByCompany.set(comp, []);
-                leadsByCompany.get(comp).push(l);
-            }
+          const rawComp = this.getLeadField(l, ["Company Name", "company_name", "roofing_company", "Client"]);
+          const comp = this.normalizeCompanyName(rawComp);
+
+          if (comp) {
+            if (!leadsByCompany.has(comp)) leadsByCompany.set(comp, []);
+            leadsByCompany.get(comp).push(l);
+          }
         });
 
         const pkgsByCode = new Map();
+
         packages.forEach(p => {
-            const code = String(p.client_code || "").trim().toLowerCase();
-            if (!pkgsByCode.has(code)) pkgsByCode.set(code, []);
-            pkgsByCode.get(code).push(p);
+          const code = String(p.client_code || "").trim().toLowerCase();
+          if (!pkgsByCode.has(code)) pkgsByCode.set(code, []);
+          pkgsByCode.get(code).push(p);
         });
 
         pkgsByCode.forEach((clientPkgs, code) => {
-            const clientObj = clients.find(c => String(c.client_code || c.code_name || "").toLowerCase() === code);
-            const rawClientComp = clientObj ? (clientObj.company_name || clientObj.roofing_company) : "";
-            const companyName = this.normalizeCompanyName(rawClientComp);
+          const clientObj = clients.find(c =>
+            String(c.client_code || c.code_name || "").toLowerCase() === code
+          );
 
-            let clientLeads = [];
-            if (companyName && leadsByCompany.has(companyName)) {
-                clientLeads = [...leadsByCompany.get(companyName)];
+          const rawClientComp = clientObj ? (clientObj.company_name || clientObj.roofing_company) : "";
+          const companyName = this.normalizeCompanyName(rawClientComp);
+
+          let clientLeads = [];
+
+          if (companyName && leadsByCompany.has(companyName)) {
+            clientLeads = [...leadsByCompany.get(companyName)];
+          }
+
+          clientLeads.sort((a, b) => {
+            const dStrA = this.getLeadField(a, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
+            const dStrB = this.getLeadField(b, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
+            const dA = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStrA) : new Date(dStrA);
+            const dB = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStrB) : new Date(dStrB);
+
+            return (dA || 0) - (dB || 0);
+          });
+
+          clientPkgs.sort((a, b) => new Date(a.purchase_date || 0) - new Date(b.purchase_date || 0));
+
+          clientPkgs.forEach(pkg => {
+            let qCount = 0;
+            let firstLeadDate = null;
+            const purchased = Number(pkg.purchased_leads) || 0;
+            const pDate = pkg.purchase_date ? new Date(pkg.purchase_date + "T00:00:00") : new Date(0);
+
+            while (clientLeads.length > 0 && qCount < purchased) {
+              const l = clientLeads[0];
+              const dStr = this.getLeadField(l, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
+              const lDate = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+
+              if (!lDate || isNaN(lDate.getTime())) {
+                clientLeads.shift();
+                continue;
+              }
+
+              if (lDate < pDate) {
+                clientLeads.shift();
+                continue;
+              }
+
+              clientLeads.shift();
+
+              const st = String(this.getLeadField(l, ["status", "Status", "STATUS", "Lead_Status"])).toUpperCase();
+              if (st.includes("APPROV") || st.includes("CONFIRM")) qCount++;
+
+              if (!firstLeadDate) firstLeadDate = lDate;
             }
-            
-            clientLeads.sort((a,b) => {
-                const dStrA = this.getLeadField(a, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
-                const dStrB = this.getLeadField(b, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
-                const dA = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStrA) : new Date(dStrA);
-                const dB = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStrB) : new Date(dStrB);
-                return (dA || 0) - (dB || 0);
-            });
 
-            clientPkgs.sort((a,b) => new Date(a.purchase_date || 0) - new Date(b.purchase_date || 0));
-
-            clientPkgs.forEach(pkg => {
-                let qCount = 0;
-                let firstLeadDate = null;
-                let purchased = Number(pkg.purchased_leads) || 0;
-                
-                let pDate = pkg.purchase_date ? new Date(pkg.purchase_date + "T00:00:00") : new Date(0);
-
-                while (clientLeads.length > 0 && qCount < purchased) {
-                    let l = clientLeads[0];
-                    const dStr = this.getLeadField(l, ["Date Submitted", "date_submitted", "DATE", "created_at"]);
-                    let lDate = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
-                    
-                    if (!lDate || isNaN(lDate.getTime())) { clientLeads.shift(); continue; }
-                    if (lDate < pDate) { clientLeads.shift(); continue; } 
-
-                    clientLeads.shift(); 
-
-                    const st = String(this.getLeadField(l, ["status", "Status", "STATUS", "Lead_Status"])).toUpperCase();
-                    if (st.includes('APPROV') || st.includes('CONFIRM')) qCount++;
-
-                    if (!firstLeadDate) firstLeadDate = lDate;
-                }
-                pkg._safeFirstLead = firstLeadDate;
-            });
+            pkg._safeFirstLead = firstLeadDate;
+          });
         });
 
-       let filtered = [...packages].filter(p => {
-  const cat = String(p.sales_category || "").trim().toLowerCase();
-  return cat === "mikaela" || cat === "hammer";
-});
+        const salesOnlyPackages = packages.filter(p => {
+          const cat = String(p.sales_category || p.sold_by || "").trim().toLowerCase();
+          return cat === "mikaela" || cat === "hammer";
+        });
 
-        const { start, end, label } = this.getRangeFor(this.salesPeriod, []);
-        if (this.salesPeriod !== 'all-time') {
-             filtered = filtered.filter(p => {
-                 if (!p.purchase_date) return false;
-                 const pDate = new Date(p.purchase_date + "T12:00:00");
-                 return pDate >= start && pDate <= end;
-             });
+        try {
+          this.populateSalesWeekSelect(salesOnlyPackages);
+        } catch (e) {
+          console.error("Sales rep week dropdown error:", e);
         }
-        
+
+        const { start, end, label } = this.getSalesDateRange(this.salesPeriod);
+
+        let filtered = [...salesOnlyPackages];
+
+        if (this.salesPeriod !== "all-time") {
+          filtered = filtered.filter(p => {
+            if (!p.purchase_date) return false;
+
+            const pDate = new Date(String(p.purchase_date).trim() + "T12:00:00");
+
+            return !isNaN(pDate.getTime()) && pDate >= start && pDate <= end;
+          });
+        }
+
+        const startKey = this._fmtDateKey(start);
+        const endKey = this._fmtDateKey(end);
+
         const lbl = document.getElementById("sales-range-label");
-        if (lbl) lbl.textContent = this.salesPeriod === "custom" ? `Showing Custom: ${start.toLocaleDateString()} → ${end.toLocaleDateString()}` : `Showing: ${label}`;
+
+        if (lbl) {
+          lbl.textContent = this.salesPeriod === "custom"
+            ? `Showing: ${this.formatSalesWeekLabel(start, end)}`
+            : `Showing: ${label}`;
+        }
+
+        try {
+          this.renderSalesCommissionPaidButton(startKey, endKey);
+        } catch (e) {
+          console.error("Sales rep commission paid status error:", e);
+        }
 
         const q = String(document.getElementById("admin-sales-search")?.value || "").toLowerCase().trim();
-        const catFilter = document.getElementById("admin-sales-category-filter")?.value || "Mikaela";
+        const catFilter = document.getElementById("admin-sales-category-filter")?.value || "All";
         const pkgFilter = document.getElementById("admin-sales-package-filter")?.value || "all";
 
         if (catFilter !== "All") {
-    filtered = filtered.filter(p => String(p.sales_category || "").trim().toLowerCase() === catFilter.toLowerCase());
-}
-        
+          filtered = filtered.filter(p =>
+            String(p.sales_category || p.sold_by || "").trim().toLowerCase() === catFilter.toLowerCase()
+          );
+        }
+
+        const normalizePkgStatus = (value) => {
+          let s = String(value || "").toUpperCase().trim();
+          if (s === "ACTIVE") s = "ONGOING";
+          return s || "UNKNOWN";
+        };
+
         if (pkgFilter !== "all") {
-            filtered = filtered.filter(p => {
-                 let s = String(p.status || "").toLowerCase();
-                 if (s === 'active') s = 'ongoing'; 
-                 let target = pkgFilter.toLowerCase();
-                 if (target === 'active') target = 'ongoing';
-                 return s.includes(target);
-            });
+          filtered = filtered.filter(p => {
+            let current = normalizePkgStatus(p.status || "");
+            let target = String(pkgFilter || "").toUpperCase().trim();
+
+            if (target === "ACTIVE") target = "ONGOING";
+
+            if (String(p.deal_status || "").toUpperCase().trim() === "REFUNDED") {
+              current = "REFUNDED";
+            }
+
+            return current === target;
+          });
         }
 
         let totalSales = 0;
         let totalCommissions = 0;
         let html = "";
 
-        filtered.sort((a,b) => new Date(b.purchase_date || 0) - new Date(a.purchase_date || 0)).forEach(p => {
+        filtered
+          .sort((a, b) => new Date(b.purchase_date || 0) - new Date(a.purchase_date || 0))
+          .forEach(p => {
             const code = String(p.client_code || "—").trim();
-            const clientMatch = clients.find(c => String(c.client_code || c.code_name) === code) || {};
+
+            const clientMatch = clients.find(c =>
+              String(c.client_code || c.code_name || "").trim().toLowerCase() === code.toLowerCase()
+            ) || {};
+
             const company = clientMatch.company_name || clientMatch.roofing_company || "Unknown Client";
-            
-            // Fixed the search bar to look for external_package_id instead of transaction_id
-            if (q && !`${company} ${code} ${p.external_package_id || ''}`.toLowerCase().includes(q)) return;
+            const poc = p.poc || clientMatch.contact_person || clientMatch.client_name || "—";
+            const txn = p.transaction_id || p.external_package_id || "—";
+            const soldBy = p.sales_category || p.sold_by || "—";
 
-                        const rawAmt = p.amount ? String(p.amount).replace(/[^0-9.-]+/g,"") : "0";
-const dealVal = parseFloat(rawAmt) || 0;
-const purchasedAmount = Number(p.purchased_leads) || 0;
-const commVal = Number(p.commission_per_lead) || 0;
+            const searchBlob = `${company} ${code} ${txn} ${poc} ${soldBy}`.toLowerCase();
+            if (q && !searchBlob.includes(q)) return;
 
-totalSales += dealVal;
-totalCommissions += commVal;
+            const rawAmt = p.amount ? String(p.amount).replace(/[^0-9.-]+/g, "") : "0";
+            const dealVal = parseFloat(rawAmt) || Number(p.deal_value || 0) || 0;
+
+            const commVal = Number(p.commission_per_lead || p.total_commission || p.commission || 0) || 0;
+
+            totalSales += dealVal;
+            totalCommissions += commVal;
+
+            let st = normalizePkgStatus(p.status || "");
+
+            const ds = String(p.deal_status || "").toUpperCase().trim();
+
+            if (ds === "REFUNDED") st = "REFUNDED";
 
             let stBadge = "bg-gray-100 text-gray-700";
-            const st = String(p.status || "").toUpperCase();
-            if (st === 'ACTIVE') stBadge = "bg-emerald-100 text-emerald-800";
-            if (st === 'PAUSE') stBadge = "bg-yellow-100 text-yellow-800";
-            if (st === 'COMPLETED') stBadge = "bg-blue-100 text-blue-800";
+            if (st === "ONGOING") stBadge = "bg-emerald-100 text-emerald-800";
+            if (st === "PAUSE") stBadge = "bg-yellow-100 text-yellow-800";
+            if (st === "COMPLETED") stBadge = "bg-blue-100 text-blue-800";
+            if (st === "REFUNDED") stBadge = "bg-red-100 text-red-800";
 
             let dealBadge = "bg-gray-100 text-gray-700";
-            const ds = String(p.deal_status || "").toUpperCase();
-            if (ds === 'PAID') dealBadge = "bg-emerald-100 text-emerald-800";
-            if (ds === 'NEGOTIATING') dealBadge = "bg-yellow-100 text-yellow-800";
-            if (ds === 'REFUNDED') dealBadge = "bg-red-100 text-red-800";
+            if (ds === "PAID") dealBadge = "bg-emerald-100 text-emerald-800";
+            if (ds === "NEGOTIATING") dealBadge = "bg-yellow-100 text-yellow-800";
+            if (ds === "REFUNDED") dealBadge = "bg-red-100 text-red-800";
 
             let startedStr = "—";
+
             if (p._safeFirstLead) {
-                startedStr = `${p._safeFirstLead.getMonth() + 1}/${p._safeFirstLead.getDate()}/${p._safeFirstLead.getFullYear()}`;
+              startedStr = `${p._safeFirstLead.getMonth() + 1}/${p._safeFirstLead.getDate()}/${p._safeFirstLead.getFullYear()}`;
             }
 
             html += `
               <tr class="hover:bg-gray-50 border-b border-gray-50">
                 <td class="p-4 font-bold text-gray-700">${p.purchase_date || "—"}</td>
-                <td class="p-4 text-xs font-mono text-gray-400">${p.external_package_id || "—"}</td>
+                <td class="p-4 text-xs font-mono text-gray-400">${txn}</td>
                 <td class="p-4 font-black text-gray-900">${company} <span class="text-[10px] text-gray-400 font-normal ml-1">(${code})</span></td>
-                <td class="p-4 text-gray-600">${p.poc || clientMatch.contact_person || "—"}</td>
+                <td class="p-4 text-gray-600">${poc}</td>
                 <td class="p-4 text-center font-bold">${p.purchased_leads || 0}</td>
-                <td class="p-4 text-emerald-600 font-black">$${dealVal.toLocaleString()}</td>
-                <td class="p-4 text-purple-600 font-black">$${commVal.toLocaleString()}</td>
-                <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${stBadge}">${st || 'UNKNOWN'}</span></td>
-                <td class="p-4 text-gray-600 font-bold">${p.sales_category || "—"}</td>
+                <td class="p-4 text-emerald-600 font-black">${dealVal.toLocaleString("en-US", { style: "currency", currency: "USD" })}</td>
+                <td class="p-4 text-purple-600 font-black">${commVal.toLocaleString("en-US", { style: "currency", currency: "USD" })}</td>
+                <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${stBadge}">${st}</span></td>
+                <td class="p-4 text-gray-600 font-bold">${soldBy}</td>
                 <td class="p-4 text-blue-600 font-bold">${startedStr}</td>
-                <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${dealBadge}">${ds || 'UNKNOWN'}</span></td>
+                <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold ${dealBadge}">${ds || "UNKNOWN"}</span></td>
                 <td class="p-4 text-center flex justify-center gap-1">
-                    <button onclick="window.editDealModal('${p.id}')" class="px-3 py-1 bg-gray-100 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded shadow-sm transition-colors">Edit</button>
+                  <button onclick="window.editDealModal('${p.id}')" class="px-3 py-1 bg-gray-100 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded shadow-sm transition-colors">Edit</button>
                 </td>
               </tr>
             `;
+          });
+
+        document.getElementById("sales-total-kpi").textContent = totalSales.toLocaleString("en-US", {
+          style: "currency",
+          currency: "USD"
         });
 
-        document.getElementById("sales-total-kpi").textContent = totalSales.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-        document.getElementById("sales-commissions-kpi").textContent = totalCommissions.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-        document.getElementById("admin-sales-table-body").innerHTML = html || `<tr><td colspan="12" class="p-8 text-center text-gray-400 italic">No deals found for this range.</td></tr>`;
-      },
+        document.getElementById("sales-commissions-kpi").textContent = totalCommissions.toLocaleString("en-US", {
+          style: "currency",
+          currency: "USD"
+        });
 
+        tbody.innerHTML =
+          html || `<tr><td colspan="12" class="p-8 text-center text-gray-400 italic">No deals found for this range.</td></tr>`;
+      },
 
       // --- LEADS TRACKER (READ ONLY) ---
       getLeadsColumns() {
