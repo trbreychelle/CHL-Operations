@@ -484,10 +484,10 @@
               <div class="flex items-center gap-2 flex-wrap">
                 <div class="flex bg-gray-100 p-1 rounded-lg flex-wrap gap-1">
                   <button onclick="Admin.setSalesPeriod('today', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Today</button>
-                  <button onclick="Admin.setSalesPeriod('this-week', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">This Week</button>
-                  <button onclick="Admin.setSalesPeriod('previous-week', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Previous Week</button>
-                  <button onclick="Admin.setSalesPeriod('4-weeks', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">4 Weeks</button>
-                  <button onclick="Admin.setSalesPeriod('all-time', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">All-Time</button>
+                  <button onclick="Admin.setSalesPeriod('this-week', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900">This Week</button>
+<button onclick="Admin.setSalesPeriod('previous-week', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">Previous Week</button>
+<button onclick="Admin.setSalesPeriod('4-weeks', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">4 Weeks</button>
+<button onclick="Admin.setSalesPeriod('all-time', this)" class="sales-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900">All-Time</button>
                 </div>
 
                 <div class="relative">
@@ -1000,6 +1000,12 @@ _onboardingDraftsBound: false,
   if (view === 'overview' && this._analyticsChart) {
     setTimeout(() => this._analyticsChart?.resize?.(), 100);
   }
+  if (view === 'sales') {
+  setTimeout(() => {
+    this.bindSalesUI();
+    this.renderSalesTab();
+  }, 150);
+}
 },
 
       refreshDashboard() {
@@ -2781,7 +2787,11 @@ async renderSalesCommissionPaidButton(startKey, endKey) {
             const rawAmt = p.amount ? String(p.amount).replace(/[^0-9.-]+/g, "") : "0";
             const dealVal = parseFloat(rawAmt) || Number(p.deal_value || 0) || 0;
 
-            const commVal = Number(p.commission_per_lead || p.total_commission || p.commission || 0) || 0;
+            const commVal = Number(
+  p.manual_commission ??
+  p.commission ??
+  0
+) || 0;
 
             totalSales += dealVal;
             totalCommissions += commVal;
