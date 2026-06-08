@@ -3768,21 +3768,27 @@ async saveOnboardingRow(clientCode) {
     };
   }
 
-  function renderPassbookMentionChips(textarea) {
-    const wrap = document.getElementById("passbook-mentioned-chips");
-    if (!wrap || !textarea) return;
+ function renderPassbookMentionChips(textarea) {
+  const wrap = document.getElementById("passbook-mentioned-chips");
+  if (!wrap || !textarea) return;
 
-    const profiles = window.passbookTaggableUsers || [];
-    const tagged = findTaggedProfiles(textarea.value, profiles);
+  const profiles = window.passbookTaggableUsers || [];
+  const text = String(textarea.value || "").toLowerCase();
 
-    wrap.innerHTML = tagged.map(profile => `
-      <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-50 text-red-700 font-black border border-red-100">
-        @${escapeHtml(displayName(profile))}
-      </span>
-    `).join("");
-  }
+  const tagged = profiles.filter(profile => {
+    const name = displayName(profile).toLowerCase();
+    if (!name) return false;
+    return text.includes(`@${name}`);
+  });
 
-  async function handlePassbookMentionInput(textarea) {
+  wrap.innerHTML = tagged.map(profile => `
+    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-50 text-red-700 font-black border border-red-100">
+      @${escapeHtml(displayName(profile))}
+    </span>
+  `).join("");
+}
+
+async function handlePassbookMentionInput(textarea) {
   const box = document.getElementById("passbook-mention-suggestions");
   if (!box || !textarea) return;
 
@@ -3800,12 +3806,41 @@ async saveOnboardingRow(clientCode) {
     return;
   }
 
+  const query = String(mention.query || "").toLowerCase().trim();
   const profiles = window.passbookTaggableUsers || [];
+
+  if (!profiles.length) {
+    box.innerHTML = `
+      <div class="px-3 py-2 text-xs text-red-500 font-bold">
+        No taggable users loaded.
+      </div>
+    `;
+    box.classList.remove("hidden");
+    return;
+  }
 
   const matches = profiles
     .filter(profile => {
-      const label = `${displayName(profile)} ${profile.email || ""} ${profile.role || ""}`.toLowerCase();
-      return !mention.query || label.includes(mention.query);
+      const name = displayName(profile).toLowerCase().trim();
+      const words = name.split(/\s+/).filter(Boolean);
+
+      if (!query) return true;
+
+      return (
+        name.includes(query) ||
+        words.some(word => word.startsWith(query))
+      );
+    })
+    .sort((a, b) => {
+      const nameA = displayName(a).toLowerCase().trim();
+      const nameB = displayName(b).toLowerCase().trim();
+
+      const aStarts = nameA.startsWith(query) ? 0 : 1;
+      const bStarts = nameB.startsWith(query) ? 0 : 1;
+
+      if (aStarts !== bStarts) return aStarts - bStarts;
+
+      return nameA.localeCompare(nameB);
     })
     .slice(0, 8);
 
@@ -3818,7 +3853,7 @@ async saveOnboardingRow(clientCode) {
   box.innerHTML = matches.map(profile => `
     <button
       type="button"
-      data-profile-id="${escapeHtml(profile.id)}"
+      data-profile-id="${escapeHtml(profile.id || "")}"
       class="w-full px-3 py-2 text-left hover:bg-red-50 flex items-center justify-between gap-3"
     >
       <span>
@@ -3832,7 +3867,9 @@ async saveOnboardingRow(clientCode) {
   box.classList.remove("hidden");
 
   box.querySelectorAll("[data-profile-id]").forEach(btn => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("mousedown", event => {
+      event.preventDefault();
+
       const profile = profiles.find(p => String(p.id) === String(btn.dataset.profileId));
       if (!profile) return;
 
@@ -3858,64 +3895,52 @@ async saveOnboardingRow(clientCode) {
   });
 }
 
-  async function savePassbookClientNote() {
-    if (typeof supaClient === "undefined" || !supaClient) return alert("Database connection missing.");
-    const orgId = currentOrgId();
-    const user = currentUser();
-    const code = String(Admin._currentPassbookCode || document.getElementById("codeName")?.value || "").trim();
-    const noteBody = String(document.getElementById("passbook-note-draft")?.value || "").trim();
-    const clientName = String(document.getElementById("passbook-modal-title")?.textContent || "").trim();
-
-    if (!orgId || !user?.id || !code) return alert("Missing user/client details. Refresh and try again.");
-    if (!noteBody) return alert("Please write a note before saving.");
-
-    const profiles = await loadOrgProfiles();
-    const tagged = findTaggedProfiles(noteBody, profiles);
-
-    const { data: note, error } = await supaClient
-      .from("passbook_client_notes")
-      .insert([{
-        organization_id: orgId,
-        client_code: code,
-        client_name: clientName || code,
-        body: noteBody,
-        created_by_profile_id: user.id,
-        created_by_name: user.name || user.display_name || user.full_name || user.email || "Unknown",
-        created_by_role: user.role || null
-      }])
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Failed to save Passbook note:", error);
-      return alert(error.message || "Failed to save note.");
-    }
-
-    if (tagged.length) {
-      const rows = tagged.map(profile => ({
-        note_id: note.id,
-        organization_id: orgId,
-        client_code: code,
-        mentioned_profile_id: profile.id,
-        mentioned_name: displayName(profile),
-        mentioned_email: profile.email || null,
-        is_unread: true
-      }));
-
-      const { error: mentionError } = await supaClient
-        .from("passbook_client_note_mentions")
-        .insert(rows);
-
-      if (mentionError) {
-        console.error("Failed to save note mentions:", mentionError);
-        alert("Note saved, but the tag notification failed. Check the tagged name and try again if needed.");
-      }
-    }
-
-    await renderPassbookNotes(code);
-    await refreshPassbookMentionHighlights();
-    alert(tagged.length ? "Note saved and tagged user notified." : "Note saved.");
+ async function savePassbookClientNote() {
+  if (typeof supaClient === "undefined" || !supaClient) {
+    return alert("Database connection missing.");
   }
+
+  const code = String(Admin._currentPassbookCode || document.getElementById("codeName")?.value || "").trim();
+  const noteBody = String(document.getElementById("passbook-note-draft")?.value || "").trim();
+  const clientName = String(document.getElementById("passbook-modal-title")?.textContent || "").trim();
+
+  if (!code) return alert("Missing client code. Refresh and try again.");
+  if (!noteBody) return alert("Please write a note before saving.");
+
+  const saveBtn = Array.from(document.querySelectorAll("button"))
+    .find(btn => btn.textContent.trim().toLowerCase() === "save note");
+
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Saving...";
+    saveBtn.classList.add("opacity-60", "cursor-not-allowed");
+  }
+
+  const { data, error } = await supaClient.rpc("create_passbook_client_note", {
+    p_client_code: code,
+    p_client_name: clientName || code,
+    p_body: noteBody
+  });
+
+  if (saveBtn) {
+    saveBtn.disabled = false;
+    saveBtn.textContent = "Save Note";
+    saveBtn.classList.remove("opacity-60", "cursor-not-allowed");
+  }
+
+  if (error) {
+    console.error("create_passbook_client_note failed:", error);
+    return alert(error.message || "Failed to save note.");
+  }
+
+  const result = Array.isArray(data) ? data[0] : data;
+  const taggedCount = Number(result?.tagged_count || 0);
+
+  await renderPassbookNotes(code);
+  await refreshPassbookMentionHighlights();
+
+  alert(taggedCount > 0 ? "Note saved and tagged user notified." : "Note saved.");
+}
 
   async function acknowledgePassbookNoteMention(mentionId) {
     if (typeof supaClient === "undefined" || !supaClient || !mentionId) return;
