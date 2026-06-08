@@ -3998,28 +3998,53 @@ async function handlePassbookMentionInput(textarea) {
     paintCurrentCardsRed();
   }
 
-  function paintCurrentCardsRed() {
-    const container = document.getElementById("client-cards-container");
-    if (!container || !window.Admin?.passbookNoteMentionsByCode) return;
+ function paintCurrentCardsRed() {
+  const container = document.getElementById("client-cards-container");
+  if (!container || !window.Admin?.passbookNoteMentionsByCode) return;
 
+  const taggedCards = [];
+
+  Array.from(container.children).forEach(card => {
+    card.classList.remove("bg-red-50", "border-red-300", "ring-2", "ring-red-200");
+
+    const oldBadge = card.querySelector(".passbook-note-red-badge");
+    if (oldBadge) oldBadge.remove();
+  });
+
+  window.Admin.passbookNoteMentionsByCode.forEach((items, codeKey) => {
     Array.from(container.children).forEach(card => {
-      card.classList.remove("bg-red-50", "border-red-300", "ring-2", "ring-red-200");
+      const text = String(card.textContent || "").toLowerCase();
+
+      if (!text.includes(codeKey)) return;
+
+      card.classList.remove(
+        "bg-white",
+        "border-gray-100",
+        "hover:border-gray-200",
+        "bg-emerald-50",
+        "border-emerald-300",
+        "ring-emerald-200"
+      );
+
+      card.classList.add("bg-red-50", "border-red-300", "ring-2", "ring-red-200");
+
+      if (!card.querySelector(".passbook-note-red-badge")) {
+        card.insertAdjacentHTML(
+          "afterbegin",
+          `<div class="passbook-note-red-badge mb-3 inline-flex items-center gap-2 rounded-full bg-red-600 px-3 py-1 text-[10px] font-black text-white"><i class="fa-solid fa-at"></i> Tagged note</div>`
+        );
+      }
+
+      if (!taggedCards.includes(card)) {
+        taggedCards.push(card);
+      }
     });
+  });
 
-    window.Admin.passbookNoteMentionsByCode.forEach((items, codeKey) => {
-      Array.from(container.children).forEach(card => {
-        const text = String(card.textContent || "").toLowerCase();
-        if (!text.includes(codeKey)) return;
-
-        card.classList.remove("bg-white", "border-gray-100", "hover:border-gray-200", "bg-emerald-50", "border-emerald-300", "ring-emerald-200");
-        card.classList.add("bg-red-50", "border-red-300", "ring-2", "ring-red-200");
-
-        if (!card.querySelector(".passbook-note-red-badge")) {
-          card.insertAdjacentHTML("afterbegin", `<div class="passbook-note-red-badge mb-3 inline-flex items-center gap-2 rounded-full bg-red-600 px-3 py-1 text-[10px] font-black text-white"><i class="fa-solid fa-at"></i> Tagged note</div>`);
-        }
-      });
-    });
-  }
+  taggedCards.reverse().forEach(card => {
+    container.prepend(card);
+  });
+}
 
   function patchAdmin() {
     if (!window.Admin || window.Admin[PATCH_FLAG]) return false;
