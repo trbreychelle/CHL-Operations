@@ -1059,15 +1059,25 @@ body.client-health-lock {
 
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
           <div class="controls-wrap">
-            <div class="flex-1 relative" style="min-width: 260px;">
+           <div class="flex-1 flex gap-2" style="min-width: 360px;">
+            <div class="flex-1 relative">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
               <input
                 id="leads-search"
                 type="text"
-                placeholder="Search homeowner, appointment coordinator, roofing company, status, lead ID, email, phone..."
+                placeholder="Search homeowner, coordinator, company, status..."
                 class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
               />
             </div>
+          
+            <button
+              id="leads-search-btn"
+              type="button"
+              class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800"
+            >
+              Search
+            </button>
+          </div>
 
            <select id="leads-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 bg-white min-w-[170px]">
               <option value="all">All Status</option>
@@ -5097,23 +5107,44 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
 
       bindLeadsMasterEvents() {
         if (this._leadsFiltersBound) return;
+        
+          const searchInput = document.getElementById("leads-search");
+          const searchBtn = document.getElementById("leads-search-btn");
+        
+          // Search only when button is clicked
+          if (searchBtn) {
+            searchBtn.addEventListener("click", () => {
+              this.applyLeadsFilters(1);
+            });
+          }
+        
+          // Optional: also search when pressing Enter
+          if (searchInput) {
+            searchInput.addEventListener("keydown", (e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                this.applyLeadsFilters(1);
+              }
+            });
+          }
+        
+          // These filters can still auto-refresh
+          const els = [
+            "leads-filter-status",
+            "leads-filter-company",
+            "leads-filter-ac",
+            "leads-filter-homeowner",
+            "leads-date-start",
+            "leads-date-end"
+          ];
+        
+          els.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+        
+            el.addEventListener("change", () => this.applyLeadsFilters(1));
+          });
 
-        const els = [
-          "leads-search",
-          "leads-filter-status",
-          "leads-filter-company",
-          "leads-filter-ac",
-          "leads-filter-homeowner",
-          "leads-date-start",
-          "leads-date-end"
-        ];
-
-        els.forEach(id => {
-          const el = document.getElementById(id);
-          if (!el) return;
-          const evt = (id === "leads-search") ? "input" : "change";
-          el.addEventListener(evt, () => this.applyLeadsFilters(1));
-        });
 
         const clearBtn = document.getElementById("leads-clear");
         if (clearBtn) {
