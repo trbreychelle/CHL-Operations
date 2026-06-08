@@ -2787,9 +2787,10 @@ async renderSalesCommissionPaidButton(startKey, endKey) {
             const rawAmt = p.amount ? String(p.amount).replace(/[^0-9.-]+/g, "") : "0";
             const dealVal = parseFloat(rawAmt) || Number(p.deal_value || 0) || 0;
 
-            const commVal = Number(
+          const commVal = Number(
   p.manual_commission ??
   p.commission ??
+  p.commission_per_lead ??
   0
 ) || 0;
 
