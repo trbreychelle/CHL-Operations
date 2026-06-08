@@ -10854,7 +10854,7 @@ async function loadOrgProfiles() {
     `).join("");
   }
 
-  async function handlePassbookMentionInput(textarea) {
+ async function handlePassbookMentionInput(textarea) {
   const box = document.getElementById("passbook-mention-suggestions");
   if (!box || !textarea) return;
 
@@ -10864,20 +10864,37 @@ async function loadOrgProfiles() {
 
   renderPassbookMentionChips(textarea);
 
-  const mention = getPassbookMentionQuery(textarea.value, textarea.selectionStart || 0);
+  const cursorPos = textarea.selectionStart || 0;
+  const beforeCursor = String(textarea.value || "").slice(0, cursorPos);
+  const match = beforeCursor.match(/@([A-Za-z0-9 ._-]{0,40})$/);
 
-  if (!mention) {
+  if (!match) {
     box.classList.add("hidden");
     box.innerHTML = "";
     return;
   }
 
+  const query = String(match[1] || "").toLowerCase().trim();
+  const mentionStart = cursorPos - match[0].length;
+  const mentionEnd = cursorPos;
+
   const profiles = window.passbookTaggableUsers || [];
+
+  if (!profiles.length) {
+    box.innerHTML = `
+      <div class="px-3 py-2 text-xs text-red-500 font-bold">
+        No taggable users loaded.
+      </div>
+    `;
+    box.classList.remove("hidden");
+    return;
+  }
 
   const matches = profiles
     .filter(profile => {
-      const label = `${displayName(profile)} ${profile.email || ""} ${profile.role || ""}`.toLowerCase();
-      return !mention.query || label.includes(mention.query);
+      const name = displayName(profile);
+      const label = `${name} ${profile.email || ""} ${profile.role || ""}`.toLowerCase();
+      return !query || label.includes(query);
     })
     .slice(0, 8);
 
@@ -10887,40 +10904,47 @@ async function loadOrgProfiles() {
     return;
   }
 
-  box.innerHTML = matches.map(profile => `
-    <button
-      type="button"
-      data-profile-id="${escapeHtml(profile.id)}"
-      class="w-full px-3 py-2 text-left hover:bg-red-50 flex items-center justify-between gap-3"
-    >
-      <span>
-        <span class="block text-sm font-black text-gray-900">${escapeHtml(displayName(profile))}</span>
-        <span class="block text-[11px] text-gray-500">${escapeHtml(profile.email || "")}</span>
-      </span>
-      <span class="text-[10px] font-black uppercase text-red-600">${escapeHtml(profile.role || "")}</span>
-    </button>
-  `).join("");
+  box.innerHTML = matches.map(profile => {
+    const id = escapeHtml(profile.id || "");
+    const name = escapeHtml(displayName(profile));
+    const email = escapeHtml(profile.email || "");
+    const role = escapeHtml(profile.role || "");
+
+    return `
+      <button
+        type="button"
+        data-profile-id="${id}"
+        class="w-full px-3 py-2 text-left hover:bg-red-50 flex items-center justify-between gap-3"
+      >
+        <span>
+          <span class="block text-sm font-black text-gray-900">${name}</span>
+          <span class="block text-[11px] text-gray-500">${email}</span>
+        </span>
+        <span class="text-[10px] font-black uppercase text-red-600">${role}</span>
+      </button>
+    `;
+  }).join("");
 
   box.classList.remove("hidden");
 
   box.querySelectorAll("[data-profile-id]").forEach(btn => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("mousedown", event => {
+      event.preventDefault();
+
       const profile = profiles.find(p => String(p.id) === String(btn.dataset.profileId));
       if (!profile) return;
 
-      const name = displayName(profile);
+      const insert = `@${displayName(profile)} `;
       const current = textarea.value;
-      const insert = `@${name} `;
 
       textarea.value =
-        current.slice(0, mention.start) +
+        current.slice(0, mentionStart) +
         insert +
-        current.slice(mention.end);
+        current.slice(mentionEnd);
 
+      const newPos = mentionStart + insert.length;
       textarea.focus();
-
-      const pos = mention.start + insert.length;
-      textarea.setSelectionRange(pos, pos);
+      textarea.setSelectionRange(newPos, newPos);
 
       box.classList.add("hidden");
       box.innerHTML = "";
@@ -10929,7 +10953,6 @@ async function loadOrgProfiles() {
     });
   });
 }
-
   async function savePassbookClientNote() {
     if (typeof supaClient === "undefined" || !supaClient) return alert("Database connection missing.");
     const orgId = currentOrgId();
