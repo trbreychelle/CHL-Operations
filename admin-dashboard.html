@@ -10574,45 +10574,27 @@ if (eventUpdateError) {
     return String(profile?.display_name || profile?.full_name || profile?.email || "").trim();
   }
 
-  async function loadOrgProfiles() {
-    if (typeof supaClient === "undefined" || !supaClient) return [];
-    const orgId = currentOrgId();
-    if (!orgId) return [];
+async function loadOrgProfiles() {
+  if (typeof supaClient === "undefined" || !supaClient) return [];
 
-    const { data, error } = await supaClient
-      .from("profiles")
-      .select("id, email, full_name, display_name, role, is_active")
-      .eq("organization_id", orgId)
-      .eq("is_active", true)
-      .order("display_name", { ascending: true });
+  const { data, error } = await supaClient.rpc("passbook_taggable_users");
 
-    if (error) {
-      console.error("Failed to load taggable profiles:", error);
-      return [];
-    }
-
-    return data || [];
+  if (error) {
+    console.error("Failed to load passbook taggable users:", error);
+    window.passbookTaggableUsers = [];
+    return [];
   }
 
-  function findTaggedProfiles(body, profiles) {
-    const text = String(body || "").toLowerCase();
-    const matches = [];
-    const seen = new Set();
+  window.passbookTaggableUsers = (data || []).map(profile => ({
+    id: profile.id,
+    email: profile.email || "",
+    full_name: profile.full_name || "",
+    display_name: profile.display_name || "",
+    role: profile.role || ""
+  }));
 
-    (profiles || []).forEach(profile => {
-      const names = [profile.display_name, profile.full_name, profile.email]
-        .map(v => String(v || "").trim())
-        .filter(Boolean);
-
-      const matched = names.some(name => text.includes("@" + name.toLowerCase()));
-      if (matched && !seen.has(profile.id)) {
-        seen.add(profile.id);
-        matches.push(profile);
-      }
-    });
-
-    return matches;
-  }
+  return window.passbookTaggableUsers;
+}
 
   async function fetchNotesForClient(clientCode) {
     if (typeof supaClient === "undefined" || !supaClient) return [];
@@ -10790,16 +10772,30 @@ if (eventUpdateError) {
       pill.classList.toggle("hidden", myUnreadCount <= 0);
     }
 
-    const options = profiles.map(p => `<option value="${escapeHtml(displayName(p))}">${escapeHtml(displayName(p))}</option>`).join("");
-
-    const composer = `
+        const composer = `
       <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
         <div class="text-xs font-black text-gray-500 uppercase mb-2">Add Client Note</div>
-        <textarea id="passbook-note-draft" class="w-full min-h-[110px] px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm outline-none focus:ring-2 focus:ring-red-300" placeholder="Write a note. Tag by typing the exact profile name, example: @Micaela Barrod"></textarea>
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mt-3">
-          <div class="text-[11px] text-gray-500">
-            Taggable users: <select id="passbook-note-profile-helper" class="px-2 py-1 border border-gray-200 rounded-lg bg-white text-xs" onchange="Admin.insertPassbookNoteMention(this.value); this.value='';"><option value="">Insert @name...</option>${options}</select>
-          </div>
+
+        <div class="relative">
+          <textarea
+            id="passbook-note-draft"
+            class="w-full min-h-[110px] px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm outline-none focus:ring-2 focus:ring-red-300"
+            placeholder="Type @ then a name to tag someone. Example: @Mikaela please review this client..."
+            oninput="Admin.handlePassbookMentionInput(this)"
+            onkeyup="Admin.handlePassbookMentionInput(this)"
+            onclick="Admin.handlePassbookMentionInput(this)"
+            onblur="setTimeout(() => document.getElementById('passbook-mention-suggestions')?.classList.add('hidden'), 200)"
+          ></textarea>
+
+          <div
+            id="passbook-mention-suggestions"
+            class="hidden absolute left-0 right-0 top-full mt-1 z-[220] max-w-md bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden"
+          ></div>
+        </div>
+
+        <div id="passbook-mentioned-chips" class="flex flex-wrap gap-2 text-xs mt-2"></div>
+
+        <div class="flex items-center justify-end gap-3 mt-3">
           <button type="button" onclick="Admin.savePassbookClientNote()" class="px-5 py-2.5 rounded-xl bg-red-600 text-white text-xs font-black hover:bg-red-700">Save Note</button>
         </div>
       </div>
@@ -10828,6 +10824,106 @@ if (eventUpdateError) {
     }).join("") : `<div class="rounded-2xl border border-gray-100 bg-white p-5 text-sm text-gray-400 italic">No notes yet for this client.</div>`;
 
     body.innerHTML = composer + `<div class="space-y-3 mt-4">${feed}</div>`;
+  }
+
+    function getPassbookMentionQuery(text, cursorPos) {
+    const beforeCursor = String(text || "").slice(0, cursorPos);
+    const match = beforeCursor.match(/@([A-Za-z0-9 ._-]{0,40})$/);
+
+    if (!match) return null;
+
+    return {
+      raw: match[0],
+      query: String(match[1] || "").toLowerCase().trim(),
+      start: cursorPos - match[0].length,
+      end: cursorPos
+    };
+  }
+
+  function renderPassbookMentionChips(textarea) {
+    const wrap = document.getElementById("passbook-mentioned-chips");
+    if (!wrap || !textarea) return;
+
+    const profiles = window.passbookTaggableUsers || [];
+    const tagged = findTaggedProfiles(textarea.value, profiles);
+
+    wrap.innerHTML = tagged.map(profile => `
+      <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-50 text-red-700 font-black border border-red-100">
+        @${escapeHtml(displayName(profile))}
+      </span>
+    `).join("");
+  }
+
+  function handlePassbookMentionInput(textarea) {
+    const box = document.getElementById("passbook-mention-suggestions");
+    if (!box || !textarea) return;
+
+    renderPassbookMentionChips(textarea);
+
+    const mention = getPassbookMentionQuery(textarea.value, textarea.selectionStart || 0);
+
+    if (!mention) {
+      box.classList.add("hidden");
+      box.innerHTML = "";
+      return;
+    }
+
+    const profiles = window.passbookTaggableUsers || [];
+
+    const matches = profiles
+      .filter(profile => {
+        const label = `${displayName(profile)} ${profile.email || ""} ${profile.role || ""}`.toLowerCase();
+        return !mention.query || label.includes(mention.query);
+      })
+      .slice(0, 8);
+
+    if (!matches.length) {
+      box.innerHTML = `<div class="px-3 py-2 text-xs text-gray-400 italic">No matching users found.</div>`;
+      box.classList.remove("hidden");
+      return;
+    }
+
+    box.innerHTML = matches.map(profile => `
+      <button
+        type="button"
+        data-profile-id="${escapeHtml(profile.id)}"
+        class="w-full px-3 py-2 text-left hover:bg-red-50 flex items-center justify-between gap-3"
+      >
+        <span>
+          <span class="block text-sm font-black text-gray-900">${escapeHtml(displayName(profile))}</span>
+          <span class="block text-[11px] text-gray-500">${escapeHtml(profile.email || "")}</span>
+        </span>
+        <span class="text-[10px] font-black uppercase text-red-600">${escapeHtml(profile.role || "")}</span>
+      </button>
+    `).join("");
+
+    box.classList.remove("hidden");
+
+    box.querySelectorAll("[data-profile-id]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const profile = profiles.find(p => String(p.id) === String(btn.dataset.profileId));
+        if (!profile) return;
+
+        const name = displayName(profile);
+        const current = textarea.value;
+        const insert = `@${name} `;
+
+        textarea.value =
+          current.slice(0, mention.start) +
+          insert +
+          current.slice(mention.end);
+
+        textarea.focus();
+
+        const pos = mention.start + insert.length;
+        textarea.setSelectionRange(pos, pos);
+
+        box.classList.add("hidden");
+        box.innerHTML = "";
+
+        renderPassbookMentionChips(textarea);
+      });
+    });
   }
 
   async function savePassbookClientNote() {
@@ -10999,6 +11095,7 @@ if (eventUpdateError) {
     window.Admin.savePassbookClientNote = savePassbookClientNote;
     window.Admin.acknowledgePassbookNoteMention = acknowledgePassbookNoteMention;
     window.Admin.insertPassbookNoteMention = insertPassbookNoteMention;
+    window.Admin.handlePassbookMentionInput = handlePassbookMentionInput;
     window.Admin.refreshPassbookMentionHighlights = refreshPassbookMentionHighlights;
 
     setTimeout(refreshPassbookMentionHighlights, 1200);
