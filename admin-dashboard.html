@@ -11006,6 +11006,30 @@ async function loadOrgProfiles() {
 
   alert(taggedCount > 0 ? "Note saved and tagged user notified." : "Note saved.");
 }
+
+  async function acknowledgePassbookNoteMention(mentionId) {
+  if (typeof supaClient === "undefined" || !supaClient || !mentionId) return;
+
+  const user = currentUser();
+
+  const { error } = await supaClient
+    .from("passbook_client_note_mentions")
+    .update({
+      is_unread: false,
+      acknowledged_at: new Date().toISOString(),
+      acknowledged_by_profile_id: user?.id || null
+    })
+    .eq("id", mentionId);
+
+  if (error) {
+    console.error("Failed to acknowledge Passbook note mention:", error);
+    return alert(error.message || "Failed to acknowledge note.");
+  }
+
+  await renderPassbookNotes(Admin._currentPassbookCode || document.getElementById("codeName")?.value || "");
+  await refreshPassbookMentionHighlights();
+}
+  
   function insertPassbookNoteMention(name) {
     if (!name) return;
     const input = document.getElementById("passbook-note-draft");
@@ -11094,7 +11118,6 @@ async function loadOrgProfiles() {
     window.Admin.savePassbookClientNote = savePassbookClientNote;
     window.Admin.acknowledgePassbookNoteMention = acknowledgePassbookNoteMention;
     window.Admin.insertPassbookNoteMention = insertPassbookNoteMention;
-    window.Admin.handlePassbookMentionInput = handlePassbookMentionInput;
     window.Admin.handlePassbookMentionInput = handlePassbookMentionInput;
     window.Admin.refreshPassbookMentionHighlights = refreshPassbookMentionHighlights;
 
