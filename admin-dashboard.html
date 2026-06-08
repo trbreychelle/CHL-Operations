@@ -5051,28 +5051,35 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
         // Date filters
         if (sDate) query = query.gte("date_submitted", sDate);
         if (eDate) query = query.lte("date_submitted", eDate);
-      
+
         // Search filter
-        if (q) {
+        const safeQ = q.replace(/[,()]/g, " ").trim();
+
+        if (safeQ) {
           query = query.or([
-            `homeowner_names.ilike.%${q}%`,
-            `appointment_coordinator_name.ilike.%${q}%`,
-            `roofing_company.ilike.%${q}%`,
-            `status.ilike.%${q}%`,
-            `lead_id.ilike.%${q}%`,
-            `email.ilike.%${q}%`,
-            `phone.ilike.%${q}%`
+            `lead_id.ilike.%${safeQ}%`,
+            `company_name.ilike.%${safeQ}%`,
+            `appointment_coordinator_name.ilike.%${safeQ}%`,
+            `homeowner_names.ilike.%${safeQ}%`,
+            `email_of_homeowner.ilike.%${safeQ}%`,
+            `homeowner_phone_numbers.ilike.%${safeQ}%`,
+            `appointment_date_time.ilike.%${safeQ}%`,
+            `address.ilike.%${safeQ}%`,
+            `age_of_roof.ilike.%${safeQ}%`,
+            `insurance_company.ilike.%${safeQ}%`,
+            `additional_notes.ilike.%${safeQ}%`,
+            `status.ilike.%${safeQ}%`
           ].join(","));
         }
-      
+              
         // Sort and paginate LAST
         const { data, error, count } = await query
           .order("date_submitted", { ascending: false })
           .range(from, to);
-      
+
         if (error) {
-          console.error("Leads page load failed:", error);
-          alert("Failed to load leads page. Check console.");
+          console.error("Leads page load failed:", JSON.stringify(error, null, 2));
+          alert(error.message || error.details || "Failed to load leads page.");
           return;
         }
       
