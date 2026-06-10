@@ -10757,6 +10757,27 @@ async function loadOrgProfiles() {
     `);
   }
 
+  async function fetchAllClientNoteActivity() {
+  if (typeof supaClient === "undefined" || !supaClient) return [];
+
+  const orgId = currentOrgId();
+  if (!orgId) return [];
+
+  const { data, error } = await supaClient
+    .from("passbook_client_notes")
+    .select("id, client_code, client_name, created_at, created_by_profile_id")
+    .eq("organization_id", orgId)
+    .order("created_at", { ascending: false })
+    .limit(500);
+
+  if (error) {
+    console.error("Failed to load Passbook note activity:", error);
+    return [];
+  }
+
+  return data || [];
+}
+
   function setPassbookModalTab(tab) {
     ensureNotesUi();
 
@@ -10888,6 +10909,7 @@ async function loadOrgProfiles() {
 
   const profiles = window.passbookTaggableUsers || [];
   const text = String(textarea.value || "").toLowerCase();
+   const hasAll = /(^|\s)@all(\s|$)/i.test(textarea.value || "");
 
   const tagged = profiles.filter(profile => {
     const name = displayName(profile).toLowerCase();
@@ -10895,11 +10917,18 @@ async function loadOrgProfiles() {
     return text.includes(`@${name}`);
   });
 
-  wrap.innerHTML = tagged.map(profile => `
+ wrap.innerHTML = `
+  ${hasAll ? `
+    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-600 text-white font-black border border-red-600">
+      @all
+    </span>
+  ` : ""}
+  ${tagged.map(profile => `
     <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-50 text-red-700 font-black border border-red-100">
       @${escapeHtml(displayName(profile))}
     </span>
-  `).join("");
+  `).join("")}
+`;
 }
 
  async function handlePassbookMentionInput(textarea) {
@@ -10938,13 +10967,22 @@ async function loadOrgProfiles() {
     return;
   }
 
-  const matches = profiles
-    .filter(profile => {
-      const name = displayName(profile);
-      const label = `${name} ${profile.email || ""} ${profile.role || ""}`.toLowerCase();
-      return !query || label.includes(query);
-    })
-    .slice(0, 8);
+  const allOption = {
+  id: "__all__",
+  email: "Notify everyone",
+  full_name: "all",
+  display_name: "all",
+  role: "all"
+};
+
+const matches = [
+  ...((!query || "all".includes(query)) ? [allOption] : []),
+  ...profiles.filter(profile => {
+    const name = displayName(profile);
+    const label = `${name} ${profile.email || ""} ${profile.role || ""}`.toLowerCase();
+    return !query || label.includes(query);
+  })
+].slice(0, 9);
 
   if (!matches.length) {
     box.innerHTML = `<div class="px-3 py-2 text-xs text-gray-400 italic">No matching users found.</div>`;
@@ -10979,8 +11017,12 @@ async function loadOrgProfiles() {
     btn.addEventListener("mousedown", event => {
       event.preventDefault();
 
-      const profile = profiles.find(p => String(p.id) === String(btn.dataset.profileId));
-      if (!profile) return;
+      const profile =
+  String(btn.dataset.profileId) === "__all__"
+    ? { id: "__all__", display_name: "all", full_name: "all", email: "Notify everyone", role: "all" }
+    : profiles.find(p => String(p.id) === String(btn.dataset.profileId));
+
+if (!profile) return;
 
       const insert = `@${displayName(profile)} `;
       const current = textarea.value;
@@ -11080,47 +11122,78 @@ async function loadOrgProfiles() {
     input.focus();
   }
 
-  async function refreshPassbookMentionHighlights() {
-    if (!window.Admin) return;
-    const mentions = await fetchMyUnreadMentions();
-    window.Admin.passbookNoteMentionsByCode = new Map();
-    mentions.forEach(m => {
-      const key = String(m.client_code || "").trim().toLowerCase();
-      if (!key) return;
-      const arr = window.Admin.passbookNoteMentionsByCode.get(key) || [];
-      arr.push(m);
-      window.Admin.passbookNoteMentionsByCode.set(key, arr);
-    });
+ async function refreshPassbookMentionHighlights() {
+  if (!window.Admin) return;
 
-    const count = mentions.length;
-    const badge = document.getElementById("passbook-tab-badge");
-    if (badge) {
-      const existing = Number(badge.textContent || 0) || 0;
-      const total = Math.max(existing, count);
-      badge.textContent = String(total);
-      if (total > 0) badge.classList.remove("hidden");
-    }
+  const [mentions, allNotes] = await Promise.all([
+    fetchMyUnreadMentions(),
+    fetchAllClientNoteActivity()
+  ]);
 
-    paintCurrentCardsRed();
+  window.Admin.passbookNoteMentionsByCode = new Map();
+  window.Admin.passbookNoteActivityByCode = new Map();
+
+  mentions.forEach(m => {
+    const key = String(m.client_code || "").trim().toLowerCase();
+    if (!key) return;
+
+    const arr = window.Admin.passbookNoteMentionsByCode.get(key) || [];
+    arr.push(m);
+    window.Admin.passbookNoteMentionsByCode.set(key, arr);
+  });
+
+  allNotes.forEach(note => {
+    const key = String(note.client_code || "").trim().toLowerCase();
+    if (!key) return;
+
+    if (window.Admin.passbookNoteMentionsByCode.has(key)) return;
+
+    const arr = window.Admin.passbookNoteActivityByCode.get(key) || [];
+    arr.push(note);
+    window.Admin.passbookNoteActivityByCode.set(key, arr);
+  });
+
+  const redCount = mentions.length;
+  const yellowCount = window.Admin.passbookNoteActivityByCode.size;
+  const badge = document.getElementById("passbook-tab-badge");
+
+  if (badge) {
+    const total = redCount + yellowCount;
+    badge.textContent = String(total);
+    badge.classList.toggle("hidden", total <= 0);
+    badge.classList.toggle("bg-red-500", redCount > 0);
+    badge.classList.toggle("bg-yellow-500", redCount <= 0 && yellowCount > 0);
   }
+
+  paintCurrentCardsRed();
+}
 
  function paintCurrentCardsRed() {
   const container = document.getElementById("client-cards-container");
-  if (!container || !window.Admin?.passbookNoteMentionsByCode) return;
+  if (!container || !window.Admin) return;
 
-  const taggedCards = [];
+  const redCards = [];
+  const yellowCards = [];
 
   Array.from(container.children).forEach(card => {
-    card.classList.remove("bg-red-50", "border-red-300", "ring-2", "ring-red-200");
+    card.classList.remove(
+      "bg-red-50", "border-red-300", "ring-2", "ring-red-200",
+      "bg-yellow-50", "border-yellow-300", "ring-yellow-200"
+    );
 
-    const oldBadge = card.querySelector(".passbook-note-red-badge");
-    if (oldBadge) oldBadge.remove();
+    const oldRedBadge = card.querySelector(".passbook-note-red-badge");
+    if (oldRedBadge) oldRedBadge.remove();
+
+    const oldYellowBadge = card.querySelector(".passbook-note-yellow-badge");
+    if (oldYellowBadge) oldYellowBadge.remove();
   });
 
-  window.Admin.passbookNoteMentionsByCode.forEach((items, codeKey) => {
+  const mentionMap = window.Admin.passbookNoteMentionsByCode || new Map();
+  const activityMap = window.Admin.passbookNoteActivityByCode || new Map();
+
+  activityMap.forEach((items, codeKey) => {
     Array.from(container.children).forEach(card => {
       const text = String(card.textContent || "").toLowerCase();
-
       if (!text.includes(codeKey)) return;
 
       card.classList.remove(
@@ -11132,6 +11205,39 @@ async function loadOrgProfiles() {
         "ring-emerald-200"
       );
 
+      card.classList.add("bg-yellow-50", "border-yellow-300", "ring-2", "ring-yellow-200");
+
+      if (!card.querySelector(".passbook-note-yellow-badge")) {
+        card.insertAdjacentHTML(
+          "afterbegin",
+          `<div class="passbook-note-yellow-badge mb-3 inline-flex items-center gap-2 rounded-full bg-yellow-500 px-3 py-1 text-[10px] font-black text-white"><i class="fa-solid fa-note-sticky"></i> New note</div>`
+        );
+      }
+
+      if (!yellowCards.includes(card)) yellowCards.push(card);
+    });
+  });
+
+  mentionMap.forEach((items, codeKey) => {
+    Array.from(container.children).forEach(card => {
+      const text = String(card.textContent || "").toLowerCase();
+      if (!text.includes(codeKey)) return;
+
+      card.classList.remove(
+        "bg-white",
+        "border-gray-100",
+        "hover:border-gray-200",
+        "bg-emerald-50",
+        "border-emerald-300",
+        "ring-emerald-200",
+        "bg-yellow-50",
+        "border-yellow-300",
+        "ring-yellow-200"
+      );
+
+      const oldYellowBadge = card.querySelector(".passbook-note-yellow-badge");
+      if (oldYellowBadge) oldYellowBadge.remove();
+
       card.classList.add("bg-red-50", "border-red-300", "ring-2", "ring-red-200");
 
       if (!card.querySelector(".passbook-note-red-badge")) {
@@ -11141,16 +11247,12 @@ async function loadOrgProfiles() {
         );
       }
 
-      if (!taggedCards.includes(card)) {
-        taggedCards.push(card);
-      }
+      if (!redCards.includes(card)) redCards.push(card);
     });
   });
 
-  // Move tagged cards to the very top of the visible card stack.
-  taggedCards.reverse().forEach(card => {
-    container.prepend(card);
-  });
+  yellowCards.reverse().forEach(card => container.prepend(card));
+  redCards.reverse().forEach(card => container.prepend(card));
 }
 
   function patchAdmin() {
