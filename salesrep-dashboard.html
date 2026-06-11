@@ -2086,9 +2086,15 @@ async deleteQuickNote(noteId) {
 
               const isRenewal = pkgIndex > 0;
 
-              finalRows.push({
+             finalRows.push({
                   _raw: c,
-                  _pkgId: pkg.id,
+                  _pkgId: pkg.package_id || pkg.id || null,
+
+                  // IMPORTANT: Needed by the 🔥 Daily Strategy button
+                  client_id: pkg.client_id || c.id || null,
+                  clientId: pkg.client_id || c.id || null,
+                  rawClientId: pkg.client_id || c.id || null,
+
                   code: code,
                   passbookStatus: String(c.client_status || c.status || "INACTIVE").toUpperCase().trim(),
                   healthStatus: healthStatus,
