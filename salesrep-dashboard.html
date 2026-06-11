@@ -1388,16 +1388,24 @@ renderSalesDailyClientPool() {
     return;
   }
 
-  wrap.innerHTML = filtered.map(r => {
-    const rawClient = (this.getState().rawClients || []).find(c =>
-      String(c.client_code || c.code_name || "").trim().toLowerCase() === String(r.code || "").trim().toLowerCase()
-    ) || {};
+ wrap.innerHTML = filtered.map(r => {
+  const rawClient = (this.getState().rawClients || []).find(c =>
+    String(c.client_code || c.code_name || "").trim().toLowerCase() === String(r.code || "").trim().toLowerCase()
+  ) || {};
 
-    return `
+  const clientId =
+    r.client_id ||
+    r.clientId ||
+    r.rawClientId ||
+    rawClient.id ||
+    "";
+
+  return `
+  
       <div class="rounded-2xl border border-gray-100 p-4 bg-white shadow-sm relative">
         <button
           type="button"
-          onclick="Admin.openSalesFireNoteModal('${rawClient.id || ""}', '${String(r.roofingCompany || r.code).replace(/<[^>]*>/g, "").replace(/'/g, "\\'")}')"
+          onclick="Admin.openSalesFireNoteModal('${clientId}', '${String(r.roofingCompany || r.code).replace(/<[^>]*>/g, "").replace(/'/g, "\\'")}')"
           class="absolute top-3 right-3 w-9 h-9 rounded-full bg-orange-50 hover:bg-orange-100 text-lg shadow-sm"
           title="Add sales note">
           🔥
