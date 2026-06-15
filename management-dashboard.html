@@ -2368,7 +2368,7 @@ const renderBottomRow = (a) => {
   }
 },
 
-            renderClientCards(clients) {
+                  renderClientCards(clients) {
         const container = document.getElementById('client-cards-container');
         if (!container) return;
 
@@ -2387,15 +2387,7 @@ const renderBottomRow = (a) => {
                 <p class="text-[10px] font-extrabold text-yellow-600 uppercase tracking-wider mt-3">Click to open</p>
             </div>
 
-            <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center relative z-10">
-                
-                <label class="flex items-center text-sm text-gray-600 cursor-pointer">
-                    <input type="checkbox" class="mr-2" 
-                           onchange="toggleShareWithSales('${code}', this)" 
-                           ${client.shared_with_sales ? 'checked' : ''}>
-                    Share with Sales
-                </label>
-
+            <div class="mt-4 pt-3 border-t border-gray-100 flex justify-end items-center relative z-10">
                 <div class="flex items-center gap-2">
                   <span class="px-2 py-1 rounded-full text-[10px] font-extrabold border shadow-sm ${window.getClientStatusColor ? getClientStatusColor(client.client_status) : ''}">
                       ${String(client.client_status || 'Inactive').toUpperCase()}
@@ -2407,7 +2399,6 @@ const renderBottomRow = (a) => {
                   </button>
                   ` : ``}
                 </div>
-                
             </div>
         </div>`;
         }).join('') || '<div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">No results</div>';
@@ -2430,6 +2421,99 @@ const renderBottomRow = (a) => {
       
       closePassbookModal() { 
         document.getElementById("passbook-modal").classList.add("hidden"); 
+      },
+
+              setPassbookModalTab(tabName) {
+        const tab = ["details", "history", "notes"].includes(tabName) ? tabName : "details";
+
+        ["details", "history", "notes"].forEach(name => {
+          const panel = document.getElementById(`passbook-${name}-tab`);
+          const btn = document.getElementById(`passbook-tab-${name}`);
+
+          if (panel) panel.classList.toggle("hidden", name !== tab);
+
+          if (btn) {
+            btn.className = name === tab
+              ? "px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-black"
+              : "px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-600 text-xs font-black hover:bg-gray-50";
+          }
+        });
+
+        if (tab === "notes") {
+          const code = document.getElementById("codeName")?.value || "";
+          if (code) this.renderPassbookNotes(code);
+        }
+      },
+
+      renderPassbookHistory(clientCode, companyName) {
+        const wrap = document.getElementById("passbook-history-body");
+        if (!wrap) return;
+
+        const state = this.getState();
+        const leads = Array.isArray(state?.leads) ? state.leads : [];
+
+        const codeKey = String(clientCode || "").toLowerCase().trim();
+        const companyKey = this.normalizeCompanyName(companyName || "");
+
+        const rows = leads
+          .filter(lead => {
+            const leadCode = String(this.getLeadField(lead, ["client_code", "Client Code", "code_name", "Code Name", "Code"], "")).toLowerCase().trim();
+            const leadCompany = this.normalizeCompanyName(this.getLeadField(lead, ["company_name", "Company Name", "roofing_company", "Client"], ""));
+            return (codeKey && leadCode === codeKey) || (companyKey && leadCompany === companyKey);
+          })
+          .sort((a, b) => {
+            const da = this.getLeadDateObj(a);
+            const db = this.getLeadDateObj(b);
+            return (db?.getTime?.() || 0) - (da?.getTime?.() || 0);
+          })
+          .slice(0, 50);
+
+        if (!rows.length) {
+          wrap.innerHTML = `<div class="p-5 text-sm text-gray-400 italic bg-gray-50 rounded-2xl border border-gray-100">No lead history found for this client yet.</div>`;
+          return;
+        }
+
+        wrap.innerHTML = `
+          <div class="rounded-2xl border border-gray-100 overflow-hidden">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-gray-50 text-xs font-black text-gray-400 uppercase">
+                <tr>
+                  <th class="p-3">Date</th>
+                  <th class="p-3">Lead ID</th>
+                  <th class="p-3">Coordinator</th>
+                  <th class="p-3">Homeowner</th>
+                  <th class="p-3">Status</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-50">
+                ${rows.map(lead => {
+                  const status = String(this.getLeadField(lead, ["status", "Status", "STATUS"], "—"));
+                  let statusClass = "bg-gray-100 text-gray-700 border-gray-200";
+                  const s = status.toLowerCase();
+
+                  if (s.includes("approv") || s.includes("confirm")) statusClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
+                  if (s.includes("reject")) statusClass = "bg-red-100 text-red-800 border-red-200";
+                  if (s.includes("credit")) statusClass = "bg-purple-100 text-purple-800 border-purple-200";
+                  if (s.includes("pending")) statusClass = "bg-yellow-100 text-yellow-800 border-yellow-200";
+
+                  return `
+                    <tr class="hover:bg-gray-50">
+                      <td class="p-3 text-gray-600">${this.getLeadField(lead, ["date_submitted", "Date Submitted", "created_at"], "—")}</td>
+                      <td class="p-3 font-bold text-gray-900">${this.getLeadField(lead, ["lead_id", "LEAD ID", "id"], "—")}</td>
+                      <td class="p-3 text-gray-700">${this.getLeadField(lead, ["appointment_coordinator_name", "Appointment Coordinator Name", "agent_name"], "—")}</td>
+                      <td class="p-3 text-gray-700">${this.getLeadField(lead, ["homeowner_names", "Homeowner Name(s)", "homeowner_name"], "—")}</td>
+                      <td class="p-3">
+                        <span class="px-2 py-1 rounded-full text-[10px] font-black border ${statusClass}">
+                          ${status}
+                        </span>
+                      </td>
+                    </tr>
+                  `;
+                }).join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
       },
 
             openRejectionReasonModal(leadId, nextStatus, existingReason = "") {
@@ -2657,7 +2741,7 @@ async openNotification(item) {
         }
       },
 
-            _renderPassbookForm(raw) {
+                 _renderPassbookForm(raw) {
         const safeStr = (val) => String(val || "").replace(/"/g, "&quot;");
 
         const fields = [
@@ -2690,62 +2774,13 @@ async openNotification(item) {
         document.getElementById("passbook-modal-sub").textContent = `Code: ${codeName} • ${cityState}`;
         document.getElementById("codeName").value = codeName;
 
-        let html = `
-          <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-4">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-              <div>
-                <div class="text-xl font-black text-gray-900">${companyName}</div>
-                <div class="text-sm text-gray-500 mt-1">${cityState}</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="bg-white border border-gray-100 rounded-2xl p-4 mb-4">
-            <div class="flex items-center justify-between gap-3 mb-3">
-              <div>
-                <h4 class="font-black text-gray-900 flex items-center gap-2">
-                  <i class="fa-solid fa-note-sticky text-yellow-500"></i> Passbook Notes
-                </h4>
-                <p class="text-xs text-gray-500 mt-1">Use @all or @name to tag users. Red means direct tag, yellow means new general note, green means acknowledged.</p>
-              </div>
-            </div>
-
-            <div class="relative">
-              <textarea
-                id="passbook-note-draft"
-                rows="4"
-                class="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                placeholder="Type @all to tag everyone, or @ then a name. Example: @all please review this client..."
-              ></textarea>
-
-              <div id="passbook-mention-suggestions" class="hidden absolute z-[200] left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-56 overflow-y-auto"></div>
-            </div>
-
-            <div id="passbook-mentioned-chips" class="mt-2 flex flex-wrap gap-2 text-[11px]"></div>
-
-            <div class="flex justify-end mt-3">
-              <button
-                type="button"
-                onclick="Admin.savePassbookClientNote('${String(codeName).replace(/'/g, "\\'")}', '${String(companyName).replace(/'/g, "\\'")}')"
-                class="px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-black hover:bg-yellow-500 hover:text-gray-900"
-              >
-                Save Note
-              </button>
-            </div>
-
-            <div id="passbook-notes-feed" class="mt-4 space-y-3">
-              <div class="p-3 rounded-xl bg-gray-50 text-sm text-gray-400 italic">Loading notes...</div>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        `;
+        let detailsHtml = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
 
         for (const f of fields) {
           const val = safeStr(raw[f.key]);
           const isLong = ["additional_notes", "regions", "area_codes_to_use", "company_address"].includes(f.key);
           
-          html += `
+          detailsHtml += `
             <div>
               <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">${f.label}</label>
               ${ isLong 
@@ -2754,8 +2789,91 @@ async openNotification(item) {
             </div>
           `;
         }
-        
-        html += `</div>`;
+
+        detailsHtml += `</div>`;
+
+        const html = `
+          <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-4">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+              <div>
+                <div class="text-xl font-black text-gray-900">${companyName}</div>
+                <div class="text-sm text-gray-500 mt-1">${cityState}</div>
+              </div>
+              <div class="px-3 py-1 rounded-full bg-gray-900 text-white text-[11px] font-black">
+                ${codeName}
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-2 mb-4 border-b border-gray-100 pb-3">
+            <button id="passbook-tab-details" type="button" onclick="Admin.setPassbookModalTab('details')" class="px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-black">
+              Details
+            </button>
+            <button id="passbook-tab-history" type="button" onclick="Admin.setPassbookModalTab('history')" class="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-600 text-xs font-black hover:bg-gray-50">
+              History
+            </button>
+            <button id="passbook-tab-notes" type="button" onclick="Admin.setPassbookModalTab('notes')" class="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-600 text-xs font-black hover:bg-gray-50">
+              Notes
+            </button>
+          </div>
+
+          <div id="passbook-details-tab">
+            ${detailsHtml}
+          </div>
+
+          <div id="passbook-history-tab" class="hidden">
+            <div class="mb-3">
+              <h4 class="font-black text-gray-900 flex items-center gap-2">
+                <i class="fa-solid fa-clock-rotate-left text-violet-500"></i> Client History
+              </h4>
+              <p class="text-xs text-gray-500 mt-1">Recent lead activity connected to this client.</p>
+            </div>
+            <div id="passbook-history-body">
+              <div class="p-5 text-sm text-gray-400 italic bg-gray-50 rounded-2xl border border-gray-100">Loading history...</div>
+            </div>
+          </div>
+
+          <div id="passbook-notes-tab" class="hidden">
+            <div class="bg-white border border-gray-100 rounded-2xl p-4">
+              <div class="flex items-center justify-between gap-3 mb-3">
+                <div>
+                  <h4 class="font-black text-gray-900 flex items-center gap-2">
+                    <i class="fa-solid fa-note-sticky text-yellow-500"></i> Passbook Notes
+                  </h4>
+                  <p class="text-xs text-gray-500 mt-1">Use @all or @name to tag users. Red means direct tag, yellow means new general note, green means acknowledged.</p>
+                </div>
+              </div>
+
+              <div class="relative">
+                <textarea
+                  id="passbook-note-draft"
+                  rows="4"
+                  class="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  placeholder="Type @all to tag everyone, or @ then a name. Example: @all please review this client..."
+                ></textarea>
+
+                <div id="passbook-mention-suggestions" class="hidden absolute z-[200] left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-56 overflow-y-auto"></div>
+              </div>
+
+              <div id="passbook-mentioned-chips" class="mt-2 flex flex-wrap gap-2 text-[11px]"></div>
+
+              <div class="flex justify-end mt-3">
+                <button
+                  type="button"
+                  onclick="Admin.savePassbookClientNote('${String(codeName).replace(/'/g, "\\'")}', '${String(companyName).replace(/'/g, "\\'")}')"
+                  class="px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-black hover:bg-yellow-500 hover:text-gray-900"
+                >
+                  Save Note
+                </button>
+              </div>
+
+              <div id="passbook-notes-feed" class="mt-4 space-y-3">
+                <div class="p-3 rounded-xl bg-gray-50 text-sm text-gray-400 italic">Loading notes...</div>
+              </div>
+            </div>
+          </div>
+        `;
+
         document.getElementById("passbook-form-body").innerHTML = html;
 
         const textarea = document.getElementById("passbook-note-draft");
@@ -2770,7 +2888,9 @@ async openNotification(item) {
         }
 
         this.loadOrgProfiles();
+        this.renderPassbookHistory(codeName, companyName);
         this.renderPassbookNotes(codeName);
+        this.setPassbookModalTab("details");
       },
 
             renderLeads(leads) {
@@ -3428,7 +3548,7 @@ async openNotification(item) {
         else this.renderClientCards(rows);
       },
 
-                    renderPassbookList(clients) {
+                        renderPassbookList(clients) {
         const canDeletePassbook = false;
 
         document.getElementById("passbook-list-body").innerHTML = (clients || []).map(client => `
@@ -3448,13 +3568,6 @@ async openNotification(item) {
                   <i class="fa-solid fa-trash-can"></i>
                 </button>
                 ` : ``}
-              </div>
-
-              <div class="sales-share-toggle" style="display:inline-block; margin-right:10px;">
-                <label>
-                  <input type="checkbox" class="share-checkbox" onchange="toggleShareWithSales('${this.extractCode(client)}', this)" ${client.shared_with_sales ? 'checked' : ''}>
-                  Share with Sales
-                </label>
               </div>
 
               <button class="px-3 py-1 rounded bg-gray-900 text-white text-xs" onclick="Admin.openPassbookClient('${this.extractCode(client)}')">Open</button>
