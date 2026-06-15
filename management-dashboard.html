@@ -196,7 +196,9 @@ body.client-health-lock {
 
 
 <a class="nav-item flex items-center px-6 py-3 text-sm" href="#clients" onclick="Admin.nav('clients', this)">
-<i class="fa-solid fa-building w-5 text-center"></i> Passbook Clients
+<i class="fa-solid fa-building w-5 text-center"></i>
+<span class="flex-1">Passbook Clients</span>
+<span id="passbook-tab-badge" class="hidden ml-2 min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-black inline-flex items-center justify-center">0</span>
           </a>
 <a class="nav-item flex items-center px-6 py-3 text-sm" href="#leads" onclick="Admin.nav('leads', this)">
 <i class="fa-solid fa-list-check w-5 text-center"></i> Leads Tracker
@@ -1013,8 +1015,9 @@ _firstLoadDone: false,
         _leadsTotal: 0,
 
       // Passbook View state
-      _passbookView: "cards",
+           _passbookView: "cards",
       _passbookFiltersBound: false,
+      passbookNoteMentionsByCode: new Map(),
       _owedKpiBound: false,
 
       notifications: [],
@@ -1068,7 +1071,11 @@ const packages = state.packages || [];
         try { this.initLeadsColumnsUI(); this.applyLeadsFilters(); } catch(e) {}
         try { this.bindLeadsMasterEvents(); } catch(e) {}
         
-        try { this.bindPassbookUI(rawClients); this.applyPassbookFilters(rawClients); } catch(e) {}
+               try {
+          this.bindPassbookUI(rawClients);
+          this.applyPassbookFilters(rawClients);
+          this.refreshPassbookMentionHighlights();
+        } catch(e) {}
         try { this.bindOverviewAnalyticsUI(); } catch(e) {}
         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
         try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
@@ -2361,12 +2368,14 @@ const renderBottomRow = (a) => {
   }
 },
 
-      renderClientCards(clients) {
+            renderClientCards(clients) {
         const container = document.getElementById('client-cards-container');
         if (!container) return;
+
         container.innerHTML = (clients || []).map(client => {
-        const canDeletePassbook = false;
+          const canDeletePassbook = false;
           const code = this.extractCode(client);
+
           return `<div class="text-left bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition relative" data-passbook-code="${code}" data-passbook-client-code="${code}">
 
             <div onclick="Admin.openPassbookClient('${String(code).replace(/'/g, "\\'")}')" class="cursor-pointer">
@@ -2388,20 +2397,22 @@ const renderBottomRow = (a) => {
                 </label>
 
                 <div class="flex items-center gap-2">
-    <span class="px-2 py-1 rounded-full text-[10px] font-extrabold border shadow-sm ${window.getClientStatusColor ? getClientStatusColor(client.client_status) : ''}">
-        ${String(client.client_status || 'Inactive').toUpperCase()}
-    </span>
+                  <span class="px-2 py-1 rounded-full text-[10px] font-extrabold border shadow-sm ${window.getClientStatusColor ? getClientStatusColor(client.client_status) : ''}">
+                      ${String(client.client_status || 'Inactive').toUpperCase()}
+                  </span>
 
-     ${canDeletePassbook ? `
-    <button onclick="deletePassbookClient('${client.id}', '${client.company_name}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Client">
-        <i class="fa-solid fa-trash-can"></i>
-    </button>
-    ` : ``}
-</div>
+                  ${canDeletePassbook ? `
+                  <button onclick="deletePassbookClient('${client.id}', '${client.company_name}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Client">
+                      <i class="fa-solid fa-trash-can"></i>
+                  </button>
+                  ` : ``}
+                </div>
                 
             </div>
         </div>`;
         }).join('') || '<div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">No results</div>';
+
+        this.paintCurrentCardsRed();
       },
 
       openPassbookClient(codeName) { 
@@ -2646,10 +2657,9 @@ async openNotification(item) {
         }
       },
 
-      _renderPassbookForm(raw) {
+            _renderPassbookForm(raw) {
         const safeStr = (val) => String(val || "").replace(/"/g, "&quot;");
 
-        // Map inputs directly to your Supabase Column Names (snake_case)
         const fields = [
           { label: "Code Name", key: "client_code" },
           { label: "Company Name", key: "company_name" },
@@ -2689,6 +2699,45 @@ async openNotification(item) {
               </div>
             </div>
           </div>
+
+          <div class="bg-white border border-gray-100 rounded-2xl p-4 mb-4">
+            <div class="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <h4 class="font-black text-gray-900 flex items-center gap-2">
+                  <i class="fa-solid fa-note-sticky text-yellow-500"></i> Passbook Notes
+                </h4>
+                <p class="text-xs text-gray-500 mt-1">Use @all or @name to tag users. Red means direct tag, yellow means new general note, green means acknowledged.</p>
+              </div>
+            </div>
+
+            <div class="relative">
+              <textarea
+                id="passbook-note-draft"
+                rows="4"
+                class="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                placeholder="Type @all to tag everyone, or @ then a name. Example: @all please review this client..."
+              ></textarea>
+
+              <div id="passbook-mention-suggestions" class="hidden absolute z-[200] left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-56 overflow-y-auto"></div>
+            </div>
+
+            <div id="passbook-mentioned-chips" class="mt-2 flex flex-wrap gap-2 text-[11px]"></div>
+
+            <div class="flex justify-end mt-3">
+              <button
+                type="button"
+                onclick="Admin.savePassbookClientNote('${String(codeName).replace(/'/g, "\\'")}', '${String(companyName).replace(/'/g, "\\'")}')"
+                class="px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-black hover:bg-yellow-500 hover:text-gray-900"
+              >
+                Save Note
+              </button>
+            </div>
+
+            <div id="passbook-notes-feed" class="mt-4 space-y-3">
+              <div class="p-3 rounded-xl bg-gray-50 text-sm text-gray-400 italic">Loading notes...</div>
+            </div>
+          </div>
+
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         `;
 
@@ -2708,6 +2757,20 @@ async openNotification(item) {
         
         html += `</div>`;
         document.getElementById("passbook-form-body").innerHTML = html;
+
+        const textarea = document.getElementById("passbook-note-draft");
+        if (textarea) {
+          textarea.addEventListener("input", () => this.handlePassbookMentionInput(textarea));
+          textarea.addEventListener("blur", () => {
+            setTimeout(() => {
+              const box = document.getElementById("passbook-mention-suggestions");
+              if (box) box.classList.add("hidden");
+            }, 150);
+          });
+        }
+
+        this.loadOrgProfiles();
+        this.renderPassbookNotes(codeName);
       },
 
             renderLeads(leads) {
@@ -2791,6 +2854,548 @@ async openNotification(item) {
         }).join("");
       },
 
+              currentUser() {
+        return window.portal?.currentUser || {};
+      },
+
+      currentOrgId() {
+        return window.portal?.currentUser?.organization_id || null;
+      },
+
+      escapeHtml(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      },
+
+      escapeJs(value) {
+        return String(value ?? "")
+          .replace(/\\/g, "\\\\")
+          .replace(/'/g, "\\'")
+          .replace(/"/g, '\\"')
+          .replace(/\n/g, "\\n")
+          .replace(/\r/g, "");
+      },
+
+      displayName(profile) {
+        return String(profile?.display_name || profile?.full_name || profile?.email || "").trim();
+      },
+
+      findCurrentMentionQuery(textarea) {
+        const value = textarea?.value || "";
+        const pos = textarea?.selectionStart || 0;
+        const before = value.slice(0, pos);
+        const match = before.match(/@([a-zA-Z0-9._@+\-\s]*)$/);
+        if (!match) return null;
+
+        return {
+          query: String(match[1] || "").toLowerCase().trim(),
+          start: pos - match[0].length,
+          end: pos
+        };
+      },
+
+      async loadOrgProfiles() {
+        if (window.passbookTaggableUsers?.length) return window.passbookTaggableUsers;
+        if (typeof supaClient === "undefined" || !supaClient) return [];
+
+        const { data, error } = await supaClient.rpc("passbook_taggable_users");
+
+        if (error) {
+          console.error("Failed to load Passbook taggable users:", error);
+          window.passbookTaggableUsers = [];
+          return [];
+        }
+
+        window.passbookTaggableUsers = Array.isArray(data) ? data : [];
+        return window.passbookTaggableUsers;
+      },
+
+      async fetchNotesForClient(clientCode) {
+        const orgId = this.currentOrgId();
+        if (!orgId || typeof supaClient === "undefined" || !supaClient) return [];
+
+        const { data: notes, error } = await supaClient
+          .from("passbook_client_notes")
+          .select("*")
+          .eq("organization_id", orgId)
+          .eq("client_code", clientCode)
+          .order("created_at", { ascending: false })
+          .limit(50);
+
+        if (error) {
+          console.error("Failed to load Passbook notes:", error);
+          return [];
+        }
+
+        const noteIds = (notes || []).map(n => n.id).filter(Boolean);
+        if (!noteIds.length) return notes || [];
+
+        const { data: mentions, error: mentionError } = await supaClient
+          .from("passbook_client_note_mentions")
+          .select("*")
+          .in("note_id", noteIds);
+
+        if (mentionError) {
+          console.error("Failed to load Passbook note mentions:", mentionError);
+          return notes || [];
+        }
+
+        const byNote = new Map();
+        (mentions || []).forEach(m => {
+          const key = String(m.note_id);
+          const arr = byNote.get(key) || [];
+          arr.push(m);
+          byNote.set(key, arr);
+        });
+
+        return (notes || []).map(note => ({
+          ...note,
+          mentions: byNote.get(String(note.id)) || []
+        }));
+      },
+
+      async fetchMyUnreadMentions() {
+        if (typeof supaClient === "undefined" || !supaClient) return [];
+        const user = this.currentUser();
+        const orgId = this.currentOrgId();
+        if (!user?.id || !orgId) return [];
+
+        const { data, error } = await supaClient
+          .from("passbook_client_note_mentions")
+          .select("*")
+          .eq("organization_id", orgId)
+          .eq("mentioned_profile_id", user.id)
+          .eq("is_unread", true);
+
+        if (error) {
+          console.error("Failed to load my Passbook note mentions:", error);
+          return [];
+        }
+
+        const rows = data || [];
+        const noteIds = [...new Set(rows.map(r => r.note_id).filter(Boolean))];
+
+        if (!noteIds.length) return rows;
+
+        const { data: notes, error: notesError } = await supaClient
+          .from("passbook_client_notes")
+          .select("id, body, created_by_profile_id")
+          .in("id", noteIds);
+
+        if (notesError) {
+          console.error("Failed to load unread Passbook note bodies:", notesError);
+          return rows;
+        }
+
+        const noteById = new Map((notes || []).map(n => [String(n.id), n]));
+
+        return rows.map(row => {
+          const note = noteById.get(String(row.note_id)) || {};
+          return {
+            ...row,
+            note_body: note.body || "",
+            note_created_by_profile_id: note.created_by_profile_id || null
+          };
+        });
+      },
+
+      isPassbookNoteDirectForCurrentUser(noteOrMention, user) {
+        const body = String(noteOrMention?.body || noteOrMention?.note_body || "").toLowerCase();
+        if (!body || !user) return false;
+
+        if (/(^|[^a-z0-9_])@all([^a-z0-9_]|$)/i.test(body)) return true;
+
+        const names = [
+          user.display_name,
+          user.full_name,
+          user.name,
+          user.email
+        ]
+          .map(v => String(v || "").trim().toLowerCase())
+          .filter(Boolean);
+
+        return names.some(name => body.includes(`@${name}`));
+      },
+
+      renderPassbookMentionChips(textarea) {
+        const wrap = document.getElementById("passbook-mentioned-chips");
+        if (!wrap || !textarea) return;
+
+        const profiles = window.passbookTaggableUsers || [];
+        const text = String(textarea.value || "").toLowerCase();
+        const hasAll = /(^|[^a-z0-9_])@all([^a-z0-9_]|$)/i.test(text);
+
+        const tagged = profiles.filter(profile => {
+          const name = this.displayName(profile).toLowerCase();
+          if (!name) return false;
+          return text.includes(`@${name}`);
+        });
+
+        const chips = [];
+
+        if (hasAll) {
+          chips.push(`
+            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-600 text-white font-black border border-red-600">
+              @all
+            </span>
+          `);
+        }
+
+        tagged.forEach(profile => {
+          chips.push(`
+            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-50 text-red-700 font-black border border-red-100">
+              @${this.escapeHtml(this.displayName(profile))}
+            </span>
+          `);
+        });
+
+        wrap.innerHTML = chips.join("");
+      },
+
+      handlePassbookMentionInput(textarea) {
+        this.renderPassbookMentionChips(textarea);
+
+        const box = document.getElementById("passbook-mention-suggestions");
+        if (!box || !textarea) return;
+
+        const mention = this.findCurrentMentionQuery(textarea);
+        if (!mention) {
+          box.classList.add("hidden");
+          box.innerHTML = "";
+          return;
+        }
+
+        const query = mention.query;
+        const profiles = window.passbookTaggableUsers || [];
+
+        if (!query || "all".startsWith(query)) {
+          box.innerHTML = `
+            <button
+              type="button"
+              data-mention-all="true"
+              class="w-full px-3 py-2 text-left hover:bg-red-50 flex items-center justify-between gap-3"
+            >
+              <span>
+                <span class="block text-sm font-black text-gray-900">@all</span>
+                <span class="block text-[11px] text-gray-500">Tag everyone with Passbook access</span>
+              </span>
+              <span class="text-[10px] font-black uppercase text-red-600">ALL</span>
+            </button>
+          `;
+          box.classList.remove("hidden");
+
+          const allBtn = box.querySelector("[data-mention-all]");
+          if (allBtn) {
+            allBtn.addEventListener("mousedown", event => {
+              event.preventDefault();
+
+              const insert = "@all ";
+              const current = textarea.value;
+
+              textarea.value =
+                current.slice(0, mention.start) +
+                insert +
+                current.slice(mention.end);
+
+              const newPos = mention.start + insert.length;
+              textarea.focus();
+              textarea.setSelectionRange(newPos, newPos);
+
+              box.classList.add("hidden");
+              box.innerHTML = "";
+
+              this.renderPassbookMentionChips(textarea);
+            });
+          }
+
+          return;
+        }
+
+        const matches = profiles
+          .filter(profile => this.displayName(profile).toLowerCase().includes(query))
+          .slice(0, 8);
+
+        if (!matches.length) {
+          box.classList.add("hidden");
+          box.innerHTML = "";
+          return;
+        }
+
+        box.innerHTML = matches.map(profile => `
+          <button
+            type="button"
+            data-profile-id="${this.escapeHtml(profile.id)}"
+            class="w-full px-3 py-2 text-left hover:bg-yellow-50 flex items-center justify-between gap-3"
+          >
+            <span>
+              <span class="block text-sm font-bold text-gray-900">@${this.escapeHtml(this.displayName(profile))}</span>
+              <span class="block text-[11px] text-gray-500">${this.escapeHtml(profile.role || "")} • ${this.escapeHtml(profile.email || "")}</span>
+            </span>
+          </button>
+        `).join("");
+
+        box.classList.remove("hidden");
+
+        box.querySelectorAll("[data-profile-id]").forEach(btn => {
+          btn.addEventListener("mousedown", event => {
+            event.preventDefault();
+
+            const profile = matches.find(p => String(p.id) === String(btn.dataset.profileId));
+            if (!profile) return;
+
+            const insert = `@${this.displayName(profile)} `;
+            const current = textarea.value;
+
+            textarea.value =
+              current.slice(0, mention.start) +
+              insert +
+              current.slice(mention.end);
+
+            const newPos = mention.start + insert.length;
+            textarea.focus();
+            textarea.setSelectionRange(newPos, newPos);
+
+            box.classList.add("hidden");
+            box.innerHTML = "";
+
+            this.renderPassbookMentionChips(textarea);
+          });
+        });
+      },
+
+      async renderPassbookNotes(clientCode) {
+        const feed = document.getElementById("passbook-notes-feed");
+        if (!feed) return;
+
+        feed.innerHTML = `<div class="p-3 rounded-xl bg-gray-50 text-sm text-gray-400 italic">Loading notes...</div>`;
+
+        const notes = await this.fetchNotesForClient(clientCode);
+        const user = this.currentUser();
+
+        if (!notes.length) {
+          feed.innerHTML = `<div class="p-3 rounded-xl bg-gray-50 text-sm text-gray-400 italic">No notes yet.</div>`;
+          return;
+        }
+
+        feed.innerHTML = notes.map(note => {
+          const mentions = note.mentions || [];
+          const myUnread = mentions.find(m => m.mentioned_profile_id === user?.id && m.is_unread);
+          const isDirectForMe = myUnread ? this.isPassbookNoteDirectForCurrentUser(note, user) : false;
+
+          const noteTone = myUnread
+            ? (isDirectForMe
+                ? {
+                    card: "border-red-300 bg-red-50 ring-2 ring-red-100",
+                    btn: "bg-red-600 hover:bg-red-700",
+                    label: "Tagged for you",
+                    text: "text-red-600"
+                  }
+                : {
+                    card: "border-yellow-300 bg-yellow-50 ring-2 ring-yellow-100",
+                    btn: "bg-yellow-500 hover:bg-yellow-600",
+                    label: "New client note",
+                    text: "text-yellow-700"
+                  })
+            : {
+                card: "border-emerald-200 bg-emerald-50",
+                btn: "",
+                label: "Acknowledged",
+                text: "text-emerald-700"
+              };
+
+          const hasAll = /(^|[^a-z0-9_])@all([^a-z0-9_]|$)/i.test(String(note.body || ""));
+          const mentionText = mentions.length
+            ? `<div class="mt-2 text-[11px] font-bold ${hasAll ? "text-red-600" : noteTone.text}">${hasAll ? "Tagged: @all" : `Tagged: ${mentions.map(m => this.escapeHtml(m.mentioned_name || m.mentioned_email || "User")).join(", ")}`}</div>`
+            : "";
+
+          return `
+            <div class="rounded-2xl border ${noteTone.card} p-4">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <div class="text-sm text-gray-900 whitespace-pre-wrap">${this.escapeHtml(note.body || "")}</div>
+                  ${mentionText}
+                  <div class="mt-2 text-[11px] font-semibold text-gray-500">
+                    ${this.escapeHtml(note.created_by_name || "Unknown")} • ${note.created_at ? new Date(note.created_at).toLocaleString() : ""}
+                  </div>
+                </div>
+
+                <div class="shrink-0">
+                  ${
+                    myUnread
+                      ? `<button type="button" onclick="Admin.acknowledgePassbookNoteMention('${this.escapeJs(myUnread.id)}')" class="px-3 py-2 rounded-xl ${noteTone.btn} text-white text-[11px] font-black">${noteTone.label} · Acknowledge</button>`
+                      : `<span class="px-3 py-2 rounded-xl bg-emerald-500 text-white text-[11px] font-black">Green · Cleared</span>`
+                  }
+                </div>
+              </div>
+            </div>
+          `;
+        }).join("");
+      },
+
+      async savePassbookClientNote(clientCode, clientName) {
+        if (typeof supaClient === "undefined" || !supaClient) {
+          alert("Database connection missing.");
+          return;
+        }
+
+        const textarea = document.getElementById("passbook-note-draft");
+        const noteBody = String(textarea?.value || "").trim();
+
+        if (!noteBody) {
+          alert("Please type a note first.");
+          return;
+        }
+
+        const { data, error } = await supaClient.rpc("create_passbook_client_note", {
+          p_client_code: clientCode,
+          p_client_name: clientName,
+          p_body: noteBody
+        });
+
+        if (error) {
+          console.error("create_passbook_client_note failed:", error);
+          return alert(error.message || "Failed to save note.");
+        }
+
+        const result = Array.isArray(data) ? data[0] : data;
+        const taggedCount = Number(result?.tagged_count || 0);
+
+        if (textarea) textarea.value = "";
+        this.renderPassbookMentionChips(textarea);
+
+        await this.renderPassbookNotes(clientCode);
+        await this.refreshPassbookMentionHighlights();
+
+        const isAll = /(^|[^a-z0-9_])@all([^a-z0-9_]|$)/i.test(noteBody);
+        alert(
+          isAll
+            ? "Note saved and everyone was tagged."
+            : taggedCount > 0
+              ? "Note saved and tagged user notified."
+              : "Note saved and shared as a yellow client-note alert."
+        );
+      },
+
+      async acknowledgePassbookNoteMention(mentionId) {
+        if (!mentionId || typeof supaClient === "undefined" || !supaClient) return;
+
+        const user = this.currentUser();
+
+        const { error } = await supaClient
+          .from("passbook_client_note_mentions")
+          .update({
+            is_unread: false,
+            acknowledged_at: new Date().toISOString(),
+            acknowledged_by_profile_id: user?.id || null
+          })
+          .eq("id", mentionId);
+
+        if (error) {
+          console.error("Failed to acknowledge Passbook note:", error);
+          alert(error.message || "Failed to acknowledge note.");
+          return;
+        }
+
+        const code = document.getElementById("codeName")?.value;
+        if (code) await this.renderPassbookNotes(code);
+        await this.refreshPassbookMentionHighlights();
+      },
+
+      async refreshPassbookMentionHighlights() {
+        const mentions = await this.fetchMyUnreadMentions();
+        const byCode = new Map();
+
+        mentions.forEach(item => {
+          const key = String(item.client_code || "").trim().toLowerCase();
+          if (!key) return;
+          const arr = byCode.get(key) || [];
+          arr.push(item);
+          byCode.set(key, arr);
+        });
+
+        this.passbookNoteMentionsByCode = byCode;
+
+        const badge = document.getElementById("passbook-tab-badge");
+        if (badge) {
+          const count = mentions.length;
+          badge.textContent = count;
+          badge.classList.toggle("hidden", count === 0);
+        }
+
+        this.paintCurrentCardsRed();
+      },
+
+      paintCurrentCardsRed() {
+        const container = document.getElementById("client-cards-container");
+        if (!container || !this.passbookNoteMentionsByCode) return;
+
+        const alertCards = [];
+        const user = this.currentUser();
+
+        Array.from(container.children).forEach(card => {
+          card.classList.remove(
+            "bg-red-50", "border-red-300", "ring-2", "ring-red-200",
+            "bg-yellow-50", "border-yellow-300", "ring-yellow-200",
+            "bg-emerald-50", "border-emerald-300", "ring-emerald-200"
+          );
+
+          card.querySelectorAll(".passbook-note-red-badge, .passbook-note-yellow-badge, .passbook-note-green-badge").forEach(badge => badge.remove());
+        });
+
+        this.passbookNoteMentionsByCode.forEach((items, codeKey) => {
+          Array.from(container.children).forEach(card => {
+            const cardCode = String(card.dataset.passbookCode || card.dataset.passbookClientCode || "").toLowerCase().trim();
+            const text = String(card.textContent || "").toLowerCase();
+
+            if (cardCode !== codeKey && !text.includes(codeKey)) return;
+
+            const hasDirect = (items || []).some(item => this.isPassbookNoteDirectForCurrentUser(item, user));
+            const tone = hasDirect ? "red" : "yellow";
+
+            card.classList.remove(
+              "bg-white",
+              "border-gray-100",
+              "hover:border-gray-200",
+              "bg-emerald-50",
+              "border-emerald-300",
+              "ring-emerald-200"
+            );
+
+            if (tone === "red") {
+              card.classList.add("bg-red-50", "border-red-300", "ring-2", "ring-red-200");
+
+              if (!card.querySelector(".passbook-note-red-badge")) {
+                card.insertAdjacentHTML(
+                  "afterbegin",
+                  `<div class="passbook-note-red-badge mb-3 inline-flex items-center gap-2 rounded-full bg-red-600 px-3 py-1 text-[10px] font-black text-white"><i class="fa-solid fa-at"></i> Tagged note</div>`
+                );
+              }
+            } else {
+              card.classList.add("bg-yellow-50", "border-yellow-300", "ring-2", "ring-yellow-200");
+
+              if (!card.querySelector(".passbook-note-yellow-badge")) {
+                card.insertAdjacentHTML(
+                  "afterbegin",
+                  `<div class="passbook-note-yellow-badge mb-3 inline-flex items-center gap-2 rounded-full bg-yellow-500 px-3 py-1 text-[10px] font-black text-white"><i class="fa-solid fa-note-sticky"></i> New client note</div>`
+                );
+              }
+            }
+
+            if (!alertCards.includes(card)) {
+              alertCards.push(card);
+            }
+          });
+        });
+
+        alertCards.reverse().forEach(card => {
+          container.prepend(card);
+        });
+      },
+
       setupPassbookFilters(clients) {
         const locs = [...new Set((clients || []).map(c => this.extractCityState(c)).filter(Boolean))].sort();
         document.getElementById("passbook-filter-location").innerHTML = `<option value="all">All Locations</option>` + locs.map(l => `<option value="${l}">${l}</option>`).join("");
@@ -2823,7 +3428,7 @@ async openNotification(item) {
         else this.renderClientCards(rows);
       },
 
-            renderPassbookList(clients) {
+                    renderPassbookList(clients) {
         const canDeletePassbook = false;
 
         document.getElementById("passbook-list-body").innerHTML = (clients || []).map(client => `
@@ -2834,16 +3439,16 @@ async openNotification(item) {
             <td class="p-4">${this.extractClientName(client)}</td>
             <td class="p-4 text-right">
               <div style="display:inline-flex; align-items:center; gap:8px; margin-right:15px;">
-  <span class="px-2 py-1 rounded-full text-[10px] font-extrabold border shadow-sm ${window.getClientStatusColor ? getClientStatusColor(client.client_status) : ''}">
-    ${String(client.client_status || 'Inactive').toUpperCase()}
-  </span>
+                <span class="px-2 py-1 rounded-full text-[10px] font-extrabold border shadow-sm ${window.getClientStatusColor ? getClientStatusColor(client.client_status) : ''}">
+                  ${String(client.client_status || 'Inactive').toUpperCase()}
+                </span>
 
-  ${canDeletePassbook ? `
-  <button onclick="deletePassbookClient('${client.id}', '${client.company_name}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Client">
-    <i class="fa-solid fa-trash-can"></i>
-  </button>
-  ` : ``}
-</div>
+                ${canDeletePassbook ? `
+                <button onclick="deletePassbookClient('${client.id}', '${client.company_name}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Client">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+                ` : ``}
+              </div>
 
               <div class="sales-share-toggle" style="display:inline-block; margin-right:10px;">
                 <label>
@@ -2856,6 +3461,8 @@ async openNotification(item) {
             </td>
           </tr>
         `).join("");
+
+        this.paintCurrentCardsRed();
       },
 
       bindPassbookUI(clients) {
@@ -3984,11 +4591,19 @@ openNotificationById(eventId) {
 
         this.currentView = viewId;
 
-        if (viewId === "notifications") {
+               if (viewId === "notifications") {
           try {
             this.loadNotifications(true);
           } catch(e) {
             console.error("Notifications load error:", e);
+          }
+        }
+
+        if (viewId === "clients") {
+          try {
+            this.refreshPassbookMentionHighlights();
+          } catch(e) {
+            console.error("Passbook note highlight error:", e);
           }
         }
       }
