@@ -3566,25 +3566,49 @@ async saveOnboardingRow(clientCode) {
   }
 
   async function fetchMyUnreadMentions() {
-    if (typeof supaClient === "undefined" || !supaClient) return [];
-    const user = currentUser();
-    const orgId = currentOrgId();
-    if (!user?.id || !orgId) return [];
+  if (typeof supaClient === "undefined" || !supaClient) return [];
+  const user = currentUser();
+  const orgId = currentOrgId();
+  if (!user?.id || !orgId) return [];
 
-    const { data, error } = await supaClient
-      .from("passbook_client_note_mentions")
-      .select("*")
-      .eq("organization_id", orgId)
-      .eq("mentioned_profile_id", user.id)
-      .eq("is_unread", true);
+  const { data, error } = await supaClient
+    .from("passbook_client_note_mentions")
+    .select("*")
+    .eq("organization_id", orgId)
+    .eq("mentioned_profile_id", user.id)
+    .eq("is_unread", true);
 
-    if (error) {
-      console.error("Failed to load my Passbook note mentions:", error);
-      return [];
-    }
-
-    return data || [];
+  if (error) {
+    console.error("Failed to load my Passbook note mentions:", error);
+    return [];
   }
+
+  const rows = data || [];
+  const noteIds = [...new Set(rows.map(r => r.note_id).filter(Boolean))];
+
+  if (!noteIds.length) return rows;
+
+  const { data: notes, error: notesError } = await supaClient
+    .from("passbook_client_notes")
+    .select("id, body, created_by_profile_id")
+    .in("id", noteIds);
+
+  if (notesError) {
+    console.error("Failed to load unread Passbook note bodies:", notesError);
+    return rows;
+  }
+
+  const noteById = new Map((notes || []).map(n => [String(n.id), n]));
+
+  return rows.map(row => {
+    const note = noteById.get(String(row.note_id)) || {};
+    return {
+      ...row,
+      note_body: note.body || "",
+      note_created_by_profile_id: note.created_by_profile_id || null
+    };
+  });
+}
 
   function activeButtonClass(active) {
     return active
@@ -3672,6 +3696,24 @@ async saveOnboardingRow(clientCode) {
     try { return new Date(value).toLocaleString(); } catch (e) { return String(value); }
   }
 
+  function isPassbookNoteDirectForCurrentUser(noteOrMention, user) {
+  const body = String(noteOrMention?.body || noteOrMention?.note_body || "").toLowerCase();
+  if (!body || !user) return false;
+
+  if (/(^|[^a-z0-9_])@all([^a-z0-9_]|$)/i.test(body)) return true;
+
+  const names = [
+    user.display_name,
+    user.full_name,
+    user.name,
+    user.email
+  ]
+    .map(v => String(v || "").trim().toLowerCase())
+    .filter(Boolean);
+
+  return names.some(name => body.includes(`@${name}`));
+}
+
   async function renderPassbookNotes(clientCode) {
     ensureNotesUi();
     const body = document.getElementById("passbook-notes-body");
@@ -3709,7 +3751,7 @@ async saveOnboardingRow(clientCode) {
           <textarea
             id="passbook-note-draft"
             class="w-full min-h-[110px] px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm outline-none focus:ring-2 focus:ring-red-300"
-            placeholder="Type @ then a name to tag someone. Example: @Mikaela please review this client..."
+            placeholder="Type @all to tag everyone, or @ then a name. Example: @all please review this client..."
             oninput="Admin.handlePassbookMentionInput(this)"
             onkeyup="Admin.handlePassbookMentionInput(this)"
             onclick="Admin.handlePassbookMentionInput(this)"
@@ -3732,19 +3774,43 @@ async saveOnboardingRow(clientCode) {
 
     const feed = notes.length ? notes.map(note => {
       const mentions = note.mentions || [];
-      const myUnread = mentions.find(m => m.mentioned_profile_id === user?.id && m.is_unread);
-      const mentionText = mentions.length
-        ? `<div class="mt-2 text-[11px] font-bold text-red-600">Tagged: ${mentions.map(m => escapeHtml(m.mentioned_name || m.mentioned_email || "User")).join(", ")}</div>`
-        : "";
+     const myUnread = mentions.find(m => m.mentioned_profile_id === user?.id && m.is_unread);
+const isDirectForMe = myUnread ? isPassbookNoteDirectForCurrentUser(note, user) : false;
+
+const noteTone = myUnread
+  ? (isDirectForMe
+      ? {
+          card: "border-red-300 bg-red-50 ring-2 ring-red-100",
+          btn: "bg-red-600 hover:bg-red-700",
+          label: "Tagged for you",
+          text: "text-red-600"
+        }
+      : {
+          card: "border-yellow-300 bg-yellow-50 ring-2 ring-yellow-100",
+          btn: "bg-yellow-500 hover:bg-yellow-600",
+          label: "New client note",
+          text: "text-yellow-700"
+        })
+  : {
+      card: "border-gray-100 bg-white",
+      btn: "",
+      label: "",
+      text: "text-gray-500"
+    };
+
+const hasAll = /(^|[^a-z0-9_])@all([^a-z0-9_]|$)/i.test(String(note.body || ""));
+const mentionText = mentions.length
+  ? `<div class="mt-2 text-[11px] font-bold ${hasAll ? "text-red-600" : noteTone.text}">${hasAll ? "Tagged: @all" : `Tagged: ${mentions.map(m => escapeHtml(m.mentioned_name || m.mentioned_email || "User")).join(", ")}`}</div>`
+  : "";
 
       return `
-        <div class="rounded-2xl border ${myUnread ? 'border-red-300 bg-red-50 ring-2 ring-red-100' : 'border-gray-100 bg-white'} p-4">
+        <div class="rounded-2xl border ${noteTone.card} p-4">
           <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
             <div>
               <div class="text-sm font-black text-gray-900">${escapeHtml(note.created_by_name || "Unknown")}</div>
               <div class="text-[11px] text-gray-400 font-bold">${formatDate(note.created_at)}</div>
             </div>
-            ${myUnread ? `<button type="button" onclick="Admin.acknowledgePassbookNoteMention('${escapeJs(myUnread.id)}')" class="px-3 py-2 rounded-xl bg-red-600 text-white text-[11px] font-black hover:bg-red-700">Acknowledge</button>` : ""}
+            ${myUnread ? `<button type="button" onclick="Admin.acknowledgePassbookNoteMention('${escapeJs(myUnread.id)}')" class="px-3 py-2 rounded-xl ${noteTone.btn} text-white text-[11px] font-black">${noteTone.label} · Acknowledge</button>` : ""}
           </div>
           <div class="mt-3 text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">${escapeHtml(note.body)}</div>
           ${mentionText}
@@ -3769,12 +3835,13 @@ async saveOnboardingRow(clientCode) {
     };
   }
 
- function renderPassbookMentionChips(textarea) {
+function renderPassbookMentionChips(textarea) {
   const wrap = document.getElementById("passbook-mentioned-chips");
   if (!wrap || !textarea) return;
 
   const profiles = window.passbookTaggableUsers || [];
   const text = String(textarea.value || "").toLowerCase();
+  const hasAll = /(^|[^a-z0-9_])@all([^a-z0-9_]|$)/i.test(text);
 
   const tagged = profiles.filter(profile => {
     const name = displayName(profile).toLowerCase();
@@ -3782,11 +3849,25 @@ async saveOnboardingRow(clientCode) {
     return text.includes(`@${name}`);
   });
 
-  wrap.innerHTML = tagged.map(profile => `
-    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-50 text-red-700 font-black border border-red-100">
-      @${escapeHtml(displayName(profile))}
-    </span>
-  `).join("");
+  const chips = [];
+
+  if (hasAll) {
+    chips.push(`
+      <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-600 text-white font-black border border-red-600">
+        @all
+      </span>
+    `);
+  }
+
+  tagged.forEach(profile => {
+    chips.push(`
+      <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-50 text-red-700 font-black border border-red-100">
+        @${escapeHtml(displayName(profile))}
+      </span>
+    `);
+  });
+
+  wrap.innerHTML = chips.join("");
 }
 
 async function handlePassbookMentionInput(textarea) {
@@ -3809,6 +3890,49 @@ async function handlePassbookMentionInput(textarea) {
 
   const query = String(mention.query || "").toLowerCase().trim();
   const profiles = window.passbookTaggableUsers || [];
+
+  if (!query || "all".startsWith(query)) {
+  box.innerHTML = `
+    <button
+      type="button"
+      data-mention-all="true"
+      class="w-full px-3 py-2 text-left hover:bg-red-50 flex items-center justify-between gap-3"
+    >
+      <span>
+        <span class="block text-sm font-black text-gray-900">@all</span>
+        <span class="block text-[11px] text-gray-500">Tag everyone with Passbook access</span>
+      </span>
+      <span class="text-[10px] font-black uppercase text-red-600">ALL</span>
+    </button>
+  `;
+  box.classList.remove("hidden");
+
+  const allBtn = box.querySelector("[data-mention-all]");
+  if (allBtn) {
+    allBtn.addEventListener("mousedown", event => {
+      event.preventDefault();
+
+      const insert = "@all ";
+      const current = textarea.value;
+
+      textarea.value =
+        current.slice(0, mentionStart) +
+        insert +
+        current.slice(mentionEnd);
+
+      const newPos = mentionStart + insert.length;
+      textarea.focus();
+      textarea.setSelectionRange(newPos, newPos);
+
+      box.classList.add("hidden");
+      box.innerHTML = "";
+
+      renderPassbookMentionChips(textarea);
+    });
+  }
+
+  return;
+}
 
   if (!profiles.length) {
     box.innerHTML = `
@@ -3940,7 +4064,14 @@ async function handlePassbookMentionInput(textarea) {
   await renderPassbookNotes(code);
   await refreshPassbookMentionHighlights();
 
-  alert(taggedCount > 0 ? "Note saved and tagged user notified." : "Note saved.");
+ const isAll = /(^|[^a-z0-9_])@all([^a-z0-9_]|$)/i.test(noteBody);
+alert(
+  isAll
+    ? "Note saved and everyone was tagged."
+    : taggedCount > 0
+      ? "Note saved and tagged user notified."
+      : "Note saved and shared as a yellow client-note alert."
+);
 }
 
   async function acknowledgePassbookNoteMention(mentionId) {
@@ -4002,20 +4133,25 @@ async function handlePassbookMentionInput(textarea) {
   const container = document.getElementById("client-cards-container");
   if (!container || !window.Admin?.passbookNoteMentionsByCode) return;
 
-  const taggedCards = [];
+  const alertCards = [];
+  const user = currentUser();
 
   Array.from(container.children).forEach(card => {
-    card.classList.remove("bg-red-50", "border-red-300", "ring-2", "ring-red-200");
+    card.classList.remove(
+      "bg-red-50", "border-red-300", "ring-2", "ring-red-200",
+      "bg-yellow-50", "border-yellow-300", "ring-yellow-200"
+    );
 
-    const oldBadge = card.querySelector(".passbook-note-red-badge");
-    if (oldBadge) oldBadge.remove();
+    card.querySelectorAll(".passbook-note-red-badge, .passbook-note-yellow-badge").forEach(badge => badge.remove());
   });
 
   window.Admin.passbookNoteMentionsByCode.forEach((items, codeKey) => {
     Array.from(container.children).forEach(card => {
       const text = String(card.textContent || "").toLowerCase();
-
       if (!text.includes(codeKey)) return;
+
+      const hasDirect = (items || []).some(item => isPassbookNoteDirectForCurrentUser(item, user));
+      const tone = hasDirect ? "red" : "yellow";
 
       card.classList.remove(
         "bg-white",
@@ -4026,22 +4162,33 @@ async function handlePassbookMentionInput(textarea) {
         "ring-emerald-200"
       );
 
-      card.classList.add("bg-red-50", "border-red-300", "ring-2", "ring-red-200");
+      if (tone === "red") {
+        card.classList.add("bg-red-50", "border-red-300", "ring-2", "ring-red-200");
 
-      if (!card.querySelector(".passbook-note-red-badge")) {
-        card.insertAdjacentHTML(
-          "afterbegin",
-          `<div class="passbook-note-red-badge mb-3 inline-flex items-center gap-2 rounded-full bg-red-600 px-3 py-1 text-[10px] font-black text-white"><i class="fa-solid fa-at"></i> Tagged note</div>`
-        );
+        if (!card.querySelector(".passbook-note-red-badge")) {
+          card.insertAdjacentHTML(
+            "afterbegin",
+            `<div class="passbook-note-red-badge mb-3 inline-flex items-center gap-2 rounded-full bg-red-600 px-3 py-1 text-[10px] font-black text-white"><i class="fa-solid fa-at"></i> Tagged note</div>`
+          );
+        }
+      } else {
+        card.classList.add("bg-yellow-50", "border-yellow-300", "ring-2", "ring-yellow-200");
+
+        if (!card.querySelector(".passbook-note-yellow-badge")) {
+          card.insertAdjacentHTML(
+            "afterbegin",
+            `<div class="passbook-note-yellow-badge mb-3 inline-flex items-center gap-2 rounded-full bg-yellow-500 px-3 py-1 text-[10px] font-black text-white"><i class="fa-solid fa-note-sticky"></i> New client note</div>`
+          );
+        }
       }
 
-      if (!taggedCards.includes(card)) {
-        taggedCards.push(card);
+      if (!alertCards.includes(card)) {
+        alertCards.push(card);
       }
     });
   });
 
-  taggedCards.reverse().forEach(card => {
+  alertCards.reverse().forEach(card => {
     container.prepend(card);
   });
 }
