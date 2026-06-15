@@ -4235,12 +4235,12 @@ async function handlePassbookMentionInput(textarea) {
       const insert = "@all ";
       const current = textarea.value;
 
-      textarea.value =
-        current.slice(0, mentionStart) +
-        insert +
-        current.slice(mentionEnd);
+     textarea.value =
+  current.slice(0, mention.start) +
+  insert +
+  current.slice(mention.end);
 
-      const newPos = mentionStart + insert.length;
+const newPos = mention.start + insert.length;
       textarea.focus();
       textarea.setSelectionRange(newPos, newPos);
 
