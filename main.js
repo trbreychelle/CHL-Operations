@@ -3280,14 +3280,207 @@ window.deleteDeal = async function(pkgId, companyName) {
     }
 };
 
+function isSalesRepDealEntryContext() {
+    const role = String(window.portal?.currentUser?.role || '').toLowerCase().trim();
+    const path = String(window.location?.pathname || '').toLowerCase();
+
+    return role === 'sales_rep' || path.includes('salesrep-dashboard');
+}
+
+function parseSalesMoney(value) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+
+    const cleaned = String(value ?? '').replace(/[^0-9.-]/g, '');
+    const n = Number(cleaned);
+
+    return Number.isFinite(n) ? n : 0;
+}
+
+function normalizeSalesCategoryForRates(value) {
+    const raw = String(value || '').trim();
+    const lower = raw.toLowerCase();
+
+    if (lower === 'chl' || lower === 'chl team') return 'CHL Team';
+    if (lower === 'trb') return 'TRB';
+    if (lower === 'hammer') return 'Hammer';
+    if (lower === 'mikaela') return 'Mikaela';
+    if (lower === 'sales team') return 'Sales Team';
+
+    return raw;
+}
+
+function isAutoCommissionSalesCategory(category) {
+    const normalized = normalizeSalesCategoryForRates(category);
+    return ['CHL Team', 'TRB', 'Hammer', 'Mikaela', 'Sales Team'].includes(normalized);
+}
+
+function getSalesLeadRateForDeal(category, purchaseDateValue) {
+    const purchaseDateObj = purchaseDateValue
+        ? new Date(String(purchaseDateValue).trim() + 'T00:00:00')
+        : null;
+
+    const afterRateChange =
+        purchaseDateObj &&
+        !isNaN(purchaseDateObj.getTime()) &&
+        purchaseDateObj >= new Date('2026-03-09T00:00:00');
+
+    if (!afterRateChange) return 125;
+
+    return normalizeSalesCategoryForRates(category) === 'TRB' ? 100 : 135;
+}
+
+function calculateAutoSalesCommission(leadsValue, dealValue, category, purchaseDateValue) {
+    const leads = parseSalesMoney(leadsValue);
+    const amount = parseSalesMoney(dealValue);
+    const rate = getSalesLeadRateForDeal(category, purchaseDateValue);
+
+    if (!isAutoCommissionSalesCategory(category)) {
+        return {
+            rate,
+            profit: amount,
+            commission: 0
+        };
+    }
+
+    const profit = Math.min(leads * rate, amount);
+    const commission = Math.max(0, amount - profit);
+
+    return {
+        rate,
+        profit,
+        commission
+    };
+}
+
+function configureSaleCommissionField() {
+    const commissionInput = document.getElementById('sale-commission');
+    if (!commissionInput) return;
+
+    const manualEntry = isSalesRepDealEntryContext();
+
+    commissionInput.readOnly = !manualEntry;
+
+    if (manualEntry) {
+        commissionInput.placeholder = 'e.g. 500';
+        commissionInput.classList.remove('bg-gray-50', 'text-gray-700', 'cursor-not-allowed');
+    } else {
+        commissionInput.placeholder = 'Auto-calculated';
+        commissionInput.classList.add('bg-gray-50', 'text-gray-700', 'cursor-not-allowed');
+    }
+}
+
+function updateSaleCommissionField() {
+    if (isSalesRepDealEntryContext()) return;
+
+    const commissionInput = document.getElementById('sale-commission');
+    const categorySelect = document.getElementById('sale-category');
+
+    if (!commissionInput) return;
+
+    const selectedOption = categorySelect?.options?.[categorySelect.selectedIndex];
+    const selectedCategory = categorySelect?.value;
+
+    const isUnsupportedHistoricalCategory =
+        selectedOption?.dataset?.historical === 'true' &&
+        !isAutoCommissionSalesCategory(selectedCategory);
+
+    if (isUnsupportedHistoricalCategory) return;
+
+    const calc = calculateAutoSalesCommission(
+        document.getElementById('sale-leads')?.value,
+        document.getElementById('sale-value')?.value,
+        selectedCategory,
+        document.getElementById('sale-date')?.value
+    );
+
+    commissionInput.value = calc.commission.toFixed(2);
+    commissionInput.dataset.ratePerLead = String(calc.rate);
+    commissionInput.dataset.autoProfit = calc.profit.toFixed(2);
+}
+
+function installSaleCommissionAutoCalc() {
+    if (isSalesRepDealEntryContext()) {
+        configureSaleCommissionField();
+        return;
+    }
+
+    configureSaleCommissionField();
+
+    ['sale-leads', 'sale-value', 'sale-category', 'sale-date'].forEach(id => {
+        const el = document.getElementById(id);
+
+        if (!el || el.dataset.salesAutoCalcBound === 'true') return;
+
+        el.dataset.salesAutoCalcBound = 'true';
+        el.addEventListener('input', updateSaleCommissionField);
+        el.addEventListener('change', updateSaleCommissionField);
+    });
+
+    updateSaleCommissionField();
+}
+
+function removeHistoricalSaleCategoryOptions() {
+    const select = document.getElementById('sale-category');
+    if (!select) return;
+
+    Array.from(select.querySelectorAll('option[data-historical="true"]')).forEach(opt => opt.remove());
+
+    delete select.dataset.originalSalesCategory;
+}
+
+function setSaleCategoryValueSafely(categoryValue) {
+    const select = document.getElementById('sale-category');
+    if (!select) return;
+
+    removeHistoricalSaleCategoryOptions();
+
+    const rawCategory = String(categoryValue || '').trim();
+    select.dataset.originalSalesCategory = rawCategory;
+
+    if (!rawCategory) {
+        updateSaleCommissionField();
+        return;
+    }
+
+    const existingOption = Array.from(select.options).find(opt =>
+        String(opt.value || '').trim().toLowerCase() === rawCategory.toLowerCase()
+    );
+
+    if (existingOption) {
+        select.value = existingOption.value;
+    } else {
+        const opt = document.createElement('option');
+        opt.value = rawCategory;
+        opt.textContent = `${rawCategory} (historical)`;
+        opt.dataset.historical = 'true';
+        opt.disabled = true;
+
+        select.appendChild(opt);
+        select.value = rawCategory;
+    }
+
+    updateSaleCommissionField();
+}
+
+window.calculateAutoSalesCommission = calculateAutoSalesCommission;
+window.updateSaleCommissionField = updateSaleCommissionField;
+window.installSaleCommissionAutoCalc = installSaleCommissionAutoCalc;
+
 window.openAddDealModal = function() {
     document.getElementById('add-sale-form').reset();
     document.getElementById('sale-package-id').value = ""; 
     document.getElementById('sale-client-code').value = ""; 
     document.getElementById('sale-deal-type').value = "New Client";
+
+    removeHistoricalSaleCategoryOptions();
+    configureSaleCommissionField();
+
     document.getElementById('sale-modal-title').innerText = "Log New Deal";
     document.getElementById('save-sale-btn').innerText = "Save Deal";
+
     window.populateSalesClientDropdown();
+    installSaleCommissionAutoCalc();
+
     document.getElementById('add-sale-modal').classList.remove('hidden');
 }
 
@@ -3308,7 +3501,8 @@ window.editDealModal = function(pkgId) {
     
     document.getElementById('sale-leads').value = pkg.purchased_leads || "";
     document.getElementById('sale-value').value = String(pkg.amount || "").replace(/[^0-9.-]+/g,"");
-    document.getElementById('sale-commission').value = pkg.commission_per_lead || 0;
+    configureSaleCommissionField();
+document.getElementById('sale-commission').value = pkg.commission_per_lead || 0;
     
     if (pkg.purchase_date) {
   const rawDate = String(pkg.purchase_date).trim();
@@ -3319,7 +3513,8 @@ window.editDealModal = function(pkgId) {
     document.getElementById('sale-transaction-id').value = pkg.external_package_id || "";
     document.getElementById('sale-deal-status').value = pkg.deal_status || "Paid";
     document.getElementById('sale-deal-type').value = pkg.deal_type || "New Client";
-    document.getElementById('sale-category').value = pkg.sales_category || "CHL Team";
+    setSaleCategoryValueSafely(pkg.sales_category || "");
+installSaleCommissionAutoCalc();
 
     document.getElementById('sale-modal-title').innerText = "Edit Deal Details";
     document.getElementById('save-sale-btn').innerText = "Update Deal";
@@ -3439,18 +3634,38 @@ window.submitNewSale = async function(e) {
         }
     }
 
-    const payload = {
-        client_code: clientCode,
-        purchased_leads: parseInt(document.getElementById('sale-leads').value) || 0,
-        amount: parseFloat(document.getElementById('sale-value').value) || 0,
-        commission_per_lead: parseFloat(document.getElementById('sale-commission').value) || 0,
-        purchase_date: document.getElementById('sale-date').value,
-        external_package_id: document.getElementById('sale-transaction-id').value,
-        status: "Active",
-        deal_status: document.getElementById('sale-deal-status').value,
-        deal_type: document.getElementById('sale-deal-type').value,
-        sales_category: document.getElementById('sale-category').value
-    };
+    const purchasedLeads = parseInt(document.getElementById('sale-leads').value) || 0;
+const dealAmount = parseFloat(document.getElementById('sale-value').value) || 0;
+const purchaseDate = document.getElementById('sale-date').value;
+const salesCategory = document.getElementById('sale-category').value;
+
+const categorySelect = document.getElementById('sale-category');
+const selectedOption = categorySelect?.options?.[categorySelect.selectedIndex];
+
+const isUnsupportedHistoricalCategory =
+    selectedOption?.dataset?.historical === 'true' &&
+    !isAutoCommissionSalesCategory(salesCategory);
+
+const commissionValue = (isSalesRepDealEntryContext() || isUnsupportedHistoricalCategory)
+    ? (parseFloat(document.getElementById('sale-commission').value) || 0)
+    : calculateAutoSalesCommission(purchasedLeads, dealAmount, salesCategory, purchaseDate).commission;
+
+if (!isSalesRepDealEntryContext() && !isUnsupportedHistoricalCategory) {
+    document.getElementById('sale-commission').value = commissionValue.toFixed(2);
+}
+
+const payload = {
+    client_code: clientCode,
+    purchased_leads: purchasedLeads,
+    amount: dealAmount,
+    commission_per_lead: commissionValue,
+    purchase_date: purchaseDate,
+    external_package_id: document.getElementById('sale-transaction-id').value,
+    status: "Active",
+    deal_status: document.getElementById('sale-deal-status').value,
+    deal_type: document.getElementById('sale-deal-type').value,
+    sales_category: salesCategory
+};
 
     let error;
     let savedPackage = null;
