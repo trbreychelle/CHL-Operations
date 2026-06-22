@@ -520,7 +520,7 @@
             </div>
             
 <select id="admin-sales-category-filter" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[170px] text-blue-700">
-  <option value="All">View: Hammer + Mikaela</option>
+  <option value="All">View: All</option>
   <option value="Hammer">View: Hammer</option>
   <option value="Mikaela">View: Mikaela</option>
 </select>
@@ -872,7 +872,7 @@
             <div class="grid grid-cols-2 gap-3 mb-3">
                 <div>
                   <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Total Commission ($)</label>
-                  <input type="number" id="sale-commission" step="0.01" placeholder="e.g. 500" value="0" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+                  <input type="number" id="sale-commission" step="0.01" placeholder="Auto-calculated" value="0" readonly class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-700 cursor-not-allowed focus:ring-2 focus:ring-yellow-400">
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Purchase Date</label>
@@ -901,11 +901,9 @@
                 </div>
                 <div>
                   <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sale Category</label>
-                  <select id="sale-category" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
-  <option value="Hammer">Hammer</option>
+                 <select id="sale-category" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-yellow-400">
+  <option value="Hammer" selected>Hammer</option>
   <option value="Mikaela">Mikaela</option>
-  <option value="Hannah">Hannah</option>
-  <option value="CHL Team">CHL Team</option>
 </select>
                 </div>
             </div>
@@ -3346,7 +3344,7 @@ async saveOnboardingRow(clientCode) {
     document.getElementById('sale-transaction-id').value = pkg.external_package_id || "";
     document.getElementById('sale-deal-status').value = pkg.deal_status || "Paid";
     document.getElementById('sale-deal-type').value = pkg.deal_type || "New Client";
-    document.getElementById('sale-category').value = pkg.sales_category || "CHL Team";
+    document.getElementById('sale-category').value = pkg.sales_category || "Hammer";
 
     document.getElementById('sale-modal-title').innerText = "Edit Deal Details";
     document.getElementById('save-sale-btn').innerText = "Update Deal";
