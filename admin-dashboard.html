@@ -1199,16 +1199,15 @@ body.client-health-lock {
               <option value="all">All Locations</option>
             </select>
 
-            <div class="flex bg-gray-200 p-1 rounded-lg">
-              <button id="passbook-view-cards"
-                      class="px-3 py-2 text-xs font-extrabold rounded-md bg-white shadow text-gray-900">
-                Cards
-              </button>
-              <button id="passbook-view-list"
-                      class="px-3 py-2 text-xs font-extrabold rounded-md text-gray-500 hover:text-gray-900">
-                List
-              </button>
-            </div>
+                       <select id="passbook-filter-sales-category"
+                    class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[170px] text-blue-700">
+              <option value="All" selected>View: All</option>
+              <option value="Sales Team">View: Sales Team</option>
+              <option value="CHL Team">View: CHL Team</option>
+              <option value="TRB">View: TRB</option>
+              <option value="Hammer">View: Hammer</option>
+              <option value="Mikaela">View: Mikaela</option>
+            </select>
 
             <button id="passbook-clear"
                     class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
@@ -5932,9 +5931,106 @@ const renderBottomRow = (a) => {
   }
 },
 
+            normalizePassbookSalesCategory(value) {
+  const raw = String(value || "").trim();
+  const lower = raw.toLowerCase();
+
+  if (!lower || lower === "—" || lower === "unknown") return "";
+  if (lower === "chl" || lower === "chl team") return "CHL Team";
+  if (lower === "trb" || lower === "prb" || lower === "crb") return "TRB";
+  if (lower === "hammer") return "Hammer";
+  if (lower === "mikaela" || lower === "michaela" || lower === "micaela") return "Mikaela";
+  if (lower === "sales team") return "Sales Team";
+
+  return raw;
+},
+
+      buildPassbookSalesCategoryByCode() {
+  const state = this.getState();
+  const packages = Array.isArray(state?.packages) ? state.packages : [];
+  const byCode = new Map();
+
+  packages.forEach(pkg => {
+    const code = String(pkg.client_code || "").trim();
+    if (!code) return;
+
+    const category = this.normalizePassbookSalesCategory(pkg.sales_category || pkg.sold_by || "");
+    if (!category) return;
+
+    const dealStatus = String(pkg.deal_status || "").toUpperCase().trim();
+    if (dealStatus === "NEGOTIATING") return;
+
+    const dateRaw = pkg.purchase_date || pkg.created_at || pkg.updated_at || "";
+    const dateObj = dateRaw
+      ? new Date(String(dateRaw).trim() + (String(dateRaw).includes("T") ? "" : "T00:00:00"))
+      : null;
+
+    const sortTime = dateObj && !isNaN(dateObj.getTime()) ? dateObj.getTime() : 0;
+    const key = code.toLowerCase();
+    const existing = byCode.get(key);
+
+    if (!existing || sortTime >= existing.sortTime) {
+      byCode.set(key, { category, sortTime });
+    }
+  });
+
+  return byCode;
+},
+
+      getPassbookSalesCategoryForCode(code) {
+  if (!this._passbookSalesCategoryByCode) {
+    this._passbookSalesCategoryByCode = this.buildPassbookSalesCategoryByCode();
+  }
+
+  const key = String(code || "").trim().toLowerCase();
+  return this._passbookSalesCategoryByCode.get(key)?.category || "";
+},
+
+      matchesPassbookSalesCategoryFilter(code, filterValue) {
+  const filter = String(filterValue || "All").trim();
+  if (!filter || filter === "All") return true;
+
+  const category = this.normalizePassbookSalesCategory(this.getPassbookSalesCategoryForCode(code));
+
+  if (filter === "Sales Team") {
+    return category === "Hammer" || category === "Mikaela" || category === "Sales Team";
+  }
+
+  return category === filter;
+},
+
+      renderPassbookSalesCategoryTag(category) {
+  const cat = this.normalizePassbookSalesCategory(category);
+  if (!cat) return "";
+
+  const safeCat = String(cat)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
+  const tone = {
+    "TRB": "bg-red-600 text-white border-red-700",
+    "CHL Team": "bg-slate-900 text-white border-slate-900",
+    "Hammer": "bg-orange-100 text-orange-800 border-orange-200",
+    "Mikaela": "bg-blue-100 text-blue-800 border-blue-200",
+    "Sales Team": "bg-indigo-100 text-indigo-800 border-indigo-200"
+  }[cat] || "bg-gray-100 text-gray-700 border-gray-200";
+
+  return `<span class="px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-wide ${tone}">${safeCat}</span>`;
+},
+
       renderClientCards(clients) {
   const container = document.getElementById('client-cards-container');
   if (!container) return;
+
+  this._passbookSalesCategoryByCode = this.buildPassbookSalesCategoryByCode();
+
+  const escapeAttr = (value) => String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 
   container.innerHTML = (clients || []).map(c => {
     const code = this.extractCode(c);
@@ -5943,8 +6039,13 @@ const renderBottomRow = (a) => {
     const changeCount = this.getPassbookChangeItemsForCode(code).length;
     const shared = c.shared_with_sales === true || String(c.shared_with_sales).toLowerCase() === "true";
 
+    const salesCategory = this.getPassbookSalesCategoryForCode(code);
+    const salesCategoryTag = this.renderPassbookSalesCategoryTag(salesCategory);
+
     return `
       <div
+        data-passbook-code="${escapeAttr(code)}"
+        data-passbook-sales-category="${escapeAttr(salesCategory)}"
         onclick="Admin.openPassbookClient('${String(code).replace(/'/g, "\\'")}')"
         class="text-left p-6 rounded-2xl border shadow-sm hover:shadow-md transition cursor-pointer ${
           changed
@@ -5960,6 +6061,7 @@ const renderBottomRow = (a) => {
 
           <div class="flex flex-col items-end gap-2">
             <span class="text-xs font-bold text-gray-500">${code}</span>
+            ${salesCategoryTag}
             ${changed ? `<span class="min-w-[22px] h-5 px-1.5 rounded-full bg-emerald-600 text-white text-[10px] font-black inline-flex items-center justify-center">${changeCount}</span>` : ""}
           </div>
         </div>
@@ -6469,9 +6571,15 @@ if (c.key === "feedback_highlight") {
         }).join("");
       },
 
-      setupPassbookFilters(clients) {
+           setupPassbookFilters(clients) {
+        const locEl = document.getElementById("passbook-filter-location");
+        if (!locEl) return;
+
+        const currentVal = locEl.value || "all";
         const locs = [...new Set((clients || []).map(c => this.extractCityState(c)).filter(Boolean))].sort();
-        document.getElementById("passbook-filter-location").innerHTML = `<option value="all">All Locations</option>` + locs.map(l => `<option value="${l}">${l}</option>`).join("");
+
+        locEl.innerHTML = `<option value="all">All Locations</option>` + locs.map(l => `<option value="${l}">${l}</option>`).join("");
+        locEl.value = currentVal === "all" || locs.includes(currentVal) ? currentVal : "all";
       },
       
       getClientSortNumber(code) {
@@ -6480,21 +6588,32 @@ if (c.key === "feedback_highlight") {
         return m ? parseInt(m[1], 10) : 999999;
       },
 
-      applyPassbookFilters(clients) {
+           applyPassbookFilters(clients) {
+        const sourceClients = Array.isArray(clients) ? clients : (this._lastPassbookClients || []);
+        this._lastPassbookClients = sourceClients;
+
+        this.setupPassbookFilters(sourceClients);
+        this._passbookSalesCategoryByCode = this.buildPassbookSalesCategoryByCode();
+
         const q = String(document.getElementById("passbook-search")?.value || "").toLowerCase().trim();
         const loc = document.getElementById("passbook-filter-location")?.value || "all";
+        const categoryFilter = document.getElementById("passbook-filter-sales-category")?.value || "All";
 
-        let rows = (clients || []).filter(c => (loc === "all" || this.extractCityState(c) === loc));
+        let rows = sourceClients.filter(c => {
+          const code = this.extractCode(c);
+          const salesCategory = this.getPassbookSalesCategoryForCode(code);
 
-        if (q) {
-          rows = rows.filter(c => 
-            `${this.extractRoofingCompany(c)} ${this.extractCode(c)} ${this.extractCityState(c)}`
-              .toLowerCase()
-              .includes(q)
-          );
-        }
+          const matchesLocation = loc === "all" || this.extractCityState(c) === loc;
+          const matchesCategory = this.matchesPassbookSalesCategoryFilter(code, categoryFilter);
 
-        this._lastPassbookClients = clients || [];
+          if (!matchesLocation || !matchesCategory) return false;
+
+          if (!q) return true;
+
+          return `${this.extractRoofingCompany(c)} ${code} ${this.extractCityState(c)} ${this.extractClientName(c)} ${salesCategory}`
+            .toLowerCase()
+            .includes(q);
+        });
 
 rows.sort((a, b) => {
   const aCode = String(this.extractCode(a) || "").trim().toLowerCase();
@@ -6508,10 +6627,13 @@ rows.sort((a, b) => {
   return this.getClientSortNumber(this.extractCode(a)) - this.getClientSortNumber(this.extractCode(b));
 });
 
-document.getElementById("passbook-count").textContent = rows.length;
+const countEl = document.getElementById("passbook-count");
+if (countEl) countEl.textContent = rows.length;
 
-        if (this._passbookView === "list") this.renderPassbookList(rows);
-        else this.renderClientCards(rows);
+        this._passbookView = "cards";
+        document.getElementById("passbook-list-wrap")?.classList.add("hidden");
+
+        this.renderClientCards(rows);
       },
 
       renderPassbookList(clients) {
@@ -6544,21 +6666,35 @@ document.getElementById("passbook-count").textContent = rows.length;
   }).join("") || `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No clients available.</td></tr>`;
 },
 
-      bindPassbookUI(clients) {
-        if (this._passbookFiltersBound) return; this._passbookFiltersBound = true;
-        document.getElementById("passbook-view-cards").addEventListener("click", () => { this._passbookView="cards"; this.applyPassbookFilters(clients); });
-        document.getElementById("passbook-view-list").addEventListener("click", () => { this._passbookView="list"; this.applyPassbookFilters(clients); });
-        document.getElementById("passbook-search").addEventListener("input", () => this.applyPassbookFilters(clients));
-        document.getElementById("passbook-filter-location").addEventListener("change", () => this.applyPassbookFilters(clients));
+        bindPassbookUI(clients) {
+        if (this._passbookFiltersBound) return;
+        this._passbookFiltersBound = true;
+
+        this._passbookView = "cards";
+
+        const getClients = () => (
+          Array.isArray(this._lastPassbookClients) && this._lastPassbookClients.length
+            ? this._lastPassbookClients
+            : (clients || [])
+        );
+
+        const apply = () => this.applyPassbookFilters(getClients());
+
+        document.getElementById("passbook-search")?.addEventListener("input", apply);
+        document.getElementById("passbook-filter-location")?.addEventListener("change", apply);
+        document.getElementById("passbook-filter-sales-category")?.addEventListener("change", apply);
         
         const clearBtn = document.getElementById("passbook-clear");
         if (clearBtn) {
           clearBtn.addEventListener("click", () => {
             const s = document.getElementById("passbook-search"); if (s) s.value = "";
             const l = document.getElementById("passbook-filter-location"); if (l) l.value = "all";
+            const c = document.getElementById("passbook-filter-sales-category"); if (c) c.value = "All";
+
             this._passbookView = "cards";
-            document.getElementById("passbook-list-wrap").classList.add("hidden");
-            this.applyPassbookFilters(clients);
+            document.getElementById("passbook-list-wrap")?.classList.add("hidden");
+
+            this.applyPassbookFilters(getClients());
           });
         }
       },
