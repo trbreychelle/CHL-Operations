@@ -741,53 +741,55 @@ setupCommandCenterRealtime() {
 
   this.cleanupCommandCenterRealtime();
 
-  // Notifications + notes realtime
-  this._ccRealtimeChannel = supaClient
-    .channel(`cc-live:${organizationId}:${teamKey}`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'command_center_team_state',
-        filter: `team_key=eq.${teamKey}`
-      },
-      async () => {
-        try {
-const role = String(this.currentUser?.role || "").toLowerCase();
+// Notifications + notes realtime
+this._ccRealtimeChannel = supaClient
+  .channel(`cc-live:${organizationId}:${teamKey}`)
+  .on(
+    "postgres_changes",
+    {
+      event: "*",
+      schema: "public",
+      table: "command_center_team_state",
+      filter: `team_key=eq.${teamKey}`
+    },
+    async () => {
+      try {
+        const role = String(this.currentUser?.role || "").toLowerCase();
 
-if (role !== "management") {
-  await window.Admin?.loadNotifications?.(true);
-}
-
-await window.Admin?.loadPassbookModuleInbox?.();
-await window.Admin?.loadSalesPassbookAckInbox?.();
-} catch (err) {
-          console.error('Realtime notifications refresh failed:', err);
+        if (role !== "management") {
+          await window.Admin?.loadNotifications?.(true);
         }
-      }
-    )
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'command_center_notes',
-        filter: `organization_id=eq.${organizationId}`
-      },
-      const role = String(this.currentUser?.role || "").toLowerCase();
 
-if (role !== "management") {
-  await window.Admin?.loadNotes?.();
-}
-        } catch (err) {
-          console.error('Realtime notes refresh failed:', err);
-        }
+        await window.Admin?.loadPassbookModuleInbox?.();
+        await window.Admin?.loadSalesPassbookAckInbox?.();
+      } catch (err) {
+        console.error("Realtime notifications refresh failed:", err);
       }
-    )
-    .subscribe((status) => {
-      console.log('Command Center realtime status:', status);
-    });
+    }
+  )
+  .on(
+    "postgres_changes",
+    {
+      event: "*",
+      schema: "public",
+      table: "command_center_notes",
+      filter: `organization_id=eq.${organizationId}`
+    },
+    async () => {
+      try {
+        const role = String(this.currentUser?.role || "").toLowerCase();
+
+        if (role !== "management") {
+          await window.Admin?.loadNotes?.();
+        }
+      } catch (err) {
+        console.error("Realtime notes refresh failed:", err);
+      }
+    }
+  )
+  .subscribe(status => {
+    console.log("Command Center realtime status:", status);
+  });
 
   // Debounced admin data refresh for live operational updates
   const debouncedRefresh = () => {
