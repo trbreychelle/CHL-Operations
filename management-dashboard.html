@@ -190,10 +190,6 @@ body.client-health-lock {
 <a class="nav-item active flex items-center px-6 py-3 text-sm" href="#overview" onclick="Admin.nav('overview', this)">
 <i class="fa-solid fa-satellite-dish w-5 text-center"></i> Overview
           </a>
-<a class="nav-item flex items-center px-6 py-3 text-sm" href="#notifications" onclick="Admin.nav('notifications', this)">
-<i class="fa-solid fa-bell w-5 text-center"></i> Notifications
-</a>
-
 
 <a class="nav-item flex items-center px-6 py-3 text-sm" href="#clients" onclick="Admin.nav('clients', this)">
 <i class="fa-solid fa-building w-5 text-center"></i>
@@ -286,7 +282,7 @@ body.client-health-lock {
 <div class="flex flex-col md:flex-row gap-3">
 <div class="flex-1 relative">
 <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
-<input class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" id="health-search" placeholder="Search by code, roofing company, or client name..." type="text"/>
+<input class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" id="health-search" placeholder="Search by client code or location..." type="text"/>
 </div>
 <div class="relative min-w-[170px]">
 <button class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white flex justify-between items-center hover:bg-gray-50" id="health-status-btn">
@@ -317,7 +313,6 @@ body.client-health-lock {
 <tr>
 <th class="p-4 text-xs font-bold text-gray-400 uppercase w-10">Status</th>
 <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="code">Code <span class="sort-icon" id="sort-code">↕</span></th>
-<th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="roofingCompany">Roofing Company <span class="sort-icon" id="sort-roofingCompany">↕</span></th>
 <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="cityState">City/State <span class="sort-icon" id="sort-cityState">↕</span></th>
 <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="packageRatio">Package (Owed) <span class="sort-icon" id="sort-packageRatio">↕</span></th>
 <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Qualified</th>
@@ -326,7 +321,6 @@ body.client-health-lock {
 <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsToday">Leads Today <span class="sort-icon" id="sort-leadsToday">↕</span></th>
 <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsYesterday">Leads Yesterday <span class="sort-icon" id="sort-leadsYesterday">↕</span></th>
 <th class="p-4 text-xs font-bold text-gray-400 uppercase">Package Status</th>
-<th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="clientName">Client Name <span class="sort-icon" id="sort-clientName">↕</span></th>
 <th class="p-4 text-xs font-bold text-gray-400 uppercase">Purchase Date</th>
 <th class="p-4 text-xs font-bold text-gray-400 uppercase">Last Lead Received</th>
 </tr>
@@ -482,98 +476,297 @@ body.client-health-lock {
 </div>
 </div>
 </div>
-<div class="view-section" id="view-notifications">
-<div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
-<div class="xl:col-span-7">
-<div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
-<div class="flex items-start justify-between gap-4 mb-5">
-<div>
-<h2 class="text-2xl font-black text-gray-900">Notifications</h2>
-<p class="text-sm text-gray-500 mt-1">Command center activity feed and shared workflow status.</p>
-</div>
-<div class="px-4 py-2 rounded-2xl bg-blue-50 text-blue-700 text-sm font-extrabold shadow-sm">
-            Unread: <span id="notifications-unread-count">0</span>
-</div>
-</div>
-<div class="flex items-center gap-2 mb-4">
-<button class="px-4 py-2 rounded-2xl bg-gray-900 text-white text-xs font-extrabold" id="notifications-tab-open" onclick="Admin.setNotificationsTab('open')">
-    Open
-  </button>
-<button class="px-4 py-2 rounded-2xl bg-white border border-gray-200 text-gray-600 text-xs font-extrabold" id="notifications-tab-done" onclick="Admin.setNotificationsTab('done')">
-    Done
-  </button>
-<button class="px-4 py-2 rounded-2xl bg-white border border-gray-200 text-gray-600 text-xs font-extrabold" id="notifications-tab-all" onclick="Admin.setNotificationsTab('all')">
-    All
-  </button>
-</div>
-<div class="space-y-4" id="notifications-feed"></div>
-</div>
-</div>
-<div class="xl:col-span-5">
-<div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 sticky top-6">
-<div class="flex items-start justify-between gap-4 mb-4">
-<div>
-<h3 class="text-xl font-black text-gray-900">Notes &amp; To-Do</h3>
-<p class="text-sm text-gray-500 mt-1">Quick notes for admins and shared checklist items.</p>
-</div>
-</div>
-<div class="mb-4">
-<textarea class="w-full min-h-[110px] px-4 py-3 rounded-2xl border border-gray-200 bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400" id="command-center-note-draft" placeholder="Add a quick team note or to-do..."></textarea>
-<div class="flex justify-end mt-3">
-<button class="px-5 py-2.5 rounded-2xl bg-gray-900 text-white text-sm font-extrabold hover:bg-blue-600 transition-colors shadow-sm" onclick="Admin.saveQuickNote()">
-              Add Note
-            </button>
-</div>
-</div>
-<div class="space-y-3" id="notifications-notes-feed"></div>
-</div>
-</div>
-</div>
-</div>
-<div class="view-section" id="view-daily">
-<div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
-<div>
-<h2 class="text-2xl font-bold text-gray-900">Daily Strategy Board</h2>
-<p class="text-sm text-gray-500 mt-1">Assign agents, set goals, and monitor real-time progress.</p>
-</div>
-</div>
-<div class="flex flex-col lg:flex-row gap-6">
-<div class="flex-1 flex flex-col gap-6">
-<div class="bg-blue-50/50 rounded-2xl border border-blue-100 shadow-sm p-5">
-<h3 class="font-bold text-blue-900 mb-4 flex items-center gap-2"><i class="fa-solid fa-satellite-dish"></i> Clients Serving Today</h3>
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-h-[100px]" id="daily-serving-board">
-<div class="text-sm text-blue-400 italic text-center py-4 col-span-full">Drag or add clients here from the pool below.</div>
-</div>
-</div>
-<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
-<h3 class="font-bold text-gray-900 flex items-center gap-2"><i class="fa-solid fa-users-viewfinder"></i> Active Client Pool</h3>
-<div class="flex items-center gap-2 w-full sm:w-auto">
-<select class="text-xs px-2 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none font-bold text-gray-700" id="daily-pool-filter" onchange="Admin.renderDailyTab()">
-<option selected="" value="ONGOING">Ongoing</option>
-<option value="PAUSE">Pause</option>
-<option value="ALL">All Active</option>
-</select>
-<div class="relative flex-1 sm:flex-none">
-<i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
-<input class="text-xs pl-8 pr-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none w-full sm:w-48" id="daily-pool-search" oninput="Admin.renderDailyTab()" placeholder="Search pool..." type="text"/>
-</div>
-</div>
-</div>
-<div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[500px] overflow-y-auto pr-2" id="daily-client-pool">
-</div>
-</div>
-</div> <div class="w-full lg:w-80 flex-shrink-0 flex flex-col gap-4">
-<div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden sticky top-6">
-<div class="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-<h3 class="font-bold text-gray-900 text-sm">Real-Time Roster</h3>
-<span class="text-[10px] font-bold text-gray-500" id="daily-date-header">Today</span>
-</div>
-<div class="p-2 space-y-1 max-h-[700px] overflow-y-auto" id="daily-agent-status-list">
-</div>
-</div>
-</div>
-</div>
+    
+<div id="view-daily" class="view-section">
+  <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+    <div>
+      <h2 class="text-2xl font-bold text-gray-900">
+        Daily Strategy Board
+      </h2>
+
+      <p class="text-sm text-gray-500 mt-1">
+        Weekly scheduling board powered by strategy assignments.
+      </p>
+    </div>
+  </div>
+
+  <!-- Strategy week, shifts, and dates -->
+  <div class="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-3xl shadow-xl border border-slate-800 p-5 mb-6 text-white">
+    <div class="flex items-center justify-between gap-3 mb-4">
+      <h3 class="font-black text-white flex items-center gap-2">
+        <i class="fa-solid fa-calendar-week text-yellow-300"></i>
+        Strategy Week
+      </h3>
+
+      <div
+        id="dailyStrategyWeekLabel"
+        class="text-xs font-black text-blue-100"
+      >
+        Loading week...
+      </div>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2 mb-4">
+      <button
+        id="daily-shift-morning"
+        type="button"
+        onclick="Admin.setDailyStrategyShift('morning')"
+        class="px-4 py-2 rounded-2xl bg-yellow-400 text-gray-900 text-xs font-black shadow"
+      >
+        Morning Shift
+      </button>
+
+      <button
+        id="daily-shift-afternoon"
+        type="button"
+        onclick="Admin.setDailyStrategyShift('afternoon')"
+        class="px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black"
+      >
+        Afternoon Shift
+      </button>
+
+      <button
+        id="daily-tab-history"
+        type="button"
+        onclick="Admin.setDailyStrategySubtab('history')"
+        class="px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black"
+      >
+        History
+      </button>
+    </div>
+
+    <div
+      id="dailyStrategyTabs"
+      class="flex flex-wrap gap-2"
+    ></div>
+  </div>
+
+  <!-- Main strategy board -->
+  <div id="dailyStrategyBoardView">
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+      <!-- Serving Now and Next Up -->
+      <div class="xl:col-span-10 space-y-6">
+        <div
+          id="dailyStrategyBoard"
+          class="space-y-6"
+        >
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div class="text-sm text-gray-400 italic">
+              Loading strategy board...
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Client Pool -->
+        <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-amber-50 to-orange-50">
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex-1">
+                <h3 class="font-black text-gray-900 flex items-center gap-2">
+                  <i class="fa-solid fa-layer-group text-amber-500"></i>
+                  Active Client Pool
+                </h3>
+
+                <p class="text-xs text-gray-500 mt-1">
+                  Available active clients for the selected strategy day.
+                </p>
+
+                <div class="mt-3 flex flex-col md:flex-row gap-3">
+                  <div class="flex-1 relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+
+                    <input
+                      id="daily-client-pool-search"
+                      type="text"
+                      placeholder="Search by client code..."
+                      class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                  </div>
+
+                  <select
+                    id="daily-client-pool-status"
+                    class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[180px] text-blue-700"
+                  >
+                    <option value="ONGOING" selected>
+                      ONGOING
+                    </option>
+
+                    <option value="PAUSE">
+                      PAUSE
+                    </option>
+
+                    <option value="ALL">
+                      ALL
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <div
+                id="dailyClientPoolCount"
+                class="text-xs font-black text-gray-400"
+              >
+                0 clients
+              </div>
+            </div>
+          </div>
+
+          <div
+            id="daily-client-pool"
+            class="p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
+          >
+            <div class="text-sm text-gray-400 italic">
+              Loading client pool...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Daily Roster -->
+      <div class="xl:col-span-2">
+        <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden sticky top-6">
+          <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-teal-50">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <h3 class="font-black text-gray-900 flex items-center gap-2">
+                  <i class="fa-solid fa-user-clock text-emerald-600"></i>
+                  Daily Roster
+                </h3>
+
+                <p class="text-xs text-gray-500 mt-1">
+                  Live working status of today’s team.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div
+            id="daily-agent-status-list"
+            class="p-3 space-y-2 max-h-[760px] overflow-y-auto"
+          >
+            <div class="text-sm text-gray-400 italic">
+              Loading roster...
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Strategy History -->
+  <div
+    id="dailyStrategyHistoryView"
+    class="hidden"
+  >
+    <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-violet-50 to-fuchsia-50">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <h3 class="font-black text-gray-900 flex items-center gap-2">
+              <i class="fa-solid fa-clock-rotate-left text-violet-600"></i>
+              Strategy History
+            </h3>
+
+            <p class="text-xs text-gray-500 mt-1">
+              Weekly strategy history and actual lead output.
+            </p>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <select
+              id="daily-history-week-select"
+              class="px-3 py-2 border border-gray-200 rounded-xl text-xs font-black bg-white text-violet-700 min-w-[240px]"
+            >
+              <option value="">
+                Loading weeks...
+              </option>
+            </select>
+
+            <div
+              id="dailyHistoryCount"
+              class="text-xs font-black text-gray-400"
+            >
+              0 rows
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm whitespace-nowrap">
+          <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+            <tr>
+              <th class="p-4">
+                Date
+              </th>
+
+              <th class="p-4">
+                Day
+              </th>
+
+              <th
+                class="p-4 cursor-pointer select-none"
+                onclick="Admin.setDailyHistorySort('client_code')"
+              >
+                Client Code
+                <span id="daily-history-sort-client_code">↕</span>
+              </th>
+
+              <th
+                class="p-4 text-center cursor-pointer select-none"
+                onclick="Admin.setDailyHistorySort('total_leads_set')"
+              >
+                Total Leads
+                <span id="daily-history-sort-total_leads_set">↕</span>
+              </th>
+
+              <th
+                class="p-4 text-center text-blue-600 cursor-pointer select-none"
+                onclick="Admin.setDailyHistorySort('qualified_leads_set')"
+              >
+                Qualified
+                <span id="daily-history-sort-qualified_leads_set">↕</span>
+              </th>
+
+              <th
+                class="p-4 text-center text-purple-600 cursor-pointer select-none"
+                onclick="Admin.setDailyHistorySort('credited_leads_set')"
+              >
+                Credited
+                <span id="daily-history-sort-credited_leads_set">↕</span>
+              </th>
+
+              <th
+                class="p-4 text-center text-red-500 cursor-pointer select-none"
+                onclick="Admin.setDailyHistorySort('rejected_leads_set')"
+              >
+                Rejected
+                <span id="daily-history-sort-rejected_leads_set">↕</span>
+              </th>
+
+              <th class="p-4">
+                Assigned Agents
+              </th>
+            </tr>
+          </thead>
+
+          <tbody
+            id="dailyStrategyHistoryBody"
+            class="divide-y divide-gray-50"
+          >
+            <tr>
+              <td
+                colspan="8"
+                class="p-6 text-center text-gray-400 italic"
+              >
+                Loading history...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 
@@ -583,7 +776,7 @@ body.client-health-lock {
 <div class="controls-wrap">
 <div class="flex-1 relative" style="min-width: 260px;">
 <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
-<input class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" id="leads-search" placeholder="Search homeowner, appointment coordinator, roofing company, status, lead ID, email, phone..." type="text"/>
+<input class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" id="leads-search" placeholder="Search homeowner, appointment coordinator, client code, status, lead ID, email, phone..." type="text"/>
 </div>
 <select class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 bg-white min-w-[170px]" id="leads-filter-status">
 <option value="all">All Status</option>
@@ -666,7 +859,7 @@ body.client-health-lock {
 <div class="flex flex-col lg:flex-row gap-3 lg:items-end">
 <div class="flex-1 relative">
 <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
-<input class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" id="passbook-search" placeholder="Search roofing company, code, city/state, client name..." type="text"/>
+<input class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" id="passbook-search" placeholder="Search client code or city/state..." type="text"/>
 </div>
 <select class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]" id="passbook-filter-location">
 <option value="all">All Locations</option>
@@ -692,11 +885,9 @@ body.client-health-lock {
 <table class="w-full text-left text-sm whitespace-nowrap">
 <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
 <tr>
-<th class="p-4">Code</th>
-<th class="p-4">Roofing Company</th>
-<th class="p-4">City/State</th>
-<th class="p-4">Client Name</th>
-<th class="p-4 text-right">Open</th>
+  <th class="p-4">Client Code</th>
+  <th class="p-4">City/State</th>
+  <th class="p-4 text-right">Status / Open</th>
 </tr>
 </thead>
 <tbody class="divide-y divide-gray-50" id="passbook-list-body"></tbody>
@@ -970,10 +1161,39 @@ body.client-health-lock {
 </input></input></div>
 </div>
 
+    <div id="admin-fire-note-modal" class="hidden fixed inset-0 z-[120] flex items-center justify-center">
+  <div class="absolute inset-0 bg-black/40" onclick="Admin.closeAdminFireNoteModal()"></div>
+
+  <div class="relative bg-white rounded-2xl shadow-xl w-[92%] max-w-lg p-6 border border-gray-100">
+    <div class="flex items-start justify-between gap-4 mb-4">
+      <div>
+        <h3 class="text-xl font-black text-gray-900">🔥 Sales Note</h3>
+        <p class="text-sm text-gray-500 mt-1" id="admin-fire-note-client"></p>
+      </div>
+
+      <button type="button" onclick="Admin.closeAdminFireNoteModal()" class="w-9 h-9 rounded-lg border border-gray-200">
+        ✕
+      </button>
+    </div>
+
+    <div id="admin-fire-note-content" class="text-sm text-gray-700 whitespace-pre-wrap"></div>
+    <div id="admin-fire-note-meta" class="mt-3 text-xs text-gray-400 font-bold"></div>
+  </div>
+</div>
+
 <div class="client-health-backdrop hidden" id="client-health-backdrop" onclick="Admin.toggleClientHealthExpanded(false)"></div>
 <script>
     const AdminDashboard = {
       sortState: { key: null, dir: 'asc' },
+        dailyStrategyWeekRows: [],
+dailyStrategySelectedDate: null,
+dailyStrategyAssignments: [],
+dailyStrategySubtab: "shift",
+dailyStrategyShift: "morning",
+dailyStrategyHistoryRows: [],
+dailyStrategyHistorySort: { key: "client_code", dir: "asc" },
+dailyStrategyHistoryWeekStart: null,
+_dailyStrategyRenderToken: null,
             clientHealthExpanded: false,
       _clientHealthExpandBound: false,
 _firstLoadDone: false,
@@ -1018,6 +1238,8 @@ _firstLoadDone: false,
            _passbookView: "cards",
       _passbookFiltersBound: false,
       passbookNoteMentionsByCode: new Map(),
+        passbookAuditRows: [],
+passbookAuditByCode: new Map(),
       _owedKpiBound: false,
 
       notifications: [],
@@ -1031,6 +1253,62 @@ notesLoading: false,
 noteDraft: '',
 
       getState() { return window.portal?.adminState || {}; },
+        openDailySalesNote(assignmentId) {
+  const row = (this.dailyStrategyAssignments || []).find(
+    r => String(r.id) === String(assignmentId)
+  );
+
+  if (!row) {
+    alert("Sales note not found. Refresh the Daily Strategy tab.");
+    return;
+  }
+
+  this.openAdminFireNoteModal(
+    row.notes || "",
+    row.client_code || "Client",
+    row.created_by_name || "Sales"
+  );
+},
+
+openAdminFireNoteModal(note, clientCode, author) {
+  document.getElementById("admin-fire-note-client").innerText =
+    clientCode || "Client";
+
+  document.getElementById("admin-fire-note-content").innerText =
+    note || "";
+
+  document.getElementById("admin-fire-note-meta").innerText =
+    `Added by ${author || "Sales"}`;
+
+  document.getElementById("admin-fire-note-modal").classList.remove("hidden");
+},
+
+closeAdminFireNoteModal() {
+  document.getElementById("admin-fire-note-modal").classList.add("hidden");
+},
+
+setDailyStrategyShift(shift) {
+  this.dailyStrategyShift =
+    shift === "afternoon" ? "afternoon" : "morning";
+
+  this.dailyStrategySubtab = "shift";
+
+  const morningBtn = document.getElementById("daily-shift-morning");
+  const afternoonBtn = document.getElementById("daily-shift-afternoon");
+
+  if (morningBtn && afternoonBtn) {
+    morningBtn.className = this.dailyStrategyShift === "morning"
+      ? "px-4 py-2 rounded-2xl bg-yellow-400 text-gray-900 text-xs font-black shadow"
+      : "px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black";
+
+    afternoonBtn.className = this.dailyStrategyShift === "afternoon"
+      ? "px-4 py-2 rounded-2xl bg-yellow-400 text-gray-900 text-xs font-black shadow"
+      : "px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black";
+  }
+
+  this.setDailyStrategySubtab("shift");
+  this.renderDailyTab();
+},
 
       refreshDashboard() {
         const state = this.getState();
@@ -1391,7 +1669,9 @@ filtered = filtered.filter(r => {
         }
 
         if (q) {
-          filtered = filtered.filter(r => `${r.code} ${r.roofingCompany} ${r.clientName}`.toLowerCase().includes(q));
+          filtered = filtered.filter(r =>
+  `${r.code} ${r.cityState}`.toLowerCase().includes(q)
+);
         }
 
         const loc = document.getElementById("health-filter-location")?.value || "all";
@@ -1429,7 +1709,7 @@ filtered = filtered.filter(r => {
       renderClientHealthTable(rows) {
         const tbody = document.getElementById("client-health-body");
         if (!rows.length) {
-          tbody.innerHTML = `<tr><td colspan="15" class="p-6 text-center text-gray-400 italic">No packages matching filters.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="12" class="p-6 text-center text-gray-400 italic">No packages matching filters.</td></tr>`;
           return;
         }
 
@@ -1459,7 +1739,6 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
                 </div>
               </td>
               <td class="p-4 text-gray-700 font-semibold">${r.code}</td>
-              <td class="p-4 font-bold text-gray-900">${r.roofingCompany}</td>
               <td class="p-4 text-gray-600">${r.cityState}</td>
               <td class="p-4 text-center text-gray-900 font-bold">${r.packageLabel}</td>
               <td class="p-4 text-center text-blue-500 font-bold">${r.qualifiedCount}</td>
@@ -1485,7 +1764,6 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
                     `
                 }
               </td>
-              <td class="p-4 text-gray-700">${r.clientName}</td>
               <td class="p-4 text-gray-500">${r.purchaseDate}</td>
               <td class="p-4 text-gray-500">${r.lastLead}</td>
             </tr>
@@ -1532,7 +1810,18 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
         return [
           { key: "date_submitted", label: "Date Submitted", keys: ["Date Submitted", "date_submitted"] },
           { key: "lead_id", label: "LEAD ID", keys: ["LEAD ID", "lead_id"] },
-          { key: "roofing_company", label: "Roofing Company", keys: ["Company Name", "company_name", "roofing_company"] },
+          {
+  key: "client_code",
+  label: "Client Code",
+  keys: [
+    "client_code",
+    "Client Code",
+    "CLIENT CODE",
+    "code_name",
+    "Code Name",
+    "CODE NAME"
+  ]
+},
           { key: "appointment_coordinator", label: "Appointment Coordinator Name", keys: ["Appointment Coordinator Name", "appointment_coordinator_name"] },
           { key: "homeowner_name", label: "Homeowner Name(s)", keys: ["Homeowner Name(s)", "homeowner_names"] },
           { key: "homeowner_email", label: "Email of Homeowner", keys: ["Email of Homeowner", "email_of_homeowner", "email"] },
@@ -1650,8 +1939,12 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
         // BULLETPROOF SEARCH: Searches every single property of the lead
         if (q) {
           filtered = filtered.filter(l => {
-            const allValuesString = Object.values(l).join(" ").toLowerCase();
-            return allValuesString.includes(q);
+            const searchableText = this.getLeadsColumns()
+  .map(column => this.getLeadField(l, column.keys, ""))
+  .join(" ")
+  .toLowerCase();
+
+return searchableText.includes(q);
           });
         }
 
@@ -2380,8 +2673,7 @@ const renderBottomRow = (a) => {
 
             <div onclick="Admin.openPassbookClient('${String(code).replace(/'/g, "\\'")}')" class="cursor-pointer">
                 <div class="flex items-center justify-between">
-                    <h3 class="font-bold text-gray-900 text-lg">${this.extractRoofingCompany(client)}</h3>
-                    <span class="text-xs font-bold text-gray-500">${code}</span>
+                    <h3 class="font-bold text-gray-900 text-lg">${code}</h3>
                 </div>
                 <p class="text-xs text-gray-500 mt-1">${this.extractCityState(client)}</p>
                 <p class="text-[10px] font-extrabold text-yellow-600 uppercase tracking-wider mt-3">Click to open</p>
@@ -2445,76 +2737,156 @@ const renderBottomRow = (a) => {
         }
       },
 
-      renderPassbookHistory(clientCode, companyName) {
-        const wrap = document.getElementById("passbook-history-body");
-        if (!wrap) return;
+     async loadPassbookAuditForCode(codeName) {
+  if (!supaClient || !codeName) {
+    this.passbookAuditRows = [];
+    return [];
+  }
 
-        const state = this.getState();
-        const leads = Array.isArray(state?.leads) ? state.leads : [];
+  const { data, error } = await supaClient
+    .from("command_center_events")
+    .select(`
+      id,
+      entity_code,
+      actor_name,
+      actor_role,
+      field_changes,
+      created_at
+    `)
+    .eq("module_key", "passbook_clients")
+    .eq("entity_code", codeName)
+    .order("created_at", { ascending: false })
+    .limit(50);
 
-        const codeKey = String(clientCode || "").toLowerCase().trim();
-        const companyKey = this.normalizeCompanyName(companyName || "");
+  if (error) {
+    console.error("Passbook history load failed:", error);
+    this.passbookAuditRows = [];
+    return [];
+  }
 
-        const rows = leads
-          .filter(lead => {
-            const leadCode = String(this.getLeadField(lead, ["client_code", "Client Code", "code_name", "Code Name", "Code"], "")).toLowerCase().trim();
-            const leadCompany = this.normalizeCompanyName(this.getLeadField(lead, ["company_name", "Company Name", "roofing_company", "Client"], ""));
-            return (codeKey && leadCode === codeKey) || (companyKey && leadCompany === companyKey);
-          })
-          .sort((a, b) => {
-            const da = this.getLeadDateObj(a);
-            const db = this.getLeadDateObj(b);
-            return (db?.getTime?.() || 0) - (da?.getTime?.() || 0);
-          })
-          .slice(0, 50);
+  const allowedFields = new Set([
+    "area_codes_to_use",
+    "client_code",
+    "area",
+    "client_status",
+    "regions",
+    "sales_rep_count",
+    "days_of_operation",
+    "hours_of_operation",
+    "appointment_interval",
+    "roof_types",
+    "leads_per_day_limit",
+    "double_bookings",
+    "additional_notes"
+  ]);
 
-        if (!rows.length) {
-          wrap.innerHTML = `<div class="p-5 text-sm text-gray-400 italic bg-gray-50 rounded-2xl border border-gray-100">No lead history found for this client yet.</div>`;
-          return;
-        }
+  this.passbookAuditRows = (data || [])
+    .map(event => ({
+      ...event,
+      field_changes: (Array.isArray(event.field_changes)
+        ? event.field_changes
+        : []
+      ).filter(change =>
+        allowedFields.has(
+          String(change?.field || "").trim().toLowerCase()
+        )
+      )
+    }))
+    .filter(event => event.field_changes.length > 0);
 
-        wrap.innerHTML = `
-          <div class="rounded-2xl border border-gray-100 overflow-hidden">
-            <table class="w-full text-left text-sm">
-              <thead class="bg-gray-50 text-xs font-black text-gray-400 uppercase">
-                <tr>
-                  <th class="p-3">Date</th>
-                  <th class="p-3">Lead ID</th>
-                  <th class="p-3">Coordinator</th>
-                  <th class="p-3">Homeowner</th>
-                  <th class="p-3">Status</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-50">
-                ${rows.map(lead => {
-                  const status = String(this.getLeadField(lead, ["status", "Status", "STATUS"], "—"));
-                  let statusClass = "bg-gray-100 text-gray-700 border-gray-200";
-                  const s = status.toLowerCase();
+  this.passbookAuditByCode.set(
+    String(codeName).trim().toLowerCase(),
+    this.passbookAuditRows
+  );
 
-                  if (s.includes("approv") || s.includes("confirm")) statusClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
-                  if (s.includes("reject")) statusClass = "bg-red-100 text-red-800 border-red-200";
-                  if (s.includes("credit")) statusClass = "bg-purple-100 text-purple-800 border-purple-200";
-                  if (s.includes("pending")) statusClass = "bg-yellow-100 text-yellow-800 border-yellow-200";
+  return this.passbookAuditRows;
+},
 
-                  return `
-                    <tr class="hover:bg-gray-50">
-                      <td class="p-3 text-gray-600">${this.getLeadField(lead, ["date_submitted", "Date Submitted", "created_at"], "—")}</td>
-                      <td class="p-3 font-bold text-gray-900">${this.getLeadField(lead, ["lead_id", "LEAD ID", "id"], "—")}</td>
-                      <td class="p-3 text-gray-700">${this.getLeadField(lead, ["appointment_coordinator_name", "Appointment Coordinator Name", "agent_name"], "—")}</td>
-                      <td class="p-3 text-gray-700">${this.getLeadField(lead, ["homeowner_names", "Homeowner Name(s)", "homeowner_name"], "—")}</td>
-                      <td class="p-3">
-                        <span class="px-2 py-1 rounded-full text-[10px] font-black border ${statusClass}">
-                          ${status}
-                        </span>
-                      </td>
-                    </tr>
-                  `;
-                }).join("")}
-              </tbody>
-            </table>
+renderPassbookHistory(clientCode) {
+  const wrap = document.getElementById("passbook-history-body");
+  if (!wrap) return;
+
+  const labels = {
+    area_codes_to_use: "Area Codes To Use",
+    client_code: "Code Name",
+    area: "Area / City / ZIP",
+    client_status: "Status",
+    regions: "Regions / Cities / ZIP Codes",
+    sales_rep_count: "Sales Rep Count",
+    days_of_operation: "Days of Operation",
+    hours_of_operation: "Hours of Operation",
+    appointment_interval: "Appointment Interval",
+    roof_types: "Roof Types",
+    leads_per_day_limit: "Leads Per Day Limit",
+    double_bookings: "Double Bookings",
+    additional_notes: "Additional Notes / Requests"
+  };
+
+  const rows = this.passbookAuditRows || [];
+
+  if (!rows.length) {
+    wrap.innerHTML = `
+      <div class="p-5 text-sm text-gray-400 italic bg-gray-50 rounded-2xl border border-gray-100">
+        No visible Passbook detail changes for this client yet.
+      </div>
+    `;
+    return;
+  }
+
+  const formatValue = value => {
+    if (value === null || value === undefined || value === "") return "—";
+    return this.escapeHtml(String(value));
+  };
+
+  wrap.innerHTML = rows.map(event => {
+    const changes = event.field_changes || [];
+    const timeText =
+      window.portal?.formatMSTDateTimeShort?.(event.created_at) ||
+      event.created_at ||
+      "—";
+
+    return `
+      <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="text-sm font-black text-gray-900">
+              ${this.escapeHtml(event.actor_name || "Unknown")}
+            </div>
+
+            <div class="text-xs text-gray-500 mt-1">
+              ${this.escapeHtml(event.actor_role || "user")} •
+              ${this.escapeHtml(timeText)}
+            </div>
           </div>
-        `;
-      },
+
+          <span class="px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-[10px] font-black">
+            ${changes.length} field${changes.length === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        <div class="mt-3 space-y-2">
+          ${changes.map(change => {
+            const fieldKey = String(change.field || "").toLowerCase();
+
+            return `
+              <div class="rounded-xl bg-gray-50 border border-gray-100 p-3 text-xs">
+                <div class="font-black text-gray-700 uppercase">
+                  ${labels[fieldKey] || this.escapeHtml(fieldKey)}
+                </div>
+
+                <div class="mt-1 whitespace-pre-wrap">
+                  <span class="text-gray-400 line-through">${formatValue(change.old_value ?? change.oldValue)}</span>
+                  <span class="mx-2 text-gray-400">→</span>
+                  <span class="font-black text-emerald-700">${formatValue(change.new_value ?? change.newValue)}</span>
+                </div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    `;
+  }).join("");
+},
 
             openRejectionReasonModal(leadId, nextStatus, existingReason = "") {
         const modal = document.getElementById("rejection-reason-modal");
@@ -2721,7 +3093,22 @@ async openNotification(item) {
           // 2. Fetch safely using limit(1) instead of single()
           const { data, error } = await supaClient
             .from('clients')
-            .select('*')
+            .select(`
+  id,
+  client_code,
+  area,
+  area_codes_to_use,
+  client_status,
+  sales_rep_count,
+  regions,
+  days_of_operation,
+  hours_of_operation,
+  appointment_interval,
+  roof_types,
+  leads_per_day_limit,
+  double_bookings,
+  additional_notes
+`)
             .eq('client_code', codeName)
             .limit(1);
 
@@ -2733,7 +3120,8 @@ async openNotification(item) {
              return;
           }
           
-          this._renderPassbookForm(data[0]);
+         await this.loadPassbookAuditForCode(codeName);
+this._renderPassbookForm(data[0]);
           
         } catch (err) {
           console.error("Fetch Client Error:", err);
@@ -2744,29 +3132,23 @@ async openNotification(item) {
                  _renderPassbookForm(raw) {
         const safeStr = (val) => String(val || "").replace(/"/g, "&quot;");
 
-        const fields = [
-          { label: "Code Name", key: "client_code" },
-          { label: "Company Name", key: "company_name" },
-          { label: "Phone", key: "phone" },
-          { label: "Contact Person", key: "contact_person" },
-          { label: "Area / City State", key: "area" },
-          { label: "Area Codes To Use", key: "area_codes_to_use" },
-          { label: "Email", key: "email" },
-          { label: "Website", key: "website" },
-          { label: "Status", key: "client_status" },
-          { label: "Company Address", key: "company_address" },
-          { label: "Sales Rep Count", key: "sales_rep_count" },
-          { label: "Regions / Cities / Zip Codes", key: "regions" },
-          { label: "Days of Operation", key: "days_of_operation" },
-          { label: "Hours of Operation", key: "hours_of_operation" },
-          { label: "Appointment Interval", key: "appointment_interval" },
-          { label: "Roof Types", key: "roof_types" },
-          { label: "Leads Per Day Limit", key: "leads_per_day_limit" },
-          { label: "Double Bookings", key: "double_bookings" },
-          { label: "Additional Notes / Requests", key: "additional_notes" }
-        ];
-
-        const companyName = safeStr(raw.company_name) || "Unknown";
+      const fields = [
+  { label: "Code Name", key: "client_code" },
+  { label: "Area / City / ZIP", key: "area" },
+  { label: "Area Codes To Use", key: "area_codes_to_use" },
+  { label: "Status", key: "client_status" },
+  { label: "Regions / Cities / ZIP Codes", key: "regions" },
+  { label: "Sales Rep Count", key: "sales_rep_count" },
+  { label: "Days of Operation", key: "days_of_operation" },
+  { label: "Hours of Operation", key: "hours_of_operation" },
+  { label: "Appointment Interval", key: "appointment_interval" },
+  { label: "Roof Types", key: "roof_types" },
+  { label: "Leads Per Day Limit", key: "leads_per_day_limit" },
+  { label: "Double Bookings", key: "double_bookings" },
+  { label: "Additional Notes / Requests", key: "additional_notes" }
+];
+        document.getElementById("passbook-modal-title").textContent = codeName;
+document.getElementById("passbook-modal-sub").textContent = cityState;
         const codeName = safeStr(raw.client_code) || "—";
         const cityState = safeStr(raw.area || raw.city_state) || "—";
 
@@ -2778,7 +3160,7 @@ async openNotification(item) {
 
         for (const f of fields) {
           const val = safeStr(raw[f.key]);
-          const isLong = ["additional_notes", "regions", "area_codes_to_use", "company_address"].includes(f.key);
+          const isLong = ["additional_notes", "regions", "area_codes_to_use"].includes(f.key);
           
           detailsHtml += `
             <div>
@@ -2796,7 +3178,7 @@ async openNotification(item) {
           <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-4">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
               <div>
-                <div class="text-xl font-black text-gray-900">${companyName}</div>
+                <div class="text-xl font-black text-gray-900">${codeName}</div>
                 <div class="text-sm text-gray-500 mt-1">${cityState}</div>
               </div>
               <div class="px-3 py-1 rounded-full bg-gray-900 text-white text-[11px] font-black">
@@ -2826,7 +3208,7 @@ async openNotification(item) {
               <h4 class="font-black text-gray-900 flex items-center gap-2">
                 <i class="fa-solid fa-clock-rotate-left text-violet-500"></i> Client History
               </h4>
-              <p class="text-xs text-gray-500 mt-1">Recent lead activity connected to this client.</p>
+              <p class="text-xs text-gray-500 mt-1">Recent changes made to the permitted Passbook detail fields.</p>
             </div>
             <div id="passbook-history-body">
               <div class="p-5 text-sm text-gray-400 italic bg-gray-50 rounded-2xl border border-gray-100">Loading history...</div>
@@ -2860,7 +3242,7 @@ async openNotification(item) {
               <div class="flex justify-end mt-3">
                 <button
                   type="button"
-                  onclick="Admin.savePassbookClientNote('${String(codeName).replace(/'/g, "\\'")}', '${String(companyName).replace(/'/g, "\\'")}')"
+                  onclick="Admin.savePassbookClientNote('${String(codeName).replace(/'/g, "\\'")}','${String(codeName).replace(/'/g, "\\'")}')"
                   class="px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-black hover:bg-yellow-500 hover:text-gray-900"
                 >
                   Save Note
@@ -2888,7 +3270,7 @@ async openNotification(item) {
         }
 
         this.loadOrgProfiles();
-        this.renderPassbookHistory(codeName, companyName);
+        this.renderPassbookHistory(codeName);
         this.renderPassbookNotes(codeName);
         this.setPassbookModalTab("details");
       },
@@ -3535,7 +3917,7 @@ async openNotification(item) {
 
         if (q) {
           rows = rows.filter(c => 
-            `${this.extractRoofingCompany(c)} ${this.extractCode(c)} ${this.extractCityState(c)}`
+            `${this.extractCode(c)} ${this.extractCityState(c)}`
               .toLowerCase()
               .includes(q)
           );
@@ -3554,7 +3936,7 @@ async openNotification(item) {
         document.getElementById("passbook-list-body").innerHTML = (clients || []).map(client => `
           <tr class="hover:bg-gray-50 transition-all" data-passbook-code="${this.extractCode(client)}" data-passbook-client-code="${this.extractCode(client)}">
             <td class="p-4">${this.extractCode(client)}</td>
-            <td class="p-4 font-bold">${this.extractRoofingCompany(client)}</td>
+            <td class="p-4">${this.extractClientName(client)}</td>
             <td class="p-4">${this.extractCityState(client)}</td>
             <td class="p-4">${this.extractClientName(client)}</td>
             <td class="p-4 text-right">
@@ -4042,213 +4424,1599 @@ async openNotification(item) {
         }
       },
 
-      // --- DAILY STRATEGY TAB LOGIC ---
-      renderDailyTab() {
-        // ANTI-GLITCH: Don't refresh the board if you are currently typing!
-        if (document.activeElement && document.activeElement.closest('#daily-serving-board')) return;
+        async renderDailyTab() {
+  const orgId = window.portal?.getCurrentOrganizationId?.();
 
-        const mstFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit' });
-        const todayStr = mstFormatter.format(new Date());
-        const dateHeader = document.getElementById("daily-date-header");
-        if (dateHeader) dateHeader.textContent = todayStr;
+  if (!orgId || !supaClient) return;
 
-        const events = Array.isArray(this.getState().timeEvents) ? this.getState().timeEvents : [];
-        const agents = Array.isArray(this.getState().agents) ? this.getState().agents : [];
-        const statusMap = new Map();
+  const renderToken = `${Date.now()}-${Math.random()}`;
+  this._dailyStrategyRenderToken = renderToken;
 
-        events.forEach(e => {
-            const timestamp = e.occurred_at || e.created_at;
-            if (!timestamp) return;
-            const eventDt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(timestamp) : new Date(timestamp);
-            if (!eventDt) return;
-            
-            const eventDayStr = mstFormatter.format(window.portal?.toMST ? window.portal.toMST(eventDt) : eventDt);
-            if (eventDayStr === todayStr) {
-                const rawAg = String(e.agent_name || "");
-                const ag = this.getOfficialAgentName(rawAg);
-                const existing = statusMap.get(ag);
-                if (!existing || eventDt > existing.dt) {
-                    statusMap.set(ag, { dt: eventDt, action: String(e.action).trim().toLowerCase() });
-                }
+  const weekLabelEl = document.getElementById("dailyStrategyWeekLabel");
+  const tabsEl = document.getElementById("dailyStrategyTabs");
+  const boardEl = document.getElementById("dailyStrategyBoard");
+  const clientPoolEl = document.getElementById("daily-client-pool");
+  const clientPoolCountEl = document.getElementById("dailyClientPoolCount");
+  const rosterEl = document.getElementById("daily-agent-status-list");
+  const historyBodyEl = document.getElementById("dailyStrategyHistoryBody");
+  const historyCountEl = document.getElementById("dailyHistoryCount");
+
+  if (
+    !weekLabelEl ||
+    !tabsEl ||
+    !boardEl ||
+    !clientPoolEl ||
+    !rosterEl ||
+    !historyBodyEl
+  ) {
+    return;
+  }
+
+  try {
+    const todayStr = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Denver",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).format(new Date());
+
+    const { data: weekDays, error: weekErr } = await supaClient.rpc(
+      "get_daily_strategy_week_days",
+      {
+        p_organization_id: orgId,
+        p_any_date: todayStr
+      }
+    );
+
+    if (weekErr) {
+      console.error("Daily strategy week load failed:", weekErr);
+
+      boardEl.innerHTML = `
+        <div class="bg-white rounded-2xl border border-red-100 shadow-sm p-5 text-sm text-red-600">
+          Failed to load strategy week.
+        </div>
+      `;
+
+      clientPoolEl.innerHTML = `
+        <div class="text-sm text-red-500">
+          Failed to load client pool.
+        </div>
+      `;
+
+      rosterEl.innerHTML = `
+        <div class="text-sm text-red-500">
+          Failed to load roster.
+        </div>
+      `;
+
+      historyBodyEl.innerHTML = `
+        <tr>
+          <td colspan="8" class="p-6 text-center text-red-500 italic">
+            Failed to load history.
+          </td>
+        </tr>
+      `;
+
+      return;
+    }
+
+    this.dailyStrategyWeekRows = Array.isArray(weekDays)
+      ? weekDays
+      : [];
+
+    if (!this.dailyStrategyWeekRows.length) {
+      weekLabelEl.textContent = "No week found";
+      tabsEl.innerHTML = "";
+
+      boardEl.innerHTML = `
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm text-gray-400 italic">
+          No strategy week available.
+        </div>
+      `;
+
+      clientPoolEl.innerHTML = `
+        <div class="text-sm text-gray-400 italic">
+          No client pool available.
+        </div>
+      `;
+
+      rosterEl.innerHTML = `
+        <div class="text-sm text-gray-400 italic">
+          No roster available.
+        </div>
+      `;
+
+      historyBodyEl.innerHTML = `
+        <tr>
+          <td colspan="8" class="p-6 text-center text-gray-400 italic">
+            No history available.
+          </td>
+        </tr>
+      `;
+
+      return;
+    }
+
+    const firstRow = this.dailyStrategyWeekRows[0];
+
+    weekLabelEl.textContent =
+      `${firstRow.week_start} → ${firstRow.week_end}`;
+
+    if (!this.dailyStrategySelectedDate) {
+      this.dailyStrategySelectedDate = todayStr;
+    }
+
+    const validDates = new Set(
+      this.dailyStrategyWeekRows.map(row => row.strategy_date)
+    );
+
+    if (!validDates.has(this.dailyStrategySelectedDate)) {
+      this.dailyStrategySelectedDate = firstRow.strategy_date;
+    }
+
+    tabsEl.innerHTML = this.dailyStrategyWeekRows
+      .map(row => {
+        const active =
+          row.strategy_date === this.dailyStrategySelectedDate;
+
+        return `
+          <button
+            type="button"
+            onclick="Admin.selectDailyStrategyDate('${row.strategy_date}')"
+            class="px-4 py-2 rounded-xl text-sm font-extrabold border transition-all ${
+              active
+                ? "bg-gray-900 text-white border-gray-900"
+                : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+            }"
+          >
+            ${row.day_label}
+
+            <span class="ml-2 text-[11px] font-bold ${
+              active ? "text-gray-200" : "text-gray-400"
+            }">
+              ${row.strategy_date}
+            </span>
+          </button>
+        `;
+      })
+      .join("");
+
+    const selectedWeekRow = this.dailyStrategyWeekRows.find(
+      row => row.strategy_date === this.dailyStrategySelectedDate
+    );
+
+    const selectedWeekStart = selectedWeekRow?.week_start;
+
+    const { data: assignments, error: assignErr } = await supaClient
+      .from("daily_strategy_assignments")
+      .select("*")
+      .eq("organization_id", orgId)
+      .eq("week_start", selectedWeekStart)
+      .eq("strategy_date", this.dailyStrategySelectedDate)
+      .eq("shift_key", this.dailyStrategyShift)
+      .order("lane", { ascending: true })
+      .order("position_index", { ascending: true });
+
+    if (assignErr) {
+      console.error(
+        "Daily strategy assignments load failed:",
+        assignErr
+      );
+
+      boardEl.innerHTML = `
+        <div class="bg-white rounded-2xl border border-red-100 shadow-sm p-5 text-sm text-red-600">
+          Failed to load assignments.
+        </div>
+      `;
+
+      return;
+    }
+
+    this.dailyStrategyAssignments = Array.isArray(assignments)
+      ? assignments
+      : [];
+
+    if (this._dailyStrategyRenderToken !== renderToken) return;
+
+    const state = this.getState();
+
+    const rawClients = Array.isArray(state.rawClients)
+      ? state.rawClients
+      : [];
+
+    const timeEvents = Array.isArray(state.timeEvents)
+      ? state.timeEvents
+      : [];
+
+    const allLeads = Array.isArray(state.leads)
+      ? state.leads
+      : [];
+
+    let historyRows = [];
+
+    const historyWeekSelect = document.getElementById(
+      "daily-history-week-select"
+    );
+
+    const formatHistoryWeekLabel = weekStart => {
+      if (!weekStart) return "—";
+
+      const start = new Date(`${weekStart}T00:00:00`);
+
+      if (isNaN(start.getTime())) return weekStart;
+
+      const end = new Date(start);
+      end.setDate(end.getDate() + 6);
+
+      return `${start.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric"
+      })} to ${end.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric"
+      })}`;
+    };
+
+    const getCodeNumber = code => {
+      const match = String(code || "").match(/(\d+)/);
+      return match ? Number(match[1]) : 999999;
+    };
+
+    const {
+      data: strategyHistoryRows,
+      error: strategyHistoryErr
+    } = await supaClient
+      .from("daily_strategy_history_view")
+      .select("*")
+      .eq("organization_id", orgId)
+      .order("week_start", { ascending: false })
+      .order("strategy_date", { ascending: true });
+
+    if (strategyHistoryErr) {
+      console.error(
+        "Daily strategy history load failed:",
+        strategyHistoryErr
+      );
+    }
+
+    const allHistoryRows = Array.isArray(strategyHistoryRows)
+      ? strategyHistoryRows
+      : [];
+
+    const uniqueWeeks = [
+      ...new Set(
+        allHistoryRows
+          .map(row => row.week_start)
+          .filter(Boolean)
+      )
+    ].sort((a, b) => String(b).localeCompare(String(a)));
+
+    if (!this.dailyStrategyHistoryWeekStart) {
+      this.dailyStrategyHistoryWeekStart =
+        uniqueWeeks[0] || selectedWeekStart;
+    }
+
+    if (historyWeekSelect) {
+      historyWeekSelect.innerHTML = uniqueWeeks
+        .map(weekStart => `
+          <option
+            value="${weekStart}"
+            ${
+              String(weekStart) ===
+              String(this.dailyStrategyHistoryWeekStart)
+                ? "selected"
+                : ""
             }
+          >
+            ${formatHistoryWeekLabel(weekStart)}
+          </option>
+        `)
+        .join("");
+
+      if (!historyWeekSelect.dataset.bound) {
+        historyWeekSelect.dataset.bound = "true";
+
+        historyWeekSelect.addEventListener("change", () => {
+          this.dailyStrategyHistoryWeekStart =
+            historyWeekSelect.value;
+
+          this.renderDailyTab();
+        });
+      }
+    }
+
+    historyRows = allHistoryRows
+      .filter(
+        row =>
+          String(row.week_start) ===
+          String(this.dailyStrategyHistoryWeekStart)
+      )
+      .map(row => {
+        const rowDate = String(
+          row.strategy_date || ""
+        ).slice(0, 10);
+
+        const rowCompany = this.normalizeCompanyName(
+          row.company_name || ""
+        );
+
+        const rowCode = String(
+          row.client_code || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        const matchedLeads = allLeads.filter(lead => {
+          const leadDateObject = this.getLeadDateObj(lead);
+
+          if (
+            !leadDateObject ||
+            isNaN(leadDateObject.getTime())
+          ) {
+            return false;
+          }
+
+          const year = leadDateObject.getFullYear();
+
+          const month = String(
+            leadDateObject.getMonth() + 1
+          ).padStart(2, "0");
+
+          const day = String(
+            leadDateObject.getDate()
+          ).padStart(2, "0");
+
+          const leadDate = `${year}-${month}-${day}`;
+
+          if (leadDate !== rowDate) return false;
+
+          const leadCode = String(
+            this.getLeadField(
+              lead,
+              [
+                "client_code",
+                "Client Code",
+                "CLIENT CODE",
+                "CODE NAME",
+                "Code Name"
+              ],
+              ""
+            )
+          )
+            .trim()
+            .toLowerCase();
+
+          const leadCompany = this.normalizeCompanyName(
+            this.getLeadField(
+              lead,
+              [
+                "company_name",
+                "Company Name",
+                "roofing_company"
+              ],
+              ""
+            )
+          );
+
+          return (
+            (rowCode && leadCode === rowCode) ||
+            (rowCompany && leadCompany === rowCompany)
+          );
         });
 
-        const activeAgents = agents.filter(a => {
-            const st = String(a.employment_status || "").toLowerCase().trim();
-            const rl = String(a.role || "").toLowerCase().trim();
-            return st === "active" && rl !== "admin";
+        let qualified = 0;
+        let credited = 0;
+        let rejected = 0;
+        let pending = 0;
+
+        matchedLeads.forEach(lead => {
+          const status = String(
+            this.getLeadField(
+              lead,
+              ["status", "Status"],
+              ""
+            )
+          ).toLowerCase();
+
+          if (this.isQualified(status)) {
+            qualified++;
+          } else if (this.isCredited(status)) {
+            credited++;
+          } else if (this.isRejected(status)) {
+            rejected++;
+          } else {
+            pending++;
+          }
         });
 
-        let statusHtml = "";
-        activeAgents.sort((a,b) => (a.agent_name || a.name || "").localeCompare(b.agent_name || b.name || "")).forEach(a => {
-            const name = String(a.agent_name || a.name || "").trim();
-            const latest = statusMap.get(name);
-            let badge = `<span class="text-[10px] font-extrabold text-gray-400 bg-gray-100 px-2 py-1 rounded">OFFLINE</span>`;
-            if (latest) {
-                if (latest.action === 'clock in' || latest.action === 'resume') badge = `<span class="text-[10px] font-extrabold text-emerald-700 bg-emerald-100 px-2 py-1 rounded flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> WORKING</span>`;
-                else if (latest.action === 'break start') badge = `<span class="text-[10px] font-extrabold text-yellow-700 bg-yellow-100 px-2 py-1 rounded">ON BREAK</span>`;
+        return {
+          ...row,
+          total_leads_set: matchedLeads.length,
+          qualified_leads_set: qualified,
+          credited_leads_set: credited,
+          rejected_leads_set: rejected,
+          pending_leads_set: pending
+        };
+      });
+
+    const sortKey =
+      this.dailyStrategyHistorySort?.key ||
+      "client_code";
+
+    const sortDirection =
+      this.dailyStrategyHistorySort?.dir ||
+      "asc";
+
+    historyRows.sort((a, b) => {
+      let difference = 0;
+
+      if (sortKey === "client_code") {
+        difference =
+          getCodeNumber(a.client_code) -
+          getCodeNumber(b.client_code);
+      } else {
+        difference =
+          Number(a[sortKey] || 0) -
+          Number(b[sortKey] || 0);
+      }
+
+      return sortDirection === "asc"
+        ? difference
+        : -difference;
+    });
+
+    [
+      "client_code",
+      "total_leads_set",
+      "qualified_leads_set",
+      "credited_leads_set",
+      "rejected_leads_set"
+    ].forEach(key => {
+      const icon = document.getElementById(
+        `daily-history-sort-${key}`
+      );
+
+      if (!icon) return;
+
+      icon.textContent =
+        key === sortKey
+          ? sortDirection === "asc"
+            ? "↑"
+            : "↓"
+          : "↕";
+    });
+
+    const clientHealthRows = Array.isArray(
+      this.clientHealthRaw
+    )
+      ? this.clientHealthRaw
+      : [];
+
+    const clientByCode = new Map(
+      rawClients.map(client => [
+        String(
+          client.client_code ||
+          client.code_name ||
+          ""
+        )
+          .trim()
+          .toLowerCase(),
+        client
+      ])
+    );
+
+    const assignedCodes = new Set(
+      this.dailyStrategyAssignments
+        .map(row =>
+          String(row.client_code || "")
+            .trim()
+            .toLowerCase()
+        )
+        .filter(Boolean)
+    );
+
+    const servingNow = this.dailyStrategyAssignments.filter(
+      row => String(row.lane || "") === "serving_now"
+    );
+
+    const nextUp = this.dailyStrategyAssignments.filter(
+      row => String(row.lane || "") === "next_up"
+    );
+
+    const renderLaneCards = (
+      rows,
+      emptyText,
+      laneTone,
+      laneKey
+    ) => {
+      if (!rows.length) {
+        return `
+          <div class="text-sm text-gray-400 italic">
+            ${emptyText}
+          </div>
+        `;
+      }
+
+      const selectedDate =
+        this.dailyStrategySelectedDate;
+
+      const dayLeadRows = allLeads.filter(lead => {
+        const leadDateObject =
+          this.getLeadDateObj(lead);
+
+        if (
+          !leadDateObject ||
+          isNaN(leadDateObject.getTime())
+        ) {
+          return false;
+        }
+
+        const year = leadDateObject.getFullYear();
+
+        const month = String(
+          leadDateObject.getMonth() + 1
+        ).padStart(2, "0");
+
+        const day = String(
+          leadDateObject.getDate()
+        ).padStart(2, "0");
+
+        return `${year}-${month}-${day}` === selectedDate;
+      });
+
+      return rows
+        .map(row => {
+          const codeKey = String(
+            row.client_code || ""
+          )
+            .trim()
+            .toLowerCase();
+
+          const rawClient =
+            clientByCode.get(codeKey) || {};
+
+          const boardClient =
+            clientHealthRows.find(client => {
+              return (
+                String(client.code || "")
+                  .trim()
+                  .toLowerCase() === codeKey &&
+                String(client.packageStatus || "")
+                  .toUpperCase() === "ONGOING"
+              );
+            }) || {};
+
+          /*
+           * Company name is used internally only to match existing
+           * lead records. It is never rendered for Management.
+           */
+          const internalCompanyName =
+            rawClient.company_name ||
+            rawClient.roofing_company ||
+            row.company_name ||
+            "";
+
+          const goal = Number(row.daily_goal || 0);
+          const assignedAgents =
+            row.assigned_agents || "";
+
+          const packageLabel =
+            boardClient.packageLabel || "0 / 0";
+
+          const leadLimit = Number(
+            boardClient.leadsPerDayLimit || 0
+          );
+
+          const salesReps = Number(
+            boardClient.salesRepCount || 0
+          );
+
+          const matchesCurrentClient = lead => {
+            const leadCode = String(
+              this.getLeadField(
+                lead,
+                [
+                  "client_code",
+                  "Client Code",
+                  "CLIENT CODE",
+                  "code_name",
+                  "Code Name",
+                  "CODE NAME"
+                ],
+                ""
+              )
+            )
+              .trim()
+              .toLowerCase();
+
+            if (leadCode && leadCode === codeKey) {
+              return true;
             }
-            statusHtml += `<div class="flex justify-between items-center p-2 hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-100 transition-colors"><span class="text-xs font-bold text-gray-700">${name}</span> ${badge}</div>`;
-        });
-        document.getElementById("daily-agent-status-list").innerHTML = statusHtml;
 
-        const poolEl = document.getElementById("daily-client-pool");
-        const serveEl = document.getElementById("daily-serving-board");
-        const searchTerm = (document.getElementById("daily-pool-search")?.value || "").toLowerCase();
-       const packageFilter = document.getElementById("daily-pool-filter")?.value || "ONGOING";
+            const leadCompany =
+              this.normalizeCompanyName(
+                this.getLeadField(
+                  lead,
+                  [
+                    "Company Name",
+                    "company_name",
+                    "roofing_company"
+                  ],
+                  ""
+                )
+              );
 
-const normalizePkgStatus = (value) => {
-  let s = String(value || "").toUpperCase().trim();
-  if (s === "ACTIVE") s = "ONGOING";
-  return s;
-};
-        
-        let poolHtml = "";
-        let serveHtml = "";
-        
-        // SEPARATE SORTING: Pool stays alphabetical, Serving stacks at the bottom
-        let allActiveClients = this.clientHealthRaw.filter(c => {
-  const pkgStatus = String(c.packageStatus || "").toUpperCase();
-  const dealStatus = String(c.dealStatus || "").toUpperCase();
+            const clientCompany =
+              this.normalizeCompanyName(
+                internalCompanyName
+              );
 
-  return (
-    c.passbookStatus === "ACTIVE" &&
-    dealStatus !== "NEGOTIATING" &&
-    pkgStatus === "ONGOING" // ✅ THIS IS THE FIX
-  );
-});
-        let servingClients = allActiveClients.filter(c => c.isServing);
-        let poolClients = allActiveClients.filter(c => !c.isServing);
+            return Boolean(
+              clientCompany &&
+              leadCompany === clientCompany
+            );
+          };
 
-        // Sort serving clients by when they were added so new ones drop to the BOTTOM
-        servingClients.sort((a, b) => (a.addedToBoardAt || 0) - (b.addedToBoardAt || 0));
+          const pendingLeads = dayLeadRows.filter(
+            lead => {
+              if (!matchesCurrentClient(lead)) {
+                return false;
+              }
 
-        // Only sort the pool alphabetically
-        poolClients.sort((a, b) => a.roofingCompany.localeCompare(b.roofingCompany));
+              const status = String(
+                this.getLeadField(
+                  lead,
+                  ["Status", "status"],
+                  ""
+                )
+              ).toLowerCase();
 
-        // 1. RENDER SERVING BOARD
-        servingClients.forEach(c => {
-          const normalizedPkgStatus = normalizePkgStatus(c.packageStatus);
-            // FIX: Use the raw company name from the database, bypassing the HTML badge!
-            const rawCompany = c._raw.company_name || c._raw.roofing_company || c.roofingCompany.split('<')[0];
-            const leadList = this._leadsIndexByCompany?.get(this.normalizeCompanyName(rawCompany)) || [];
-            let todaysApproved = 0, todaysPending = 0;
-            
-            leadList.forEach(l => {
-                const dStr = l.date_submitted || l['Date Submitted'] || l.created_at;
-                const d = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
-                if (d && !isNaN(d.getTime())) {
-                    const compStr = mstFormatter.format(window.portal?.toMST ? window.portal.toMST(d) : d);
-                    const st = String(l.status || "").toLowerCase();
-                    if (compStr === todayStr) {
-                        if (st.includes('approv') || st.includes('confirm')) todaysApproved++;
-                        else if (st.includes('pending')) todaysPending++;
+              return this.isPendingReview(status);
+            }
+          ).length;
+
+          const setToday = dayLeadRows.filter(lead => {
+            if (!matchesCurrentClient(lead)) {
+              return false;
+            }
+
+            const status = String(
+              this.getLeadField(
+                lead,
+                ["Status", "status"],
+                ""
+              )
+            ).toLowerCase();
+
+            return this.isQualified(status);
+          }).length;
+
+          const rejectedLeads = dayLeadRows.filter(
+            lead => {
+              if (!matchesCurrentClient(lead)) {
+                return false;
+              }
+
+              const status = String(
+                this.getLeadField(
+                  lead,
+                  ["Status", "status"],
+                  ""
+                )
+              ).toLowerCase();
+
+              return this.isRejected(status);
+            }
+          ).length;
+
+          const remaining = Math.max(
+            goal - setToday,
+            0
+          );
+
+          let cardColor =
+            "border-gray-200 bg-white";
+
+          if (goal > 0) {
+            if (setToday >= goal) {
+              cardColor =
+                "border-emerald-300 bg-emerald-50";
+            } else if (
+              setToday + pendingLeads >= goal
+            ) {
+              cardColor =
+                "border-yellow-300 bg-yellow-50";
+            } else if (
+              remaining === 1 &&
+              pendingLeads === 0
+            ) {
+              cardColor =
+                "border-red-300 bg-red-50";
+            }
+          }
+
+          const safeAssignmentId = String(
+            row.id || ""
+          ).replace(/'/g, "\\'");
+
+          return `
+            <div class="rounded-2xl border ${cardColor} shadow-sm p-4">
+              <div class="flex items-start justify-between gap-3 mb-3">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <div class="text-base font-black text-gray-900">
+                      ${row.client_code || "—"}
+                    </div>
+
+                    ${
+                      String(row.notes || "").trim()
+                        ? `
+                          <button
+                            type="button"
+                            onclick="event.stopPropagation(); Admin.openDailySalesNote('${safeAssignmentId}')"
+                            class="ml-2 px-2 py-1 rounded-lg bg-orange-50 border border-orange-200 text-[11px] font-black text-orange-700 hover:bg-orange-100 relative z-20"
+                            title="View sales note"
+                          >
+                            🔥
+                          </button>
+                        `
+                        : ""
                     }
-                }
-            });
 
-            const goal = c.dailyGoal;
-            const goalMet = goal > 0 && todaysApproved >= goal;
+                    ${
+                      Number(
+                        boardClient._raw?.package_seq || 1
+                      ) > 1
+                        ? `
+                          <span class="text-[10px] font-black text-purple-700 bg-purple-100 px-2 py-1 rounded-full">
+                            RENEWAL
+                          </span>
+                        `
+                        : ""
+                    }
+                  </div>
 
-            // THE OBLITERATE CARD: Button pushed outside the box to prevent blocking
-            serveHtml += `
-            <div class="relative rounded-xl p-4 transition-all flex flex-col ${goalMet ? 'bg-emerald-50 border-4 border-emerald-400 shadow-sm' : 'bg-white border border-blue-200 shadow-sm'}">
-                
-                <button type="button" onclick="Admin.dailyRemove(this, \`${(c.code || '').replace(/`/g, '')}\`)" class="absolute -top-3 -right-3 w-8 h-8 bg-red-500 hover:bg-red-700 text-white rounded-full shadow-lg flex items-center justify-center cursor-pointer z-[99999] border-2 border-white ring-2 ring-red-100">
-                    <i class="fa-solid fa-xmark text-sm font-black pointer-events-none"></i>
-                </button>
-                
-               <div class="mb-3 pr-4">
-    <p class="text-[11px] text-gray-500 font-bold uppercase mb-1">${c.code}</p>
-    <h4 class="font-bold text-gray-900 leading-tight" title="${String(c.roofingCompany).replace(/<[^>]*>/g, '')}">
-      ${c.roofingCompany}
-    </h4>
-    <p class="text-[10px] text-gray-400 font-bold uppercase mt-1">${c.cityState}</p>
-    <p class="text-[11px] text-gray-600 mt-1">
-      <span class="font-bold">Owed:</span> ${c.owedRemaining}
-      <span class="mx-2 text-gray-300">•</span>
-      <span class="font-bold">Capacity:</span> ${c.leadsPerDayLimit || 0}/day
-      <span class="mx-2 text-gray-300">•</span>
-      <span class="font-bold">Sales Reps:</span> ${c.salesRepCount || 0}
-    </p>
-</div>
-                
-                <div class="flex-1 flex flex-col gap-3 relative z-10">
-                    <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Assigned Agents</label>
-                        <textarea onchange="Admin.dailyUpdate(\`${(c.code || '').replace(/`/g, '')}\`, 'daily_agents', this.value)" placeholder="• John&#10;• Mary" class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded focus:ring-2 focus:ring-blue-400 outline-none resize-none" rows="3">${c.dailyAgents}</textarea>
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Goal</label>
-                        <input type="number" onchange="Admin.dailyUpdate(\`${(c.code || '').replace(/`/g, '')}\`, 'daily_goal', this.value)" value="${goal || ''}" placeholder="0" class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded focus:ring-2 focus:ring-blue-400 outline-none text-center font-bold">
-                    </div>
+                  <div class="text-xs text-gray-500 mt-1">
+                    ${
+                      boardClient.cityState ||
+                      rawClient.area ||
+                      "—"
+                    }
+                  </div>
                 </div>
 
-                <div class="mt-3 flex items-center justify-between pt-3 border-t border-gray-50 relative z-10">
-    <div class="text-[11px] font-bold text-yellow-600">Pending: ${todaysPending}</div>
-    <div class="text-[11px] font-bold ${todaysApproved > 0 ? 'text-emerald-600' : 'text-gray-400'}">
-      Set Today: ${todaysApproved} / Goal: ${goal || 0}
-    </div>
-    <div class="text-right">
-      ${goalMet
-        ? `<span class="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-2 py-1 rounded">✅ MET</span>`
-        : `<span class="text-[10px] font-bold text-gray-400">In Progress</span>`}
-    </div>
-</div>
-            </div>`;
-        });
+                <div class="flex items-center gap-2">
+                  <div class="text-xs font-black text-gray-500">
+                    #${row.position_index || 0}
+                  </div>
 
-        // 2. RENDER POOL BOARD
-        poolClients.forEach(c => {
-  const normalizedPkgStatus = normalizePkgStatus(c.packageStatus);
-  if (String(c.dealStatus || "").toUpperCase() === "NEGOTIATING") return;
-if (normalizedPkgStatus === "REFUNDED" || normalizedPkgStatus === "COMPLETED") return;
-if (c.owedRemaining <= 0) return;
-if (normalizedPkgStatus !== "ONGOING" && normalizedPkgStatus !== "PAUSE") return;
+                  ${
+                    laneKey === "next_up"
+                      ? `
+                        <button
+                          type="button"
+                          onclick="Admin.moveDailyAssignment('${safeAssignmentId}', 'serving_now')"
+                          class="px-2 py-1 rounded-lg bg-blue-100 text-blue-700 text-[11px] font-black hover:bg-blue-200"
+                        >
+                          Start
+                        </button>
+                      `
+                      : `
+                        <button
+                          type="button"
+                          onclick="Admin.moveDailyAssignment('${safeAssignmentId}', 'next_up')"
+                          class="px-2 py-1 rounded-lg bg-amber-100 text-amber-700 text-[11px] font-black hover:bg-amber-200"
+                        >
+                          Back
+                        </button>
+                      `
+                  }
 
-  const safeSearchText = `${String(c.searchName || c.roofingCompany || "")} ${String(c.code || "")} ${String(c.cityState || "")}`.toLowerCase();
-  if (searchTerm && !safeSearchText.includes(searchTerm)) return;
+                  <button
+                    type="button"
+                    onclick="Admin.removeDailyAssignment('${safeAssignmentId}')"
+                    class="w-8 h-8 rounded-lg bg-red-100 text-red-600 font-black hover:bg-red-200"
+                    title="Remove from board"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
 
-  if (packageFilter !== "ALL" && normalizedPkgStatus !== packageFilter) return;
+              <div class="grid grid-cols-2 gap-2 text-xs mb-3">
+                <div class="rounded-xl bg-white border border-gray-200 p-2">
+                  <div class="text-gray-400 font-bold uppercase">
+                    Package
+                  </div>
 
-            let healthColor = "text-blue-600 bg-blue-50";
-            if (c.healthStatus === "CRITICAL") healthColor = "text-red-600 bg-red-50";
-            else if (c.healthStatus === "AT RISK") healthColor = "text-yellow-600 bg-yellow-50";
-            else if (c.healthStatus === "HEALTHY") healthColor = "text-emerald-600 bg-emerald-50";
+                  <div class="text-gray-900 font-black mt-1">
+                    ${packageLabel}
+                  </div>
+                </div>
 
-            poolHtml += `
-            <div class="border border-gray-200 rounded-lg p-3 hover:border-gray-300 hover:shadow-sm transition-all flex justify-between items-center group bg-gray-50/30">
-  <div>
-    <p class="text-[10px] text-gray-500 font-bold uppercase mb-1">${c.code}</p>
-    <h4 class="text-sm font-bold text-gray-800 leading-tight" title="${String(c.roofingCompany).replace(/<[^>]*>/g, '')}">
-      ${c.roofingCompany}
-    </h4>
-    <p class="text-[10px] text-gray-500 mb-1">${c.cityState}</p>
-    <p class="text-[11px] text-gray-600 mb-1.5">
-      <span class="font-bold">Owed:</span> ${c.owedRemaining}
-      <span class="mx-2 text-gray-300">•</span>
-      <span class="font-bold">Capacity:</span> ${c.leadsPerDayLimit || 0}/day
-      <span class="mx-2 text-gray-300">•</span>
-      <span class="font-bold">Sales Reps:</span> ${c.salesRepCount || 0}
-    </p>
-    <div class="flex gap-2 flex-wrap">
-        <span class="text-[9px] font-extrabold ${normalizedPkgStatus === 'ONGOING' ? 'text-blue-600 bg-blue-100' : 'text-yellow-600 bg-yellow-100'} px-1.5 py-0.5 rounded">${normalizedPkgStatus}</span>
-        <span class="text-[9px] font-extrabold ${healthColor} px-1.5 py-0.5 rounded">${c.healthStatus}</span>
-        <span class="text-[9px] font-extrabold text-gray-600 bg-gray-200 px-1.5 py-0.5 rounded" title="Owed / Purchased">Owed: ${c.packageLabel}</span>
-    </div>
-</div>
-                <button onclick="Admin.dailyAdd(\`${(c.code || '').replace(/`/g, '')}\`)" class="relative z-50 w-7 h-7 flex-shrink-0 rounded bg-white border border-gray-200 text-gray-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors shadow-sm ml-2 cursor-pointer pointer-events-auto">
-                    <i class="fa-solid fa-plus text-xs pointer-events-none"></i>
-                </button>
-            </div>`;
-        });
+                <div class="rounded-xl bg-white border border-gray-200 p-2">
+                  <div class="text-gray-400 font-bold uppercase">
+                    Lead Limit
+                  </div>
 
-        if (!serveHtml) serveHtml = `<div class="text-sm text-blue-400 italic text-center py-4 col-span-full">Board is empty. Add clients below.</div>`;
-        if (!poolHtml) poolHtml = `<div class="text-sm text-gray-400 italic text-center py-4 col-span-full">No active clients match criteria.</div>`;
+                  <div class="text-gray-900 font-black mt-1">
+                    ${leadLimit}
+                  </div>
+                </div>
 
-        serveEl.innerHTML = serveHtml;
-        poolEl.innerHTML = poolHtml;
-      },
+                <div class="rounded-xl bg-white border border-gray-200 p-2">
+                  <div class="text-gray-400 font-bold uppercase">
+                    Sales Reps
+                  </div>
+
+                  <div class="text-gray-900 font-black mt-1">
+                    ${salesReps}
+                  </div>
+                </div>
+
+                <div class="rounded-xl bg-white border border-gray-200 p-2">
+                  <div class="text-gray-400 font-bold uppercase">
+                    Pending
+                  </div>
+
+                  <div class="text-yellow-600 font-black mt-1">
+                    ${pendingLeads}
+                  </div>
+                </div>
+
+                <div class="rounded-xl bg-white border border-gray-200 p-2">
+                  <div class="text-gray-400 font-bold uppercase">
+                    Set Today
+                  </div>
+
+                  <div class="text-blue-600 font-black mt-1">
+                    ${setToday}
+                  </div>
+                </div>
+
+                <div class="rounded-xl bg-white border border-gray-200 p-2">
+                  <div class="text-gray-400 font-bold uppercase">
+                    QC Rejected
+                  </div>
+
+                  <div class="text-red-500 font-black mt-1">
+                    ${rejectedLeads}
+                  </div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 gap-3">
+                <div>
+                  <label class="block text-[11px] font-black text-gray-500 uppercase mb-1">
+                    Assigned Agents
+                  </label>
+
+                  <textarea
+                    rows="2"
+                    onblur="Admin.updateDailyAssignment('${safeAssignmentId}', 'assigned_agents', this.value)"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    placeholder="Type multiple agent names"
+                  >${String(assignedAgents)}</textarea>
+                </div>
+
+                <div>
+                  <label class="block text-[11px] font-black text-gray-500 uppercase mb-1">
+                    Daily Goal
+                  </label>
+
+                  <input
+                    type="number"
+                    min="0"
+                    value="${goal}"
+                    onblur="Admin.updateDailyAssignment('${safeAssignmentId}', 'daily_goal', this.value)"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  />
+                </div>
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+    };
+
+    boardEl.innerHTML = `
+      <div class="bg-white rounded-3xl border border-emerald-100 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-teal-50">
+          <div class="flex items-center justify-between gap-3">
+            <h3 class="font-black text-gray-900 flex items-center gap-2">
+              <i class="fa-solid fa-bolt text-emerald-600"></i>
+              Serving Now
+            </h3>
+
+            <span class="text-xs font-black text-gray-400">
+              ${servingNow.length} row(s)
+            </span>
+          </div>
+        </div>
+
+        <div class="p-5">
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            ${renderLaneCards(
+              servingNow,
+              "No serving-now assignments for this day.",
+              "border-emerald-100",
+              "serving_now"
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-3xl border border-blue-100 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+          <div class="flex items-center justify-between gap-3">
+            <h3 class="font-black text-gray-900 flex items-center gap-2">
+              <i class="fa-solid fa-forward text-blue-600"></i>
+              Next Up
+            </h3>
+
+            <span class="text-xs font-black text-gray-400">
+              ${nextUp.length} row(s)
+            </span>
+          </div>
+        </div>
+
+        <div class="p-5">
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            ${renderLaneCards(
+              nextUp,
+              "No next-up assignments for this day.",
+              "border-blue-100",
+              "next_up"
+            )}
+          </div>
+        </div>
+      </div>
+    `;
+
+    const clientPoolSearch = String(
+      document.getElementById(
+        "daily-client-pool-search"
+      )?.value || ""
+    )
+      .toLowerCase()
+      .trim();
+
+    const clientPoolStatus = String(
+      document.getElementById(
+        "daily-client-pool-status"
+      )?.value || "ONGOING"
+    ).toUpperCase();
+
+    const activeClientPool = clientHealthRows
+      .filter(client => {
+        const packageStatus = String(
+          client.packageStatus || ""
+        ).toUpperCase();
+
+        const passbookStatus = String(
+          client.passbookStatus || ""
+        ).toUpperCase();
+
+        const code = String(client.code || "")
+          .trim()
+          .toLowerCase();
+
+        if (passbookStatus !== "ACTIVE") {
+          return false;
+        }
+
+        if (
+          clientPoolStatus !== "ALL" &&
+          packageStatus !== clientPoolStatus
+        ) {
+          return false;
+        }
+
+        if (assignedCodes.has(code)) {
+          return false;
+        }
+
+        if (clientPoolSearch) {
+          /*
+           * Only Client Code and location are searchable.
+           * Roofing-company and contact names are excluded.
+           */
+          const searchableText = `
+            ${client.code || ""}
+            ${client.cityState || ""}
+          `.toLowerCase();
+
+          if (!searchableText.includes(clientPoolSearch)) {
+            return false;
+          }
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        const aCritical =
+          String(a.healthStatus || "").toUpperCase() ===
+          "CRITICAL"
+            ? 0
+            : 1;
+
+        const bCritical =
+          String(b.healthStatus || "").toUpperCase() ===
+          "CRITICAL"
+            ? 0
+            : 1;
+
+        if (aCritical !== bCritical) {
+          return aCritical - bCritical;
+        }
+
+        return String(a.code || "").localeCompare(
+          String(b.code || "")
+        );
+      });
+
+    if (clientPoolCountEl) {
+      clientPoolCountEl.textContent =
+        `${activeClientPool.length} client${
+          activeClientPool.length === 1 ? "" : "s"
+        }`;
+    }
+
+    if (!activeClientPool.length) {
+      clientPoolEl.innerHTML = `
+        <div class="text-sm text-gray-400 italic">
+          No available active clients for this strategy day.
+        </div>
+      `;
+    } else {
+      clientPoolEl.innerHTML = activeClientPool
+        .map(client => {
+          const health = String(
+            client.healthStatus || "NOT STARTED"
+          ).toUpperCase();
+
+          const healthTone =
+            health === "CRITICAL"
+              ? "border-red-200 bg-red-50"
+              : health === "AT RISK"
+                ? "border-amber-200 bg-amber-50"
+                : health === "HEALTHY"
+                  ? "border-emerald-200 bg-emerald-50"
+                  : "border-blue-200 bg-blue-50";
+
+          const totalQualifiedAndCredited =
+            Number(client.qualifiedCount || 0) +
+            Number(client.creditedCount || 0);
+
+          const cancellationRate =
+            totalQualifiedAndCredited > 0
+              ? Math.round(
+                  (
+                    Number(client.creditedCount || 0) /
+                    totalQualifiedAndCredited
+                  ) * 100
+                )
+              : 0;
+
+          const safeClientCode = String(
+            client.code || ""
+          ).replace(/'/g, "\\'");
+
+          return `
+            <div class="rounded-2xl border ${healthTone} shadow-sm p-4">
+              <div class="flex items-start justify-between gap-3 mb-3">
+                <div>
+                  <div class="text-base font-black text-gray-900">
+                    ${client.code || "—"}
+                  </div>
+
+                  <div class="text-xs text-gray-500 mt-1">
+                    ${client.cityState || "—"}
+                  </div>
+                </div>
+
+                <div class="text-[10px] font-black px-2 py-1 rounded-full bg-white border border-gray-200 text-gray-700">
+                  ${health}
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 text-xs mb-3">
+                <div class="rounded-xl bg-white border border-gray-200 p-2">
+                  <div class="text-gray-400 font-bold uppercase">
+                    Package
+                  </div>
+
+                  <div class="text-gray-900 font-black mt-1">
+                    ${client.packageLabel || "0 / 0"}
+                  </div>
+                </div>
+
+                <div class="rounded-xl bg-white border border-gray-200 p-2">
+                  <div class="text-gray-400 font-bold uppercase">
+                    Cancel Rate
+                  </div>
+
+                  <div class="text-red-500 font-black mt-1">
+                    ${cancellationRate}%
+                  </div>
+                </div>
+
+                <div class="rounded-xl bg-white border border-gray-200 p-2">
+                  <div class="text-gray-400 font-bold uppercase">
+                    Qualified
+                  </div>
+
+                  <div class="text-blue-600 font-black mt-1">
+                    ${client.qualifiedCount || 0}
+                  </div>
+                </div>
+
+                <div class="rounded-xl bg-white border border-gray-200 p-2">
+                  <div class="text-gray-400 font-bold uppercase">
+                    Credited
+                  </div>
+
+                  <div class="text-purple-600 font-black mt-1">
+                    ${client.creditedCount || 0}
+                  </div>
+                </div>
+
+                <div class="rounded-xl bg-white border border-gray-200 p-2">
+                  <div class="text-gray-400 font-bold uppercase">
+                    Lead Limit
+                  </div>
+
+                  <div class="text-gray-900 font-black mt-1">
+                    ${client.leadsPerDayLimit || 0}
+                  </div>
+                </div>
+
+                <div class="rounded-xl bg-white border border-gray-200 p-2">
+                  <div class="text-gray-400 font-bold uppercase">
+                    Sales Reps
+                  </div>
+
+                  <div class="text-gray-900 font-black mt-1">
+                    ${client.salesRepCount || 0}
+                  </div>
+                </div>
+              </div>
+
+              <div class="text-xs text-gray-600 space-y-1 mb-4">
+                <div>
+                  <span class="font-black text-gray-900">
+                    Today:
+                  </span>
+
+                  ${client.leadsToday || 0}
+                </div>
+
+                <div>
+                  <span class="font-black text-gray-900">
+                    Yesterday:
+                  </span>
+
+                  ${client.leadsYesterday || 0}
+                </div>
+
+                <div>
+                  <span class="font-black text-gray-900">
+                    Last Lead:
+                  </span>
+
+                  ${client.lastLead || "—"}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onclick="Admin.dailyAdd('${safeClientCode}')"
+                class="w-full px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-black hover:bg-blue-700 transition"
+              >
+                Add to Board
+              </button>
+            </div>
+          `;
+        })
+        .join("");
+    }
+
+    const selectedDateOnly =
+      this.dailyStrategySelectedDate;
+
+    const allAgents = Array.isArray(state.agents)
+      ? state.agents
+      : [];
+
+    const excludedRosterNames = new Set([
+      "micaella barrot",
+      "recca barrot"
+    ]);
+
+    const baseRoster = allAgents
+      .filter(agent => {
+        const name = String(
+          agent.agent_name ||
+          agent.name ||
+          ""
+        ).trim();
+
+        const employmentStatus = String(
+          agent.employment_status || ""
+        )
+          .toLowerCase()
+          .trim();
+
+        if (!name) return false;
+        if (employmentStatus !== "active") return false;
+
+        if (
+          excludedRosterNames.has(
+            name.toLowerCase()
+          )
+        ) {
+          return false;
+        }
+
+        return true;
+      })
+      .map(agent => ({
+        name: String(
+          agent.agent_name ||
+          agent.name ||
+          ""
+        ).trim(),
+
+        email: String(
+          agent.agent_email ||
+          agent.email ||
+          ""
+        )
+          .trim()
+          .toLowerCase(),
+
+        status: "",
+        lastSeen: null
+      }));
+
+    const rosterMap = new Map(
+      baseRoster.map(row => [
+        row.email || row.name.toLowerCase(),
+        row
+      ])
+    );
+
+    const dayEvents = timeEvents.filter(event => {
+      const rawTimestamp =
+        event.occurred_at_ts ||
+        event.occurred_at ||
+        event.created_at;
+
+      if (!rawTimestamp) return false;
+
+      const eventDate = new Date(rawTimestamp);
+
+      if (isNaN(eventDate.getTime())) {
+        return false;
+      }
+
+      const denverDate =
+        window.portal?.toMST
+          ? window.portal.toMST(eventDate)
+          : eventDate;
+
+      const year = denverDate.getFullYear();
+
+      const month = String(
+        denverDate.getMonth() + 1
+      ).padStart(2, "0");
+
+      const day = String(
+        denverDate.getDate()
+      ).padStart(2, "0");
+
+      return (
+        `${year}-${month}-${day}` === selectedDateOnly
+      );
+    });
+
+    dayEvents.forEach(event => {
+      const email = String(
+        event.agent_email || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const name = String(
+        event.agent_name ||
+        event.display_name ||
+        event.agent_email ||
+        "Unknown"
+      ).trim();
+
+      const status = String(
+        event.status ||
+        event.event_type ||
+        event.action ||
+        ""
+      ).toLowerCase();
+
+      const rawTimestamp =
+        event.occurred_at_ts ||
+        event.occurred_at ||
+        event.created_at;
+
+      if (
+        excludedRosterNames.has(
+          name.toLowerCase()
+        )
+      ) {
+        return;
+      }
+
+      const key = email || name.toLowerCase();
+
+      const existing = rosterMap.get(key) || {
+        name,
+        email,
+        status: "",
+        lastSeen: null
+      };
+
+      const currentTimestamp = rawTimestamp
+        ? new Date(rawTimestamp).getTime()
+        : 0;
+
+      const existingTimestamp = existing.lastSeen
+        ? new Date(existing.lastSeen).getTime()
+        : 0;
+
+      if (
+        !existing.lastSeen ||
+        currentTimestamp >= existingTimestamp
+      ) {
+        existing.name = name || existing.name;
+        existing.email = email || existing.email;
+        existing.status = status;
+        existing.lastSeen = rawTimestamp;
+      }
+
+      rosterMap.set(key, existing);
+    });
+
+    const rosterRows = Array.from(
+      rosterMap.values()
+    )
+      .filter(row => {
+        return !excludedRosterNames.has(
+          String(row.name || "")
+            .trim()
+            .toLowerCase()
+        );
+      })
+      .sort((a, b) => {
+        return String(a.name || "").localeCompare(
+          String(b.name || "")
+        );
+      });
+
+    if (!rosterRows.length) {
+      rosterEl.innerHTML = `
+        <div class="text-sm text-gray-400 italic">
+          No roster activity for this day.
+        </div>
+      `;
+    } else {
+      rosterEl.innerHTML = rosterRows
+        .map(row => {
+          const normalizedStatus = String(
+            row.status || ""
+          )
+            .toLowerCase()
+            .replace(/[_-]+/g, " ");
+
+          let badgeClass =
+            "bg-gray-100 text-gray-700";
+
+          let label = "Offline";
+
+          if (
+            normalizedStatus.includes("clock in") ||
+            normalizedStatus.includes("resume") ||
+            normalizedStatus.includes("break end")
+          ) {
+            badgeClass =
+              "bg-emerald-100 text-emerald-700";
+
+            label = "Online";
+          } else if (
+            normalizedStatus.includes("break start") ||
+            normalizedStatus === "break"
+          ) {
+            badgeClass =
+              "bg-amber-100 text-amber-700";
+
+            label = "On Break";
+          } else if (
+            normalizedStatus.includes("clock out") ||
+            normalizedStatus.includes("offline")
+          ) {
+            badgeClass =
+              "bg-gray-100 text-gray-700";
+
+            label = "Offline";
+          }
+
+          const lastActivity =
+            window.portal?.formatMSTDateTimeShort?.(
+              row.lastSeen
+            ) ||
+            row.lastSeen ||
+            "—";
+
+          return `
+            <div class="rounded-xl border border-gray-100 bg-gray-50 p-3">
+              <div class="flex items-center justify-between gap-3">
+                <div class="text-sm font-black text-gray-900">
+                  ${row.name || "Unknown"}
+                </div>
+
+                <span class="px-3 py-1 rounded-full text-[11px] font-black ${badgeClass}">
+                  ${label}
+                </span>
+              </div>
+
+              <div class="text-[11px] text-gray-400 mt-2">
+                Last activity: ${lastActivity}
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+    }
+
+    this.dailyStrategyHistoryRows = historyRows;
+
+    if (historyCountEl) {
+      historyCountEl.textContent =
+        `${this.dailyStrategyHistoryRows.length} row${
+          this.dailyStrategyHistoryRows.length === 1
+            ? ""
+            : "s"
+        }`;
+    }
+
+    if (!this.dailyStrategyHistoryRows.length) {
+      historyBodyEl.innerHTML = `
+        <tr>
+          <td colspan="8" class="p-6 text-center text-gray-400 italic">
+            No history rows for this week.
+          </td>
+        </tr>
+      `;
+    } else {
+      /*
+       * Management History renders Client Code only.
+       * The roofing-company column is intentionally omitted.
+       */
+      historyBodyEl.innerHTML =
+        this.dailyStrategyHistoryRows
+          .map(row => `
+            <tr class="hover:bg-gray-50">
+              <td class="p-4">
+                ${row.strategy_date || "—"}
+              </td>
+
+              <td class="p-4">
+                ${row.day_key || "—"}
+              </td>
+
+              <td class="p-4 font-bold text-gray-900">
+                ${row.client_code || "—"}
+              </td>
+
+              <td class="p-4 text-center font-bold text-gray-700">
+                ${row.total_leads_set ?? 0}
+              </td>
+
+              <td class="p-4 text-center font-black text-blue-600">
+                ${row.qualified_leads_set ?? 0}
+              </td>
+
+              <td class="p-4 text-center font-black text-purple-600">
+                ${row.credited_leads_set ?? 0}
+              </td>
+
+              <td class="p-4 text-center font-black text-red-500">
+                ${row.rejected_leads_set ?? 0}
+              </td>
+
+              <td class="p-4 text-gray-700">
+                ${row.assigned_agents || "—"}
+              </td>
+            </tr>
+          `)
+          .join("");
+    }
+
+    const dailySearchEl = document.getElementById(
+      "daily-client-pool-search"
+    );
+
+    if (
+      dailySearchEl &&
+      !dailySearchEl.dataset.bound
+    ) {
+      dailySearchEl.dataset.bound = "true";
+
+      dailySearchEl.addEventListener(
+        "input",
+        () => {
+          clearTimeout(
+            this._dailyPoolSearchTimer
+          );
+
+          this._dailyPoolSearchTimer = setTimeout(
+            () => this.renderDailyTab(),
+            180
+          );
+        }
+      );
+    }
+
+    const dailyStatusEl = document.getElementById(
+      "daily-client-pool-status"
+    );
+
+    if (
+      dailyStatusEl &&
+      !dailyStatusEl.dataset.bound
+    ) {
+      dailyStatusEl.dataset.bound = "true";
+
+      dailyStatusEl.addEventListener(
+        "change",
+        () => this.renderDailyTab()
+      );
+    }
+
+    this.setDailyStrategySubtab(
+      this.dailyStrategySubtab || "shift"
+    );
+  } catch (error) {
+    console.error(
+      "renderDailyTab crashed:",
+      error
+    );
+
+    boardEl.innerHTML = `
+      <div class="bg-white rounded-2xl border border-red-100 shadow-sm p-5 text-sm text-red-600">
+        Daily Strategy crashed while loading.
+      </div>
+    `;
+
+    clientPoolEl.innerHTML = `
+      <div class="text-sm text-red-500">
+        Client pool failed to load.
+      </div>
+    `;
+
+    rosterEl.innerHTML = `
+      <div class="text-sm text-red-500">
+        Roster failed to load.
+      </div>
+    `;
+
+    historyBodyEl.innerHTML = `
+      <tr>
+        <td colspan="8" class="p-6 text-center text-red-500 italic">
+          History failed to load.
+        </td>
+      </tr>
+    `;
+  }
+},
 
     refreshNotificationsTab() {
   const wrap = document.getElementById('notifications-feed');
@@ -4579,75 +6347,369 @@ openNotificationById(eventId) {
   if (item) this.openNotification(item);
 },
 
-    async dailyAdd(code) {
-  // ✅ update ALL matching rows (not just one)
-  this.clientHealthRaw.forEach(c => {
-    if (c.code === code) {
-      c.isServing = true;
-      c.addedToBoardAt = Date.now();
-      c.dailyAgents = "";
-      c.dailyGoal = 0;
-    }
+  async dailyAdd(code) {
+  const orgId =
+    window.portal?.getCurrentOrganizationId?.();
+
+  if (
+    !orgId ||
+    typeof supaClient === "undefined" ||
+    !supaClient
+  ) {
+    alert("Database connection missing.");
+    return;
+  }
+
+  const selectedWeekRow = Array.isArray(
+    this.dailyStrategyWeekRows
+  )
+    ? this.dailyStrategyWeekRows.find(
+        row =>
+          row.strategy_date ===
+          this.dailyStrategySelectedDate
+      )
+    : null;
+
+  if (!selectedWeekRow) {
+    alert("No strategy day selected.");
+    return;
+  }
+
+  const codeKey = String(code || "")
+    .trim()
+    .toLowerCase();
+
+  const client = (
+    this.clientHealthRaw || []
+  ).find(row => {
+    return (
+      String(row.code || "")
+        .trim()
+        .toLowerCase() === codeKey
+    );
   });
 
-  // ✅ force clean UI rebuild
-  this.renderDailyTab();
+  if (!client) {
+    alert("Client not found.");
+    return;
+  }
 
-  // ✅ sync to DB
-  const client = this.clientHealthRaw.find(c => c.code === code);
-  if (typeof supaClient !== 'undefined' && supaClient && client && client.rawClientId) {
-    await supaClient
-      .from('clients')
-      .update({ is_serving: true, daily_agents: "", daily_goal: 0 })
-      .eq('id', client.rawClientId);
+  const existingAssignments = Array.isArray(
+    this.dailyStrategyAssignments
+  )
+    ? this.dailyStrategyAssignments.filter(row => {
+        return (
+          String(row.client_code || "")
+            .trim()
+            .toLowerCase() === codeKey &&
+          String(row.shift_key || "morning") ===
+            String(
+              this.dailyStrategyShift || "morning"
+            )
+        );
+      })
+    : [];
+
+  if (existingAssignments.length) {
+    return;
+  }
+
+  const nextPosition =
+    (this.dailyStrategyAssignments || [])
+      .filter(
+        row =>
+          String(row.lane || "") === "next_up"
+      )
+      .reduce(
+        (maximum, row) =>
+          Math.max(
+            maximum,
+            Number(row.position_index || 0)
+          ),
+        0
+      ) + 1;
+
+  const rawClients = Array.isArray(
+    this.getState().rawClients
+  )
+    ? this.getState().rawClients
+    : [];
+
+  const rawClient =
+    rawClients.find(row => {
+      return (
+        String(
+          row.client_code ||
+          row.code_name ||
+          ""
+        )
+          .trim()
+          .toLowerCase() === codeKey
+      );
+    }) || {};
+
+  if (!rawClient.id) {
+    alert(
+      "The selected client does not have a valid client record."
+    );
+    return;
+  }
+
+  const assignedAgents = "";
+  const dailyGoal = 0;
+
+  const { error } = await supaClient.rpc(
+    "add_daily_strategy_assignment",
+    {
+      p_organization_id: orgId,
+      p_strategy_date:
+        this.dailyStrategySelectedDate,
+      p_client_id: rawClient.id,
+      p_lane: "next_up",
+      p_shift_key:
+        this.dailyStrategyShift || "morning",
+      p_assigned_agents: assignedAgents,
+      p_daily_goal: dailyGoal,
+      p_notes: "",
+      p_actor_profile_id:
+        window.portal?.currentUser?.id || null,
+      p_actor_name:
+        window.portal?.currentUser?.name ||
+        "Management",
+      p_actor_role:
+        window.portal?.currentUser?.role ||
+        "management"
+    }
+  );
+
+  if (error) {
+    console.error(
+      "dailyAdd insert failed:",
+      error
+    );
+
+    alert(
+      `Failed to add client to board: ${
+        error.message || "Unknown error"
+      }`
+    );
+
+    return;
+  }
+
+  await this.renderDailyTab();
+},
+
+async updateDailyAssignment(
+  assignmentId,
+  field,
+  value
+) {
+  if (
+    !assignmentId ||
+    typeof supaClient === "undefined" ||
+    !supaClient
+  ) {
+    alert("Database connection missing.");
+    return;
+  }
+
+  const permittedFields = new Set([
+    "assigned_agents",
+    "daily_goal"
+  ]);
+
+  if (!permittedFields.has(field)) {
+    console.error(
+      "Unsupported Daily Strategy field:",
+      field
+    );
+
+    return;
+  }
+
+  const payload = {
+    [field]:
+      field === "daily_goal"
+        ? Number(value) || 0
+        : String(value || "")
+  };
+
+  const { error } = await supaClient
+    .from("daily_strategy_assignments")
+    .update(payload)
+    .eq("id", assignmentId);
+
+  if (error) {
+    console.error(
+      "updateDailyAssignment failed:",
+      error
+    );
+
+    alert(
+      `Failed to update board card: ${
+        error.message || "Unknown error"
+      }`
+    );
+
+    return;
+  }
+
+  const localRow = (
+    this.dailyStrategyAssignments || []
+  ).find(row => {
+    return (
+      String(row.id) ===
+      String(assignmentId)
+    );
+  });
+
+  if (localRow) {
+    localRow[field] = payload[field];
+  }
+
+  /*
+   * Do not rerender after saving Assigned Agents.
+   * This prevents the textarea from losing focus
+   * and stops the page from jumping.
+   */
+  if (field !== "assigned_agents") {
+    await this.renderDailyTab();
   }
 },
 
-    async dailyRemove(btnElement, code) {
-  // ✅ remove visually immediately
-  if (btnElement) {
-    const card = btnElement.closest('.relative.rounded-xl');
-    if (card) card.remove();
+async removeDailyAssignment(assignmentId) {
+  if (
+    !assignmentId ||
+    typeof supaClient === "undefined" ||
+    !supaClient
+  ) {
+    alert("Database connection missing.");
+    return;
   }
 
-  // ✅ update ALL rows in memory
-  this.clientHealthRaw.forEach(c => {
-    if (c.code === code) {
-      c.isServing = false;
-    }
-  });
+  const { error: childError } = await supaClient
+    .from("daily_strategy_events")
+    .delete()
+    .eq(
+      "strategy_assignment_id",
+      assignmentId
+    );
 
-  // ✅ re-render clean state
-  this.renderDailyTab();
+  if (childError) {
+    console.error(
+      "removeDailyAssignment child delete failed:",
+      childError
+    );
 
-  // ✅ sync to DB
-  const client = this.clientHealthRaw.find(c => c.code === code);
-  if (typeof supaClient !== 'undefined' && supaClient && client && client.rawClientId) {
-    try {
-      await supaClient
-        .from('clients')
-        .update({ is_serving: false })
-        .eq('id', client.rawClientId);
-    } catch (e) {
-      console.error("DB Sync Failed:", e);
-    }
+    alert(
+      `Failed to remove board activity rows: ${
+        childError.message || "Unknown error"
+      }`
+    );
+
+    return;
   }
+
+  const { error } = await supaClient
+    .from("daily_strategy_assignments")
+    .delete()
+    .eq("id", assignmentId);
+
+  if (error) {
+    console.error(
+      "removeDailyAssignment failed:",
+      error
+    );
+
+    alert(
+      `Failed to remove board card: ${
+        error.message || "Unknown error"
+      }`
+    );
+
+    return;
+  }
+
+  await this.renderDailyTab();
 },
 
-      async dailyUpdate(code, field, value) {
-          const client = this.clientHealthRaw.find(c => c.code === code);
-          if (!client) return;
+async moveDailyAssignment(
+  assignmentId,
+  targetLane
+) {
+  if (
+    !assignmentId ||
+    !targetLane ||
+    typeof supaClient === "undefined" ||
+    !supaClient
+  ) {
+    alert("Database connection missing.");
+    return;
+  }
 
-          if (field === 'daily_goal') client.dailyGoal = Number(value) || 0;
-          if (field === 'daily_agents') client.dailyAgents = value;
+  const permittedLanes = new Set([
+    "serving_now",
+    "next_up"
+  ]);
 
-          // Target exact Row ID for typing and goals
-          if (typeof supaClient !== 'undefined' && supaClient && client.rawClientId) {
-              const payload = {};
-              payload[field] = field === 'daily_goal' ? (Number(value) || 0) : value;
-              await supaClient.from('clients').update(payload).eq('id', client.rawClientId); 
-          }
-      },
+  if (!permittedLanes.has(targetLane)) {
+    console.error(
+      "Unsupported Daily Strategy lane:",
+      targetLane
+    );
+
+    return;
+  }
+
+  const laneRows = (
+    this.dailyStrategyAssignments || []
+  ).filter(row => {
+    return (
+      String(row.lane || "") ===
+        String(targetLane) &&
+      String(row.shift_key || "morning") ===
+        String(
+          this.dailyStrategyShift || "morning"
+        )
+    );
+  });
+
+  const nextPosition =
+    laneRows.reduce(
+      (maximum, row) =>
+        Math.max(
+          maximum,
+          Number(row.position_index || 0)
+        ),
+      0
+    ) + 1;
+
+  const { error } = await supaClient
+    .from("daily_strategy_assignments")
+    .update({
+      lane: targetLane,
+      position_index: nextPosition
+    })
+    .eq("id", assignmentId);
+
+  if (error) {
+    console.error(
+      "moveDailyAssignment failed:",
+      error
+    );
+
+    alert(
+      `Failed to move board card: ${
+        error.message || "Unknown error"
+      }`
+    );
+
+    return;
+  }
+
+  await this.renderDailyTab();
+},
 
             bindClientHealthExpandUI() {
         if (this._clientHealthExpandBound) return;
@@ -4704,19 +6766,19 @@ openNotificationById(eventId) {
 
         this.currentView = viewId;
 
-               if (viewId === "notifications") {
-          try {
-            this.loadNotifications(true);
-          } catch(e) {
-            console.error("Notifications load error:", e);
-          }
-        }
-
         if (viewId === "clients") {
           try {
             this.refreshPassbookMentionHighlights();
           } catch(e) {
             console.error("Passbook note highlight error:", e);
+
+              if (viewId === "daily") {
+  try {
+    this.renderDailyTab();
+  } catch (e) {
+    console.error("Daily Strategy reload error:", e);
+  }
+}
           }
         }
       }
