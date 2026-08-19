@@ -1095,7 +1095,7 @@ body.client-health-lock {
 <tr>
 <th class="p-3">Date Submitted</th>
 <th class="p-3">Lead ID</th>
-<th class="p-3">Roofing Company</th>
+<th class="p-3">Client Code</th>
 <th class="p-3">Appointment Coordinator Name</th>
 <th class="p-3">Homeowner Name(s)</th>
 <th class="p-3">Email of Homeowner</th>
@@ -1836,16 +1836,16 @@ else if (hs === "HEALTHY") dotClass = "st-healthy";
         ];
       },
 
-            getLeadsDefaultVisibleCols() {
-        return new Set([
-          "date_submitted",
-          "homeowner_name",
-          "appointment_coordinator",
-          "roofing_company",
-          "feedback",
-          "status"
-        ]);
-      },
+           getLeadsDefaultVisibleCols() {
+  return new Set([
+    "date_submitted",
+    "homeowner_name",
+    "appointment_coordinator",
+    "client_code",
+    "feedback",
+    "status"
+  ]);
+},
 
       getLeadDateObj(l) {
         const dStr = this.getLeadField(l, ["Date Submitted", "date_submitted", "DATE"], "");
@@ -3149,11 +3149,11 @@ this._renderPassbookForm(data[0]);
 ];
         document.getElementById("passbook-modal-title").textContent = codeName;
 document.getElementById("passbook-modal-sub").textContent = cityState;
-        const codeName = safeStr(raw.client_code) || "—";
-        const cityState = safeStr(raw.area || raw.city_state) || "—";
+       const codeName = safeStr(raw.client_code) || "—";
+const cityState = safeStr(raw.area || raw.city_state) || "—";
 
-        document.getElementById("passbook-modal-title").textContent = companyName;
-        document.getElementById("passbook-modal-sub").textContent = `Code: ${codeName} • ${cityState}`;
+document.getElementById("passbook-modal-title").textContent = codeName;
+document.getElementById("passbook-modal-sub").textContent = cityState;
         document.getElementById("codeName").value = codeName;
 
         let detailsHtml = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
@@ -3931,34 +3931,52 @@ document.getElementById("passbook-modal-sub").textContent = cityState;
       },
 
                         renderPassbookList(clients) {
-        const canDeletePassbook = false;
+  const body = document.getElementById("passbook-list-body");
+  if (!body) return;
 
-        document.getElementById("passbook-list-body").innerHTML = (clients || []).map(client => `
-          <tr class="hover:bg-gray-50 transition-all" data-passbook-code="${this.extractCode(client)}" data-passbook-client-code="${this.extractCode(client)}">
-            <td class="p-4">${this.extractCode(client)}</td>
-            <td class="p-4">${this.extractClientName(client)}</td>
-            <td class="p-4">${this.extractCityState(client)}</td>
-            <td class="p-4">${this.extractClientName(client)}</td>
-            <td class="p-4 text-right">
-              <div style="display:inline-flex; align-items:center; gap:8px; margin-right:15px;">
-                <span class="px-2 py-1 rounded-full text-[10px] font-extrabold border shadow-sm ${window.getClientStatusColor ? getClientStatusColor(client.client_status) : ''}">
-                  ${String(client.client_status || 'Inactive').toUpperCase()}
-                </span>
+  body.innerHTML = (clients || []).map(client => {
+    const code = this.extractCode(client);
+    const safeCode = String(code).replace(/'/g, "\\'");
 
-                ${canDeletePassbook ? `
-                <button onclick="deletePassbookClient('${client.id}', '${client.company_name}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Client">
-                  <i class="fa-solid fa-trash-can"></i>
-                </button>
-                ` : ``}
-              </div>
+    return `
+      <tr
+        class="hover:bg-gray-50 transition-all"
+        data-passbook-code="${code}"
+        data-passbook-client-code="${code}"
+      >
+        <td class="p-4 font-bold text-gray-900">
+          ${code}
+        </td>
 
-              <button class="px-3 py-1 rounded bg-gray-900 text-white text-xs" onclick="Admin.openPassbookClient('${this.extractCode(client)}')">Open</button>
-            </td>
-          </tr>
-        `).join("");
+        <td class="p-4 text-gray-600">
+          ${this.extractCityState(client)}
+        </td>
 
-        this.paintCurrentCardsRed();
-      },
+        <td class="p-4 text-right">
+          <div class="inline-flex items-center gap-2">
+            <span class="px-2 py-1 rounded-full text-[10px] font-extrabold border shadow-sm ${
+              window.getClientStatusColor
+                ? window.getClientStatusColor(client.client_status)
+                : ""
+            }">
+              ${String(client.client_status || "Inactive").toUpperCase()}
+            </span>
+
+            <button
+              type="button"
+              class="px-3 py-1 rounded bg-gray-900 text-white text-xs"
+              onclick="Admin.openPassbookClient('${safeCode}')"
+            >
+              Open
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  this.paintCurrentCardsRed();
+},
 
       bindPassbookUI(clients) {
         if (this._passbookFiltersBound) return; this._passbookFiltersBound = true;
@@ -4372,7 +4390,20 @@ document.getElementById("passbook-modal-sub").textContent = cityState;
           <tr>
             <td class="p-3">${this.getLeadField(l, ["date_submitted", "Date Submitted"])}</td>
             <td class="p-3">${this.getLeadField(l, ["lead_id", "LEAD ID"])}</td>
-            <td class="p-3">${this.getLeadField(l, ["company_name", "Company Name", "Roofing Company"])}</td>
+            <td class="p-3">${
+  this.getLeadField(
+    l,
+    [
+      "client_code",
+      "Client Code",
+      "CLIENT CODE",
+      "code_name",
+      "Code Name",
+      "CODE NAME"
+    ],
+    "—"
+  )
+}</td>
             <td class="p-3">${this.getLeadField(l, ["appointment_coordinator_name", "Appointment Coordinator Name", "agent_name"])}</td>
             <td class="p-3">${this.getLeadField(l, ["homeowner_names", "Homeowner Name(s)"])}</td>
             <td class="p-3">${this.getLeadField(l, ["email_of_homeowner", "Email of Homeowner"])}</td>
@@ -6751,35 +6782,98 @@ async moveDailyAssignment(
         }
       },
 
+        setDailyStrategySubtab(tab) {
+  this.dailyStrategySubtab =
+    tab === "history" ? "history" : "shift";
+
+  const historyBtn = document.getElementById("daily-tab-history");
+  const boardView = document.getElementById("dailyStrategyBoardView");
+  const historyView = document.getElementById("dailyStrategyHistoryView");
+
+  if (historyBtn) {
+    historyBtn.className =
+      this.dailyStrategySubtab === "history"
+        ? "px-4 py-2 rounded-2xl bg-white text-slate-900 text-xs font-black shadow"
+        : "px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black";
+  }
+
+  if (boardView && historyView) {
+    boardView.classList.toggle(
+      "hidden",
+      this.dailyStrategySubtab === "history"
+    );
+
+    historyView.classList.toggle(
+      "hidden",
+      this.dailyStrategySubtab !== "history"
+    );
+  }
+},
+
+selectDailyStrategyDate(dateStr) {
+  this.dailyStrategySelectedDate = dateStr;
+  this.renderDailyTab();
+},
+
+setDailyHistorySort(key) {
+  if (!this.dailyStrategyHistorySort) {
+    this.dailyStrategyHistorySort = {
+      key: "client_code",
+      dir: "asc"
+    };
+  }
+
+  if (this.dailyStrategyHistorySort.key === key) {
+    this.dailyStrategyHistorySort.dir =
+      this.dailyStrategyHistorySort.dir === "asc"
+        ? "desc"
+        : "asc";
+  } else {
+    this.dailyStrategyHistorySort.key = key;
+    this.dailyStrategyHistorySort.dir =
+      key === "client_code" ? "asc" : "desc";
+  }
+
+  this.renderDailyTab();
+},
+
       setView(viewId) {
   const linkEl = document.querySelector(`.nav-item[href="#${viewId}"]`);
   this.nav(viewId, linkEl);
 },
       
             nav(viewId, linkEl) {
-        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-        const target = document.getElementById('view-' + viewId);
-        if (target) target.classList.add('active');
+  document.querySelectorAll(".view-section").forEach(element => {
+    element.classList.remove("active");
+  });
 
-        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        if (linkEl) linkEl.classList.add('active');
+  const target = document.getElementById(`view-${viewId}`);
+  if (target) target.classList.add("active");
 
-        this.currentView = viewId;
+  document.querySelectorAll(".nav-item").forEach(element => {
+    element.classList.remove("active");
+  });
 
-        if (viewId === "clients") {
-          try {
-            this.refreshPassbookMentionHighlights();
-          } catch(e) {
-            console.error("Passbook note highlight error:", e);
+  if (linkEl) linkEl.classList.add("active");
 
-              if (viewId === "daily") {
-  try {
-    this.renderDailyTab();
-  } catch (e) {
-    console.error("Daily Strategy reload error:", e);
+  this.currentView = viewId;
+
+  if (viewId === "clients") {
+    try {
+      this.refreshPassbookMentionHighlights();
+    } catch (error) {
+      console.error("Passbook note highlight error:", error);
+    }
+  }
+
+  if (viewId === "daily") {
+    try {
+      this.renderDailyTab();
+    } catch (error) {
+      console.error("Daily Strategy reload error:", error);
+    }
   }
 }
-          }
         }
       }
     };
