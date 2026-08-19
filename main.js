@@ -754,7 +754,12 @@ setupCommandCenterRealtime() {
       },
       async () => {
         try {
- await window.Admin?.loadNotifications?.(true);
+const role = String(this.currentUser?.role || "").toLowerCase();
+
+if (role !== "management") {
+  await window.Admin?.loadNotifications?.(true);
+}
+
 await window.Admin?.loadPassbookModuleInbox?.();
 await window.Admin?.loadSalesPassbookAckInbox?.();
 } catch (err) {
@@ -770,13 +775,11 @@ await window.Admin?.loadSalesPassbookAckInbox?.();
         table: 'command_center_notes',
         filter: `organization_id=eq.${organizationId}`
       },
-      async () => {
-        try {
-          if (window.Admin?.currentView === 'notifications') {
-            await window.Admin.loadNotes();
-          } else {
-            await window.Admin.loadNotes();
-          }
+      const role = String(this.currentUser?.role || "").toLowerCase();
+
+if (role !== "management") {
+  await window.Admin?.loadNotes?.();
+}
         } catch (err) {
           console.error('Realtime notes refresh failed:', err);
         }
