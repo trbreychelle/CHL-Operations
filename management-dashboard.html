@@ -3147,15 +3147,12 @@ this._renderPassbookForm(data[0]);
   { label: "Double Bookings", key: "double_bookings" },
   { label: "Additional Notes / Requests", key: "additional_notes" }
 ];
-        document.getElementById("passbook-modal-title").textContent = codeName;
-document.getElementById("passbook-modal-sub").textContent = cityState;
        const codeName = safeStr(raw.client_code) || "—";
 const cityState = safeStr(raw.area || raw.city_state) || "—";
 
 document.getElementById("passbook-modal-title").textContent = codeName;
 document.getElementById("passbook-modal-sub").textContent = cityState;
-        document.getElementById("codeName").value = codeName;
-
+document.getElementById("codeName").value = codeName;
         let detailsHtml = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
 
         for (const f of fields) {
@@ -6866,7 +6863,7 @@ setDailyHistorySort(key) {
     }
   }
 
-  if (viewId === "daily") {
+    if (viewId === "daily") {
     try {
       this.renderDailyTab();
     } catch (error) {
@@ -6874,11 +6871,9 @@ setDailyHistorySort(key) {
     }
   }
 }
-        }
-      }
-    };
+};
 
-    AdminDashboard.setNotificationsTab = function(tab) {
+AdminDashboard.setNotificationsTab = function(tab) {
   this.notificationsTab = tab || 'open';
 
   const tabs = ['open', 'done', 'all'];
