@@ -6,6 +6,13 @@ on:
       - main
     paths:
       - .github/workflows/apply-mikaela-sales-rate.yml
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
   workflow_dispatch:
 
 permissions:
@@ -13,6 +20,7 @@ permissions:
 
 jobs:
   repair:
+    if: ${{ github.event_name != 'pull_request' || github.head_ref == 'fix/mikaela-sales-rate-2026-08-08' }}
     runs-on: ubuntu-latest
 
     steps:
