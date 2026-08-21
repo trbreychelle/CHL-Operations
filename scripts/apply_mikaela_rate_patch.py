@@ -1,7 +1,7 @@
 from pathlib import Path
 import re
 
-CHANGED = []
+CHANGED: list[str] = []
 
 
 def read_text(path: str) -> str:
@@ -14,9 +14,17 @@ def write_text(path: str, text: str) -> None:
         handle.write(text)
 
 
-def localize_newlines(text: str, replacement: str) -> str:
-    newline = "\r\n" if "\r\n" in text else "\n"
-    return replacement.replace("\n", newline)
+def newline_for(text: str) -> str:
+    return "\r\n" if "\r\n" in text else "\n"
+
+
+def localize_newlines(text: str, value: str) -> str:
+    return value.replace("\n", newline_for(text))
+
+
+def mark_changed(path: str) -> None:
+    if path not in CHANGED:
+        CHANGED.append(path)
 
 
 def replace_regex(
@@ -29,7 +37,16 @@ def replace_regex(
 ) -> int:
     text = read_text(path)
     localized = localize_newlines(text, replacement)
-    updated, count = re.subn(pattern, localized, text, count=1, flags=re.S)
+
+    # A callback is intentional: re.sub replacement strings interpret backslashes,
+    # while the generated JavaScript contains regex escapes such as \d.
+    updated, count = re.subn(
+        pattern,
+        lambda _match: localized,
+        text,
+        count=1,
+        flags=re.S,
+    )
 
     if required and count != 1:
         raise RuntimeError(
@@ -38,7 +55,7 @@ def replace_regex(
 
     if count:
         write_text(path, updated)
-        CHANGED.append(path)
+        mark_changed(path)
         print(f"Updated {label} in {path}")
 
     return count
@@ -87,24 +104,29 @@ function getSalesLeadRateForDeal(category, purchaseDateValue) {
     return SALES_RATE_POLICY.standardRate;
 }"""
 
-replace_regex(
-    "main.js",
-    r"function getSalesLeadRateForDeal\(category, purchaseDateValue\) \{.*?\r?\n\}",
-    MAIN_RATE_POLICY,
-    "central rate policy",
-    required=True,
-)
+main_text = read_text("main.js")
 
-replace_regex(
-    "main.js",
-    r"function isSalesRepDealEntryContext\(\) \{.*?\r?\n\}",
-    """function isSalesRepDealEntryContext() {
+if "const SALES_RATE_POLICY = Object.freeze({" not in main_text:
+    replace_regex(
+        "main.js",
+        r"function getSalesLeadRateForDeal\(category, purchaseDateValue\) \{.*?\r?\n\}",
+        MAIN_RATE_POLICY,
+        "central rate policy",
+        required=True,
+    )
+
+main_text = read_text("main.js")
+if "// Every access level now uses the same category/date commission policy." not in main_text:
+    replace_regex(
+        "main.js",
+        r"function isSalesRepDealEntryContext\(\) \{.*?\r?\n\}",
+        """function isSalesRepDealEntryContext() {
     // Every access level now uses the same category/date commission policy.
     return false;
 }""",
-    "shared commission mode for every access level",
-    required=True,
-)
+        "shared commission mode for every access level",
+        required=True,
+    )
 
 main_text = read_text("main.js")
 export_marker = "window.calculateAutoSalesCommission = calculateAutoSalesCommission;"
@@ -112,7 +134,7 @@ if export_marker not in main_text:
     raise RuntimeError("Could not find the sales calculator export in main.js")
 
 if "window.getSalesLeadRateForDeal = getSalesLeadRateForDeal;" not in main_text:
-    newline = "\r\n" if "\r\n" in main_text else "\n"
+    newline = newline_for(main_text)
     replacement = newline.join(
         [
             "window.SALES_RATE_POLICY = SALES_RATE_POLICY;",
@@ -122,9 +144,9 @@ if "window.getSalesLeadRateForDeal = getSalesLeadRateForDeal;" not in main_text:
     )
     main_text = main_text.replace(export_marker, replacement, 1)
     write_text("main.js", main_text)
-    if "main.js" not in CHANGED:
-        CHANGED.append("main.js")
+    mark_changed("main.js")
     print("Exported the shared rate policy from main.js")
+
 
 SHARED_RATE_WRAPPER = """const getSalesLeadRate = (category, purchaseDateValue) => {
   if (typeof window.getSalesLeadRateForDeal !== "function") {
@@ -138,26 +160,34 @@ ADMIN_STYLE_PATTERN = (
     r".*?\r?\n\};"
 )
 
-replace_regex(
-    "admin-dashboard.html",
-    ADMIN_STYLE_PATTERN,
-    SHARED_RATE_WRAPPER,
-    "admin shared-rate wrapper",
-    required=True,
-)
+admin_text = read_text("admin-dashboard.html")
+if "return window.getSalesLeadRateForDeal(category, purchaseDateValue);" not in admin_text:
+    replace_regex(
+        "admin-dashboard.html",
+        ADMIN_STYLE_PATTERN,
+        SHARED_RATE_WRAPPER,
+        "admin shared-rate wrapper",
+        required=True,
+    )
 
 for optional_path in (
     "management-dashboard.html",
     "salesdashboard.html",
     "salesrep-dashboard.html",
 ):
-    replace_regex(
-        optional_path,
-        ADMIN_STYLE_PATTERN,
-        SHARED_RATE_WRAPPER,
-        "optional shared-rate wrapper",
-        required=False,
-    )
+    optional_text = read_text(optional_path)
+    if (
+        "const getSalesLeadRate = (category, purchaseDateValue) => {" in optional_text
+        and "return window.getSalesLeadRateForDeal(category, purchaseDateValue);" not in optional_text
+    ):
+        replace_regex(
+            optional_path,
+            ADMIN_STYLE_PATTERN,
+            SHARED_RATE_WRAPPER,
+            "optional shared-rate wrapper",
+            required=True,
+        )
+
 
 SHARED_SALES_RENDER = """const salesFinancials = window.calculateAutoSalesCommission(
   purchasedAmount,
@@ -177,27 +207,32 @@ INLINE_RATE_PATTERN = (
     r"\s*const commVal = Math\.max\(0, dealVal - totalLeadCost\);"
 )
 
-replace_regex(
-    "salesdashboard.html",
-    INLINE_RATE_PATTERN,
-    SHARED_SALES_RENDER,
-    "sales-access shared calculator",
-    required=True,
-)
+sales_text = read_text("salesdashboard.html")
+if "const salesFinancials = window.calculateAutoSalesCommission(" not in sales_text:
+    replace_regex(
+        "salesdashboard.html",
+        INLINE_RATE_PATTERN,
+        SHARED_SALES_RENDER,
+        "sales-access shared calculator",
+        required=True,
+    )
 
-replace_regex(
-    "salesrep-dashboard.html",
-    r"const commVal = Number\(\s*p\.manual_commission \?\?\s*p\.commission \?\?\s*p\.commission_per_lead \?\?\s*0\s*\) \|\| 0;",
-    """const salesFinancials = window.calculateAutoSalesCommission(
+
+salesrep_text = read_text("salesrep-dashboard.html")
+if "const commVal = salesFinancials.commission;" not in salesrep_text:
+    replace_regex(
+        "salesrep-dashboard.html",
+        r"const commVal = Number\(\s*p\.manual_commission \?\?\s*p\.commission \?\?\s*p\.commission_per_lead \?\?\s*0\s*\) \|\| 0;",
+        """const salesFinancials = window.calculateAutoSalesCommission(
   Number(p.purchased_leads) || 0,
   dealVal,
   soldBy,
   p.purchase_date
 );
 const commVal = salesFinancials.commission;""",
-    "sales-rep shared table calculator",
-    required=True,
-)
+        "sales-rep shared table calculator",
+        required=True,
+    )
 
 salesrep_text = read_text("salesrep-dashboard.html")
 for old, new in (
@@ -207,30 +242,35 @@ for old, new in (
     ),
     ("Manual Commission ($)", "Commission ($)"),
 ):
-    if old not in salesrep_text:
-        raise RuntimeError(f"Could not find sales-rep UI text: {old}")
-    salesrep_text = salesrep_text.replace(old, new, 1)
+    if old in salesrep_text:
+        salesrep_text = salesrep_text.replace(old, new, 1)
 
+newline = newline_for(salesrep_text)
 open_marker = "document.getElementById('sale-category').value = \"Mikaela\";"
-if open_marker not in salesrep_text:
-    raise RuntimeError("Could not find sales-rep Add Deal category marker")
-salesrep_text = salesrep_text.replace(
-    open_marker,
-    open_marker + "\n    window.installSaleCommissionAutoCalc?.();",
-    1,
-)
+open_call = "window.installSaleCommissionAutoCalc?.();"
+if open_marker in salesrep_text:
+    open_pos = salesrep_text.index(open_marker)
+    nearby = salesrep_text[open_pos : open_pos + len(open_marker) + 120]
+    if open_call not in nearby:
+        salesrep_text = salesrep_text.replace(
+            open_marker,
+            open_marker + newline + "    " + open_call,
+            1,
+        )
 
 edit_marker = (
     "document.getElementById('sale-category').value = "
     "pkg.sales_category || \"Mikaela\";"
 )
-if edit_marker not in salesrep_text:
-    raise RuntimeError("Could not find sales-rep Edit Deal category marker")
-salesrep_text = salesrep_text.replace(
-    edit_marker,
-    edit_marker + "\n    window.installSaleCommissionAutoCalc?.();",
-    1,
-)
+if edit_marker in salesrep_text:
+    edit_pos = salesrep_text.index(edit_marker)
+    nearby = salesrep_text[edit_pos : edit_pos + len(edit_marker) + 120]
+    if open_call not in nearby:
+        salesrep_text = salesrep_text.replace(
+            edit_marker,
+            edit_marker + newline + "    " + open_call,
+            1,
+        )
 
 OLD_PAYLOAD = """        const payload = {
     client_code: clientCode,
@@ -271,14 +311,19 @@ NEW_PAYLOAD = """        const purchasedLeads = parseInt(document.getElementById
    sales_category: salesCategory
 };"""
 
-old_payload_local = localize_newlines(salesrep_text, OLD_PAYLOAD)
-new_payload_local = localize_newlines(salesrep_text, NEW_PAYLOAD)
-if old_payload_local not in salesrep_text:
-    raise RuntimeError("Could not find sales-rep save payload")
-salesrep_text = salesrep_text.replace(old_payload_local, new_payload_local, 1)
-write_text("salesrep-dashboard.html", salesrep_text)
-if "salesrep-dashboard.html" not in CHANGED:
-    CHANGED.append("salesrep-dashboard.html")
+if "const commissionValue = window.calculateAutoSalesCommission(" not in salesrep_text:
+    old_payload = localize_newlines(salesrep_text, OLD_PAYLOAD)
+    new_payload = localize_newlines(salesrep_text, NEW_PAYLOAD)
+    if old_payload not in salesrep_text:
+        raise RuntimeError("Could not find sales-rep save payload")
+    salesrep_text = salesrep_text.replace(old_payload, new_payload, 1)
+
+original_salesrep = read_text("salesrep-dashboard.html")
+if salesrep_text != original_salesrep:
+    write_text("salesrep-dashboard.html", salesrep_text)
+    mark_changed("salesrep-dashboard.html")
+    print("Updated sales-rep modal, table, and save behavior")
+
 
 legacy_markers = {
     "main.js": [
@@ -287,9 +332,13 @@ legacy_markers = {
     "admin-dashboard.html": [
         'return normalizeSalesCategory(category) === "TRB" ? 100 : 135;',
     ],
+    "salesdashboard.html": [
+        "const ratePerLead = purchaseDateObj && purchaseDateObj >= new Date",
+    ],
     "salesrep-dashboard.html": [
         "Track Mikaela deals only and use manual commission entry.",
         "commission_per_lead: parseFloat(document.getElementById('sale-commission').value) || 0",
+        "p.manual_commission ??",
     ],
 }
 
@@ -299,6 +348,30 @@ for path, markers in legacy_markers.items():
         if marker in text:
             raise RuntimeError(f"Legacy sales-rate behavior remains in {path}: {marker}")
 
+required_markers = {
+    "main.js": [
+        "mikaelaEffectiveDate: '2026-08-08'",
+        "mikaelaRate: 150",
+        "window.getSalesLeadRateForDeal = getSalesLeadRateForDeal;",
+    ],
+    "admin-dashboard.html": [
+        "return window.getSalesLeadRateForDeal(category, purchaseDateValue);",
+    ],
+    "salesdashboard.html": [
+        "const salesFinancials = window.calculateAutoSalesCommission(",
+    ],
+    "salesrep-dashboard.html": [
+        "const salesFinancials = window.calculateAutoSalesCommission(",
+        "const commissionValue = window.calculateAutoSalesCommission(",
+    ],
+}
+
+for path, markers in required_markers.items():
+    text = read_text(path)
+    for marker in markers:
+        if marker not in text:
+            raise RuntimeError(f"Required shared-rate behavior is missing in {path}: {marker}")
+
 print("Files changed:")
-for path in sorted(set(CHANGED)):
+for path in sorted(CHANGED):
     print(f" - {path}")
