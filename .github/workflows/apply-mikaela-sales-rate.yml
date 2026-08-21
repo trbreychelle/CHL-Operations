@@ -1,25 +1,28 @@
 name: Apply Mikaela sales-rate policy
 
 on:
-  push:
+  pull_request:
     branches:
-      - fix/mikaela-sales-rate-2026-08-08
-    paths:
-      - .github/workflows/apply-mikaela-sales-rate.yml
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 permissions:
   contents: write
+  pull-requests: read
 
 jobs:
   apply-rate-policy:
-    if: ${{ github.event.head_commit.message == 'chore: install Mikaela sales-rate patcher' }}
+    if: ${{ github.head_ref == 'fix/mikaela-sales-rate-2026-08-08' }}
     runs-on: ubuntu-latest
 
     steps:
       - name: Check out repair branch
         uses: actions/checkout@v4
         with:
-          ref: fix/mikaela-sales-rate-2026-08-08
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
 
       - name: Apply one shared sales-rate policy
@@ -105,6 +108,17 @@ jobs:
               required=True,
           )
 
+          replace_regex(
+              "main.js",
+              r"function isSalesRepDealEntryContext\(\) \{.*?\r?\n\}",
+              '''function isSalesRepDealEntryContext() {
+              // Every access level now uses the same category/date commission policy.
+              return false;
+          }''',
+              "shared commission mode for every access level",
+              required=True,
+          )
+
           main_text = read_text("main.js")
           export_marker = "window.calculateAutoSalesCommission = calculateAutoSalesCommission;"
           if export_marker not in main_text:
@@ -134,7 +148,7 @@ jobs:
               r".*?\r?\n\};"
           )
 
-          admin_matches = replace_regex(
+          replace_regex(
               "admin-dashboard.html",
               admin_style_pattern,
               shared_rate_wrapper,
@@ -179,11 +193,89 @@ jobs:
 
           replace_regex(
               "salesrep-dashboard.html",
-              inline_rate_pattern,
-              shared_sales_render,
-              "sales-rep shared calculator",
-              required=False,
+              r"const commVal = Number\(\s*p\.manual_commission \?\?\s*p\.commission \?\?\s*p\.commission_per_lead \?\?\s*0\s*\) \|\| 0;",
+              '''const salesFinancials = window.calculateAutoSalesCommission(
+              Number(p.purchased_leads) || 0,
+              dealVal,
+              soldBy,
+              p.purchase_date
+            );
+            const commVal = salesFinancials.commission;''',
+              "sales-rep shared table calculator",
+              required=True,
           )
+
+          salesrep_text = read_text("salesrep-dashboard.html")
+          replacements = [
+              (
+                  "Track Mikaela deals only and use manual commission entry.",
+                  "Track Mikaela and Hammer deals using the shared commission policy."
+              ),
+              ("Manual Commission ($)", "Commission ($)"),
+          ]
+          for old, new in replacements:
+              if old in salesrep_text:
+                  salesrep_text = salesrep_text.replace(old, new, 1)
+              else:
+                  raise RuntimeError(f"Could not find sales-rep UI text: {old}")
+
+          open_marker = "document.getElementById('sale-category').value = \"Mikaela\";"
+          open_insertion = open_marker + "\n    window.installSaleCommissionAutoCalc?.();"
+          if open_marker not in salesrep_text:
+              raise RuntimeError("Could not find sales-rep Add Deal category marker")
+          salesrep_text = salesrep_text.replace(open_marker, open_insertion, 1)
+
+          edit_marker = "document.getElementById('sale-category').value = pkg.sales_category || \"Mikaela\";"
+          edit_insertion = edit_marker + "\n    window.installSaleCommissionAutoCalc?.();"
+          if edit_marker not in salesrep_text:
+              raise RuntimeError("Could not find sales-rep Edit Deal category marker")
+          salesrep_text = salesrep_text.replace(edit_marker, edit_insertion, 1)
+
+          old_payload = '''        const payload = {
+    client_code: clientCode,
+    purchased_leads: parseInt(document.getElementById('sale-leads').value) || 0,
+    amount: parseFloat(document.getElementById('sale-value').value) || 0,
+    commission_per_lead: parseFloat(document.getElementById('sale-commission').value) || 0,
+    purchase_date: document.getElementById('sale-date').value,
+    external_package_id: document.getElementById('sale-transaction-id').value,
+    status: "Active",
+    deal_status: document.getElementById('sale-deal-status').value,
+    deal_type: document.getElementById('sale-deal-type').value,
+   sales_category: document.getElementById('sale-category').value
+};'''
+          new_payload = '''        const purchasedLeads = parseInt(document.getElementById('sale-leads').value) || 0;
+        const dealAmount = parseFloat(document.getElementById('sale-value').value) || 0;
+        const purchaseDate = document.getElementById('sale-date').value;
+        const salesCategory = document.getElementById('sale-category').value;
+        const commissionValue = window.calculateAutoSalesCommission(
+          purchasedLeads,
+          dealAmount,
+          salesCategory,
+          purchaseDate
+        ).commission;
+
+        document.getElementById('sale-commission').value = commissionValue.toFixed(2);
+
+        const payload = {
+    client_code: clientCode,
+    purchased_leads: purchasedLeads,
+    amount: dealAmount,
+    commission_per_lead: commissionValue,
+    purchase_date: purchaseDate,
+    external_package_id: document.getElementById('sale-transaction-id').value,
+    status: "Active",
+    deal_status: document.getElementById('sale-deal-status').value,
+    deal_type: document.getElementById('sale-deal-type').value,
+   sales_category: salesCategory
+};'''
+          old_payload_local = localize_newlines(salesrep_text, old_payload)
+          new_payload_local = localize_newlines(salesrep_text, new_payload)
+          if old_payload_local not in salesrep_text:
+              raise RuntimeError("Could not find sales-rep save payload")
+          salesrep_text = salesrep_text.replace(old_payload_local, new_payload_local, 1)
+          write_text("salesrep-dashboard.html", salesrep_text)
+          if "salesrep-dashboard.html" not in changed:
+              changed.append("salesrep-dashboard.html")
 
           legacy_markers = {
               "main.js": [
@@ -192,9 +284,9 @@ jobs:
               "admin-dashboard.html": [
                   'return normalizeSalesCategory(category) === "TRB" ? 100 : 135;',
               ],
-              "salesdashboard.html": [
-                  'const totalLeadCost = purchasedAmount * ratePerLead;\r\n            const commVal = Math.max(0, dealVal - totalLeadCost);',
-                  'const totalLeadCost = purchasedAmount * ratePerLead;\n            const commVal = Math.max(0, dealVal - totalLeadCost);',
+              "salesrep-dashboard.html": [
+                  "Track Mikaela deals only and use manual commission entry.",
+                  "commission_per_lead: parseFloat(document.getElementById('sale-commission').value) || 0",
               ],
           }
 
@@ -202,20 +294,18 @@ jobs:
               text = read_text(path)
               for marker in markers:
                   if marker in text:
-                      raise RuntimeError(f"Legacy sales-rate calculation remains in {path}: {marker}")
-
-          if not admin_matches:
-              raise RuntimeError("Admin rate calculator was not connected to the shared policy")
+                      raise RuntimeError(f"Legacy sales-rate behavior remains in {path}: {marker}")
 
           print("Files changed:")
           for path in sorted(set(changed)):
               print(f" - {path}")
 
-      - name: Verify boundaries and admin/sales alignment
+      - name: Verify boundaries and access-level alignment
         shell: bash
         run: |
           set -euo pipefail
           node --check main.js
+          git diff --check
 
           node <<'NODE'
           const fs = require('fs');
@@ -248,25 +338,23 @@ jobs:
           ];
 
           for (const [category, date, expected] of rateCases) {
-            assert.strictEqual(
-              sandbox.getRate(category, date),
-              expected,
-              `${category} on ${date}`
-            );
+            assert.strictEqual(sandbox.getRate(category, date), expected, `${category} on ${date}`);
           }
 
           const mikaela = sandbox.calculate(10, 2111, 'Mikaela', '2026-08-08');
-          assert.strictEqual(mikaela.rate, 150);
-          assert.strictEqual(mikaela.profit, 1500);
-          assert.strictEqual(mikaela.commission, 611);
+          assert.deepStrictEqual(
+            { rate: mikaela.rate, profit: mikaela.profit, commission: mikaela.commission },
+            { rate: 150, profit: 1500, commission: 611 }
+          );
 
           const mikaelaPriorDay = sandbox.calculate(10, 2111, 'Mikaela', '2026-08-07');
           assert.strictEqual(mikaelaPriorDay.commission, 761);
 
           const trb = sandbox.calculate(40, 7000, 'TRB', '2026-08-08');
-          assert.strictEqual(trb.rate, 100);
-          assert.strictEqual(trb.profit, 4000);
-          assert.strictEqual(trb.commission, 3000);
+          assert.deepStrictEqual(
+            { rate: trb.rate, profit: trb.profit, commission: trb.commission },
+            { rate: 100, profit: 4000, commission: 3000 }
+          );
 
           const hammer = sandbox.calculate(10, 2111, 'Hammer', '2026-08-08');
           assert.strictEqual(hammer.rate, 135);
@@ -277,8 +365,10 @@ jobs:
 
           grep -q 'window.getSalesLeadRateForDeal(category, purchaseDateValue)' admin-dashboard.html
           grep -q 'window.calculateAutoSalesCommission(' salesdashboard.html
+          grep -q 'window.calculateAutoSalesCommission(' salesrep-dashboard.html
+          ! grep -q 'manual commission entry' salesrep-dashboard.html
 
-      - name: Commit the production code changes
+      - name: Commit the application changes to the repair branch
         shell: bash
         run: |
           set -euo pipefail
@@ -294,4 +384,4 @@ jobs:
           fi
 
           git commit -m "fix: align sales rates and apply Mikaela 150 rate"
-          git push origin HEAD:fix/mikaela-sales-rate-2026-08-08
+          git push origin HEAD:${{ github.head_ref }}
