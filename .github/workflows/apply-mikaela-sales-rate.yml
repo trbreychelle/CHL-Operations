@@ -1,0 +1,105 @@
+name: Apply Mikaela sales-rate repair
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/apply-mikaela-sales-rate.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repair branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/mikaela-sales-rate-2026-08-08
+          fetch-depth: 0
+
+      - name: Apply the shared sales-rate policy
+        run: python scripts/apply_mikaela_rate_patch.py
+
+      - name: Verify JavaScript and rate boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check main.js
+          git diff --check
+
+          node <<'NODE'
+          const fs = require('fs');
+          const vm = require('vm');
+          const assert = require('assert');
+
+          const source = fs.readFileSync('main.js', 'utf8');
+          const start = source.indexOf('function parseSalesMoney');
+          const end = source.indexOf('function configureSaleCommissionField');
+          assert(start >= 0 && end > start, 'Could not isolate the shared sales calculator');
+
+          const sandbox = {};
+          vm.createContext(sandbox);
+          vm.runInContext(
+            source.slice(start, end) +
+              '\nthis.getRate = getSalesLeadRateForDeal;' +
+              '\nthis.calculate = calculateAutoSalesCommission;',
+            sandbox
+          );
+
+          const rateCases = [
+            ['Mikaela', '2026-08-07', 135],
+            ['Mikaela', '2026-08-08', 150],
+            ['mikaela', '2026-08-08T18:30:00Z', 150],
+            ['TRB', '2026-08-08', 100],
+            ['Hammer', '2026-08-08', 135],
+            ['CHL Team', '2026-08-08', 135],
+            ['Sales Team', '2026-08-08', 135],
+            ['Mikaela', '2026-03-08', 125]
+          ];
+
+          for (const [category, date, expected] of rateCases) {
+            assert.strictEqual(sandbox.getRate(category, date), expected, `${category} on ${date}`);
+          }
+
+          const mikaela = sandbox.calculate(10, 2111, 'Mikaela', '2026-08-08');
+          assert.strictEqual(mikaela.rate, 150);
+          assert.strictEqual(mikaela.profit, 1500);
+          assert.strictEqual(mikaela.commission, 611);
+
+          const mikaelaPriorDay = sandbox.calculate(10, 2111, 'Mikaela', '2026-08-07');
+          assert.strictEqual(mikaelaPriorDay.rate, 135);
+          assert.strictEqual(mikaelaPriorDay.commission, 761);
+
+          const trb = sandbox.calculate(40, 7000, 'TRB', '2026-08-08');
+          assert.strictEqual(trb.rate, 100);
+          assert.strictEqual(trb.profit, 4000);
+          assert.strictEqual(trb.commission, 3000);
+
+          const hammer = sandbox.calculate(10, 2111, 'Hammer', '2026-08-08');
+          assert.strictEqual(hammer.rate, 135);
+          assert.strictEqual(hammer.commission, 761);
+
+          console.log('Shared sales-rate policy tests passed.');
+          NODE
+
+          grep -q 'window.getSalesLeadRateForDeal(category, purchaseDateValue)' admin-dashboard.html
+          grep -q 'window.calculateAutoSalesCommission(' salesdashboard.html
+          grep -q 'window.calculateAutoSalesCommission(' salesrep-dashboard.html
+          ! grep -q 'manual commission entry' salesrep-dashboard.html
+
+      - name: Commit the repaired application files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm -f .github/workflows/apply-mikaela-sales-rate.yml scripts/apply_mikaela_rate_patch.py
+
+          git config user.name "CHL Dashboard Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: align sales rates and apply Mikaela 150 rate"
+          git push origin HEAD:fix/mikaela-sales-rate-2026-08-08
