@@ -1,0 +1,297 @@
+name: Apply Mikaela sales-rate policy
+
+on:
+  push:
+    branches:
+      - fix/mikaela-sales-rate-2026-08-08
+    paths:
+      - .github/workflows/apply-mikaela-sales-rate.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-rate-policy:
+    if: ${{ github.event.head_commit.message == 'chore: install Mikaela sales-rate patcher' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/mikaela-sales-rate-2026-08-08
+          fetch-depth: 0
+
+      - name: Apply one shared sales-rate policy
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          changed = []
+
+          def read_text(path):
+              with open(path, "r", encoding="utf-8", newline="") as handle:
+                  return handle.read()
+
+          def write_text(path, text):
+              with open(path, "w", encoding="utf-8", newline="") as handle:
+                  handle.write(text)
+
+          def localize_newlines(text, replacement):
+              newline = "\r\n" if "\r\n" in text else "\n"
+              return replacement.replace("\n", newline)
+
+          def replace_regex(path, pattern, replacement, label, required=False):
+              text = read_text(path)
+              localized = localize_newlines(text, replacement)
+              updated, count = re.subn(pattern, localized, text, count=1, flags=re.S)
+              if required and count != 1:
+                  raise RuntimeError(f"{label}: expected exactly one match in {path}, found {count}")
+              if count:
+                  write_text(path, updated)
+                  changed.append(path)
+                  print(f"Updated {label} in {path}")
+              return count
+
+          main_rate_policy = '''const SALES_RATE_POLICY = Object.freeze({
+              standardEffectiveDate: '2026-03-09',
+              mikaelaEffectiveDate: '2026-08-08',
+              historicalRate: 125,
+              standardRate: 135,
+              trbRate: 100,
+              mikaelaRate: 150
+          });
+
+          function getSalesLeadRateForDeal(category, purchaseDateValue) {
+              const normalizedCategory = normalizeSalesCategoryForRates(category);
+              const rawDate = String(purchaseDateValue || '').trim();
+              const dateMatch = rawDate.match(/^(\\d{4}-\\d{2}-\\d{2})/);
+              let purchaseDateKey = dateMatch ? dateMatch[1] : '';
+
+              if (!purchaseDateKey && purchaseDateValue) {
+                  const parsedDate = new Date(purchaseDateValue);
+                  if (!isNaN(parsedDate.getTime())) {
+                      const year = parsedDate.getFullYear();
+                      const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+                      const day = String(parsedDate.getDate()).padStart(2, '0');
+                      purchaseDateKey = `${year}-${month}-${day}`;
+                  }
+              }
+
+              if (!purchaseDateKey || purchaseDateKey < SALES_RATE_POLICY.standardEffectiveDate) {
+                  return SALES_RATE_POLICY.historicalRate;
+              }
+
+              if (
+                  normalizedCategory === 'Mikaela' &&
+                  purchaseDateKey >= SALES_RATE_POLICY.mikaelaEffectiveDate
+              ) {
+                  return SALES_RATE_POLICY.mikaelaRate;
+              }
+
+              if (normalizedCategory === 'TRB') {
+                  return SALES_RATE_POLICY.trbRate;
+              }
+
+              return SALES_RATE_POLICY.standardRate;
+          }'''
+
+          replace_regex(
+              "main.js",
+              r"function getSalesLeadRateForDeal\(category, purchaseDateValue\) \{.*?\r?\n\}",
+              main_rate_policy,
+              "central rate policy",
+              required=True,
+          )
+
+          main_text = read_text("main.js")
+          export_marker = "window.calculateAutoSalesCommission = calculateAutoSalesCommission;"
+          if export_marker not in main_text:
+              raise RuntimeError("Could not find the sales calculator export in main.js")
+          if "window.getSalesLeadRateForDeal = getSalesLeadRateForDeal;" not in main_text:
+              newline = "\r\n" if "\r\n" in main_text else "\n"
+              replacement = newline.join([
+                  "window.SALES_RATE_POLICY = SALES_RATE_POLICY;",
+                  "window.getSalesLeadRateForDeal = getSalesLeadRateForDeal;",
+                  export_marker,
+              ])
+              main_text = main_text.replace(export_marker, replacement, 1)
+              write_text("main.js", main_text)
+              if "main.js" not in changed:
+                  changed.append("main.js")
+              print("Exported the shared rate policy from main.js")
+
+          shared_rate_wrapper = '''const getSalesLeadRate = (category, purchaseDateValue) => {
+            if (typeof window.getSalesLeadRateForDeal !== "function") {
+              throw new Error("Shared sales-rate policy is unavailable.");
+            }
+            return window.getSalesLeadRateForDeal(category, purchaseDateValue);
+          };'''
+
+          admin_style_pattern = (
+              r"const getSalesLeadRate = \(category, purchaseDateValue\) => \{"
+              r".*?\r?\n\};"
+          )
+
+          admin_matches = replace_regex(
+              "admin-dashboard.html",
+              admin_style_pattern,
+              shared_rate_wrapper,
+              "admin shared-rate wrapper",
+              required=True,
+          )
+
+          for optional_path in ["management-dashboard.html", "salesdashboard.html", "salesrep-dashboard.html"]:
+              replace_regex(
+                  optional_path,
+                  admin_style_pattern,
+                  shared_rate_wrapper,
+                  "optional shared-rate wrapper",
+                  required=False,
+              )
+
+          shared_sales_render = '''const salesFinancials = window.calculateAutoSalesCommission(
+              purchasedAmount,
+              dealVal,
+              p.sales_category || p.sold_by || "",
+              p.purchase_date
+            );
+            const ratePerLead = salesFinancials.rate;
+            const totalLeadCost = salesFinancials.profit;
+            const commVal = salesFinancials.commission;'''
+
+          inline_rate_pattern = (
+              r"const purchaseDateObj = p\.purchase_date \? new Date\(String\(p\.purchase_date\)\.trim\(\) \+ [\"']T00:00:00[\"']\) : null;"
+              r"\s*const ratePerLead = purchaseDateObj && purchaseDateObj >= new Date\([\"']2026-03-09T00:00:00[\"']\)"
+              r"\s*\? 135\s*: 125;"
+              r"\s*const totalLeadCost = purchasedAmount \* ratePerLead;"
+              r"\s*const commVal = Math\.max\(0, dealVal - totalLeadCost\);"
+          )
+
+          replace_regex(
+              "salesdashboard.html",
+              inline_rate_pattern,
+              shared_sales_render,
+              "sales-access shared calculator",
+              required=True,
+          )
+
+          replace_regex(
+              "salesrep-dashboard.html",
+              inline_rate_pattern,
+              shared_sales_render,
+              "sales-rep shared calculator",
+              required=False,
+          )
+
+          legacy_markers = {
+              "main.js": [
+                  "return normalizeSalesCategoryForRates(category) === 'TRB' ? 100 : 135;",
+              ],
+              "admin-dashboard.html": [
+                  'return normalizeSalesCategory(category) === "TRB" ? 100 : 135;',
+              ],
+              "salesdashboard.html": [
+                  'const totalLeadCost = purchasedAmount * ratePerLead;\r\n            const commVal = Math.max(0, dealVal - totalLeadCost);',
+                  'const totalLeadCost = purchasedAmount * ratePerLead;\n            const commVal = Math.max(0, dealVal - totalLeadCost);',
+              ],
+          }
+
+          for path, markers in legacy_markers.items():
+              text = read_text(path)
+              for marker in markers:
+                  if marker in text:
+                      raise RuntimeError(f"Legacy sales-rate calculation remains in {path}: {marker}")
+
+          if not admin_matches:
+              raise RuntimeError("Admin rate calculator was not connected to the shared policy")
+
+          print("Files changed:")
+          for path in sorted(set(changed)):
+              print(f" - {path}")
+
+      - name: Verify boundaries and admin/sales alignment
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check main.js
+
+          node <<'NODE'
+          const fs = require('fs');
+          const vm = require('vm');
+          const assert = require('assert');
+
+          const source = fs.readFileSync('main.js', 'utf8');
+          const start = source.indexOf('function parseSalesMoney');
+          const end = source.indexOf('function configureSaleCommissionField');
+          assert(start >= 0 && end > start, 'Could not isolate the shared sales calculator');
+
+          const sandbox = {};
+          vm.createContext(sandbox);
+          vm.runInContext(
+            source.slice(start, end) +
+              '\nthis.getRate = getSalesLeadRateForDeal;' +
+              '\nthis.calculate = calculateAutoSalesCommission;',
+            sandbox
+          );
+
+          const rateCases = [
+            ['Mikaela', '2026-08-07', 135],
+            ['Mikaela', '2026-08-08', 150],
+            ['mikaela', '2026-08-08T18:30:00Z', 150],
+            ['TRB', '2026-08-08', 100],
+            ['Hammer', '2026-08-08', 135],
+            ['CHL Team', '2026-08-08', 135],
+            ['Sales Team', '2026-08-08', 135],
+            ['Mikaela', '2026-03-08', 125],
+          ];
+
+          for (const [category, date, expected] of rateCases) {
+            assert.strictEqual(
+              sandbox.getRate(category, date),
+              expected,
+              `${category} on ${date}`
+            );
+          }
+
+          const mikaela = sandbox.calculate(10, 2111, 'Mikaela', '2026-08-08');
+          assert.strictEqual(mikaela.rate, 150);
+          assert.strictEqual(mikaela.profit, 1500);
+          assert.strictEqual(mikaela.commission, 611);
+
+          const mikaelaPriorDay = sandbox.calculate(10, 2111, 'Mikaela', '2026-08-07');
+          assert.strictEqual(mikaelaPriorDay.commission, 761);
+
+          const trb = sandbox.calculate(40, 7000, 'TRB', '2026-08-08');
+          assert.strictEqual(trb.rate, 100);
+          assert.strictEqual(trb.profit, 4000);
+          assert.strictEqual(trb.commission, 3000);
+
+          const hammer = sandbox.calculate(10, 2111, 'Hammer', '2026-08-08');
+          assert.strictEqual(hammer.rate, 135);
+          assert.strictEqual(hammer.commission, 761);
+
+          console.log('Shared sales-rate policy tests passed.');
+          NODE
+
+          grep -q 'window.getSalesLeadRateForDeal(category, purchaseDateValue)' admin-dashboard.html
+          grep -q 'window.calculateAutoSalesCommission(' salesdashboard.html
+
+      - name: Commit the production code changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/apply-mikaela-sales-rate.yml
+
+          git config user.name "CHL Dashboard Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add main.js admin-dashboard.html salesdashboard.html salesrep-dashboard.html management-dashboard.html .github/workflows/apply-mikaela-sales-rate.yml
+
+          if git diff --cached --quiet; then
+            echo "No code changes were produced."
+            exit 1
+          fi
+
+          git commit -m "fix: align sales rates and apply Mikaela 150 rate"
+          git push origin HEAD:fix/mikaela-sales-rate-2026-08-08
