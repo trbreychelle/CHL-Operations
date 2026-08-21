@@ -1,0 +1,98 @@
+name: Apply backend-only sales frontend repair
+
+on:
+  push:
+    branches:
+      - fix/backend-sales-financials
+    paths:
+      - scripts/apply_backend_sales_frontend_patch.py
+      - .github/workflows/apply-backend-sales-frontend.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/backend-sales-financials
+          fetch-depth: 0
+
+      - name: Replace browser formulas with backend readers
+        run: python scripts/apply_backend_sales_frontend_patch.py
+
+      - name: Verify JavaScript and backend field usage
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check main.js
+
+          node <<'NODE'
+          const fs = require('fs');
+          const vm = require('vm');
+          const assert = require('assert');
+
+          const source = fs.readFileSync('main.js', 'utf8');
+          const start = source.indexOf('function parseSalesMoney');
+          const end = source.indexOf('function configureSaleCommissionField');
+          assert(start >= 0 && end > start, 'Could not isolate backend financial reader');
+
+          const sandbox = {};
+          vm.createContext(sandbox);
+          vm.runInContext(
+            source.slice(start, end) + '\nthis.readBackend = readBackendSalesFinancials;',
+            sandbox
+          );
+
+          const row = {
+            rate_per_lead: 150,
+            original_sales_value: 2111,
+            sales_value: 2111,
+            original_profit_value: 1500,
+            chl_profit: 1500,
+            original_commission_value: 611,
+            sales_commission: 611
+          };
+
+          const result = sandbox.readBackend(row);
+          assert.strictEqual(result.rate, 150);
+          assert.strictEqual(result.salesValue, 2111);
+          assert.strictEqual(result.profit, 1500);
+          assert.strictEqual(result.commission, 611);
+
+          console.log('Backend financial reader checks passed.');
+          NODE
+
+          grep -q 'pkg.sales_commission' admin-dashboard.html
+          grep -q 'pkg.chl_profit' admin-dashboard.html
+          grep -q 'window.readBackendSalesFinancials(p)' salesdashboard.html
+          grep -q 'window.readBackendSalesFinancials(p)' salesrep-dashboard.html
+
+          ! grep -q 'SALES_RATE_POLICY' main.js
+          ! grep -q 'calculateAutoSalesCommission' main.js
+          ! grep -q 'window.calculateAutoSalesCommission' salesdashboard.html
+          ! grep -q 'window.calculateAutoSalesCommission' salesrep-dashboard.html
+
+      - name: Commit repaired application files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git rm -f .github/workflows/apply-backend-sales-frontend.yml
+          git rm -f scripts/apply_backend_sales_frontend_patch.py
+
+          git config user.name "CHL Dashboard Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No application changes were produced."
+            exit 1
+          fi
+
+          git commit -m "fix: read sales financials from Supabase backend"
+          git push origin HEAD:fix/backend-sales-financials
