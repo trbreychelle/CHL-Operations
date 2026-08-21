@@ -2428,13 +2428,15 @@ async deleteQuickNote(noteId) {
             const dealVal = parseFloat(rawAmt) || 0;
             const purchasedAmount = Number(p.purchased_leads) || 0;
 
-            const purchaseDateObj = p.purchase_date ? new Date(String(p.purchase_date).trim() + "T00:00:00") : null;
-            const ratePerLead = purchaseDateObj && purchaseDateObj >= new Date("2026-03-09T00:00:00")
-              ? 135
-              : 125;
-
-            const totalLeadCost = purchasedAmount * ratePerLead;
-            const commVal = Math.max(0, dealVal - totalLeadCost);
+            const salesFinancials = window.calculateAutoSalesCommission(
+  purchasedAmount,
+  dealVal,
+  p.sales_category || p.sold_by || "",
+  p.purchase_date
+);
+const ratePerLead = salesFinancials.rate;
+const totalLeadCost = salesFinancials.profit;
+const commVal = salesFinancials.commission;
 
             totalSales += dealVal;
             totalCommissions += commVal;

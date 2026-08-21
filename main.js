@@ -3286,10 +3286,8 @@ window.deleteDeal = async function(pkgId, companyName) {
 };
 
 function isSalesRepDealEntryContext() {
-    const role = String(window.portal?.currentUser?.role || '').toLowerCase().trim();
-    const path = String(window.location?.pathname || '').toLowerCase();
-
-    return role === 'sales_rep' || path.includes('salesrep-dashboard');
+    // Every access level now uses the same category/date commission policy.
+    return false;
 }
 
 function parseSalesMoney(value) {
@@ -3319,19 +3317,47 @@ function isAutoCommissionSalesCategory(category) {
     return ['CHL Team', 'TRB', 'Hammer', 'Mikaela', 'Sales Team'].includes(normalized);
 }
 
+const SALES_RATE_POLICY = Object.freeze({
+    standardEffectiveDate: '2026-03-09',
+    mikaelaEffectiveDate: '2026-08-08',
+    historicalRate: 125,
+    standardRate: 135,
+    trbRate: 100,
+    mikaelaRate: 150
+});
+
 function getSalesLeadRateForDeal(category, purchaseDateValue) {
-    const purchaseDateObj = purchaseDateValue
-        ? new Date(String(purchaseDateValue).trim() + 'T00:00:00')
-        : null;
+    const normalizedCategory = normalizeSalesCategoryForRates(category);
+    const rawDate = String(purchaseDateValue || '').trim();
+    const dateMatch = rawDate.match(/^(\d{4}-\d{2}-\d{2})/);
+    let purchaseDateKey = dateMatch ? dateMatch[1] : '';
 
-    const afterRateChange =
-        purchaseDateObj &&
-        !isNaN(purchaseDateObj.getTime()) &&
-        purchaseDateObj >= new Date('2026-03-09T00:00:00');
+    if (!purchaseDateKey && purchaseDateValue) {
+        const parsedDate = new Date(purchaseDateValue);
+        if (!isNaN(parsedDate.getTime())) {
+            const year = parsedDate.getFullYear();
+            const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+            const day = String(parsedDate.getDate()).padStart(2, '0');
+            purchaseDateKey = `${year}-${month}-${day}`;
+        }
+    }
 
-    if (!afterRateChange) return 125;
+    if (!purchaseDateKey || purchaseDateKey < SALES_RATE_POLICY.standardEffectiveDate) {
+        return SALES_RATE_POLICY.historicalRate;
+    }
 
-    return normalizeSalesCategoryForRates(category) === 'TRB' ? 100 : 135;
+    if (
+        normalizedCategory === 'Mikaela' &&
+        purchaseDateKey >= SALES_RATE_POLICY.mikaelaEffectiveDate
+    ) {
+        return SALES_RATE_POLICY.mikaelaRate;
+    }
+
+    if (normalizedCategory === 'TRB') {
+        return SALES_RATE_POLICY.trbRate;
+    }
+
+    return SALES_RATE_POLICY.standardRate;
 }
 
 function calculateAutoSalesCommission(leadsValue, dealValue, category, purchaseDateValue) {
@@ -3467,6 +3493,8 @@ function setSaleCategoryValueSafely(categoryValue) {
     updateSaleCommissionField();
 }
 
+window.SALES_RATE_POLICY = SALES_RATE_POLICY;
+window.getSalesLeadRateForDeal = getSalesLeadRateForDeal;
 window.calculateAutoSalesCommission = calculateAutoSalesCommission;
 window.updateSaleCommissionField = updateSaleCommissionField;
 window.installSaleCommissionAutoCalc = installSaleCommissionAutoCalc;

@@ -462,7 +462,7 @@
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
           <div>
             <h2 class="text-2xl font-bold text-gray-900">Master Sales Pipeline</h2>
-            <p class="text-sm text-gray-500 mt-1">Track Mikaela deals only and use manual commission entry.</p>
+            <p class="text-sm text-gray-500 mt-1">Track Mikaela and Hammer deals using the shared commission policy.</p>
           </div>
           <div class="flex gap-3 items-end">
             <div class="bg-white px-5 py-2 rounded-xl border border-gray-100 shadow-sm text-right">
@@ -893,7 +893,7 @@
             </div>
             <div class="grid grid-cols-2 gap-3 mb-3">
                 <div>
-                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Manual Commission ($)</label>
+                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Commission ($)</label>
                   <input type="number" id="sale-commission" step="0.01" placeholder="e.g. 500" value="0" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
                 </div>
                 <div>
@@ -2797,12 +2797,13 @@ async renderSalesCommissionPaidButton(startKey, endKey) {
             const rawAmt = p.amount ? String(p.amount).replace(/[^0-9.-]+/g, "") : "0";
             const dealVal = parseFloat(rawAmt) || Number(p.deal_value || 0) || 0;
 
-          const commVal = Number(
-  p.manual_commission ??
-  p.commission ??
-  p.commission_per_lead ??
-  0
-) || 0;
+          const salesFinancials = window.calculateAutoSalesCommission(
+  Number(p.purchased_leads) || 0,
+  dealVal,
+  soldBy,
+  p.purchase_date
+);
+const commVal = salesFinancials.commission;
 
             totalSales += dealVal;
             totalCommissions += commVal;
@@ -3616,6 +3617,7 @@ async saveOnboardingRow(clientCode) {
     document.getElementById('sale-client-code').value = "";
     document.getElementById('sale-deal-type').value = "New Client";
     document.getElementById('sale-category').value = "Mikaela";
+    window.installSaleCommissionAutoCalc?.();
     document.getElementById('sale-modal-title').innerText = "Log New Deal";
     document.getElementById('save-sale-btn').innerText = "Save Deal";
     window.populateSalesClientDropdown();
@@ -3655,6 +3657,7 @@ async saveOnboardingRow(clientCode) {
     document.getElementById('sale-deal-status').value = pkg.deal_status || "Paid";
     document.getElementById('sale-deal-type').value = pkg.deal_type || "New Client";
     document.getElementById('sale-category').value = pkg.sales_category || "Mikaela";
+    window.installSaleCommissionAutoCalc?.();
 
     document.getElementById('sale-modal-title').innerText = "Edit Deal Details";
     document.getElementById('save-sale-btn').innerText = "Update Deal";
@@ -3753,17 +3756,30 @@ async saveOnboardingRow(clientCode) {
   .update({ shared_with_sales: true })
   .eq('client_code', clientCode);
 
+        const purchasedLeads = parseInt(document.getElementById('sale-leads').value) || 0;
+        const dealAmount = parseFloat(document.getElementById('sale-value').value) || 0;
+        const purchaseDate = document.getElementById('sale-date').value;
+        const salesCategory = document.getElementById('sale-category').value;
+        const commissionValue = window.calculateAutoSalesCommission(
+          purchasedLeads,
+          dealAmount,
+          salesCategory,
+          purchaseDate
+        ).commission;
+
+        document.getElementById('sale-commission').value = commissionValue.toFixed(2);
+
         const payload = {
     client_code: clientCode,
-    purchased_leads: parseInt(document.getElementById('sale-leads').value) || 0,
-    amount: parseFloat(document.getElementById('sale-value').value) || 0,
-    commission_per_lead: parseFloat(document.getElementById('sale-commission').value) || 0,
-    purchase_date: document.getElementById('sale-date').value,
+    purchased_leads: purchasedLeads,
+    amount: dealAmount,
+    commission_per_lead: commissionValue,
+    purchase_date: purchaseDate,
     external_package_id: document.getElementById('sale-transaction-id').value,
     status: "Active",
     deal_status: document.getElementById('sale-deal-status').value,
     deal_type: document.getElementById('sale-deal-type').value,
-   sales_category: document.getElementById('sale-category').value
+   sales_category: salesCategory
 };
 
         let error;
