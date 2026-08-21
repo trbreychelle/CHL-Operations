@@ -1,26 +1,26 @@
 name: Apply Mikaela sales-rate repair
 
 on:
-  push:
+  pull_request:
     branches:
-      - fix/mikaela-sales-rate-2026-08-08
-    paths:
-      - .github/workflows/apply-mikaela-sales-rate.yml
-      - scripts/apply_mikaela_rate_patch.py
+      - main
+    types:
+      - reopened
 
 permissions:
   contents: write
+  pull-requests: read
 
 jobs:
   repair:
-    if: ${{ github.event.head_commit.message == 'chore: run Mikaela sales-rate repair' }}
+    if: ${{ github.head_ref == 'fix/mikaela-sales-rate-2026-08-08' }}
     runs-on: ubuntu-latest
 
     steps:
       - name: Check out the repair branch
         uses: actions/checkout@v4
         with:
-          ref: fix/mikaela-sales-rate-2026-08-08
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
 
       - name: Apply the shared sales-rate policy
@@ -108,4 +108,4 @@ jobs:
           fi
 
           git commit -m "fix: align sales rates and apply Mikaela 150 rate"
-          git push origin HEAD:fix/mikaela-sales-rate-2026-08-08
+          git push origin HEAD:${{ github.head_ref }}
