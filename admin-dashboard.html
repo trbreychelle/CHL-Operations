@@ -4471,18 +4471,10 @@ const isAutoCommissionCategory = (category) => {
 };
 
 const getSalesLeadRate = (category, purchaseDateValue) => {
-  const purchaseDateObj = purchaseDateValue
-    ? new Date(String(purchaseDateValue).trim() + "T00:00:00")
-    : null;
-
-  const isAfterRateChange =
-    purchaseDateObj &&
-    !isNaN(purchaseDateObj.getTime()) &&
-    purchaseDateObj >= new Date("2026-03-09T00:00:00");
-
-  if (!isAfterRateChange) return 125;
-
-  return normalizeSalesCategory(category) === "TRB" ? 100 : 135;
+  if (typeof window.getSalesLeadRateForDeal !== "function") {
+    throw new Error("Shared sales-rate policy is unavailable.");
+  }
+  return window.getSalesLeadRateForDeal(category, purchaseDateValue);
 };
 
 const matchesCategoryFilter = (rowCategory, filterValue) => {
