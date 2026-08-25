@@ -1,0 +1,122 @@
+name: Export Leads Tracker inspection
+
+on:
+  push:
+    branches:
+      - feat/leads-review-modal
+    paths:
+      - .github/workflows/export-leads-inspection.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/leads-review-modal
+          fetch-depth: 1
+
+      - name: Export focused source excerpts
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          OUT = Path('.inspection')
+          OUT.mkdir(exist_ok=True)
+          FILES = [Path('admin-dashboard.html'), Path('management-dashboard.html')]
+          TERMS = [
+              'id="view-leads"',
+              'Leads Master Record UI state',
+              '_leadsCols',
+              '_leadsVisibleCols',
+              '_leadsSort',
+              '_leadsViewRows',
+              'renderLeads',
+              'loadLeads',
+              'deleteLead',
+              'lead-status',
+              'leads-status',
+              'data-lead',
+              "from('leads')",
+              'from("leads")',
+              '.from(`leads`)',
+              'feedback',
+              'highlight',
+              'spotlight',
+              'credited',
+              'lead_id',
+              'date_submitted',
+              'appointment_date',
+              'homeowner',
+          ]
+
+          def numbered(lines, start, end):
+              start = max(1, start)
+              end = min(len(lines), end)
+              return '\n'.join(f'{i:05d}: {lines[i-1]}' for i in range(start, end + 1))
+
+          for path in FILES:
+              text = path.read_text(encoding='utf-8')
+              lines = text.splitlines()
+              stem = path.stem.replace('-dashboard', '')
+
+              # Main view section.
+              starts = [i for i, line in enumerate(lines, 1) if 'id="view-leads"' in line]
+              html_parts = [f'# {path} | {len(lines)} lines']
+              for start in starts:
+                  end = min(len(lines), start + 420)
+                  for i in range(start + 1, min(len(lines), start + 700) + 1):
+                      line = lines[i-1]
+                      if 'class="view-section' in line and 'id="view-' in line:
+                          end = i - 1
+                          break
+                  html_parts.append(f'\n## Leads view lines {start}-{end}\n{numbered(lines, start, end)}')
+              (OUT / f'{stem}-leads-html.txt').write_text('\n'.join(html_parts), encoding='utf-8')
+
+              # Focused JS/context ranges; merge overlapping ranges so output stays readable.
+              ranges = []
+              for term in TERMS:
+                  for hit, line in enumerate(lines, 1):
+                      if term.lower() in line.lower():
+                          before = 35
+                          after = 80
+                          if term in ('renderLeads', 'loadLeads', 'deleteLead', '_leadsCols', '_leadsViewRows'):
+                              before, after = 55, 180
+                          ranges.append((max(1, hit-before), min(len(lines), hit+after), term, hit))
+              ranges.sort()
+              merged = []
+              for start, end, term, hit in ranges:
+                  if not merged or start > merged[-1][1] + 8:
+                      merged.append([start, end, [(term, hit)]])
+                  else:
+                      merged[-1][1] = max(merged[-1][1], end)
+                      merged[-1][2].append((term, hit))
+
+              js_parts = [f'# {path} | focused lead-related excerpts']
+              for start, end, hits in merged:
+                  labels = ', '.join(f'{term}@{hit}' for term, hit in hits[:24])
+                  if len(hits) > 24:
+                      labels += f', +{len(hits)-24} more'
+                  js_parts.append(f'\n## Lines {start}-{end} | {labels}\n{numbered(lines, start, end)}')
+              (OUT / f'{stem}-leads-js.txt').write_text('\n'.join(js_parts), encoding='utf-8')
+          PY
+
+      - name: Commit inspection artifacts
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .inspection
+          if git diff --cached --quiet; then
+            echo "No inspection changes"
+          else
+            git commit -m "chore: export Leads Tracker source excerpts"
+            git push origin HEAD:feat/leads-review-modal
+          fi
