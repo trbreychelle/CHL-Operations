@@ -448,74 +448,107 @@
     }
 
     try {
-      const { data, error } = await client
+      const { error } = await client
         .from('leads_raw')
         .update(updatePayload)
-        .eq('lead_id', leadId)
-        .select('*')
-        .maybeSingle();
+        .eq('lead_id', leadId);
 
       if (error) throw error;
 
-      const newLead = data || { ...oldLead, ...updatePayload };
+      // The database write is complete. Update the in-memory row immediately so
+      // Management Access can repaint without waiting for the full dashboard fetch.
+      const newLead = { ...oldLead, ...updatePayload };
       leadRowsById.set(leadId, newLead);
 
-      try {
-        const trackedFields = Object.keys(updatePayload);
-        await window.portal?.createCommandCenterEvent?.({
-          moduleKey: 'leads_tracker',
-          entityType: 'lead',
-          entityId: leadId,
-          entityCode: leadId,
-          entityLabel: updatePayload.homeowner_names || fieldValue(oldLead, 'homeowner_names') || leadId,
-          eventType: 'updated',
-          summaryText: `${window.portal?.currentUser?.name || 'User'} reviewed and updated lead ${leadId}.`,
-          fieldChanges: window.portal?.buildFieldChanges
-            ? window.portal.buildFieldChanges(oldLead || {}, newLead, trackedFields)
-            : [],
-          oldData: oldLead || null,
-          newData: newLead,
-          severity: 'normal',
-          teamKeys: ['admin_management']
-        });
-      } catch (eventError) {
-        console.error('Lead review audit event failed:', eventError);
+      const admin = getAdmin();
+      const state = admin?.getState?.() || window.portal?.adminState || {};
+      if (Array.isArray(state?.leads)) {
+        const stateIndex = state.leads.findIndex(lead =>
+          String(fieldValue(lead, 'lead_id')) === leadId
+        );
+        if (stateIndex >= 0) {
+          state.leads[stateIndex] = { ...state.leads[stateIndex], ...newLead };
+          leadRowsById.set(leadId, state.leads[stateIndex]);
+        }
       }
 
+      // Paint the status badge immediately. The normal filtered refresh below
+      // will reconcile every other visible field without keeping the modal open.
       if (statusChanged) {
-        try {
-          window.fetch('https://automate.callhammerleads.com/webhook/update-lead-sheet', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ lead_id: leadId, status: nextStatus })
-          }).catch(error => console.error('Lead sheet sync failed:', error));
-        } catch (syncError) {
-          console.error('Lead sheet sync failed:', syncError);
+        const encodedLeadId = encodeURIComponent(leadId);
+        const row = Array.from(document.querySelectorAll('#leads-table-body > tr'))
+          .find(candidate => candidate.dataset.chlLeadId === encodedLeadId);
+        const visibleColumns = Array.isArray(admin?._leadsCols) && admin?._leadsVisibleCols
+          ? admin._leadsCols.filter(column => admin._leadsVisibleCols.has(column.key))
+          : [];
+        const statusIndex = visibleColumns.findIndex(column => column.key === 'status');
+        const statusCell = statusIndex >= 0 ? row?.children?.[statusIndex] : null;
+        if (statusCell) {
+          statusCell.innerHTML = `<span class="inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black ${statusClasses(nextStatus)}" title="Use the pencil button to review or change status">${escapeHtml(nextStatus)}</span>`;
         }
       }
 
-      try {
-        if (window.portal?.fetchAdminData) {
-          await window.portal.fetchAdminData(true);
-        }
-
-        const admin = getAdmin();
-        if (admin?.applyLeadsFilters) {
-          await admin.applyLeadsFilters(admin._leadsPage || 1);
-        }
-      } catch (refreshError) {
-        console.error('Lead review refresh failed after save:', refreshError);
-      }
-
+      // Finish the user-facing save flow now. Audit logging, sheet sync, and the
+      // filtered table refresh are intentionally non-blocking background work.
       setMessage('Lead changes saved successfully.', 'success');
+      if (saveButton) {
+        saveButton.disabled = true;
+        saveButton.innerHTML = '<i class="fa-solid fa-check mr-2"></i>Saved';
+      }
+      saving = false;
       window.setTimeout(() => {
-        saving = false;
+        closeModal();
         if (saveButton) {
           saveButton.disabled = false;
           saveButton.innerHTML = originalButtonHtml;
         }
-        closeModal();
-      }, 450);
+      }, 180);
+
+      window.setTimeout(() => {
+        const trackedFields = Object.keys(updatePayload);
+        try {
+          Promise.resolve(window.portal?.createCommandCenterEvent?.({
+            moduleKey: 'leads_tracker',
+            entityType: 'lead',
+            entityId: leadId,
+            entityCode: leadId,
+            entityLabel: updatePayload.homeowner_names || fieldValue(oldLead, 'homeowner_names') || leadId,
+            eventType: 'updated',
+            summaryText: `${window.portal?.currentUser?.name || 'User'} reviewed and updated lead ${leadId}.`,
+            fieldChanges: window.portal?.buildFieldChanges
+              ? window.portal.buildFieldChanges(oldLead || {}, newLead, trackedFields)
+              : [],
+            oldData: oldLead || null,
+            newData: newLead,
+            severity: 'normal',
+            teamKeys: ['admin_management']
+          })).catch(eventError => {
+            console.error('Lead review audit event failed:', eventError);
+          });
+        } catch (eventError) {
+          console.error('Lead review audit event failed:', eventError);
+        }
+
+        if (statusChanged) {
+          try {
+            window.fetch('https://automate.callhammerleads.com/webhook/update-lead-sheet', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ lead_id: leadId, status: nextStatus })
+            }).catch(syncError => console.error('Lead sheet sync failed:', syncError));
+          } catch (syncError) {
+            console.error('Lead sheet sync failed:', syncError);
+          }
+        }
+
+        const latestAdmin = getAdmin();
+        if (latestAdmin?.applyLeadsFilters) {
+          Promise.resolve(latestAdmin.applyLeadsFilters(latestAdmin._leadsPage || 1))
+            .catch(refreshError => {
+              console.error('Lead review background refresh failed:', refreshError);
+            });
+        }
+      }, 0);
     } catch (error) {
       console.error('Lead review save failed:', error);
       setMessage(error?.message || 'The lead could not be saved. Please try again.', 'error');
