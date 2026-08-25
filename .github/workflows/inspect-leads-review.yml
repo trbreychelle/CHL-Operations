@@ -1,0 +1,92 @@
+name: Inspect Leads Tracker implementation
+
+on:
+  push:
+    branches:
+      - feat/leads-review-modal
+    paths:
+      - .github/workflows/inspect-leads-review.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/leads-review-modal
+          fetch-depth: 1
+
+      - name: Print Leads Tracker structure and data hooks
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          FILES = [Path('admin-dashboard.html'), Path('management-dashboard.html')]
+          TERMS = [
+              'Leads Master Record',
+              'Leads Master Record UI state',
+              '_leadsCols',
+              '_leadsVisibleCols',
+              '_leadsSort',
+              'lead-status',
+              'leads-status',
+              'deleteLead',
+              'feedback',
+              'highlight',
+              'credited',
+              "from('leads')",
+              'from("leads")',
+              'renderLead',
+              'loadLead',
+              'saveLead',
+              'updateLead',
+              'lead_id',
+              'date_submitted',
+          ]
+
+          def print_range(lines, start, end, heading):
+              start = max(1, start)
+              end = min(len(lines), end)
+              print(f'\n===== {heading} | lines {start}-{end} =====')
+              for i in range(start, end + 1):
+                  print(f'{i:05d}: {lines[i-1]}')
+
+          for path in FILES:
+              text = path.read_text(encoding='utf-8')
+              lines = text.splitlines()
+              print(f'\n\n################ {path} ({len(lines)} lines) ################')
+
+              # Full HTML Leads Tracker section, stopping at the next view section.
+              start = next((i for i, line in enumerate(lines, 1) if 'id="view-leads"' in line), None)
+              if start:
+                  end = next((i - 1 for i, line in enumerate(lines[start:], start + 1)
+                              if 'class="view-section' in line and 'id="view-' in line), min(len(lines), start + 220))
+                  print_range(lines, start, min(end, start + 260), f'{path} Leads HTML')
+
+              # Index all likely lead-related implementation lines.
+              pattern = re.compile(r'(lead|feedback|highlight|spotlight|credit)', re.I)
+              print('\n===== lead-related line index =====')
+              for i, line in enumerate(lines, 1):
+                  if pattern.search(line) and any(token in line.lower() for token in (
+                      'function', 'async ', '=>', '_leads', 'from(', 'tbody', 'status', 'delete', 'render', 'load', 'save', 'update', 'feedback', 'highlight', 'spotlight', 'credit'
+                  )):
+                      print(f'{i:05d}: {line[:320]}')
+
+              # Print focused context around each key term (deduplicated ranges).
+              printed = set()
+              for term in TERMS:
+                  hits = [i for i, line in enumerate(lines, 1) if term.lower() in line.lower()]
+                  for hit in hits[:8]:
+                      key = (max(1, hit - 18), min(len(lines), hit + 42))
+                      if key in printed:
+                          continue
+                      printed.add(key)
+                      print_range(lines, key[0], key[1], f'{path} context for {term!r} at {hit}')
+          PY
