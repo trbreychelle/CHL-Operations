@@ -28,58 +28,70 @@ jobs:
           js_path = Path('leads-review-modal.js')
           source = js_path.read_text(encoding='utf-8')
 
-          old_field_keys = """    lead_id: ['lead_id', 'LEAD ID', 'ID'],
-    company_name: ['company_name', 'Company Name', 'roofing_company', 'Roofing Company', 'client_code', 'Client Code'],"""
-          new_field_keys = """    lead_id: ['lead_id', 'LEAD ID', 'ID'],
-    client_code: ['client_code', 'Client Code', 'CLIENT CODE', 'code_name', 'Code Name', 'CODE NAME'],
-    company_name: ['company_name', 'Company Name', 'roofing_company', 'Roofing Company', 'client_code', 'Client Code'],"""
+          old_field_keys = "\n".join([
+              "    lead_id: ['lead_id', 'LEAD ID', 'ID'],",
+              "    company_name: ['company_name', 'Company Name', 'roofing_company', 'Roofing Company', 'client_code', 'Client Code'],",
+          ])
+          new_field_keys = "\n".join([
+              "    lead_id: ['lead_id', 'LEAD ID', 'ID'],",
+              "    client_code: ['client_code', 'Client Code', 'CLIENT CODE', 'code_name', 'Code Name', 'CODE NAME'],",
+              "    company_name: ['company_name', 'Company Name', 'roofing_company', 'Roofing Company', 'client_code', 'Client Code'],",
+          ])
 
           if source.count(old_field_keys) != 1:
               raise SystemExit(f'Expected one lead/company field-key block, found {source.count(old_field_keys)}.')
           source = source.replace(old_field_keys, new_field_keys, 1)
 
-          old_helper = """  function getAdmin() {
-    return window.Admin || window.adminDashboard || null;
-  }
-
-  function getSupabaseClient() {"""
-          new_helper = """  function getAdmin() {
-    return window.Admin || window.adminDashboard || null;
-  }
-
-  function isManagementAccess() {
-    const role = String(window.portal?.currentUser?.role || '').trim().toLowerCase();
-    return role === 'management' || /management-dashboard\\.html$/i.test(window.location.pathname);
-  }
-
-  function getSupabaseClient() {"""
+          old_helper = "\n".join([
+              "  function getAdmin() {",
+              "    return window.Admin || window.adminDashboard || null;",
+              "  }",
+              "",
+              "  function getSupabaseClient() {",
+          ])
+          new_helper = "\n".join([
+              "  function getAdmin() {",
+              "    return window.Admin || window.adminDashboard || null;",
+              "  }",
+              "",
+              "  function isManagementAccess() {",
+              "    const role = String(window.portal?.currentUser?.role || '').trim().toLowerCase();",
+              "    return role === 'management' || /management-dashboard\\.html$/i.test(window.location.pathname);",
+              "  }",
+              "",
+              "  function getSupabaseClient() {",
+          ])
 
           if source.count(old_helper) != 1:
               raise SystemExit(f'Expected one getAdmin helper block, found {source.count(old_helper)}.')
           source = source.replace(old_helper, new_helper, 1)
 
-          old_static = """    const staticFields = document.getElementById('chl-lead-review-static');
-    if (staticFields) {
-      staticFields.innerHTML = [
-        readOnlyField('Date Submitted', fieldValue(lead, 'date_submitted')),
-        readOnlyField('Lead ID', id),
-        readOnlyField('Roofing Company', fieldValue(lead, 'company_name')),
-        readOnlyField('Appointment Coordinator', fieldValue(lead, 'appointment_coordinator_name'))
-      ].join('');
-    }"""
-          new_static = """    const managementAccess = isManagementAccess();
-    const staticFields = document.getElementById('chl-lead-review-static');
-    if (staticFields) {
-      staticFields.innerHTML = [
-        readOnlyField('Date Submitted', fieldValue(lead, 'date_submitted')),
-        readOnlyField('Lead ID', id),
-        readOnlyField(
-          managementAccess ? 'Client Code' : 'Roofing Company',
-          managementAccess ? fieldValue(lead, 'client_code') : fieldValue(lead, 'company_name')
-        ),
-        readOnlyField('Appointment Coordinator', fieldValue(lead, 'appointment_coordinator_name'))
-      ].join('');
-    }"""
+          old_static = "\n".join([
+              "    const staticFields = document.getElementById('chl-lead-review-static');",
+              "    if (staticFields) {",
+              "      staticFields.innerHTML = [",
+              "        readOnlyField('Date Submitted', fieldValue(lead, 'date_submitted')) ,".replace(")) ,", ")),"),
+              "        readOnlyField('Lead ID', id),",
+              "        readOnlyField('Roofing Company', fieldValue(lead, 'company_name')) ,".replace(")) ,", ")),"),
+              "        readOnlyField('Appointment Coordinator', fieldValue(lead, 'appointment_coordinator_name'))",
+              "      ].join('');",
+              "    }",
+          ])
+          new_static = "\n".join([
+              "    const managementAccess = isManagementAccess();",
+              "    const staticFields = document.getElementById('chl-lead-review-static');",
+              "    if (staticFields) {",
+              "      staticFields.innerHTML = [",
+              "        readOnlyField('Date Submitted', fieldValue(lead, 'date_submitted')) ,".replace(")) ,", ")),"),
+              "        readOnlyField('Lead ID', id),",
+              "        readOnlyField(",
+              "          managementAccess ? 'Client Code' : 'Roofing Company',",
+              "          managementAccess ? fieldValue(lead, 'client_code') : fieldValue(lead, 'company_name')",
+              "        ),",
+              "        readOnlyField('Appointment Coordinator', fieldValue(lead, 'appointment_coordinator_name'))",
+              "      ].join('');",
+              "    }",
+          ])
 
           if source.count(old_static) != 1:
               raise SystemExit(f'Expected one lead review static-field block, found {source.count(old_static)}.')
