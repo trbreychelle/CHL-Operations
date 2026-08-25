@@ -1,0 +1,77 @@
+name: Export Leads Tracker line index
+
+on:
+  push:
+    branches:
+      - feat/leads-review-modal
+    paths:
+      - .github/workflows/export-leads-index.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/leads-review-modal
+          fetch-depth: 1
+
+      - name: Build focused indexes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          Path('.inspection').mkdir(exist_ok=True)
+          for filename in ('admin-dashboard.html', 'management-dashboard.html'):
+              path = Path(filename)
+              lines = path.read_text(encoding='utf-8').splitlines()
+              stem = path.stem.replace('-dashboard', '')
+              out = [f'# {filename} lead implementation index ({len(lines)} lines)']
+
+              patterns = [
+                  r'leads-table', r'leads-search', r'leads-filter', r'leads-date',
+                  r'leads-columns', r'leads-page', r'leads-prev', r'leads-next',
+                  r'_leads', r'\bleads\b', r'lead-status', r'deleteLead',
+                  r'feedback', r'highlight', r'spotlight', r'data-lead',
+                  r'from\(["\']leads["\']\)', r'lead_id', r'date_submitted'
+              ]
+              rx = re.compile('|'.join(patterns), re.I)
+              for i, line in enumerate(lines, 1):
+                  if rx.search(line):
+                      out.append(f'{i:05d}: {line}')
+
+              # Also list all object-style methods/functions whose nearby body references lead UI/data.
+              out.append('\n# Candidate function/method starts with lead references in the next 220 lines')
+              method_rx = re.compile(r'^\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{|^\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>')
+              starts = []
+              for i, line in enumerate(lines, 1):
+                  m = method_rx.search(line)
+                  if not m:
+                      continue
+                  window = '\n'.join(lines[i-1:min(len(lines), i+220)])
+                  if re.search(r'(leads-table|_leads|from\(["\']leads["\']\)|lead-status|feedback|highlight)', window, re.I):
+                      starts.append((i, m.group(1) or m.group(2), line.strip()))
+              for i, name, line in starts:
+                  out.append(f'{i:05d}: METHOD {name}: {line}')
+
+              (Path('.inspection') / f'{stem}-leads-index.txt').write_text('\n'.join(out), encoding='utf-8')
+          PY
+
+      - name: Commit indexes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .inspection/*-leads-index.txt
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "chore: export Leads Tracker line indexes"
+            git push origin HEAD:feat/leads-review-modal
+          fi
