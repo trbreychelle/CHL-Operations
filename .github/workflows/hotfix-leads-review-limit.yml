@@ -27,11 +27,8 @@ jobs:
 
           js_path = Path("leads-review-modal.js")
           source = js_path.read_text(encoding="utf-8")
-          old_query = """        .select('*')
-        .limit(1)
-        .maybeSingle();"""
-          new_query = """        .select('*')
-        .maybeSingle();"""
+          old_query = "        .select('*')\n        .limit(1)\n        .maybeSingle();"
+          new_query = "        .select('*')\n        .maybeSingle();"
 
           count = source.count(old_query)
           if count != 1:
