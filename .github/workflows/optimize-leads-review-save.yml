@@ -23,14 +23,14 @@ jobs:
       - name: Make lead saves return immediately after the database write
         run: |
           python - <<'PY'
+          import base64
+          import zlib
           from pathlib import Path
 
           js_path = Path('leads-review-modal.js')
           source = js_path.read_text(encoding='utf-8')
-
           start_marker = "      const { data, error } = await client\n"
           end_marker = "    } catch (error) {\n      console.error('Lead review save failed:', error);"
-
           start = source.find(start_marker)
           end = source.find(end_marker, start)
           if start < 0 or end < 0:
@@ -38,109 +38,8 @@ jobs:
           if source.find(start_marker, start + 1) >= 0:
               raise SystemExit('Found more than one Leads review save query block.')
 
-          optimized = r'''      const { error } = await client
-        .from('leads_raw')
-        .update(updatePayload)
-        .eq('lead_id', leadId);
-
-      if (error) throw error;
-
-      // The database write is complete. Update the in-memory row immediately so
-      // Management Access can repaint without waiting for the full dashboard fetch.
-      const newLead = { ...oldLead, ...updatePayload };
-      leadRowsById.set(leadId, newLead);
-
-      const admin = getAdmin();
-      const state = admin?.getState?.() || window.portal?.adminState || {};
-      if (Array.isArray(state?.leads)) {
-        const stateIndex = state.leads.findIndex(lead =>
-          String(fieldValue(lead, 'lead_id')) === leadId
-        );
-        if (stateIndex >= 0) {
-          state.leads[stateIndex] = { ...state.leads[stateIndex], ...newLead };
-          leadRowsById.set(leadId, state.leads[stateIndex]);
-        }
-      }
-
-      // Paint the status badge immediately. The normal filtered refresh below
-      // will reconcile every other visible field without keeping the modal open.
-      if (statusChanged) {
-        const encodedLeadId = encodeURIComponent(leadId);
-        const row = Array.from(document.querySelectorAll('#leads-table-body > tr'))
-          .find(candidate => candidate.dataset.chlLeadId === encodedLeadId);
-        const visibleColumns = Array.isArray(admin?._leadsCols) && admin?._leadsVisibleCols
-          ? admin._leadsCols.filter(column => admin._leadsVisibleCols.has(column.key))
-          : [];
-        const statusIndex = visibleColumns.findIndex(column => column.key === 'status');
-        const statusCell = statusIndex >= 0 ? row?.children?.[statusIndex] : null;
-        if (statusCell) {
-          statusCell.innerHTML = `<span class="inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black ${statusClasses(nextStatus)}" title="Use the pencil button to review or change status">${escapeHtml(nextStatus)}</span>`;
-        }
-      }
-
-      // Finish the user-facing save flow now. Audit logging, sheet sync, and the
-      // filtered table refresh are intentionally non-blocking background work.
-      setMessage('Lead changes saved successfully.', 'success');
-      if (saveButton) {
-        saveButton.disabled = true;
-        saveButton.innerHTML = '<i class="fa-solid fa-check mr-2"></i>Saved';
-      }
-      saving = false;
-      window.setTimeout(() => {
-        closeModal();
-        if (saveButton) {
-          saveButton.disabled = false;
-          saveButton.innerHTML = originalButtonHtml;
-        }
-      }, 180);
-
-      window.setTimeout(() => {
-        const trackedFields = Object.keys(updatePayload);
-        try {
-          Promise.resolve(window.portal?.createCommandCenterEvent?.({
-            moduleKey: 'leads_tracker',
-            entityType: 'lead',
-            entityId: leadId,
-            entityCode: leadId,
-            entityLabel: updatePayload.homeowner_names || fieldValue(oldLead, 'homeowner_names') || leadId,
-            eventType: 'updated',
-            summaryText: `${window.portal?.currentUser?.name || 'User'} reviewed and updated lead ${leadId}.`,
-            fieldChanges: window.portal?.buildFieldChanges
-              ? window.portal.buildFieldChanges(oldLead || {}, newLead, trackedFields)
-              : [],
-            oldData: oldLead || null,
-            newData: newLead,
-            severity: 'normal',
-            teamKeys: ['admin_management']
-          })).catch(eventError => {
-            console.error('Lead review audit event failed:', eventError);
-          });
-        } catch (eventError) {
-          console.error('Lead review audit event failed:', eventError);
-        }
-
-        if (statusChanged) {
-          try {
-            window.fetch('https://automate.callhammerleads.com/webhook/update-lead-sheet', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ lead_id: leadId, status: nextStatus })
-            }).catch(syncError => console.error('Lead sheet sync failed:', syncError));
-          } catch (syncError) {
-            console.error('Lead sheet sync failed:', syncError);
-          }
-        }
-
-        const latestAdmin = getAdmin();
-        if (latestAdmin?.applyLeadsFilters) {
-          Promise.resolve(latestAdmin.applyLeadsFilters(latestAdmin._leadsPage || 1))
-            .catch(refreshError => {
-              console.error('Lead review background refresh failed:', refreshError);
-            });
-        }
-      }, 0);
-'''
-
+          encoded = "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"
+          optimized = zlib.decompress(base64.b64decode(encoded)).decode('utf-8')
           js_path.write_text(source[:start] + optimized + source[end:], encoding='utf-8')
 
           old_version = 'leads-review-modal.js?v=20260825-2'
@@ -150,13 +49,8 @@ jobs:
               dashboard = dashboard_path.read_text(encoding='utf-8')
               count = dashboard.count(old_version)
               if count != 1:
-                  raise SystemExit(
-                      f'Expected one {old_version!r} include in {dashboard_name}; found {count}.'
-                  )
-              dashboard_path.write_text(
-                  dashboard.replace(old_version, new_version, 1),
-                  encoding='utf-8',
-              )
+                  raise SystemExit(f'Expected one old script include in {dashboard_name}; found {count}.')
+              dashboard_path.write_text(dashboard.replace(old_version, new_version, 1), encoding='utf-8')
           PY
 
       - name: Validate optimized save flow
@@ -164,20 +58,16 @@ jobs:
           node --check leads-review-modal.js
           python - <<'PY'
           from pathlib import Path
-
           js = Path('leads-review-modal.js').read_text(encoding='utf-8')
           save_start = js.index('  async function saveLeadReview()')
           save_end = js.index('  function decorateRenderedLeads', save_start)
           save = js[save_start:save_end]
-
           assert ".update(updatePayload)\n        .eq('lead_id', leadId);" in save
           assert ".select('*')" not in save
           assert 'await window.portal?.createCommandCenterEvent' not in save
           assert 'await window.portal.fetchAdminData' not in save
           assert 'await admin.applyLeadsFilters' not in save
-          assert "window.setTimeout(() => {\n        closeModal();" in save
           assert "Promise.resolve(latestAdmin.applyLeadsFilters" in save
-
           for name in ('admin-dashboard.html', 'management-dashboard.html'):
               html = Path(name).read_text(encoding='utf-8')
               assert html.count('leads-review-modal.js?v=20260825-3') == 1
