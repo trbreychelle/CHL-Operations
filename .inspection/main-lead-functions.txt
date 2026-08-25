@@ -1,0 +1,3168 @@
+# main.js shared lead contexts (4473 lines)
+
+# Hit index
+00048: fetchAdminData:       fetchAdminData: 'https://automate.callhammerleads.com/webhook/dashboard-data-v2',
+00064: deleteLead:       deleteLead: 'https://automate.callhammerleads.com/webhook/delete-lead',
+00798: fetchAdminData:   this.fetchAdminData(true);
+00807: leads_raw:     .on('postgres_changes', { event: '*', schema: 'public', table: 'leads_raw' }, debouncedRefresh)
+00886: fetchAdminData:     this.fetchAdminData(false);
+01513: state.leads:     const leads = Array.isArray(this.adminState.leads) ? this.adminState.leads : [];
+01513: adminState.leads:     const leads = Array.isArray(this.adminState.leads) ? this.adminState.leads : [];
+01719: rejection_reason:     feedback: l.feedback || l.rejection_reason || ''
+02527: fetchAdminData: async fetchAdminData(forceRefresh = false) {
+02536: fetchAdminData:       const response = await fetch(this.webhooks.fetchAdminData);
+02578: leads_raw:   supaClient.from('leads_raw').select('*'),
+02643: state.leads: this.adminState.leads = supaLeads.length > 0 ? supaLeads : (dataRoot.leads || []);
+02643: adminState.leads: this.adminState.leads = supaLeads.length > 0 ? supaLeads : (dataRoot.leads || []);
+02684: fetchAdminData:       console.error('❌ fetchAdminData failed:', err);
+02789: state.leads:     this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
+02789: adminState.leads:     this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
+03044: fetchAdminData:     if (window.portal && typeof window.portal.fetchAdminData === 'function') {
+03045: fetchAdminData:       window.portal.fetchAdminData(true);
+03065: fetchAdminData:       if (!document.hidden) this.fetchAdminData(true);
+03070: fetchAdminData:         if (!document.hidden) this.fetchAdminData(true);
+03284: fetchAdminData:         window.portal.fetchAdminData(true);
+03767: fetchAdminData:         window.portal.fetchAdminData(true);
+03792: updateLeadStatus: async function updateLeadStatus(leadId, newStatus, rejectionReason = null) {
+03804: rejection_reason:     updatePayload.rejection_reason = normalizedReason || "";
+03809: leads_raw:         .from('leads_raw')
+03820: leads_raw:         .from('leads_raw')
+03831: feedback_highlight:         const trackedFields = ["status", "feedback", "feedback_highlight", "rejection_reason"];
+03831: rejection_reason:         const trackedFields = ["status", "feedback", "feedback_highlight", "rejection_reason"];
+03855: fetchAdminData:     window.portal.fetchAdminData(true);
+03871: handleLeadStatusChange: function handleLeadStatusChange(selectEl, leadId, existingReason = "") {
+03899: updateLeadStatus:     updateLeadStatus(leadId, nextStatus, "");
+03902: deleteLead: async function deleteLead(leadId) {
+03910: leads_raw:         .from('leads_raw')
+03921: leads_raw:         .from('leads_raw')
+03951: fetchAdminData:     window.portal.fetchAdminData(true);
+03964: updateLeadFeedback: async function updateLeadFeedback(leadId, feedback = "", feedbackHighlight = false) {
+03970: feedback_highlight:     feedback_highlight: !!feedbackHighlight
+03974: leads_raw:     .from("leads_raw")
+03984: fetchAdminData:   window.portal.fetchAdminData(true);
+04136: fetchAdminData:                 if (window.portal && typeof window.portal.fetchAdminData === 'function') {
+04137: fetchAdminData:                     await window.portal.fetchAdminData(true);
+04219: fetchAdminData:         if (window.portal && typeof window.portal.fetchAdminData === 'function') {
+04220: fetchAdminData:             await window.portal.fetchAdminData(true);
+
+## Lines 1-284
+00001: // Call Hammer Leads - Unified Application Logic
+00002: class CallHammerPortal {
+00003:   constructor() {
+00004:     this.currentUser = null;
+00005:     
+00006:     this.supabase = window.supabase
+00007:   ? window.supabase.createClient(
+00008:       'https://api.supabase.callhammerleads.com',
+00009:       'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc3MTcwMjI2MCwiZXhwIjo0OTI3Mzc1ODYwLCJyb2xlIjoiYW5vbiJ9.XuWCdGs0XSSSlWhsF6gR4gHMp50C-v6xra9ABgSVRoU'
+00010:     )
+00011:   : null;
+00012: 
+00013:     // Agent/TL datasets
+00014:     this.leadsData = [];
+00015:     this.employeeList = [];
+00016:     this.filteredLeads = [];
+00017:     this.currentFilter = 'this-week';
+00018: 
+00019:     this.weeklyPayroll = [];
+00020:     this.timeTracker = [];
+00021: 
+00022:     // Admin datasets (normalized + raw)
+00023:     this.adminState = {
+00024:   rawClients: [],
+00025:   clients: [],
+00026:   leads: [],
+00027:   agents: [],
+00028:   rawStatuses: [],
+00029:   rawPackages: [],
+00030:   weeklyPayroll: [],
+00031:   payrollHistory: [],
+00032:   payrollWeeklyFactView: [],
+00033:   payrollWorkers: [],
+00034:   clientHealthView: [],
+00035:   agentPerformanceView: [],
+00036:   clientPackageAllocationView: [],
+00037:   clientPackageStatusView: [],
+00038:   clientOnboarding: []
+00039: };
+00040:     // Cache to avoid Google Sheets quota/too-many-requests issues
+00041:     this.lastAdminFetch = 0;
+00042:     this.adminCacheMs = 60_000; // 60s
+00043: 
+00044:     this.webhooks = {
+00045:       login: 'https://automate.callhammerleads.com/webhook/agent-login',
+00046:       fetchData: 'https://automate.callhammerleads.com/webhook/fetch-agent-data',
+00047:       fetchTLData: 'https://automate.callhammerleads.com/webhook/fetch-tl-data',
+00048:       fetchAdminData: 'https://automate.callhammerleads.com/webhook/dashboard-data-v2',
+00049:       
+00050:       // ✅ PAYROLL
+00051:       payrollData: 'https://automate.callhammerleads.com/webhook/payroll-data',
+00052: 
+00053:       timeOffRequest: 'https://automate.callhammerleads.com/webhook/timeoff-request',
+00054:       changePassword: 'https://automate.callhammerleads.com/webhook/change-password',
+00055:       manageEmployee: 'https://automate.callhammerleads.com/webhook/manage-employee',
+00056:       
+00057:       // ✅ PASSBOOK
+00058:       passbookClientsList: 'https://automate.callhammerleads.com/webhook/passbook-clients-list',
+00059:       passbookClientDetails: 'https://automate.callhammerleads.com/webhook/passbook-client',
+00060:       passbookClientUpdate: 'https://automate.callhammerleads.com/webhook/passbook-client-update',
+00061:       
+00062:       // ✅ ADD THESE TWO NEW WEBHOOKS FOR LEADS
+00063:       updateLead: 'https://automate.callhammerleads.com/webhook/update-lead',
+00064:       deleteLead: 'https://automate.callhammerleads.com/webhook/delete-lead',
+00065:       getGhlAvailability: 'https://automate.callhammerleads.com/webhook/agent-get-availability',
+00066: bookGhlAppointment: 'https://automate.callhammerleads.com/webhook/book-ghl-appointment',
+00067:     };
+00068: 
+00069:     this.init();
+00070:   }
+00071: 
+00072:   // ------------------------
+00073:   // ✅ LOGIN + SESSION
+00074:   // ------------------------
+00075:   saveSession(user) {
+00076:     try {
+00077:       localStorage.setItem('ch_session', JSON.stringify({ user }));
+00078:       this.currentUser = user;
+00079:     } catch (e) {
+00080:       console.warn('Failed to save session:', e);
+00081:     }
+00082:   }
+00083: 
+00084:   clearSession() {
+00085:     try { localStorage.removeItem('ch_session'); } catch (e) {}
+00086:     this.currentUser = null;
+00087:   }
+00088: 
+00089:    routeByRole(roleRaw, user = null) {
+00090:   const role = String(roleRaw || '').toLowerCase();
+00091: 
+00092:   if (role === 'recruitment') return 'recruitment-dashboard.html';
+00093:   if (role === 'admin') return 'admin-dashboard.html';
+00094:   if (role === 'management') return 'management-dashboard.html';
+00095:   if (role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') return 'salesdashboard.html';
+00096:   if (role === 'sales_rep') return 'salesrep-dashboard.html';
+00097: 
+00098:   return 'agent-dashboard.html';
+00099: }
+00100: 
+00101:   async loginWithCredentials(email, password) {
+00102:   const cleanEmail = String(email || '').trim().toLowerCase();
+00103:   const cleanPassword = String(password || '').trim();
+00104: 
+00105:   if (!cleanEmail || !cleanPassword) {
+00106:     throw new Error('Missing email or password.');
+00107:   }
+00108: 
+00109:   if (!this.supabase) {
+00110:     throw new Error('Supabase client not initialized.');
+00111:   }
+00112: 
+00113:   try {
+00114:     const { data, error } = await this.supabase.auth.signInWithPassword({
+00115:       email: cleanEmail,
+00116:       password: cleanPassword
+00117:     });
+00118: 
+00119:     if (error) {
+00120:       throw new Error(error.message || 'Supabase login failed.');
+00121:     }
+00122: 
+00123:     const authUser = data?.user;
+00124:     if (!authUser) {
+00125:       throw new Error('Supabase login failed: user missing.');
+00126:     }
+00127: 
+00128:     const { data: profile, error: profileError } = await this.supabase
+00129:       .from('profiles')
+00130:       .select('id, auth_user_id, organization_id, email, full_name, display_name, role, is_active, can_access_recruitment_dashboard')
+00131:       .eq('auth_user_id', authUser.id)
+00132:       .single();
+00133: 
+00134:     if (profileError) {
+00135:       throw new Error(profileError.message || 'Failed to load profile.');
+00136:     }
+00137: 
+00138:     if (!profile) {
+00139:       throw new Error('No profile found for this user.');
+00140:     }
+00141: 
+00142:     if (!profile.is_active) {
+00143:       throw new Error('This account is inactive.');
+00144:     }
+00145: 
+00146:     const user = {
+00147:       id: profile.id,
+00148:       auth_user_id: profile.auth_user_id,
+00149:       organization_id: profile.organization_id,
+00150:       email: profile.email,
+00151:       name: profile.display_name || profile.full_name || profile.email,
+00152:       full_name: profile.full_name,
+00153:       display_name: profile.display_name,
+00154:       role: profile.role,
+00155: can_access_recruitment_dashboard: profile.can_access_recruitment_dashboard === true
+00156:     };
+00157: 
+00158:     this.saveSession(user);
+00159:     window.location.href = this.routeByRole(user.role, user);
+00160:   } catch (supabaseErr) {
+00161:     console.error('Supabase login failed:', supabaseErr);
+00162:     throw supabaseErr;
+00163:   }
+00164: }
+00165:   
+00166:   async tryLoginFromQueryParams() {
+00167:   return false;
+00168: }
+00169: 
+00170:   // ✅ Binds to YOUR index.html IDs
+00171:   bindIndexLoginForm() {
+00172:     const form = document.getElementById('loginForm');
+00173:     if (!form) return;
+00174: 
+00175:     const emailEl = document.getElementById('email');
+00176:     const passEl = document.getElementById('password');
+00177:     const btn = document.getElementById('loginButton');
+00178: 
+00179:     const errWrap = document.getElementById('loginError');
+00180:     const errText = errWrap ? errWrap.querySelector('p') : null;
+00181: 
+00182:     const spinner = document.getElementById('loginSpinner');
+00183:     const loginText = document.getElementById('loginText');
+00184: 
+00185:     const setLoading = (isLoading) => {
+00186:       if (btn) btn.disabled = !!isLoading;
+00187:       if (spinner) spinner.classList.toggle('hidden', !isLoading);
+00188:       if (loginText) loginText.classList.toggle('hidden', !!isLoading);
+00189:     };
+00190: 
+00191:     const showError = (msg) => {
+00192:       if (!errWrap) return;
+00193:       errWrap.classList.remove('hidden');
+00194:       if (errText) errText.textContent = msg || 'Login failed. Please try again.';
+00195:       errWrap.classList.add('error-shake');
+00196:       setTimeout(() => errWrap.classList.remove('error-shake'), 600);
+00197:     };
+00198: 
+00199:     const clearError = () => {
+00200:       if (!errWrap) return;
+00201:       errWrap.classList.add('hidden');
+00202:       if (errText) errText.textContent = '';
+00203:     };
+00204: 
+00205:     const run = async (e) => {
+00206:       if (e) e.preventDefault();
+00207:       clearError();
+00208: 
+00209:       const email = emailEl ? emailEl.value : '';
+00210:       const password = passEl ? passEl.value : '';
+00211: 
+00212:       try {
+00213:         setLoading(true);
+00214:         await this.loginWithCredentials(email, password);
+00215:       } catch (err) {
+00216:         console.error(err);
+00217:         showError(err?.message || 'Login failed. Please try again.');
+00218:       } finally {
+00219:         setLoading(false);
+00220:       }
+00221:     };
+00222: 
+00223:     form.addEventListener('submit', run);
+00224:     if (btn) btn.addEventListener('click', run);
+00225:   }
+00226: 
+00227:   async logout() {
+00228:   try {
+00229:     if (this.supabase) {
+00230:       await this.supabase.auth.signOut(); // ✅ THIS IS THE REAL FIX
+00231:     }
+00232:   } catch (err) {
+00233:     console.error('Supabase logout failed:', err);
+00234:   }
+00235: 
+00236:   this.clearSession(); // keep your local cleanup
+00237:   window.location.href = 'index.html';
+00238: }
+00239:     async fetchCommandCenterNotifications(teamKey = 'admin_management', limit = 50) {
+00240:   if (!supaClient) return [];
+00241: 
+00242: const allowedModules =
+00243:   teamKey === 'admin_management'
+00244:     ? ['sales_pipeline', 'time_off']
+00245:     : ['sales_pipeline'];
+00246: 
+00247:   try {
+00248:     const { data, error } = await supaClient
+00249:       .from('command_center_team_state')
+00250:       .select(`
+00251:         id,
+00252:         event_id,
+00253:         team_key,
+00254:         is_unread,
+00255:         is_flagged,
+00256:         is_done,
+00257:         is_reviewed,
+00258:         status,
+00259:         updated_at,
+00260:         command_center_events (
+00261:           id,
+00262:           module_key,
+00263:           entity_type,
+00264:           entity_id,
+00265:           entity_code,
+00266:           entity_label,
+00267:           event_type,
+00268:           summary_text,
+00269:           field_changes,
+00270:           old_data,
+00271:           new_data,
+00272:           actor_name,
+00273:           actor_role,
+00274:           severity,
+00275:           created_at
+00276:         )
+00277:       `)
+00278:      .eq('team_key', teamKey)
+00279: .order('updated_at', { ascending: false })
+00280: .limit(Math.max(limit, 300));
+00281: 
+00282:     if (error) {
+00283:       console.error('Failed to fetch notifications:', error);
+00284:       return [];
+
+## Lines 688-1106
+00688:       role === 'tl'
+00689:     ) {
+00690:       return 'sales';
+00691:     }
+00692: 
+00693:     return 'admin_management';
+00694:   }
+00695: 
+00696:   async deleteCommandCenterNote(noteId) {
+00697:   if (!supaClient || !noteId) return false;
+00698: 
+00699:   try {
+00700:     const { error } = await supaClient
+00701:       .from('command_center_notes')
+00702:       .delete()
+00703:       .eq('id', noteId);
+00704: 
+00705:     if (error) {
+00706:       console.error('deleteCommandCenterNote failed:', error);
+00707:       return false;
+00708:     }
+00709: 
+00710:     return true;
+00711:   } catch (err) {
+00712:     console.error('deleteCommandCenterNote exception:', err);
+00713:     return false;
+00714:   }
+00715: }
+00716: 
+00717:   cleanupCommandCenterRealtime() {
+00718:   try {
+00719:     if (this._ccRealtimeChannel) {
+00720:       supaClient.removeChannel(this._ccRealtimeChannel);
+00721:       this._ccRealtimeChannel = null;
+00722:     }
+00723: 
+00724:     if (this._adminRealtimeChannel) {
+00725:       supaClient.removeChannel(this._adminRealtimeChannel);
+00726:       this._adminRealtimeChannel = null;
+00727:     }
+00728:   } catch (err) {
+00729:     console.warn('cleanupCommandCenterRealtime failed:', err);
+00730:   }
+00731: }
+00732: 
+00733: setupCommandCenterRealtime() {
+00734:   if (!supaClient) return;
+00735:   if (!this.currentUser) return;
+00736: 
+00737:   const organizationId = this.getCurrentOrganizationId();
+00738:   const teamKey = this.getCommandCenterTeamKey();
+00739: 
+00740:   if (!organizationId || !teamKey) return;
+00741: 
+00742:   this.cleanupCommandCenterRealtime();
+00743: 
+00744: // Notifications + notes realtime
+00745: this._ccRealtimeChannel = supaClient
+00746:   .channel(`cc-live:${organizationId}:${teamKey}`)
+00747:   .on(
+00748:     "postgres_changes",
+00749:     {
+00750:       event: "*",
+00751:       schema: "public",
+00752:       table: "command_center_team_state",
+00753:       filter: `team_key=eq.${teamKey}`
+00754:     },
+00755:     async () => {
+00756:       try {
+00757:         const role = String(this.currentUser?.role || "").toLowerCase();
+00758: 
+00759:         if (role !== "management") {
+00760:           await window.Admin?.loadNotifications?.(true);
+00761:         }
+00762: 
+00763:         await window.Admin?.loadPassbookModuleInbox?.();
+00764:         await window.Admin?.loadSalesPassbookAckInbox?.();
+00765:       } catch (err) {
+00766:         console.error("Realtime notifications refresh failed:", err);
+00767:       }
+00768:     }
+00769:   )
+00770:   .on(
+00771:     "postgres_changes",
+00772:     {
+00773:       event: "*",
+00774:       schema: "public",
+00775:       table: "command_center_notes",
+00776:       filter: `organization_id=eq.${organizationId}`
+00777:     },
+00778:     async () => {
+00779:       try {
+00780:         const role = String(this.currentUser?.role || "").toLowerCase();
+00781: 
+00782:         if (role !== "management") {
+00783:           await window.Admin?.loadNotes?.();
+00784:         }
+00785:       } catch (err) {
+00786:         console.error("Realtime notes refresh failed:", err);
+00787:       }
+00788:     }
+00789:   )
+00790:   .subscribe(status => {
+00791:     console.log("Command Center realtime status:", status);
+00792:   });
+00793: 
+00794:   // Debounced admin data refresh for live operational updates
+00795:   const debouncedRefresh = () => {
+00796:     clearTimeout(this._adminRealtimeRefreshTimer);
+00797:     this._adminRealtimeRefreshTimer = setTimeout(() => {
+00798:   this.fetchAdminData(true);
+00799: }, 5000);
+00800:   };
+00801: 
+00802:   this._adminRealtimeChannel = supaClient
+00803:     .channel(`admin-live:${organizationId}`)
+00804:     .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, debouncedRefresh)
+00805:     .on('postgres_changes', { event: '*', schema: 'public', table: 'packages' }, debouncedRefresh)
+00806:     .on('postgres_changes', { event: '*', schema: 'public', table: 'client_onboarding' }, debouncedRefresh)
+00807:     .on('postgres_changes', { event: '*', schema: 'public', table: 'leads_raw' }, debouncedRefresh)
+00808:     .subscribe((status) => {
+00809:       console.log('Admin dashboard realtime status:', status);
+00810:     });
+00811: }
+00812: 
+00813:   // ------------------------
+00814:   // Init / Routing
+00815:   // ------------------------
+00816:   async init() {
+00817:     await this.checkExistingSession();
+00818: 
+00819:     const path = (window.location.pathname || '').toLowerCase();
+00820:     const onIndex =
+00821:       path.endsWith('index.html') ||
+00822:       path === '/' ||
+00823:       path === '' ||
+00824:       path.endsWith('/index') ||
+00825:       path.endsWith('/index.html');
+00826: 
+00827:     if (onIndex && this.currentUser) {
+00828:       window.location.href = this.routeByRole(this.currentUser.role, this.currentUser);
+00829:       return;
+00830:     }
+00831: 
+00832:     if (onIndex) {
+00833:   this.bindIndexLoginForm();
+00834: }
+00835: 
+00836: this.updateDashboardIdentity();
+00837: this.enforceRoleRouting();
+00838: this.bindEvents();
+00839: this.bindPassbookUpdateButton();
+00840: 
+00841:     if (path.includes('passbook') || document.querySelector('[data-page="passbook-clients"]')) {
+00842:       setTimeout(() => this.loadPassbookClientsList(true), 300);
+00843:     }
+00844: 
+00845:    const pathName = (window.location.pathname || '').toLowerCase();
+00846: const isAgentPage = pathName.includes('agent-dashboard');
+00847: const isAdminPage = pathName.includes('admin-dashboard');
+00848: const isSalesPage = pathName.includes('salesdashboard');
+00849: const isSalesRepPage = pathName.includes('salesrep-dashboard');
+00850: const isManagementPage = pathName.includes('management-dashboard');
+00851:     const isRecruitmentPage = pathName.includes('recruitment-dashboard');
+00852: const isCommandCenter =
+00853:   isAdminPage ||
+00854:   isSalesPage ||
+00855:   isSalesRepPage ||
+00856:   isManagementPage ||
+00857:   isRecruitmentPage;
+00858: const isOldAgentDash = isAgentPage;
+00859: 
+00860:     // Load Agent Dashboard
+00861:    if (this.currentUser && isOldAgentDash && !isCommandCenter) {
+00862:   console.log("🔥 AGENT DASHBOARD ONLY");
+00863: 
+00864:   const isAgentDOM = document.getElementById('stat-appointments');
+00865: 
+00866:   if (!isAgentDOM) {
+00867:     console.log("⛔ Not agent DOM, skipping agent load");
+00868:     return;
+00869:   }
+00870: 
+00871:   setTimeout(async () => {
+00872:   await this.fetchAllData();
+00873:   await this.loadAgentLeadsWithFilters();
+00874:   this.startMSTClock();
+00875:   await this.loadTimeOffHistory();
+00876: }, 300);
+00877: }
+00878:    // Load Admin OR Sales Dashboard
+00879: if (isCommandCenter) {
+00880:   console.log("🟢 ADMIN DASHBOARD LOADING SAFE MODE");
+00881:   if (!isRecruitmentPage) {
+00882:   document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+00883: }
+00884: 
+00885:   setTimeout(() => {
+00886:     this.fetchAdminData(false);
+00887:     this.setupCommandCenterRealtime();
+00888:     // this.loadPayrollData(false);
+00889:   }, 300);
+00890: 
+00891:   this.startAdminAutoRefresh();
+00892: }
+00893:   }
+00894: 
+00895:    enforceRoleRouting() {
+00896:   if (!this.currentUser) return;
+00897: 
+00898:   const path = (window.location.pathname || '').toLowerCase();
+00899:   const role = (this.currentUser.role || 'agent').toLowerCase();
+00900: 
+00901:   if (!path.includes('dashboard') && !path.includes('admin') && !path.includes('management') && !path.includes('salesrep')) return;
+00902: 
+00903:   const onAdmin = path.includes('admin-dashboard');
+00904:   const onAgent = path.includes('agent-dashboard');
+00905:   const onSales = path.includes('salesdashboard');
+00906:   const onSalesRep = path.includes('salesrep-dashboard');
+00907:   const onRecruitment = path.includes('recruitment-dashboard');
+00908:   const onManagement = path.includes('management-dashboard');
+00909: 
+00910:       if (role === 'admin' && !onAdmin) window.location.href = 'admin-dashboard.html';
+00911:     else if (role === 'management' && !onManagement) window.location.href = 'management-dashboard.html';
+00912:     else if ((role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') && !onSales) window.location.href = 'salesdashboard.html';
+00913:     else if (role === 'sales_rep' && !path.includes('salesrep-dashboard')) window.location.href = 'salesrep-dashboard.html';
+00914:     else if (role === 'recruitment' && !onRecruitment) {
+00915:   window.location.href = 'recruitment-dashboard.html';
+00916: }
+00917:     
+00918:   else if (
+00919:   role === 'agent' &&
+00920:   this.currentUser?.can_access_recruitment_dashboard !== true &&
+00921:   !onAgent
+00922: ) {
+00923:   window.location.href = 'agent-dashboard.html';
+00924: }
+00925: }
+00926:   
+00927:   // ------------------------
+00928:   // Session / Events (safe)
+00929:   // ------------------------
+00930:   async checkExistingSession() {
+00931:   try {
+00932:     if (!this.supabase) return;
+00933: 
+00934:     const { data, error } = await this.supabase.auth.getSession();
+00935: 
+00936:     if (error || !data?.session) {
+00937:       this.clearSession();
+00938:       return;
+00939:     }
+00940: 
+00941:     const authUser = data.session.user;
+00942: 
+00943:     const { data: profile, error: profileError } = await this.supabase
+00944:       .from('profiles')
+00945:       .select('id, auth_user_id, organization_id, email, full_name, display_name, role, is_active, can_access_recruitment_dashboard')
+00946:       .eq('auth_user_id', authUser.id)
+00947:       .single();
+00948: 
+00949:     if (profileError || !profile || !profile.is_active) {
+00950:       this.clearSession();
+00951:       return;
+00952:     }
+00953: 
+00954:     const user = {
+00955:   id: profile.id,
+00956:   auth_user_id: profile.auth_user_id,
+00957:   organization_id: profile.organization_id,
+00958:   email: profile.email,
+00959:   name: profile.display_name || profile.full_name || profile.email,
+00960:   full_name: profile.full_name,
+00961:   display_name: profile.display_name,
+00962:   role: profile.role,
+00963:   can_access_recruitment_dashboard: profile.can_access_recruitment_dashboard === true
+00964: };
+00965:     this.saveSession(user);
+00966: 
+00967:   } catch (e) {
+00968:     console.warn('Session validation failed:', e);
+00969:     this.clearSession();
+00970:   }
+00971: }
+00972: 
+00973:  bindEvents() {
+00974:   const pathName = (window.location.pathname || '').toLowerCase();
+00975:   const isAgentPage = pathName.includes('agent-dashboard');
+00976: 
+00977:   if (!isAgentPage) return;
+00978: 
+00979:    this.setupLeadSubmissionClientRoutes();
+00980: 
+00981:    // OVERVIEW FILTERS
+00982: const overviewTimeframe = document.getElementById('timeframe-filter');
+00983: if (overviewTimeframe && !overviewTimeframe.dataset.bound) {
+00984:   overviewTimeframe.addEventListener('change', async () => {
+00985:     const customStartEl = document.getElementById('custom-start');
+00986:     const customEndEl = document.getElementById('custom-end');
+00987: 
+00988:     if (overviewTimeframe.value !== 'custom') {
+00989:       if (customStartEl) customStartEl.value = '';
+00990:       if (customEndEl) customEndEl.value = '';
+00991:     }
+00992: 
+00993:     await this.fetchAllData();
+00994:   });
+00995:   overviewTimeframe.dataset.bound = 'true';
+00996: }
+00997: 
+00998: const overviewStart = document.getElementById('custom-start');
+00999: const overviewEnd = document.getElementById('custom-end');
+01000: 
+01001: const maybeAutoLoadOverviewCustom = async () => {
+01002:   const timeframeEl = document.getElementById('timeframe-filter');
+01003:   if (timeframeEl && timeframeEl.value !== 'custom') {
+01004:     timeframeEl.value = 'custom';
+01005:   }
+01006: 
+01007:   if (overviewStart?.value && overviewEnd?.value) {
+01008:     await this.fetchAllData();
+01009:   }
+01010: };
+01011: 
+01012: if (overviewStart && !overviewStart.dataset.bound) {
+01013:   overviewStart.addEventListener('change', maybeAutoLoadOverviewCustom);
+01014:   overviewStart.dataset.bound = 'true';
+01015: }
+01016: 
+01017: if (overviewEnd && !overviewEnd.dataset.bound) {
+01018:   overviewEnd.addEventListener('change', maybeAutoLoadOverviewCustom);
+01019:   overviewEnd.dataset.bound = 'true';
+01020: }
+01021: 
+01022:    this.bindTeamLeaderboardsUI();
+01023: 
+01024:   // LEADS TIMEFRAME FILTER
+01025: const leadsTimeframeFilter = document.getElementById('leads-timeframe');
+01026: if (leadsTimeframeFilter && !leadsTimeframeFilter.dataset.bound) {
+01027:   leadsTimeframeFilter.addEventListener('change', async () => {
+01028:     await this.loadAgentLeadsWithFilters();
+01029:   });
+01030:   leadsTimeframeFilter.dataset.bound = 'true';
+01031: }
+01032: 
+01033:   // STATUS FILTER (LEADS TAB)
+01034:   const statusFilter = document.getElementById('status-filter');
+01035: if (statusFilter && !statusFilter.dataset.bound) {
+01036:   statusFilter.addEventListener('change', async () => {
+01037:     await this.loadAgentLeadsWithFilters();
+01038:   });
+01039:   statusFilter.dataset.bound = 'true';
+01040: }
+01041: 
+01042:    // CUSTOM RANGE APPLY
+01043: // LEADS CUSTOM RANGE / CLEAR
+01044: const applyBtn = document.getElementById('apply-leads-range');
+01045: if (applyBtn && !applyBtn.dataset.bound) {
+01046:   applyBtn.addEventListener('click', async () => {
+01047:     const leadsTimeframeEl = document.getElementById('leads-timeframe');
+01048:     const leadsStartEl = document.getElementById('leads-start');
+01049:     const leadsEndEl = document.getElementById('leads-end');
+01050: 
+01051:     if (leadsTimeframeEl) leadsTimeframeEl.value = 'this-week';
+01052:     if (leadsStartEl) leadsStartEl.value = '';
+01053:     if (leadsEndEl) leadsEndEl.value = '';
+01054: 
+01055:     await this.loadAgentLeadsWithFilters();
+01056:   });
+01057:   applyBtn.dataset.bound = 'true';
+01058: }
+01059: 
+01060: const leadsStartEl = document.getElementById('leads-start');
+01061: const leadsEndEl = document.getElementById('leads-end');
+01062: 
+01063: const maybeAutoLoadLeadsCustom = async () => {
+01064:   if (leadsStartEl?.value && leadsEndEl?.value) {
+01065:     await this.loadAgentLeadsWithFilters();
+01066:   }
+01067: };
+01068: 
+01069: if (leadsStartEl && !leadsStartEl.dataset.bound) {
+01070:   leadsStartEl.addEventListener('change', maybeAutoLoadLeadsCustom);
+01071:   leadsStartEl.dataset.bound = 'true';
+01072: }
+01073: 
+01074: if (leadsEndEl && !leadsEndEl.dataset.bound) {
+01075:   leadsEndEl.addEventListener('change', maybeAutoLoadLeadsCustom);
+01076:   leadsEndEl.dataset.bound = 'true';
+01077: }
+01078: 
+01079: // AVATAR UPLOAD
+01080: const avatarInput = document.getElementById('profile-avatar-input');
+01081: const avatarSaveBtn = document.getElementById('profile-avatar-save');
+01082: 
+01083: if (avatarInput && !avatarInput.dataset.bound) {
+01084:   avatarInput.addEventListener('change', async (e) => {
+01085:     const file = e.target.files?.[0];
+01086:     if (!file) return;
+01087: 
+01088:     this._pendingAvatarFile = file;
+01089: 
+01090:     const previewUrl = URL.createObjectURL(file);
+01091:     const avatarEl = document.getElementById('profile-avatar-preview');
+01092:     if (avatarEl) avatarEl.src = previewUrl;
+01093: 
+01094:     if (avatarSaveBtn) avatarSaveBtn.classList.remove('hidden');
+01095:   });
+01096: 
+01097:   avatarInput.dataset.bound = 'true';
+01098: }
+01099: 
+01100: if (avatarSaveBtn && !avatarSaveBtn.dataset.bound) {
+01101:   avatarSaveBtn.addEventListener('click', async () => {
+01102:     const file = this._pendingAvatarFile;
+01103:     if (!file) return;
+01104: 
+01105:     const userId = this.currentUser?.auth_user_id;
+01106:     if (!userId) return alert('User not found');
+
+## Lines 1403-1939
+01403:   formatMSTTime(date = new Date()) {
+01404:     const mst = this.toMST(date);
+01405:     return mst.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+01406:   }
+01407: 
+01408:   startMSTClock() {
+01409:     const el = document.getElementById('mst-clock');
+01410:     if (!el) return;
+01411:     const tick = () => { el.textContent = `${this.formatMSTTime()} MST`; };
+01412:     tick();
+01413:     clearInterval(this._mstClockInterval);
+01414:     this._mstClockInterval = setInterval(tick, 1000);
+01415:   }
+01416: 
+01417:   getPayrollWeekStart(date = new Date()) {
+01418:     const mst = this.toMST(date);
+01419:     const d = new Date(mst);
+01420:     d.setHours(0, 0, 0, 0);
+01421:     const day = d.getDay(); 
+01422:     const diffToSat = (day - 6 + 7) % 7; 
+01423:     d.setDate(d.getDate() - diffToSat);
+01424:     return d;
+01425:   }
+01426: 
+01427:   getPayrollWeekRange(date = new Date()) {
+01428:     const start = this.getPayrollWeekStart(date);
+01429:     const end = new Date(start);
+01430:     end.setDate(end.getDate() + 6);
+01431:     end.setHours(23, 59, 59, 999);
+01432:     return { start, end };
+01433:   }
+01434: 
+01435:   getPreviousPayrollWeekRange(date = new Date()) {
+01436:     const thisWeek = this.getPayrollWeekRange(date);
+01437:     const prevStart = new Date(thisWeek.start);
+01438:     prevStart.setDate(prevStart.getDate() - 7);
+01439:     const prevEnd = new Date(thisWeek.end);
+01440:     prevEnd.setDate(prevEnd.getDate() - 7);
+01441:     return { start: prevStart, end: prevEnd };
+01442:   }
+01443: 
+01444:   // ------------------------
+01445:   // ✅ ADMIN ANALYTICS
+01446:   // ------------------------
+01447:   getLeadDateValue(lead) {
+01448:     return this.getAny(lead, ['lead_date', 'Lead Date', 'DATE', 'Date', 'created_at', 'Created At', 'timestamp', 'Timestamp', 'TimeStamp', 'Submitted At', 'submitted_at', 'Appointment Date', 'appointment_date', 'Date Submitted', 'date_submitted', 'Submission Date', 'submission_date'], '');
+01449:   }
+01450: 
+01451:   getLeadStatusValue(lead) {
+01452:     return this.getAny(lead, ['status', 'Status', 'Lead Status', 'LEAD STATUS', 'lead_status', 'Disposition', 'disposition'], '');
+01453:   }
+01454: 
+01455:   getSelectedAdminRangeKey() {
+01456:     const candidates = Array.from(document.querySelectorAll('button, a'))
+01457:       .filter(el => /today|this week|previous week|4 weeks|6 weeks|all-time/i.test(el.textContent || ''))
+01458:       .filter(el => el.classList.contains('active') || el.getAttribute('aria-current') === 'true' || el.getAttribute('aria-selected') === 'true');
+01459: 
+01460:     const text = (candidates[0]?.textContent || 'today').toLowerCase();
+01461:     if (text.includes('all')) return 'all-time';
+01462:     if (text.includes('previous')) return 'previous-week';
+01463:     if (text.includes('6')) return '6-weeks';
+01464:     if (text.includes('4')) return '4-weeks';
+01465:     if (text.includes('this week')) return 'this-week';
+01466:     return 'today';
+01467:   }
+01468: 
+01469:   computeAdminDateRange(rangeKey) {
+01470:     const now = new Date();
+01471:     const startOfDay = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+01472:     const endOfDay = (d) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
+01473:     const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+01474: 
+01475:     const day = now.getDay(); 
+01476:     const monday = addDays(startOfDay(now), (day === 0 ? -6 : 1 - day)); 
+01477: 
+01478:     if (rangeKey === 'all-time') return { start: new Date(2000,0,1), end: endOfDay(now) };
+01479:     if (rangeKey === 'today') return { start: startOfDay(now), end: endOfDay(now) };
+01480:     if (rangeKey === 'this-week') return { start: monday, end: endOfDay(now) };
+01481:     if (rangeKey === 'previous-week') {
+01482:       const prevMon = addDays(monday, -7);
+01483:       const prevSun = addDays(prevMon, 6);
+01484:       return { start: prevMon, end: endOfDay(prevSun) };
+01485:     }
+01486:     if (rangeKey === '4-weeks') return { start: addDays(startOfDay(now), -28), end: endOfDay(now) };
+01487:     if (rangeKey === '6-weeks') return { start: addDays(startOfDay(now), -42), end: endOfDay(now) };
+01488: 
+01489:     return { start: startOfDay(now), end: endOfDay(now) };
+01490:   }
+01491: 
+01492:   setMetricByLabel(labelText, valueText) {
+01493:     const label = String(labelText || '').toLowerCase();
+01494:     const all = Array.from(document.querySelectorAll('*'))
+01495:       .filter(el => (el.textContent || '').trim().toLowerCase() === label);
+01496: 
+01497:     for (const lbl of all) {
+01498:       let card = lbl.closest('div');
+01499:       for (let i = 0; i < 6 && card; i++) {
+01500:         const candidates = Array.from(card.querySelectorAll('div,span,p,h1,h2,h3'))
+01501:           .filter(x => /\d|%/.test((x.textContent || '').trim()))
+01502:           .sort((a,b) => (b.textContent || '').trim().length - (a.textContent || '').trim().length);
+01503: 
+01504:         const big = candidates.find(x => /^[\d,]+(\.\d+)?%?$/.test((x.textContent || '').trim()));
+01505:         if (big) { big.textContent = valueText; return true; }
+01506:         card = card.parentElement;
+01507:       }
+01508:     }
+01509:     return false;
+01510:   }
+01511: 
+01512:   refreshAdminAnalyticsFromRawLeads() {
+01513:     const leads = Array.isArray(this.adminState.leads) ? this.adminState.leads : [];
+01514:     if (!leads.length) return;
+01515: 
+01516:     const rangeKey = this.getSelectedAdminRangeKey();
+01517:     const { start, end } = this.computeAdminDateRange(rangeKey);
+01518: 
+01519:     const inRange = leads.filter(l => {
+01520:       const dt = this.parseDateSafe(this.getLeadDateValue(l));
+01521:       if (!dt) return false;
+01522:       return dt >= start && dt <= end;
+01523:     });
+01524: 
+01525:     const total = inRange.length;
+01526:     let qualified = 0, qcRejected = 0, credited = 0, pending = 0;
+01527: 
+01528:     for (const l of inRange) {
+01529:       const status = this.getLeadStatusValue(l);
+01530:       if (this.isQualifiedStatus(status)) qualified++;
+01531:       else if (this.isRejectedStatus(status)) qcRejected++;
+01532:       else if (this.isCreditedStatus(status)) credited++;
+01533:       else pending++; 
+01534:     }
+01535: 
+01536:     const denom = qualified + credited;
+01537:     const cancelRate = denom > 0 ? Math.round((credited / denom) * 100) : 0;
+01538: 
+01539:     this.setMetricByLabel('TOTAL LEADS', String(total));
+01540:     this.setMetricByLabel('QUALIFIED', String(qualified));
+01541:     this.setMetricByLabel('QC REJECTED', String(qcRejected));
+01542:     this.setMetricByLabel('CREDITED', String(credited));
+01543:     this.setMetricByLabel('PENDING', String(pending));
+01544:     this.setMetricByLabel('CANCELLATION RATE', `${cancelRate}%`);
+01545:   }
+01546: 
+01547:   // ------------------------
+01548:   // ✅ AGENT DATA FETCHING
+01549:   // ------------------------
+01550:  async fetchAllData() {
+01551:   if (!this.currentUser) return;
+01552: 
+01553:   try {
+01554:     const timeframe = document.getElementById('timeframe-filter')?.value || 'this-week';
+01555: 
+01556: const customStart = document.getElementById('custom-start')?.value || null;
+01557: const customEnd = document.getElementById('custom-end')?.value || null;
+01558: 
+01559: const useCustom = customStart && customEnd;
+01560: 
+01561: if ((customStart && !customEnd) || (!customStart && customEnd)) {
+01562:   alert('Please select both start and end date.');
+01563:   return;
+01564: }
+01565:     const selectedStatus = document.getElementById('status-filter')?.value || 'all';
+01566: 
+01567:     // =========================
+01568:     // OVERVIEW
+01569:     // =========================
+01570:     const { data: overview, error: overviewError } = await this.supabase.rpc('get_my_agent_overview', {
+01571:   p_period: useCustom ? 'custom' : timeframe,
+01572:   p_custom_start: customStart,
+01573:   p_custom_end: customEnd
+01574: });
+01575: 
+01576:     if (overviewError) {
+01577:       console.error('❌ Agent overview load failed:', overviewError);
+01578:       return;
+01579:     }
+01580: 
+01581:     const ov = overview?.[0] || {};
+01582: 
+01583:     const setText = (id, val) => {
+01584:       const el = document.getElementById(id);
+01585:       if (el) el.innerText = val;
+01586:     };
+01587: 
+01588:     setText('stat-appointments', ov.total_appointments || 0);
+01589:     setText('stat-cancel-rate', `${ov.cancellation_rate || 0}%`);
+01590:     setText('stat-incentives', this.formatCurrency(ov.total_incentives ?? ov.auto_incentive_total ?? 0));
+01591:     setText('stat-hours', ov.hours_worked || 0);
+01592: 
+01593:     setText('monthly-incentive-status-ov', ov.monthly_incentive_status || 'Not qualified yet');
+01594:     setText('monthly-raffle-status-ov', ov.monthly_raffle_status || 'No raffle entry yet');
+01595: 
+01596:     // =========================
+01597:     // TIER PROGRESS
+01598:     // =========================
+01599:     const approvedCount = Number(ov.total_appointments || 0);
+01600: const cancelRate = Number(ov.cancellation_rate || 0);
+01601: const isHighPerf = approvedCount >= 6 && cancelRate < 25;
+01602: const percentage = approvedCount >= 6 ? 100 : Math.min(100, (approvedCount / 6) * 100);
+01603: 
+01604: setText('tier-count-display', `${approvedCount} qualified appointments`);
+01605: setText(
+01606:   'tier-status-text',
+01607:   approvedCount < 6
+01608:     ? 'Not yet on incentive tier'
+01609:     : (isHighPerf ? 'High Performance Tier' : 'Standard Tier')
+01610: );
+01611: 
+01612: const progressBar = document.getElementById('tier-progress-bar');
+01613: if (progressBar) progressBar.style.width = `${percentage}%`;
+01614: 
+01615:     // =========================
+01616:     // LEADS
+01617:     // =========================
+01618:     await this.loadAgentLeadsWithFilters();
+01619: 
+01620:     // =========================
+01621:     // PROFILE
+01622:     // =========================
+01623:     const { data: profile, error: profileError } = await this.supabase.rpc('get_my_agent_profile_snapshot');
+01624: 
+01625:     if (profileError) {
+01626:       console.error('❌ Agent profile load failed:', profileError);
+01627:     }
+01628: 
+01629:     const p = profile?.[0] || {};
+01630: 
+01631:     this.updateProfileUI({
+01632:   name: p.display_name,
+01633:   email: p.email,
+01634:   role: p.agent_position,
+01635:   employmentStatus: p.employment_status,
+01636:   baseRate: p.base_rate,
+01637:   weeklyHours: p.weekly_hours,
+01638:   startDate: p.start_date,
+01639:   avatar_url: p.avatar_url,
+01640:   monthlyIncentiveStatus: ov.monthly_incentive_status,
+01641:   raffleStatus: ov.monthly_raffle_status
+01642: });
+01643: 
+01644:     const navRoleEl = document.getElementById('nav-user-role');
+01645:     if (navRoleEl) navRoleEl.innerText = p.agent_position || 'Agent';
+01646: 
+01647:     // =========================
+01648:     // TRENDS
+01649:     // =========================
+01650:     const { data: trends, error: trendsError } = await this.supabase.rpc('get_my_agent_weekly_trends', {
+01651:   p_period: useCustom ? 'custom' : timeframe,
+01652:   p_custom_start: customStart,
+01653:   p_custom_end: customEnd
+01654: });
+01655: 
+01656:     if (trendsError) {
+01657:       console.error('❌ Agent trends load failed:', trendsError);
+01658:     }
+01659: 
+01660:     const labels = (trends || []).map(t => this.formatDate(t.week_start));
+01661:     const appts = (trends || []).map(t => t.approved_appointments);
+01662:     const earnings = (trends || []).map(t => t.incentive_amount);
+01663: 
+01664:     this.renderCharts({
+01665:       labels,
+01666:       appointments: appts,
+01667:       earnings
+01668:     });
+01669: 
+01670:     await this.loadAgentPayroll();
+01671: 
+01672:   } catch (err) {
+01673:     console.error('❌ Agent dashboard load failed:', err);
+01674:   }
+01675: }
+01676: 
+01677:   async loadAgentLeadsWithFilters() {
+01678:   const status = document.getElementById('status-filter')?.value || 'all';
+01679:   const timeframe = document.getElementById('leads-timeframe')?.value || 'this-week';
+01680:   const search = document.getElementById('leads-search')?.value || '';
+01681: 
+01682:   const start = document.getElementById('leads-start')?.value || null;
+01683:   const end = document.getElementById('leads-end')?.value || null;
+01684: 
+01685:   const useCustom = start && end;
+01686: 
+01687:   if ((start && !end) || (!start && end)) {
+01688:     alert('Select both start and end date.');
+01689:     return;
+01690:   }
+01691: 
+01692:   try {
+01693:     const { data: leads, error } = await this.supabase.rpc('get_my_agent_leads', {
+01694:       p_status: status,
+01695:       p_search: search,
+01696:       p_period: useCustom ? 'custom' : timeframe,
+01697:       p_custom_start: start,
+01698:       p_custom_end: end,
+01699:       p_limit: 200,
+01700:       p_offset: 0
+01701:     });
+01702: 
+01703:     if (error) {
+01704:       console.error('Leads filter error:', error);
+01705:       return;
+01706:     }
+01707: 
+01708:     const countEl = document.getElementById('leads-count-display');
+01709: if (countEl) {
+01710:   const count = (leads || []).length;
+01711:   countEl.innerText = `${count} lead${count === 1 ? '' : 's'}`;
+01712: }
+01713: 
+01714:     this.renderLeadsTable(
+01715:   (leads || []).map(l => ({
+01716:     date: l.date_submitted,
+01717:     homeowner: l.homeowner_names,
+01718:     status: l.status,
+01719:     feedback: l.feedback || l.rejection_reason || ''
+01720:   }))
+01721: );
+01722: 
+01723:   } catch (err) {
+01724:     console.error('Leads filter failed:', err);
+01725:   }
+01726: }
+01727: 
+01728:   updateAgentDashboard(data) {
+01729:     const setText = (id, val) => {
+01730:       const el = document.getElementById(id);
+01731:       if (el) el.innerText = val;
+01732:     };
+01733: 
+01734:     setText('stat-appointments', data.totalAppointments || 0);
+01735:     setText('stat-cancel-rate', (data.cancellationRate || 0) + '%');
+01736:     setText('stat-incentives', this.formatCurrency(data.totalIncentives || 0));
+01737:     setText('stat-hours', data.weeklyHours || 0);
+01738: 
+01739:     setText('monthly-incentive-status-ov', data.monthlyIncentiveStatus || 'Not qualified yet');
+01740:     setText('monthly-raffle-status-ov', data.raffleStatus || '0 / 4 weeks qualified');
+01741: 
+01742:     const tierCount = data.approvedAppointments || 0;
+01743:     const tierMax = 6; 
+01744:     const percentage = Math.min(100, (tierCount / tierMax) * 100);
+01745:       
+01746:     setText('tier-count-display', `${tierCount} / ${tierMax} approved appointments`);
+01747:     const progressBar = document.getElementById('tier-progress-bar');
+01748:     if (progressBar) progressBar.style.width = `${percentage}%`;
+01749:       
+01750:     const tierStatusText = document.getElementById('tier-status-text');
+01751:     if(tierStatusText) tierStatusText.innerText = 'Tier 1 Progress';
+01752:   }
+01753: 
+01754:   renderLeadsTable(leads) {
+01755:     const tbody = document.getElementById('leads-table-body');
+01756:     if (!tbody) return;
+01757: 
+01758:     if (leads.length === 0) {
+01759:       tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-4 text-center text-sm text-gray-500">No leads found for this period.</td></tr>`;
+01760:       return;
+01761:     }
+01762: 
+01763:     tbody.innerHTML = leads.map(lead => {
+01764:       let badgeClass = 'bg-gray-100 text-gray-800';
+01765:       const status = (lead.status || 'Pending').toLowerCase();
+01766:       
+01767:       if (status.includes('confirm') || status.includes('approv')) badgeClass = 'bg-green-100 text-green-800';
+01768:       else if (status.includes('reject')) badgeClass = 'bg-red-100 text-red-800';
+01769:       else if (status.includes('pending')) badgeClass = 'bg-yellow-100 text-yellow-800';
+01770: 
+01771:       return `
+01772:   <tr>
+01773:     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${this.formatDate(lead.date)}</td>
+01774:     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${lead.homeowner || 'Unknown'}</td>
+01775:     <td class="px-6 py-4 whitespace-nowrap">
+01776:       <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeClass}">
+01777:         ${lead.status || 'Pending'}
+01778:       </span>
+01779:     </td>
+01780:     <td class="px-6 py-4 text-sm text-gray-600">${lead.feedback || '—'}</td>
+01781:   </tr>
+01782: `;
+01783:     }).join('');
+01784:   }
+01785: 
+01786:   renderCharts(chartData) {
+01787:     const aptChartDom = document.getElementById('appointmentsChart');
+01788:     if (aptChartDom && window.echarts) {
+01789:       if (!this.charts) this.charts = {};
+01790:       this.charts.appointments = echarts.init(aptChartDom);
+01791:       const option = {
+01792:         tooltip: { trigger: 'axis' },
+01793:         grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+01794:         xAxis: { type: 'category', data: chartData.labels || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
+01795:         yAxis: { type: 'value' },
+01796:         series: [{ data: chartData.appointments || [0, 0, 0, 0, 0], type: 'bar', itemStyle: { color: '#FBBF24' }, barWidth: '40%' }]
+01797:       };
+01798:       this.charts.appointments.setOption(option);
+01799:     }
+01800: 
+01801:     const incChartDom = document.getElementById('incentivesChart');
+01802:     if (incChartDom && window.echarts) {
+01803:       this.charts.incentives = echarts.init(incChartDom);
+01804:       const option = {
+01805:         tooltip: { trigger: 'axis' },
+01806:         grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+01807:         xAxis: { type: 'category', data: chartData.labels || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
+01808:         yAxis: { type: 'value' },
+01809:         series: [{ data: chartData.earnings || [0, 0, 0, 0, 0], type: 'line', smooth: true, lineStyle: { color: '#D97706', width: 3 }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{offset: 0, color: 'rgba(251, 191, 36, 0.5)'}, {offset: 1, color: 'rgba(251, 191, 36, 0.01)'}]) } }]
+01810:       };
+01811:       this.charts.incentives.setOption(option);
+01812:     }
+01813:   }
+01814: 
+01815:  bindTeamLeaderboardsUI() {
+01816:   const buttons = document.querySelectorAll('[data-leaderboard-period]');
+01817:   const weekSelect = document.getElementById('leaderboard-week-select');
+01818:   const customWrap = document.getElementById('leaderboard-custom-wrap');
+01819:   const start = document.getElementById('leaderboard-start');
+01820:   const end = document.getElementById('leaderboard-end');
+01821: 
+01822:   if (!buttons.length || this._leaderboardBound) return;
+01823: 
+01824:   buttons.forEach(btn => {
+01825:     btn.addEventListener('click', async () => {
+01826:      buttons.forEach(b => {
+01827:   b.classList.remove('bg-gray-900', 'text-white', 'border-yellow-400', 'bg-yellow-50', 'text-yellow-800');
+01828:   b.classList.add('bg-white', 'text-gray-700', 'border-gray-200');
+01829: });
+01830: 
+01831: btn.classList.remove('bg-white', 'text-gray-700', 'border-gray-200');
+01832: btn.classList.add('bg-yellow-50', 'text-yellow-800', 'border-yellow-400');
+01833: 
+01834:       const period = btn.dataset.leaderboardPeriod;
+01835: 
+01836:       if (weekSelect) weekSelect.classList.toggle('hidden', period !== 'selected-week');
+01837:       if (customWrap) customWrap.classList.toggle('hidden', period !== 'custom');
+01838: 
+01839:       await this.loadTeamLeaderboards();
+01840:     });
+01841:   });
+01842: 
+01843:   if (weekSelect) weekSelect.addEventListener('change', () => this.loadTeamLeaderboards());
+01844: 
+01845:   const maybeCustom = () => {
+01846:     if (start?.value && end?.value) this.loadTeamLeaderboards();
+01847:   };
+01848: 
+01849:   if (start) start.addEventListener('change', maybeCustom);
+01850:   if (end) end.addEventListener('change', maybeCustom);
+01851: 
+01852:   this._leaderboardBound = true;
+01853:   this.populateLeaderboardWeekSelect();
+01854:   this.loadTeamLeaderboards();
+01855: }
+01856: 
+01857: async populateLeaderboardWeekSelect() {
+01858:   const weekSelect = document.getElementById('leaderboard-week-select');
+01859:   if (!weekSelect || !this.supabase) return;
+01860: 
+01861:   const { data, error } = await this.supabase
+01862:     .from('payroll_weekly_fact_v2')
+01863:     .select('week_start, week_end')
+01864:     .order('week_start', { ascending: false });
+01865: 
+01866:   if (error) {
+01867:     console.error('Leaderboard week dropdown load failed:', error);
+01868:     return;
+01869:   }
+01870: 
+01871:   const seen = new Set();
+01872:   const weeks = [];
+01873: 
+01874:   (data || []).forEach(row => {
+01875:     const key = `${row.week_start}|${row.week_end}`;
+01876:     if (!row.week_start || !row.week_end || seen.has(key)) return;
+01877:     seen.add(key);
+01878:     weeks.push(row);
+01879:   });
+01880: 
+01881:   weekSelect.innerHTML = `
+01882:     <option value="">Select week</option>
+01883:     ${weeks.map(w => `<option value="${w.week_start}|${w.week_end}">${w.week_start} → ${w.week_end}</option>`).join('')}
+01884:   `;
+01885: }
+01886: 
+01887: async loadTeamLeaderboards() {
+01888:   const activeBtn = document.querySelector('[data-leaderboard-period].border-yellow-400');
+01889:   const weekSelect = document.getElementById('leaderboard-week-select');
+01890:   const startEl = document.getElementById('leaderboard-start');
+01891:   const endEl = document.getElementById('leaderboard-end');
+01892: 
+01893:   let period = activeBtn?.dataset.leaderboardPeriod || 'today';
+01894:   let customStart = null;
+01895:   let customEnd = null;
+01896: 
+01897:   if (period === 'selected-week') {
+01898:     const raw = weekSelect?.value || '';
+01899:     if (!raw.includes('|')) return;
+01900:     [customStart, customEnd] = raw.split('|');
+01901:     period = 'custom';
+01902:   }
+01903: 
+01904:   if (period === 'custom') {
+01905:     customStart = customStart || startEl?.value || null;
+01906:     customEnd = customEnd || endEl?.value || null;
+01907:     if (!customStart || !customEnd) return;
+01908:   }
+01909: 
+01910:   const { data, error } = await this.supabase.rpc('get_agent_team_leaderboard', {
+01911:     p_period: period,
+01912:     p_custom_start: customStart,
+01913:     p_custom_end: customEnd
+01914:   });
+01915: 
+01916:   if (error) {
+01917:     console.error('Team leaderboard load failed:', error);
+01918:     document.getElementById('team-leaderboard-body').innerHTML =
+01919:       `<tr><td colspan="8" class="p-6 text-center text-red-500">Leaderboard failed to load. Check console.</td></tr>`;
+01920:     return;
+01921:   }
+01922: 
+01923:   this.renderTeamLeaderboards(data || []);
+01924: }
+01925: 
+01926:   renderTeamLeaderboards(rows) {
+01927:   const body = document.getElementById('team-leaderboard-body');
+01928:   const highlights = document.getElementById('leaderboard-highlights');
+01929: 
+01930:   if (!body) return;
+01931: 
+01932:   const sorted = (Array.isArray(rows) ? rows : [])
+01933:     .map(r => ({
+01934:       agent_name: r.agent_name || 'Unknown',
+01935:       total_leads: Number(r.total_leads || 0),
+01936:       qc_rejected: Number(r.qc_rejected || 0),
+01937:       qualified_leads: Number(r.qualified_leads || 0),
+01938:       credited_leads: Number(r.credited_leads || 0),
+01939:       pending_leads: Number(r.pending_leads || 0),
+
+## Lines 2417-3504
+02417: 
+02418: if (data) return data;
+02419: 
+02420: console.warn("command_center_create_event returned no event id. Running fallback insert.");
+02421: 
+02422: const { data: fallbackEvent2, error: fallbackError2 } = await supaClient
+02423:   .from('command_center_events')
+02424:   .insert([{
+02425:     organization_id: organizationId,
+02426:     module_key: moduleKey,
+02427:     entity_type: entityType,
+02428:     entity_id: String(entityId || ''),
+02429:     entity_code: entityCode,
+02430:     entity_label: entityLabel,
+02431:     event_type: eventType,
+02432:     summary_text: summaryText,
+02433:     field_changes: fieldChanges || [],
+02434:     old_data: oldData,
+02435:     new_data: newData,
+02436:     actor_profile_id: this.currentUser?.id || null,
+02437:     actor_name: this.currentUser?.name || this.currentUser?.email || 'Unknown',
+02438:     actor_role: this.currentUser?.role || null,
+02439:     severity,
+02440:     is_system_event: false,
+02441:     is_archived: false
+02442:   }])
+02443:   .select('id')
+02444:   .single();
+02445: 
+02446: if (fallbackError2) {
+02447:   console.error('❌ fallback command_center_events insert failed after empty RPC:', fallbackError2);
+02448:   return null;
+02449: }
+02450: 
+02451: return fallbackEvent2?.id || null;
+02452:     } catch (err) {
+02453:       console.error('❌ createCommandCenterEvent exception:', err);
+02454:       return null;
+02455:     }
+02456:   }
+02457: 
+02458:  getPassbookTeamKeys(clientRow = {}, updates = {}) {
+02459:   const role = String(this.currentUser?.role || "").toLowerCase();
+02460: 
+02461:   // Sales + Sales Rep changes should notify Admin.
+02462:   if (
+02463:     role === "sales" ||
+02464:     role === "sales_rep" ||
+02465:     role === "team_leader" ||
+02466:     role === "team leader" ||
+02467:     role === "tl"
+02468:   ) {
+02469:     return ["admin_management"];
+02470:   }
+02471: 
+02472:   // Admin / Management changes should notify Sales.
+02473:   if (role === "admin" || role === "management") {
+02474:     return ["sales"];
+02475:   }
+02476: 
+02477:   return ["admin_management"];
+02478: }
+02479: 
+02480:   getPassbookTrackedFields() {
+02481:     return [
+02482:       'client_code',
+02483:       'company_name',
+02484:       'phone',
+02485:       'contact_person',
+02486:       'area',
+02487:       'area_codes_to_use',
+02488:       'email',
+02489:       'website',
+02490:       'client_status',
+02491:       'company_address',
+02492:       'sales_rep_count',
+02493:       'regions',
+02494:       'days_of_operation',
+02495:       'hours_of_operation',
+02496:       'appointment_interval',
+02497:       'roof_types',
+02498:       'leads_per_day_limit',
+02499:       'double_bookings',
+02500:       'additional_notes',
+02501:       'shared_with_sales',
+02502:       'is_serving',
+02503:       'daily_agents',
+02504:       'daily_goal'
+02505:     ];
+02506:   }
+02507: 
+02508:   getOnboardingTrackedFields() {
+02509:     return [
+02510:       'client_paid',
+02511:       'contract_sent',
+02512:       'contract_completed',
+02513:       'onboarding_link_sent',
+02514:       'onboarding_link_completed',
+02515:       'ghl_account_created',
+02516:       'client_portal_created',
+02517:       'live_lead_tracker_created',
+02518:       'client_portal_demo_completed',
+02519:       'ready_to_receive_leads',
+02520:       'notes'
+02521:     ];
+02522:   }
+02523: 
+02524:   // ------------------------
+02525:   // ✅ ADMIN: Fetch + Normalize
+02526:   // ------------------------
+02527: async fetchAdminData(forceRefresh = false) {
+02528:     if (this._adminFetchInFlight) {
+02529:       console.log('Admin data fetch skipped: another refresh is already running.');
+02530:       return this.adminState;
+02531:     }
+02532: 
+02533:     this._adminFetchInFlight = true;
+02534:     try {
+02535:       console.log('📡 Fetching Master Data...');
+02536:       const response = await fetch(this.webhooks.fetchAdminData);
+02537:       const result = await response.json();
+02538:       const dataRoot = result?.data || result || {};
+02539: 
+02540:       let supaLeads = [],
+02541:     supaPackages = [],
+02542:     supaClients = [],
+02543:     supaTime = [],
+02544:     supaAgents = [],
+02545:     supaClientHealth = [],
+02546:     supaAgentPerformance = [],
+02547:     supaClientPackageStatus = [],
+02548:     supaClientPackageAllocation = [],
+02549:     supaProfiles = [],
+02550:     supaAgentCurrentRates = [],
+02551:     supaPayrollWeeklyFactView = [],
+02552:     supaPayrollWorkers = [],
+02553:     supaClientOnboarding = [],
+02554:     supaHRTrainingPerformance = [],
+02555:     supaHRTrainingGroups = [],
+02556: supaPayrollConsistencyBonusStatus = [];
+02557: 
+02558: if (supaClient) {
+02559:   const [
+02560:   lRes,
+02561:   pRes,
+02562:   cRes,
+02563:   tRes,
+02564:   aRes,
+02565:   chRes,
+02566:   apRes,
+02567:   cpsRes,
+02568:   cpaRes,
+02569:   profRes,
+02570:   acrRes,
+02571:   pwfRes,
+02572:   pwwRes,
+02573:   coRes,
+02574:   hrPerfRes,
+02575:   hrGroupRes,
+02576: consistencyBonusRes
+02577: ] = await Promise.all([
+02578:   supaClient.from('leads_raw').select('*'),
+02579:   supaClient.from('sales_pipeline_financials_view').select('*'),
+02580:   supaClient.from('clients').select('*'),
+02581:   supaClient.from('time_events').select('*'),
+02582:   supaClient.from('agents').select('*'),
+02583:   supaClient.from('client_health_view').select('*'),
+02584:   supaClient.from('agent_performance_view').select('*'),
+02585:   supaClient.from('client_package_status_view').select('*'),
+02586:   supaClient.from('client_package_allocation_view').select('*'),
+02587:   supaClient.from('profiles').select('*'),
+02588:   supaClient.from('agent_current_rate_view').select('*'),
+02589:   supaClient.from('payroll_weekly_fact_v2').select('*'),
+02590:   supaClient.from('payroll_workers').select('*'),
+02591:   supaClient.from('client_onboarding').select('*'),
+02592:   supaClient.from('hr_training_group_performance_v2').select('*'),
+02593:   supaClient.from('hr_training_group_summary_v2').select('*'),
+02594: supaClient.from('payroll_consistency_bonus_status_view').select('*')
+02595: ]);
+02596: 
+02597:   console.log('pwfRes error:', pwfRes.error);
+02598: console.log('pwwRes error:', pwwRes.error);
+02599: console.log('pwfRes rows:', pwfRes.data?.length || 0);
+02600: console.log('pwwRes rows:', pwwRes.data?.length || 0);
+02601: 
+02602:   supaLeads = lRes.data || [];
+02603:   supaPackages = pRes.data || [];
+02604:   supaClients = cRes.data || [];
+02605:   supaTime = tRes.data || [];
+02606:   supaAgents = aRes.data || [];
+02607:   supaClientHealth = chRes.data || [];
+02608:   supaAgentPerformance = apRes.data || [];
+02609:   supaClientPackageStatus = cpsRes.data || [];
+02610:   supaClientPackageAllocation = cpaRes.data || [];
+02611:   supaProfiles = profRes.data || [];
+02612:    supaAgentCurrentRates = acrRes.data || [];
+02613: 
+02614:   if (pwfRes.error) {
+02615:     console.error('Payroll weekly fact load failed; keeping last good payroll rows:', pwfRes.error);
+02616:     supaPayrollWeeklyFactView = Array.isArray(this.adminState.payrollWeeklyFactView)
+02617:       ? this.adminState.payrollWeeklyFactView
+02618:       : [];
+02619:     this.adminState.payrollFetchError = pwfRes.error;
+02620:   } else {
+02621:     supaPayrollWeeklyFactView = pwfRes.data || [];
+02622:     this.adminState.payrollFetchError = null;
+02623:   }
+02624: 
+02625:   if (pwwRes.error) {
+02626:     console.error('Payroll workers load failed; keeping last good worker rows:', pwwRes.error);
+02627:     supaPayrollWorkers = Array.isArray(this.adminState.payrollWorkers)
+02628:       ? this.adminState.payrollWorkers
+02629:       : [];
+02630:   } else {
+02631:     supaPayrollWorkers = pwwRes.data || [];
+02632:   }
+02633: 
+02634: supaClientOnboarding = coRes.data || [];
+02635: supaHRTrainingPerformance = hrPerfRes.data || [];
+02636: supaHRTrainingGroups = hrGroupRes.data || [];
+02637:   supaPayrollConsistencyBonusStatus = consistencyBonusRes.error
+02638:     ? (Array.isArray(this.adminState.payrollConsistencyBonusStatus) ? this.adminState.payrollConsistencyBonusStatus : [])
+02639:     : (consistencyBonusRes.data || []);
+02640: }
+02641:       
+02642:       this.adminState.rawClients = supaClients.length > 0 ? supaClients : (dataRoot.clients || []);
+02643: this.adminState.leads = supaLeads.length > 0 ? supaLeads : (dataRoot.leads || []);
+02644: this.adminState.packages = supaPackages.length > 0 ? supaPackages : (dataRoot.packages || []);
+02645: this.adminState.timeEvents = supaTime;
+02646: this.adminState.agents = supaAgents.length > 0 ? supaAgents : (dataRoot.agents || []);
+02647: this.adminState.rawProfiles = supaProfiles || [];
+02648: this.adminState.agentCurrentRates = supaAgentCurrentRates || [];
+02649: this.adminState.payrollWeeklyFactView = supaPayrollWeeklyFactView || [];
+02650: this.adminState.payrollWorkers = supaPayrollWorkers || [];
+02651: this.adminState.clientOnboarding = supaClientOnboarding || [];
+02652: 
+02653: /* temporary backward compatibility */
+02654: this.adminState.weeklyPayroll = supaPayrollWeeklyFactView || [];
+02655: 
+02656: this.adminState.clientHealthView = supaClientHealth;
+02657: this.adminState.agentPerformanceView = supaAgentPerformance;
+02658: this.adminState.clientPackageStatusView = supaClientPackageStatus;
+02659: this.adminState.clientPackageAllocationView = supaClientPackageAllocation;
+02660: this.adminState.hrTrainingPerformance = supaHRTrainingPerformance;
+02661: this.adminState.hrTrainingGroups = supaHRTrainingGroups;
+02662: this.adminState.payrollConsistencyBonusStatus = supaPayrollConsistencyBonusStatus;
+02663: 
+02664:       console.log('clientPackageStatusView rows:', this.adminState.clientPackageStatusView.length);
+02665: 
+02666: if (this.adminState.clientHealthView.length > 0) {
+02667:   this.normalizeAdminFromHealthMonitor(this.adminState.clientHealthView);
+02668: } else {
+02669:   this.adminState.clients = this.adminState.rawClients;
+02670: }
+02671:       const arrowheadDebug = this.adminState.clientHealthView.find(
+02672:   x => String(x.company_name || '').toLowerCase().includes('arrowhead')
+02673: );
+02674:       console.log('DEBUG clientHealthView Arrowhead:', arrowheadDebug);
+02675: 
+02676:       console.log('clientHealthView rows:', this.adminState.clientHealthView.length);
+02677:       console.log('agentPerformanceView rows:', this.adminState.agentPerformanceView.length);
+02678:       console.log('clientPackageAllocationView rows:', this.adminState.clientPackageAllocationView.length);
+02679:       console.log('payrollWeeklyFactView rows:', this.adminState.payrollWeeklyFactView.length);
+02680:       console.log('payrollWorkers rows:', this.adminState.payrollWorkers.length);
+02681: 
+02682:       this.triggerAdminRefresh();
+02683:        } catch (err) {
+02684:       console.error('❌ fetchAdminData failed:', err);
+02685:     } finally {
+02686:       this._adminFetchInFlight = false;
+02687:     }
+02688:   }
+02689: 
+02690:   triggerAdminRefresh() {
+02691:   console.log('triggerAdminRefresh called');
+02692:   console.log('window.adminDashboard exists:', !!window.adminDashboard);
+02693:   console.log('window.Admin exists:', !!window.Admin);
+02694: 
+02695:   if (window.adminDashboard && typeof window.adminDashboard.refreshDashboard === 'function') {
+02696:     console.log('Refreshing via window.adminDashboard.refreshDashboard()');
+02697:     window.adminDashboard.refreshDashboard();
+02698:     return;
+02699:   }
+02700: 
+02701:   if (window.Admin && typeof window.Admin.refreshDashboard === 'function') {
+02702:     console.log('Refreshing via window.Admin.refreshDashboard()');
+02703:     window.Admin.refreshDashboard();
+02704:     return;
+02705:   }
+02706: 
+02707:   console.warn('No admin refresh handler found.');
+02708: }
+02709: 
+02710:   normalizeAdminFromHealthMonitor(rows) {
+02711:   const list = Array.isArray(rows) ? rows : [];
+02712:   const rawClients = Array.isArray(this.adminState.rawClients) ? this.adminState.rawClients : [];
+02713: 
+02714:   const normalizeKey = (v) => String(v || '').trim().toLowerCase();
+02715: 
+02716:   const rawByCode = new Map();
+02717:   const rawByCompany = new Map();
+02718: 
+02719:   rawClients.forEach(c => {
+02720:     const code = normalizeKey(this.getAny(c, ['client_code', 'code_name', 'codeName', 'CODE NAME', 'CODE', 'code'], ''));
+02721:     const company = normalizeKey(this.getAny(c, ['company_name', 'roofing_company', 'Roofing Company', 'Company Name', 'COMPANY NAME'], ''));
+02722: 
+02723:     if (code) rawByCode.set(code, c);
+02724:     if (company) rawByCompany.set(company, c);
+02725:   });
+02726: 
+02727:   this.adminState.clients = list.map(r => {
+02728:     const status = this.getAny(r, ['client_status', 'status', 'Client Status', 'CLIENT STATUS'], 'NOT STARTED');
+02729:     const codeName = this.getAny(r, ['client_code', 'code_name', 'codeName', 'CODE NAME', 'CODE', 'code'], 'N/A');
+02730:     const roofingCompany = this.getAny(r, ['company_name', 'roofing_company', 'Roofing Company', 'Roofing Company Name', 'Company Name', 'COMPANY NAME'], '—');
+02731: 
+02732:     const matchedRaw =
+02733:       rawByCode.get(normalizeKey(codeName)) ||
+02734:       rawByCompany.get(normalizeKey(roofingCompany)) ||
+02735:       {};
+02736: 
+02737:     const cityState = this.getAny(
+02738:       r,
+02739:       ['area', 'city_state', 'CITY STATE', 'City State', 'location', 'Location'],
+02740:       this.getAny(matchedRaw, ['area', 'city_state', 'CITY STATE', 'City State', 'location', 'Location'], '—')
+02741:     );
+02742: 
+02743:     const clientName = this.getAny(
+02744:       r,
+02745:       ['client_name', 'CLIENT NAME', 'Client Name', 'contact_person', 'Contact Person'],
+02746:       this.getAny(matchedRaw, ['client_name', 'CLIENT NAME', 'Client Name', 'contact_person', 'Contact Person'], '—')
+02747:     );
+02748: 
+02749:     const lastLeadReceived = this.getAny(r, ['last_lead_received', 'Last Lead Received'], '');
+02750:     const hoursSinceLastLead = 0;
+02751:     const leadsToday = this.toNumberSafe(this.getAny(r, ['leads_today', 'Leads Today'], 0), 0);
+02752:     const leadsYesterday = this.toNumberSafe(this.getAny(r, ['leads_yesterday', 'Leads Yesterday'], 0), 0);
+02753:     const purchasedLeads = this.toNumberSafe(this.getAny(r, ['purchased_leads', 'Purchased Leads'], 0), 0);
+02754:     const owedLeads = this.toNumberSafe(this.getAny(r, ['owed_leads', 'Owed Leads'], 0), 0);
+02755:     const packageStatus = this.getAny(r, ['package_status', 'Package Status'], '');
+02756:     const purchaseDate = this.getAny(r, ['purchase_date', 'Purchase Date'], '');
+02757: 
+02758:         return {
+02759:       status,
+02760:       client_status: status,
+02761:       code_name: codeName,
+02762:       client_code: codeName,
+02763:       roofing_company: roofingCompany,
+02764:       company_name: roofingCompany,
+02765:       city_state: cityState,
+02766:       area: cityState,
+02767:       client_name: clientName,
+02768:       contact_person: clientName,
+02769:       shared_with_sales: this.getAny(
+02770:         matchedRaw,
+02771:         ['shared_with_sales', 'share_with_sales', 'Shared With Sales', 'shared with sales'],
+02772:         false
+02773:       ),
+02774:       last_lead_received: lastLeadReceived,
+02775:       hours_since_last_lead: hoursSinceLastLead,
+02776:       leads_today: leadsToday,
+02777:       leads_yesterday: leadsYesterday,
+02778:       purchased_leads: purchasedLeads,
+02779:       owed_leads: owedLeads,
+02780:       package_status: packageStatus,
+02781:       purchase_date: purchaseDate,
+02782:     };
+02783:   });
+02784: }
+02785: 
+02786:   normalizeAdminData(rawClients, rawLeads, rawAgents, rawStatuses, rawPackages) {
+02787:     this.adminState.rawStatuses = Array.isArray(rawStatuses) ? rawStatuses : [];
+02788:     this.adminState.rawPackages = Array.isArray(rawPackages) ? rawPackages : [];
+02789:     this.adminState.leads = Array.isArray(rawLeads) ? rawLeads : [];
+02790:     this.adminState.agents = Array.isArray(rawAgents) ? rawAgents : [];
+02791: 
+02792:     const clientsArr = Array.isArray(rawClients) ? rawClients : [];
+02793:     this.adminState.clients = clientsArr.map(c => ({
+02794:       status: this.getAny(c, ['STATUS', 'Status', 'Client Status', 'CLIENT STATUS'], 'NOT STARTED'),
+02795:       code_name: this.getAny(c, ['CODE NAME', 'Code Name', 'CODE', 'Client Code'], 'N/A'),
+02796:       roofing_company: this.getAny(c, ['COMPANY NAME', 'Company Name', 'Roofing Company'], '—'),
+02797:       city_state: this.getAny(c, ['area', 'city_state', 'CITY STATE', 'City State', 'Location'], '—'),
+02798:       client_name: this.getAny(c, ['client_name', 'CLIENT NAME', 'Client Name', 'contact_person', 'Contact Person'], '—'),
+02799:       last_lead_received: '', hours_since_last_lead: 0, leads_today: 0, leads_yesterday: 0,
+02800:       purchased_leads: 0, owed_leads: 0, package_status: '', purchase_date: ''
+02801:     }));
+02802:   }
+02803: 
+02804:   // ==========================================
+02805:   // ✅ PASSBOOK & PAYROLL LOADING
+02806:   // ==========================================
+02807:   async loadPassbookClientsList(force = false) {
+02808:     try {
+02809:       const url = new URL(this.webhooks.passbookClientsList);
+02810:       url.searchParams.set('ts', Date.now());
+02811: 
+02812:       const res = await fetch(url.toString(), {
+02813:         method: 'GET',
+02814:         headers: { 'Accept': 'application/json' },
+02815:         cache: 'no-store',
+02816:       });
+02817: 
+02818:       if (!res.ok) throw new Error(`Passbook list failed (HTTP ${res.status}).`);
+02819: 
+02820:       const data = await res.json();
+02821:       const clients = data?.clients || data?.data?.clients || data?.data || [];
+02822: 
+02823:       const countEl = document.querySelector('#passbookClientsCount');
+02824:       if (countEl) countEl.textContent = `Showing ${clients.length} clients`;
+02825: 
+02826:       this.adminState.passbookClients = clients;
+02827:       return clients;
+02828:     } catch (e) {
+02829:       console.error('❌ loadPassbookClientsList error:', e);
+02830:       return [];
+02831:     }
+02832:   }
+02833:   
+02834:   async loadPayrollData(force = false) {
+02835:     try {
+02836:       const url = new URL(this.webhooks.payrollData);
+02837:       url.searchParams.set('ts', Date.now());
+02838: 
+02839:       const res = await fetch(url.toString(), {
+02840:         method: 'GET',
+02841:         headers: { 'Accept': 'application/json' },
+02842:         cache: 'no-store',
+02843:       });
+02844: 
+02845:       if (!res.ok) throw new Error(`Payroll data failed (HTTP ${res.status}).`);
+02846: 
+02847:       const json = await res.json();
+02848:       const root = json?.data || json || {};
+02849: 
+02850:       const weeklyPayroll = root.weeklyPayroll || root.weekly_payroll || root.weekly || [];
+02851:       const payrollHistory = root.payrollHistory || root.payroll_history || root.history || [];
+02852: 
+02853:       this.weeklyPayroll = Array.isArray(weeklyPayroll) ? weeklyPayroll : [];
+02854:       this.timeTracker = Array.isArray(root.timeTracker || root.time_tracker) ? (root.timeTracker || root.time_tracker) : [];
+02855: 
+02856:       this.adminState.weeklyPayroll = this.weeklyPayroll;
+02857:       this.adminState.payrollHistory = Array.isArray(payrollHistory) ? payrollHistory : [];
+02858: 
+02859:       return this.adminState;
+02860:     } catch (e) {
+02861:       console.error('❌ loadPayrollData error:', e);
+02862:       this.adminState.weeklyPayroll = [];
+02863:       this.adminState.payrollHistory = [];
+02864:       return this.adminState;
+02865:     }
+02866:   }
+02867: 
+02868:   bindPassbookUpdateButton() {
+02869:     const btn =
+02870:       document.querySelector('#passbookSaveButton') ||
+02871:       document.querySelector('#saveClientButton') ||
+02872:       document.querySelector('button[data-action="passbook-save"]') ||
+02873:       document.querySelector('button[data-action="save-client"]') ||
+02874:       document.querySelector('button[data-passbook-save="true"]');
+02875: 
+02876:     const form =
+02877:       document.querySelector('#passbookClientForm') ||
+02878:       document.querySelector('form[data-passbook-form="client"]') ||
+02879:       document.querySelector('form[data-form="passbook-client"]');
+02880: 
+02881:     if (!btn && !form) return;
+02882: 
+02883:     const handler = async (e) => {
+02884:       if (e) e.preventDefault();
+02885: 
+02886:       try {
+02887:         const payload = this.collectPassbookUpdatePayloadFromForm(form || document);
+02888:         if (!payload.codeName) {
+02889:           alert('Missing client code. Please reload the client details and try again.');
+02890:           return;
+02891:         }
+02892: 
+02893:         if (!payload.updates || Object.keys(payload.updates).length === 0) {
+02894:           alert('No fields detected to update.');
+02895:           return;
+02896:         }
+02897: 
+02898:         await this.submitPassbookClientUpdate(payload);
+02899:         await this.refreshPassbookClientDetails(payload.codeName);
+02900:         alert('Client updated successfully.');
+02901:       } catch (err) {
+02902:         console.error('❌ Passbook update failed:', err);
+02903:         alert(err?.message || 'Update failed. Please try again.');
+02904:       }
+02905:     };
+02906: 
+02907:     if (btn) {
+02908:   btn.onclick = null;
+02909:   btn.onclick = handler;
+02910: }
+02911: 
+02912: if (form) {
+02913:   form.onsubmit = null;
+02914:   form.onsubmit = handler;
+02915:     } 
+02916:   }
+02917: 
+02918:   collectPassbookUpdatePayloadFromForm(rootEl) {
+02919:     const root = rootEl || document;
+02920:     // We grab the ORIGINAL code from the hidden input before it was changed
+02921:     const originalCodeName = (root.querySelector('#codeName')?.value || '').trim();
+02922:     const updates = {};
+02923:     
+02924:     const fields = Array.from(root.querySelectorAll('#passbook-form-body input[name], #passbook-form-body textarea[name]'));
+02925:     for (const el of fields) {
+02926:       const name = el.getAttribute('name');
+02927:       if (name) { 
+02928:           updates[name] = el.value;
+02929:       }
+02930:     }
+02931:     
+02932:     // FIXED: We return BOTH names so it passes the hidden validation check!
+02933:     return { codeName: originalCodeName, originalCodeName, updates };
+02934:   }
+02935: 
+02936:     async submitPassbookClientUpdate(payload) {
+02937:     if (typeof supaClient === 'undefined' || !supaClient) throw new Error("Database connection missing.");
+02938: 
+02939:     const newClientCode = payload.updates['client_code'];
+02940:     const originalCode = payload.originalCodeName || payload.codeName;
+02941: 
+02942:     // 1. Load old row first for diff tracking
+02943:     const { data: existingClient, error: fetchErr } = await supaClient
+02944:       .from('clients')
+02945:       .select('*')
+02946:       .eq('client_code', originalCode)
+02947:       .single();
+02948: 
+02949:     if (fetchErr) {
+02950:       console.error("Failed to fetch existing client before update:", fetchErr);
+02951:       throw new Error(fetchErr.message || "Failed to load existing client before update.");
+02952:     }
+02953: 
+02954:     // 2. Update client profile
+02955:     const { error } = await supaClient
+02956:       .from('clients')
+02957:       .update(payload.updates)
+02958:       .eq('client_code', originalCode);
+02959: 
+02960:     if (error) {
+02961:       console.error("Supabase Update Error:", error);
+02962:       if (error.code === 'PGRST204' || error.message.includes('column')) {
+02963:         throw new Error("One of the form fields is missing a matching column in your Supabase table!");
+02964:       }
+02965:       throw new Error(error.message || "Failed to update client in database.");
+02966:     }
+02967: 
+02968:     // 3. If client code changed, sync packages too
+02969:     if (newClientCode && newClientCode !== originalCode) {
+02970:       const { error: pkgErr } = await supaClient
+02971:         .from('packages')
+02972:         .update({ client_code: newClientCode })
+02973:         .eq('client_code', originalCode);
+02974: 
+02975:       if (pkgErr) console.error("Failed to update related sales packages:", pkgErr);
+02976:     }
+02977: 
+02978:     // 4. Read fresh row after update
+02979:     const finalClientCode = newClientCode || originalCode;
+02980:     const { data: updatedClient, error: updatedFetchErr } = await supaClient
+02981:       .from('clients')
+02982:       .select('*')
+02983:       .eq('client_code', finalClientCode)
+02984:       .single();
+02985: 
+02986:     if (updatedFetchErr) {
+02987:       console.error("Failed to fetch updated client after save:", updatedFetchErr);
+02988:     }
+02989: 
+02990:     const oldRow = existingClient || {};
+02991:     const newRow = updatedClient || { ...oldRow, ...payload.updates };
+02992: 
+02993:     const trackedFields = this.getPassbookTrackedFields();
+02994:     const fieldChanges = this.buildFieldChanges(oldRow, newRow, trackedFields);
+02995: 
+02996:     if (fieldChanges.length > 0) {
+02997:       const eventId = await this.createCommandCenterEvent({
+02998:         moduleKey: 'passbook_clients',
+02999:         entityType: 'client',
+03000:         entityId: String(newRow.id || oldRow.id || finalClientCode),
+03001:         entityCode: newRow.client_code || finalClientCode,
+03002:         entityLabel: newRow.company_name || oldRow.company_name || finalClientCode,
+03003:         eventType: 'updated',
+03004:         summaryText: `${this.currentUser?.name || 'User'} updated passbook client ${newRow.company_name || finalClientCode}.`,
+03005:         fieldChanges,
+03006:         oldData: oldRow,
+03007:         newData: newRow,
+03008:         severity: 'normal',
+03009:         teamKeys: this.getPassbookTeamKeys(oldRow, newRow)
+03010:             });
+03011: 
+03012:       if (eventId) {
+03013:         const { error: teamStateError } = await supaClient
+03014:           .from('command_center_team_state')
+03015:           .upsert(
+03016:             [{
+03017:               event_id: eventId,
+03018:               organization_id: this.getCurrentOrganizationId(),
+03019:               team_key: 'admin_management',
+03020:               is_unread: true,
+03021:               is_reviewed: false,
+03022:               status: 'new'
+03023:             }],
+03024:             { onConflict: 'event_id,team_key' }
+03025:           );
+03026: 
+03027:         if (teamStateError) {
+03028:           console.error("Passbook notification team_state insert failed:", teamStateError);
+03029:         }
+03030:       }
+03031: 
+03032:       if (!eventId) {
+03033:   console.error("Passbook update saved, but notification event was not created.", {
+03034:     finalClientCode,
+03035:     fieldChanges,
+03036:     actor: this.currentUser
+03037:   });
+03038: 
+03039:   alert("Client saved, but the admin notification was not created. Check console.");
+03040: }
+03041:     }
+03042: 
+03043:     // 5. Refresh dashboard views
+03044:     if (window.portal && typeof window.portal.fetchAdminData === 'function') {
+03045:       window.portal.fetchAdminData(true);
+03046:     }
+03047:     if (typeof fetchAdminClients === 'function') {
+03048:       fetchAdminClients('All');
+03049:     }
+03050: 
+03051:     return { success: true };
+03052:   }
+03053: 
+03054:   async refreshPassbookClientDetails(codeName) {
+03055:     // Because we use Supabase now, we can just call the read function again to instantly show the new data!
+03056:     if (window.Admin && typeof window.Admin._fetchAndRenderPassbookClient === 'function') {
+03057:         await window.Admin._fetchAndRenderPassbookClient(codeName);
+03058:     }
+03059:   }
+03060: 
+03061:   startAdminAutoRefresh() {
+03062:     clearInterval(this._adminAutoRefreshInterval);
+03063: 
+03064:     this._adminAutoRefreshInterval = setInterval(() => {
+03065:       if (!document.hidden) this.fetchAdminData(true);
+03066:     }, 60000);
+03067: 
+03068:     if (!this._adminVisibilityRefreshBound) {
+03069:       document.addEventListener("visibilitychange", () => {
+03070:         if (!document.hidden) this.fetchAdminData(true);
+03071:       });
+03072:       this._adminVisibilityRefreshBound = true;
+03073:     }
+03074:   }
+03075: }
+03076: 
+03077: window.portal = window.portal || new CallHammerPortal();
+03078: 
+03079: // ==========================================
+03080: // SUPABASE CLIENT INITIALIZATION
+03081: // ==========================================
+03082: const supabaseUrl = 'https://api.supabase.callhammerleads.com';
+03083: const supabaseKey = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc3MTcwMjI2MCwiZXhwIjo0OTI3Mzc1ODYwLCJyb2xlIjoiYW5vbiJ9.XuWCdGs0XSSSlWhsF6gR4gHMp50C-v6xra9ABgSVRoU';
+03084: const supaClient = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
+03085: 
+03086: // ==========================================
+03087: // PASSBOOK CONTROLS (ADMIN & SALES)
+03088: // ==========================================
+03089: async function fetchAdminClients(status = 'Active') {
+03090:     if (!supaClient) return;
+03091:     
+03092:     // Fetch ALL clients first to beat Supabase's strict case-sensitivity
+03093:     const { data: clients, error } = await supaClient.from('clients').select('*');
+03094:     if (error) return console.error("Error fetching clients:", error);
+03095:     
+03096:     let filtered = clients || [];
+03097:     
+03098:     // Javascript filter ignores Capitalization and invisible spaces
+03099:     if (status !== 'All') {
+03100:         filtered = filtered.filter(c => {
+03101:             const dbStatus = String(c.client_status || c.status || '').trim().toLowerCase();
+03102:             return dbStatus === String(status).toLowerCase();
+03103:         });
+03104:     }
+03105:     
+03106:     if (window.Admin && typeof window.Admin.applyPassbookFilters === 'function') {
+03107:         window.Admin.applyPassbookFilters(filtered);
+03108:     }
+03109: }
+03110: 
+03111: async function fetchSalesClients(status = 'Active') {
+03112:     if (!supaClient) return;
+03113:     let query = supaClient.from('clients').select('*').eq('shared_with_sales', true);
+03114:     if (status !== 'All') query = query.eq('client_status', status);
+03115:     const { data: clients, error } = await query;
+03116:     if (!error && window.Admin && typeof window.Admin.applyPassbookFilters === 'function') {
+03117:         window.Admin.applyPassbookFilters(clients);
+03118:     }
+03119: }
+03120: 
+03121: async function toggleShareWithSales(codeName, checkboxElement) {
+03122:     if (!supaClient) { checkboxElement.checked = !checkboxElement.checked; return; }
+03123:     const isShared = checkboxElement.checked;
+03124:     // FIX: Match the actual Supabase column name 'client_code'
+03125:     const { error } = await supaClient.from('clients').update({ shared_with_sales: isShared }).eq('client_code', codeName); 
+03126:     if (error) {
+03127:         alert('Database error. Check the console.');
+03128:         checkboxElement.checked = !isShared; 
+03129:     }
+03130: }
+03131: 
+03132: // ==========================================
+03133: // SALES PIPELINE CONTROLS (UPGRADED HYBRID LEDGER)
+03134: // ==========================================
+03135: window.fetchSalesPipeline = function() {
+03136:   console.warn("⚠️ OLD fetchSalesPipeline DISABLED");
+03137:   return;
+03138:     const state = window.portal?.adminState;
+03139:     if (!state || !state.packages) return;
+03140: 
+03141:     const packages = state.packages; 
+03142:     const clients = state.rawClients || state.clients || [];
+03143: 
+03144:     const tbody = document.getElementById('admin-sales-table-body');
+03145:     if (!tbody) return;
+03146: 
+03147:     const query = (document.getElementById('admin-sales-search')?.value || "").toLowerCase().trim();
+03148:     const pkgFilter = document.getElementById('admin-sales-package-filter')?.value || "all";
+03149:     const catFilter = document.getElementById('admin-sales-category-filter')?.value || "All";
+03150: 
+03151:     let totalSalesValue = 0;
+03152: 
+03153:     let rows = packages.map(pkg => {
+03154:         const code = String(pkg.client_code || "").trim();
+03155:         const client = clients.find(c =>
+03156:   String(c.client_code || c.code_name || "").trim().toLowerCase() === code.toLowerCase()
+03157: ) || {};
+03158:         
+03159:         let pStatus = String(pkg.status || "COMPLETED").toUpperCase();
+03160:         if (pStatus === 'ACTIVE') pStatus = 'ONGOING';
+03161: 
+03162:         const rawAmt = pkg.amount ? String(pkg.amount).replace(/[^0-9.-]+/g,"") : "0";
+03163:         const valNum = parseFloat(rawAmt) || 0;
+03164:         const valFormatted = valNum.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+03165: 
+03166:         // Math for Total Commission (Purchased Leads * Commission Per Lead)
+03167:         const purchasedAmount = Number(pkg.purchased_leads) || 0;
+03168:         const commPerLead = Number(pkg.commission_per_lead) || 0;
+03169:         const totalComm = purchasedAmount * commPerLead;
+03170:         const commFormatted = totalComm.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+03171: 
+03172:         return {
+03173:             id: pkg.id,
+03174:             purchaseDateRaw: new Date(pkg.purchase_date || 0),
+03175:             purchaseDate: window.portal.formatDate(pkg.purchase_date) || "—",
+03176:             txn: pkg.external_package_id || pkg.transaction_id || "—",
+03177:             company: client.company_name || client.roofing_company || "—",
+03178:             poc: client.contact_person || client.client_name || client.contact_name || "—",
+03179:             packageLeads: purchasedAmount,
+03180:             dealValueNum: valNum,
+03181:             dealValue: valFormatted,
+03182:             totalComm: commFormatted,
+03183:             pkgStatus: pStatus,
+03184:             dealStatus: pkg.deal_status || "—", // <--- NEW LINE
+03185:             soldBy: pkg.sales_category || pkg.sold_by || "CHL", 
+03186:             dateStarted: window.portal.formatDate(pkg.package_start_date) || "—",
+03187:             searchStr: `${code} ${client.company_name} ${pkg.external_package_id}`.toLowerCase()
+03188:         };
+03189:     });
+03190: 
+03191:     // 1. Apply Filters
+03192:     if (pkgFilter !== "all") {
+03193:         const filterTarget = pkgFilter === "Active" ? "ONGOING" : pkgFilter.toUpperCase();
+03194:         rows = rows.filter(r => r.pkgStatus === filterTarget);
+03195:     }
+03196:     if (catFilter !== "All") {
+03197:         rows = rows.filter(r => r.soldBy === catFilter);
+03198:     }
+03199:     if (query) rows = rows.filter(r => r.searchStr.includes(query));
+03200: 
+03201:     // 2. Sort by Latest Sale First
+03202:     rows.sort((a, b) => b.purchaseDateRaw - a.purchaseDateRaw);
+03203: 
+03204:     // 3. Render Table & Calculate Total KPI
+03205:     tbody.innerHTML = rows.map(r => {
+03206:         totalSalesValue += r.dealValueNum; // Add to total
+03207: 
+03208:         // We put the PKG Colors back!
+03209:         let pkgColor = "bg-gray-100 text-gray-700";
+03210:         if (r.pkgStatus === 'ONGOING') pkgColor = "bg-blue-100 text-blue-800";
+03211:         if (r.pkgStatus === 'COMPLETED') pkgColor = "bg-purple-100 text-purple-800";
+03212:         if (r.pkgStatus === 'REFUNDED') pkgColor = "bg-orange-100 text-orange-800";
+03213:         if (r.pkgStatus === 'PAUSE') pkgColor = "bg-yellow-100 text-yellow-800";
+03214: 
+03215:         // New Deal Status Colors
+03216:         let dealColor = "bg-gray-100 text-gray-700";
+03217:         if (r.dealStatus === 'Paid') dealColor = "bg-emerald-100 text-emerald-800";
+03218:         if (r.dealStatus === 'Negotiating') dealColor = "bg-yellow-100 text-yellow-800";
+03219:         if (r.dealStatus === 'Refunded') dealColor = "bg-red-100 text-red-800";
+03220:       
+03221:         return `
+03222:         <tr class="hover:bg-gray-50 border-b border-gray-50 transition-colors">
+03223:             <td class="p-4 text-sm text-gray-500">${r.purchaseDate}</td>
+03224:             <td class="p-4 text-xs font-mono text-gray-400 font-bold">${r.txn}</td>
+03225:             <td class="p-4 font-bold text-gray-900">${r.company}</td>
+03226:             <td class="p-4 text-sm text-gray-600">${r.poc}</td>
+03227:             <td class="p-4 font-bold text-gray-900">${r.packageLeads} Leads</td>
+03228:             <td class="p-4 font-bold text-emerald-600">${r.dealValue}</td>
+03229:             <td class="p-4 font-bold text-purple-600">${r.totalComm}</td>
+03230:             <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold uppercase ${pkgColor}">${r.pkgStatus}</span></td>
+03231:             <td class="p-4 text-sm text-gray-600">${r.soldBy}</td>
+03232:             <td class="p-4 text-sm text-gray-500 font-bold">${r.dateStarted}</td>
+03233:             <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-extrabold uppercase ${dealColor}">${r.dealStatus}</span></td>
+03234:             <td class="p-4 text-center flex justify-center gap-1">
+03235:                 <button onclick="window.editDealModal('${r.id}')" class="px-3 py-1 bg-gray-100 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded shadow-sm transition-colors">Edit</button>
+03236:                 <button onclick="window.deleteDeal('${r.id}', '${r.company.replace(/'/g, "\\'")}')" class="px-3 py-1 bg-gray-100 hover:bg-red-100 text-red-700 text-xs font-bold rounded shadow-sm transition-colors">Delete</button>
+03237:             </td>
+03238:         </tr>`;
+03239:     }).join('');
+03240: 
+03241:     // Update KPI
+03242:     const kpiEl = document.getElementById('sales-total-kpi');
+03243:     if (kpiEl) kpiEl.textContent = totalSalesValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+03244: }
+03245: 
+03246: // Opens confirm dialog to delete a deal
+03247: window.deleteDeal = async function(pkgId, companyName) {
+03248:     if (!supaClient) return alert("Database connection missing.");
+03249: 
+03250:     const confirmed = confirm(`Are you sure you want to permanently delete the deal for ${companyName}? This cannot be undone.`);
+03251:     if (!confirmed) return;
+03252: 
+03253:     const { data: existingPkg, error: fetchErr } = await supaClient
+03254:         .from('packages')
+03255:         .select('*')
+03256:         .eq('id', pkgId)
+03257:         .single();
+03258: 
+03259:     if (fetchErr) {
+03260:         console.error("Delete fetch package error:", fetchErr);
+03261:     }
+03262: 
+03263:     const { error } = await supaClient.from('packages').delete().eq('id', pkgId);
+03264: 
+03265:     if (error) {
+03266:         console.error("Delete Deal Error:", error);
+03267:         alert("Failed to delete deal.");
+03268:     } else {
+03269:         await window.portal.createCommandCenterEvent({
+03270:             moduleKey: 'sales_pipeline',
+03271:             entityType: 'package',
+03272:             entityId: String(pkgId),
+03273:             entityCode: existingPkg?.client_code || null,
+03274:             entityLabel: companyName || existingPkg?.client_code || 'Deleted deal',
+03275:             eventType: 'deleted',
+03276:             summaryText: `${window.portal.currentUser?.name || 'User'} deleted a sales deal for ${companyName}.`,
+03277:             fieldChanges: [],
+03278:             oldData: existingPkg || null,
+03279:             newData: null,
+03280:             severity: 'high',
+03281:             teamKeys: ['admin_management', 'sales']
+03282:         });
+03283: 
+03284:         window.portal.fetchAdminData(true);
+03285:     }
+03286: };
+03287: 
+03288: function isSalesRepDealEntryContext() {
+03289:     // Every access level now uses the same category/date commission policy.
+03290:     return false;
+03291: }
+03292: 
+03293: function parseSalesMoney(value) {
+03294:     if (typeof value === 'number' && Number.isFinite(value)) return value;
+03295: 
+03296:     const cleaned = String(value ?? '').replace(/[^0-9.-]/g, '');
+03297:     const n = Number(cleaned);
+03298: 
+03299:     return Number.isFinite(n) ? n : 0;
+03300: }
+03301: 
+03302: function normalizeSalesCategoryForRates(value) {
+03303:     const raw = String(value || '').trim();
+03304:     const lower = raw.toLowerCase();
+03305: 
+03306:     if (lower === 'chl' || lower === 'chl team') return 'CHL Team';
+03307:     if (lower === 'trb') return 'TRB';
+03308:     if (lower === 'hammer') return 'Hammer';
+03309:     if (lower === 'mikaela') return 'Mikaela';
+03310:     if (lower === 'sales team') return 'Sales Team';
+03311: 
+03312:     return raw;
+03313: }
+03314: 
+03315: function isAutoCommissionSalesCategory(category) {
+03316:     const normalized = normalizeSalesCategoryForRates(category);
+03317:     return ['CHL Team', 'TRB', 'Hammer', 'Mikaela', 'Sales Team'].includes(normalized);
+03318: }
+03319: 
+03320: const SALES_RATE_POLICY = Object.freeze({
+03321:     standardEffectiveDate: '2026-03-09',
+03322:     mikaelaEffectiveDate: '2026-08-08',
+03323:     historicalRate: 125,
+03324:     standardRate: 135,
+03325:     trbRate: 100,
+03326:     mikaelaRate: 150
+03327: });
+03328: 
+03329: function getSalesLeadRateForDeal(category, purchaseDateValue) {
+03330:     const normalizedCategory = normalizeSalesCategoryForRates(category);
+03331:     const rawDate = String(purchaseDateValue || '').trim();
+03332:     const dateMatch = rawDate.match(/^(\d{4}-\d{2}-\d{2})/);
+03333:     let purchaseDateKey = dateMatch ? dateMatch[1] : '';
+03334: 
+03335:     if (!purchaseDateKey && purchaseDateValue) {
+03336:         const parsedDate = new Date(purchaseDateValue);
+03337:         if (!isNaN(parsedDate.getTime())) {
+03338:             const year = parsedDate.getFullYear();
+03339:             const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+03340:             const day = String(parsedDate.getDate()).padStart(2, '0');
+03341:             purchaseDateKey = `${year}-${month}-${day}`;
+03342:         }
+03343:     }
+03344: 
+03345:     if (!purchaseDateKey || purchaseDateKey < SALES_RATE_POLICY.standardEffectiveDate) {
+03346:         return SALES_RATE_POLICY.historicalRate;
+03347:     }
+03348: 
+03349:     if (
+03350:         normalizedCategory === 'Mikaela' &&
+03351:         purchaseDateKey >= SALES_RATE_POLICY.mikaelaEffectiveDate
+03352:     ) {
+03353:         return SALES_RATE_POLICY.mikaelaRate;
+03354:     }
+03355: 
+03356:     if (normalizedCategory === 'TRB') {
+03357:         return SALES_RATE_POLICY.trbRate;
+03358:     }
+03359: 
+03360:     return SALES_RATE_POLICY.standardRate;
+03361: }
+03362: 
+03363: function calculateAutoSalesCommission(leadsValue, dealValue, category, purchaseDateValue) {
+03364:     const leads = parseSalesMoney(leadsValue);
+03365:     const amount = parseSalesMoney(dealValue);
+03366:     const rate = getSalesLeadRateForDeal(category, purchaseDateValue);
+03367: 
+03368:     if (!isAutoCommissionSalesCategory(category)) {
+03369:         return {
+03370:             rate,
+03371:             profit: amount,
+03372:             commission: 0
+03373:         };
+03374:     }
+03375: 
+03376:     const profit = Math.min(leads * rate, amount);
+03377:     const commission = Math.max(0, amount - profit);
+03378: 
+03379:     return {
+03380:         rate,
+03381:         profit,
+03382:         commission
+03383:     };
+03384: }
+03385: 
+03386: function configureSaleCommissionField() {
+03387:     const commissionInput = document.getElementById('sale-commission');
+03388:     if (!commissionInput) return;
+03389: 
+03390:     const manualEntry = isSalesRepDealEntryContext();
+03391: 
+03392:     commissionInput.readOnly = !manualEntry;
+03393: 
+03394:     if (manualEntry) {
+03395:         commissionInput.placeholder = 'e.g. 500';
+03396:         commissionInput.classList.remove('bg-gray-50', 'text-gray-700', 'cursor-not-allowed');
+03397:     } else {
+03398:         commissionInput.placeholder = 'Auto-calculated';
+03399:         commissionInput.classList.add('bg-gray-50', 'text-gray-700', 'cursor-not-allowed');
+03400:     }
+03401: }
+03402: 
+03403: function updateSaleCommissionField() {
+03404:     if (isSalesRepDealEntryContext()) return;
+03405: 
+03406:     const commissionInput = document.getElementById('sale-commission');
+03407:     const categorySelect = document.getElementById('sale-category');
+03408: 
+03409:     if (!commissionInput) return;
+03410: 
+03411:     const selectedOption = categorySelect?.options?.[categorySelect.selectedIndex];
+03412:     const selectedCategory = categorySelect?.value;
+03413: 
+03414:     const isUnsupportedHistoricalCategory =
+03415:         selectedOption?.dataset?.historical === 'true' &&
+03416:         !isAutoCommissionSalesCategory(selectedCategory);
+03417: 
+03418:     if (isUnsupportedHistoricalCategory) return;
+03419: 
+03420:     const calc = calculateAutoSalesCommission(
+03421:         document.getElementById('sale-leads')?.value,
+03422:         document.getElementById('sale-value')?.value,
+03423:         selectedCategory,
+03424:         document.getElementById('sale-date')?.value
+03425:     );
+03426: 
+03427:     commissionInput.value = calc.commission.toFixed(2);
+03428:     commissionInput.dataset.ratePerLead = String(calc.rate);
+03429:     commissionInput.dataset.autoProfit = calc.profit.toFixed(2);
+03430: }
+03431: 
+03432: function installSaleCommissionAutoCalc() {
+03433:     if (isSalesRepDealEntryContext()) {
+03434:         configureSaleCommissionField();
+03435:         return;
+03436:     }
+03437: 
+03438:     configureSaleCommissionField();
+03439: 
+03440:     ['sale-leads', 'sale-value', 'sale-category', 'sale-date'].forEach(id => {
+03441:         const el = document.getElementById(id);
+03442: 
+03443:         if (!el || el.dataset.salesAutoCalcBound === 'true') return;
+03444: 
+03445:         el.dataset.salesAutoCalcBound = 'true';
+03446:         el.addEventListener('input', updateSaleCommissionField);
+03447:         el.addEventListener('change', updateSaleCommissionField);
+03448:     });
+03449: 
+03450:     updateSaleCommissionField();
+03451: }
+03452: 
+03453: function removeHistoricalSaleCategoryOptions() {
+03454:     const select = document.getElementById('sale-category');
+03455:     if (!select) return;
+03456: 
+03457:     Array.from(select.querySelectorAll('option[data-historical="true"]')).forEach(opt => opt.remove());
+03458: 
+03459:     delete select.dataset.originalSalesCategory;
+03460: }
+03461: 
+03462: function setSaleCategoryValueSafely(categoryValue) {
+03463:     const select = document.getElementById('sale-category');
+03464:     if (!select) return;
+03465: 
+03466:     removeHistoricalSaleCategoryOptions();
+03467: 
+03468:     const rawCategory = String(categoryValue || '').trim();
+03469:     select.dataset.originalSalesCategory = rawCategory;
+03470: 
+03471:     if (!rawCategory) {
+03472:         updateSaleCommissionField();
+03473:         return;
+03474:     }
+03475: 
+03476:     const existingOption = Array.from(select.options).find(opt =>
+03477:         String(opt.value || '').trim().toLowerCase() === rawCategory.toLowerCase()
+03478:     );
+03479: 
+03480:     if (existingOption) {
+03481:         select.value = existingOption.value;
+03482:     } else {
+03483:         const opt = document.createElement('option');
+03484:         opt.value = rawCategory;
+03485:         opt.textContent = `${rawCategory} (historical)`;
+03486:         opt.dataset.historical = 'true';
+03487:         opt.disabled = true;
+03488: 
+03489:         select.appendChild(opt);
+03490:         select.value = rawCategory;
+03491:     }
+03492: 
+03493:     updateSaleCommissionField();
+03494: }
+03495: 
+03496: window.SALES_RATE_POLICY = SALES_RATE_POLICY;
+03497: window.getSalesLeadRateForDeal = getSalesLeadRateForDeal;
+03498: window.calculateAutoSalesCommission = calculateAutoSalesCommission;
+03499: window.updateSaleCommissionField = updateSaleCommissionField;
+03500: window.installSaleCommissionAutoCalc = installSaleCommissionAutoCalc;
+03501: 
+03502: window.openAddDealModal = function() {
+03503:     document.getElementById('add-sale-form').reset();
+03504:     document.getElementById('sale-package-id').value = ""; 
+
+## Lines 3657-4440
+03657:         };
+03658: 
+03659:         const { error: cErr } = await supaClient.from('clients').insert([newClientPayload]);
+03660: 
+03661:         if (cErr) {
+03662:             console.error("Auto-Client Creation Error:", cErr);
+03663:             alert("Failed to auto-create client profile.");
+03664:             btn.innerText = "Save Deal";
+03665:             btn.disabled = false;
+03666:             return;
+03667:         }
+03668:     }
+03669: 
+03670:     const purchasedLeads = parseInt(document.getElementById('sale-leads').value) || 0;
+03671: const dealAmount = parseFloat(document.getElementById('sale-value').value) || 0;
+03672: const purchaseDate = document.getElementById('sale-date').value;
+03673: const salesCategory = document.getElementById('sale-category').value;
+03674: 
+03675: const categorySelect = document.getElementById('sale-category');
+03676: const selectedOption = categorySelect?.options?.[categorySelect.selectedIndex];
+03677: 
+03678: const isUnsupportedHistoricalCategory =
+03679:     selectedOption?.dataset?.historical === 'true' &&
+03680:     !isAutoCommissionSalesCategory(salesCategory);
+03681: 
+03682: const commissionValue = (isSalesRepDealEntryContext() || isUnsupportedHistoricalCategory)
+03683:     ? (parseFloat(document.getElementById('sale-commission').value) || 0)
+03684:     : calculateAutoSalesCommission(purchasedLeads, dealAmount, salesCategory, purchaseDate).commission;
+03685: 
+03686: if (!isSalesRepDealEntryContext() && !isUnsupportedHistoricalCategory) {
+03687:     document.getElementById('sale-commission').value = commissionValue.toFixed(2);
+03688: }
+03689: 
+03690: const payload = {
+03691:     client_code: clientCode,
+03692:     purchased_leads: purchasedLeads,
+03693:     amount: dealAmount,
+03694:     commission_per_lead: commissionValue,
+03695:     purchase_date: purchaseDate,
+03696:     external_package_id: document.getElementById('sale-transaction-id').value,
+03697:     status: "Active",
+03698:     deal_status: document.getElementById('sale-deal-status').value,
+03699:     deal_type: document.getElementById('sale-deal-type').value,
+03700:     sales_category: salesCategory
+03701: };
+03702: 
+03703:     let error;
+03704:     let savedPackage = null;
+03705:     let actionType = pkgId ? 'updated' : 'created';
+03706: 
+03707:     if (pkgId) {
+03708:         const res = await supaClient
+03709:             .from('packages')
+03710:             .update(payload)
+03711:             .eq('id', pkgId)
+03712:             .select()
+03713:             .single();
+03714: 
+03715:         error = res.error;
+03716:         savedPackage = res.data || null;
+03717:     } else {
+03718:         const res = await supaClient
+03719:             .from('packages')
+03720:             .insert([payload])
+03721:             .select()
+03722:             .single();
+03723: 
+03724:         error = res.error;
+03725:         savedPackage = res.data || null;
+03726:     }
+03727: 
+03728:     if (error) {
+03729:         console.error("Sale Save Error:", error);
+03730:         alert("Failed to save deal.");
+03731:     } else {
+03732:         const trackedFields = [
+03733:             'client_code',
+03734:             'purchased_leads',
+03735:             'amount',
+03736:             'commission_per_lead',
+03737:             'purchase_date',
+03738:             'external_package_id',
+03739:             'status',
+03740:             'deal_status',
+03741:             'deal_type',
+03742:             'sales_category'
+03743:         ];
+03744: 
+03745:         const oldRow = oldPackage || {};
+03746:         const newRow = savedPackage || payload;
+03747:         const fieldChanges = window.portal.buildFieldChanges(oldRow, newRow, trackedFields);
+03748: 
+03749:         await window.portal.createCommandCenterEvent({
+03750:             moduleKey: 'sales_pipeline',
+03751:             entityType: 'package',
+03752:             entityId: String(newRow.id || pkgId || newRow.external_package_id || clientCode),
+03753:             entityCode: clientCode,
+03754:             entityLabel: companyName,
+03755:             eventType: actionType,
+03756:             summaryText: pkgId
+03757:                 ? `${window.portal.currentUser?.name || 'User'} updated a sales deal for ${companyName}.`
+03758:                 : `${window.portal.currentUser?.name || 'User'} added a new sales deal for ${companyName}.`,
+03759:             fieldChanges,
+03760:             oldData: oldRow,
+03761:             newData: newRow,
+03762:             severity: 'normal',
+03763:             teamKeys: ['admin_management', 'sales']
+03764:         });
+03765: 
+03766:         document.getElementById('add-sale-modal').classList.add('hidden');
+03767:         window.portal.fetchAdminData(true);
+03768:     }
+03769: 
+03770:     btn.innerText = pkgId ? "Update Deal" : "Save Deal";
+03771:     btn.disabled = false;
+03772: };
+03773: 
+03774: // ==========================================
+03775: // GLOBAL EVENT LISTENERS
+03776: // ==========================================
+03777: document.addEventListener('DOMContentLoaded', () => {
+03778:     if (document.getElementById('clientStatusFilter') && !document.getElementById('salesClientStatusFilter')) {
+03779:         fetchAdminClients('Active');
+03780:     }
+03781:     if (document.getElementById('salesClientStatusFilter')) {
+03782:         fetchSalesClients('Active');
+03783:     }
+03784:     // ❌ OLD SALES PIPELINE DISABLED COMPLETELY
+03785: // All rendering is now handled by Admin.renderSalesTab()
+03786: });
+03787: 
+03788: // ==========================================
+03789: // INTERACTIVE LEADS TRACKER (SUPABASE DIRECT + GSHEET SYNC)
+03790: // ==========================================
+03791: 
+03792: async function updateLeadStatus(leadId, newStatus, rejectionReason = null) {
+03793:     if (!supaClient) return alert("Database connection missing.");
+03794:     if (!leadId || leadId === "unknown") return alert("Cannot update: Lead ID is missing.");
+03795: 
+03796:     const normalizedStatus = String(newStatus || "").trim().toUpperCase();
+03797:     const normalizedReason = rejectionReason === null
+03798:         ? null
+03799:         : String(rejectionReason || "").trim();
+03800: 
+03801:     const updatePayload = { status: normalizedStatus };
+03802: 
+03803:    if (normalizedStatus.includes("REJECT")) {
+03804:     updatePayload.rejection_reason = normalizedReason || "";
+03805:     updatePayload.feedback = normalizedReason || "";
+03806: }
+03807:   
+03808:     const { data: oldLead, error: oldLeadError } = await supaClient
+03809:         .from('leads_raw')
+03810:         .select('*')
+03811:         .eq('lead_id', leadId)
+03812:         .limit(1)
+03813:         .maybeSingle();
+03814: 
+03815:     if (oldLeadError) {
+03816:         console.error("Failed to load lead before update:", oldLeadError);
+03817:     }
+03818: 
+03819:     const { error } = await supaClient
+03820:         .from('leads_raw')
+03821:         .update(updatePayload)
+03822:         .eq('lead_id', leadId);
+03823: 
+03824:     if (error) {
+03825:         console.error("Failed to update lead status:", error);
+03826:         alert("Failed to update status in Supabase.");
+03827:         return;
+03828:     }
+03829: 
+03830:     try {
+03831:         const trackedFields = ["status", "feedback", "feedback_highlight", "rejection_reason"];
+03832:         const newLead = { ...(oldLead || {}), ...updatePayload };
+03833: 
+03834:         await window.portal?.createCommandCenterEvent?.({
+03835:             moduleKey: 'leads_tracker',
+03836:             entityType: 'lead',
+03837:             entityId: String(leadId),
+03838:             entityCode: String(leadId),
+03839:             entityLabel: oldLead?.homeowner_names || oldLead?.homeowner_name || String(leadId),
+03840:             eventType: 'updated',
+03841:             summaryText: `${window.portal?.currentUser?.name || 'User'} updated lead ${leadId}.`,
+03842:             fieldChanges: window.portal?.buildFieldChanges
+03843:                 ? window.portal.buildFieldChanges(oldLead || {}, newLead, trackedFields)
+03844:                 : [],
+03845:             oldData: oldLead || null,
+03846:             newData: newLead,
+03847:             severity: 'normal',
+03848:             teamKeys: ['admin_management']
+03849:         });
+03850:     } catch (evtErr) {
+03851:         console.error("Command center event failed for lead update:", evtErr);
+03852:     }
+03853: 
+03854:     console.log(`Success! Lead ${leadId} is now ${normalizedStatus}`);
+03855:     window.portal.fetchAdminData(true);
+03856: 
+03857:     try {
+03858:         fetch('https://automate.callhammerleads.com/webhook/update-lead-sheet', {
+03859:             method: 'POST',
+03860:             headers: { 'Content-Type': 'application/json' },
+03861:             body: JSON.stringify({
+03862:                 lead_id: leadId,
+03863:                 status: normalizedStatus
+03864:             })
+03865:         });
+03866:     } catch (e) {
+03867:         console.error("Sheet sync failed", e);
+03868:     }
+03869: }
+03870: 
+03871: function handleLeadStatusChange(selectEl, leadId, existingReason = "") {
+03872:     const nextStatus = String(selectEl?.value || "").trim().toUpperCase();
+03873:     const previousStatus = String(selectEl?.dataset?.previousValue || "").trim().toUpperCase();
+03874:     const safeExistingReason = String(existingReason || "").trim();
+03875: 
+03876:     if (!leadId || leadId === "unknown") {
+03877:         alert("Cannot update: Lead ID is missing.");
+03878:         if (selectEl) selectEl.value = previousStatus || "PENDING REVIEW";
+03879:         return;
+03880:     }
+03881: 
+03882:     if (nextStatus.includes("REJECT")) {
+03883:         if (selectEl) {
+03884:             selectEl.value = previousStatus || "PENDING REVIEW";
+03885:         }
+03886: 
+03887:         if (window.Admin?.openRejectionReasonModal) {
+03888:             window.Admin.openRejectionReasonModal(leadId, nextStatus, safeExistingReason);
+03889:         } else {
+03890:             alert("Rejection modal is not available.");
+03891:         }
+03892:         return;
+03893:     }
+03894: 
+03895:     if (selectEl) {
+03896:         selectEl.dataset.previousValue = nextStatus;
+03897:     }
+03898: 
+03899:     updateLeadStatus(leadId, nextStatus, "");
+03900: }
+03901: 
+03902: async function deleteLead(leadId) {
+03903:     if (!supaClient) return alert("Database connection missing.");
+03904:     if (!leadId || leadId === "unknown") return alert("Cannot delete: Lead ID is missing.");
+03905: 
+03906:     const confirmDelete = confirm(`Are you sure you want to permanently delete Lead ID: ${leadId}?`);
+03907:     if (!confirmDelete) return;
+03908: 
+03909:     const { data: oldLead, error: oldLeadError } = await supaClient
+03910:         .from('leads_raw')
+03911:         .select('*')
+03912:         .eq('lead_id', leadId)
+03913:         .limit(1)
+03914:         .maybeSingle();
+03915: 
+03916:     if (oldLeadError) {
+03917:         console.error("Failed to load lead before delete:", oldLeadError);
+03918:     }
+03919: 
+03920:     const { error } = await supaClient
+03921:         .from('leads_raw')
+03922:         .delete()
+03923:         .eq('lead_id', leadId);
+03924: 
+03925:     if (error) {
+03926:         console.error("Failed to delete lead:", error);
+03927:         alert("Failed to delete lead from Supabase.");
+03928:         return;
+03929:     }
+03930: 
+03931:     try {
+03932:         await window.portal?.createCommandCenterEvent?.({
+03933:             moduleKey: 'leads_tracker',
+03934:             entityType: 'lead',
+03935:             entityId: String(leadId),
+03936:             entityCode: String(leadId),
+03937:             entityLabel: oldLead?.homeowner_names || oldLead?.homeowner_name || String(leadId),
+03938:             eventType: 'deleted',
+03939:             summaryText: `${window.portal?.currentUser?.name || 'User'} deleted lead ${leadId}.`,
+03940:             fieldChanges: [],
+03941:             oldData: oldLead || null,
+03942:             newData: null,
+03943:             severity: 'high',
+03944:             teamKeys: ['admin_management']
+03945:         });
+03946:     } catch (evtErr) {
+03947:         console.error("Command center event failed for lead delete:", evtErr);
+03948:     }
+03949: 
+03950:     console.log(`Success! Lead ${leadId} deleted.`);
+03951:     window.portal.fetchAdminData(true);
+03952: 
+03953:     try {
+03954:         fetch('https://automate.callhammerleads.com/webhook/delete-lead-sheet', {
+03955:             method: 'POST',
+03956:             headers: { 'Content-Type': 'application/json' },
+03957:             body: JSON.stringify({ lead_id: leadId })
+03958:         }).then(res => console.log("Google Sheets sync triggered:", res.status));
+03959:     } catch (e) {
+03960:         console.error("Sheet sync failed", e);
+03961:     }
+03962: }
+03963: 
+03964: async function updateLeadFeedback(leadId, feedback = "", feedbackHighlight = false) {
+03965:   if (!supaClient) return alert("Database connection missing.");
+03966:   if (!leadId || leadId === "unknown") return alert("Cannot update: Lead ID is missing.");
+03967: 
+03968:   const updatePayload = {
+03969:     feedback: String(feedback || "").trim(),
+03970:     feedback_highlight: !!feedbackHighlight
+03971:   };
+03972: 
+03973:   const { error } = await supaClient
+03974:     .from("leads_raw")
+03975:     .update(updatePayload)
+03976:     .eq("lead_id", leadId);
+03977: 
+03978:   if (error) {
+03979:     console.error("Failed to update lead feedback:", error);
+03980:     alert("Failed to save feedback.");
+03981:     return;
+03982:   }
+03983: 
+03984:   window.portal.fetchAdminData(true);
+03985: }
+03986: 
+03987: // ==========================================
+03988: // PASSBOOK CLIENT MANAGEMENT
+03989: // ==========================================
+03990: 
+03991: function getClientStatusColor(status) {
+03992:     const s = String(status || 'ACTIVE').toUpperCase();
+03993:     if (s === 'ACTIVE') return 'bg-green-100 text-green-800 border-green-200';
+03994:     if (s === 'PAUSE') return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+03995:     if (s === 'BLACKLISTED') return 'bg-red-100 text-red-800 border-red-200';
+03996:     if (s === 'INACTIVE') return 'bg-gray-100 text-gray-800 border-gray-200';
+03997:     return 'bg-gray-100 text-gray-800 border-gray-200';
+03998: }
+03999: 
+04000: async function updateClientStatus(clientId, newStatus) {
+04001:     if (!supaClient) return alert("Database connection missing.");
+04002:     
+04003:     const selectEl = document.getElementById(`status-select-${clientId}`);
+04004:     if (selectEl) {
+04005:         selectEl.className = `px-2 py-1 rounded-full text-xs font-extrabold border outline-none cursor-pointer transition-all shadow-sm ${getClientStatusColor(newStatus)}`;
+04006:     }
+04007: 
+04008:     const { error } = await supaClient.from('clients').update({ client_status: newStatus }).eq('id', clientId);
+04009:     
+04010:     if (error) {
+04011:         console.error("Failed to update status:", error);
+04012:         alert("Failed to update client status in database.");
+04013:         return;
+04014:     }
+04015: 
+04016:     try {
+04017:       const { data: updatedClient } = await supaClient
+04018:         .from('clients')
+04019:         .select('*')
+04020:         .eq('id', clientId)
+04021:         .single();
+04022: 
+04023:       await window.portal?.createCommandCenterEvent?.({
+04024:         moduleKey: 'passbook_clients',
+04025:         entityType: 'client',
+04026:         entityId: String(updatedClient?.id || clientId),
+04027:         entityCode: updatedClient?.client_code || null,
+04028:         entityLabel: updatedClient?.company_name || 'Client',
+04029:         eventType: 'updated',
+04030:         summaryText: `${window.portal?.currentUser?.name || 'User'} updated passbook client ${updatedClient?.company_name || ''}.`,
+04031:         fieldChanges: [],
+04032:         oldData: null,
+04033:         newData: updatedClient,
+04034:         severity: 'normal',
+04035:         teamKeys: ['admin_management', 'sales']
+04036:       });
+04037:     } catch (err) {
+04038:       console.error('Fallback passbook event failed:', err);
+04039:     }
+04040: }
+04041: 
+04042: async function deletePassbookClient(clientId, companyName) {
+04043:       if (window.portal?.isManagementUser?.()) {
+04044:         alert("Management access cannot delete passbook clients.");
+04045:         return;
+04046:     }
+04047:   
+04048:     if (!supaClient) return;
+04049:     
+04050:     const confirmDelete = confirm(`⚠️ WARNING: Are you absolutely sure you want to permanently delete ${companyName}?\nThis action cannot be undone.`);
+04051:     if (!confirmDelete) return;
+04052: 
+04053:     const { error } = await supaClient.from('clients').delete().eq('id', clientId);
+04054:     
+04055:     if (error) {
+04056:         console.error("Delete Error:", error);
+04057:         alert("Failed to delete client.");
+04058:     } else {
+04059:         alert(`${companyName} has been deleted successfully.`);
+04060:         fetchAdminClients('All'); 
+04061:     }
+04062: }
+04063: 
+04064: async function submitNewClient(e) {
+04065:     e.preventDefault();
+04066:     if (!supaClient) return;
+04067: 
+04068:     const btn = document.getElementById('save-client-btn');
+04069:     btn.innerText = "Saving...";
+04070:     btn.disabled = true;
+04071: 
+04072:     const payload = {
+04073:         client_code: document.getElementById('new-client-code').value,
+04074:         company_name: document.getElementById('new-client-name').value,
+04075:         client_status: document.getElementById('new-client-status').value
+04076:     };
+04077: 
+04078:     const { error } = await supaClient.from('clients').insert([payload]);
+04079: 
+04080:     if (error) {
+04081:         console.error("Add Client Error:", error);
+04082:         alert("Failed to add new client.");
+04083:     } else {
+04084:         document.getElementById('add-client-modal').classList.add('hidden');
+04085:         document.getElementById('add-client-form').reset();
+04086:         fetchAdminClients('All'); 
+04087:     }
+04088: 
+04089:     btn.innerText = "Add Client";
+04090:     btn.disabled = false;
+04091: }
+04092: 
+04093: // ==========================================
+04094: // ✅ CLIENT HEALTH MONITOR (MISSION CONTROL)
+04095: // ==========================================
+04096: window.updateClientPackageStatus = async function(packageId, newPackageStatus) {
+04097:     if (!supaClient) {
+04098:         alert("Database connection missing.");
+04099:         return;
+04100:     }
+04101: 
+04102:     const cleanId = String(packageId || "").trim();
+04103:     if (!cleanId || cleanId === "null" || cleanId === "undefined") {
+04104:         console.error("Missing packageId in updateClientPackageStatus:", packageId);
+04105:         alert("Package ID is missing for this row. Cannot update status.");
+04106:         return;
+04107:     }
+04108: 
+04109:     let normalized = String(newPackageStatus || "").trim().toUpperCase();
+04110: 
+04111: // 🔥 FIX: map UI values → system values
+04112: if (normalized === 'ACTIVE') normalized = 'ONGOING';
+04113:   
+04114:     console.log("Updating package status", { packageId: cleanId, newPackageStatus: normalized });
+04115: 
+04116:     try {
+04117:         const { data: oldPackageRows, error: oldFetchErr } = await supaClient
+04118:             .from('packages')
+04119:             .select('*')
+04120:             .eq('id', cleanId)
+04121:             .limit(1);
+04122: 
+04123:         if (oldFetchErr) {
+04124:             console.error("Failed to load package before update:", oldFetchErr);
+04125:         }
+04126: 
+04127:         const oldPackage = (oldPackageRows && oldPackageRows[0]) ? oldPackageRows[0] : null;
+04128: 
+04129:         let pauseUntilDate = null;
+04130: 
+04131:         if (normalized === 'PAUSE') {
+04132:             const pauseChoice = await window.showPauseDatePickerModal();
+04133: 
+04134:             if (pauseChoice === null) {
+04135:                 // user cancelled
+04136:                 if (window.portal && typeof window.portal.fetchAdminData === 'function') {
+04137:                     await window.portal.fetchAdminData(true);
+04138:                 }
+04139:                 if (window.adminDashboard && typeof window.adminDashboard.refreshDashboard === 'function') {
+04140:                     window.adminDashboard.refreshDashboard();
+04141:                 } else if (window.Admin && typeof window.Admin.refreshDashboard === 'function') {
+04142:                     window.Admin.refreshDashboard();
+04143:                 }
+04144:                 return;
+04145:             }
+04146: 
+04147:             pauseUntilDate = pauseChoice || null;
+04148:         }
+04149: 
+04150:         let updatePayload = {
+04151:             status_override_updated_at: new Date().toISOString(),
+04152:             status_override_updated_by: window.portal?.currentUser?.name || window.portal?.currentUser?.email || 'admin'
+04153:         };
+04154: 
+04155:         if (normalized === 'PAUSE') {
+04156:             updatePayload.status = 'Pause';
+04157:             updatePayload.manual_status_override = 'PAUSE';
+04158:             updatePayload.pause_until_date = pauseUntilDate;
+04159:         } else if (normalized === 'REFUNDED') {
+04160:             updatePayload.status = 'Refunded';
+04161:             updatePayload.manual_status_override = 'REFUNDED';
+04162:             updatePayload.pause_until_date = null;
+04163:         } else if (normalized === 'ONGOING') {
+04164:             updatePayload.status = 'Active';
+04165:             updatePayload.manual_status_override = null;
+04166:             updatePayload.pause_until_date = null;
+04167:         } else if (normalized === 'COMPLETED') {
+04168:             updatePayload.status = 'Completed';
+04169:             updatePayload.manual_status_override = null;
+04170:             updatePayload.pause_until_date = null;
+04171:         } else {
+04172:             alert(`Unsupported package status: ${newPackageStatus}`);
+04173:             return;
+04174:         }
+04175: 
+04176:         const { data, error: updateErr } = await supaClient
+04177:             .from('packages')
+04178:             .update(updatePayload)
+04179:             .eq('id', cleanId)
+04180:             .select();
+04181: 
+04182:         const updatedPackage = (data && data[0]) ? data[0] : null;
+04183: 
+04184:         if (updateErr) {
+04185:             console.error("Status Update Error:", updateErr);
+04186:             alert("Failed to update package in ledger.");
+04187:             return;
+04188:         }
+04189: 
+04190:         console.log("Package status updated:", updatedPackage);
+04191: 
+04192:         try {
+04193:             if (oldPackage && updatedPackage) {
+04194:                 await window.portal?.createCommandCenterEvent?.({
+04195:                     moduleKey: 'overview',
+04196:                     entityType: 'package',
+04197:                     entityId: String(updatedPackage.id || cleanId),
+04198:                     entityCode: updatedPackage.client_code || null,
+04199:                     entityLabel: updatedPackage.client_code || 'Package',
+04200:                     eventType: 'updated',
+04201:                     summaryText: `${window.portal?.currentUser?.name || 'User'} changed package status for ${updatedPackage.client_code || 'client'}.`,
+04202:                     fieldChanges: window.portal?.buildFieldChanges
+04203:                         ? window.portal.buildFieldChanges(
+04204:                             oldPackage,
+04205:                             updatedPackage,
+04206:                             ['status', 'manual_status_override', 'pause_until_date', 'status_override_updated_at', 'status_override_updated_by']
+04207:                           )
+04208:                         : [],
+04209:                     oldData: oldPackage,
+04210:                     newData: updatedPackage,
+04211:                     severity: 'normal',
+04212:                     teamKeys: ['admin_management', 'sales']
+04213:                 });
+04214:             }
+04215:         } catch (evtErr) {
+04216:             console.error('Overview notification event failed:', evtErr);
+04217:         }
+04218: 
+04219:         if (window.portal && typeof window.portal.fetchAdminData === 'function') {
+04220:             await window.portal.fetchAdminData(true);
+04221:         }
+04222: 
+04223:         if (window.adminDashboard && typeof window.adminDashboard.refreshDashboard === 'function') {
+04224:             window.adminDashboard.refreshDashboard();
+04225:         } else if (window.Admin && typeof window.Admin.refreshDashboard === 'function') {
+04226:             window.Admin.refreshDashboard();
+04227:         } else {
+04228:             location.reload();
+04229:         }
+04230: 
+04231:     } catch (error) {
+04232:         console.error("Status Update Error:", error);
+04233:         alert("An error occurred while updating.");
+04234:     }
+04235: };
+04236: 
+04237: window.showPauseDatePickerModal = function() {
+04238:     return new Promise((resolve) => {
+04239:         const existing = document.getElementById('pause-date-modal');
+04240:         if (existing) existing.remove();
+04241: 
+04242:         const today = new Date().toISOString().split('T')[0];
+04243: 
+04244:         const modal = document.createElement('div');
+04245:         modal.id = 'pause-date-modal';
+04246:         modal.innerHTML = `
+04247:             <div style="
+04248:                 position: fixed;
+04249:                 inset: 0;
+04250:                 background: rgba(0,0,0,0.45);
+04251:                 display: flex;
+04252:                 align-items: center;
+04253:                 justify-content: center;
+04254:                 z-index: 99999;
+04255:             ">
+04256:                 <div style="
+04257:                     background: #fff;
+04258:                     width: 100%;
+04259:                     max-width: 420px;
+04260:                     border-radius: 16px;
+04261:                     padding: 24px;
+04262:                     box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+04263:                     font-family: inherit;
+04264:                 ">
+04265:                     <h3 style="margin: 0 0 10px; font-size: 20px; font-weight: 700; color: #111827;">
+04266:                         Pause Package
+04267:                     </h3>
+04268:                     <p style="margin: 0 0 16px; font-size: 14px; color: #6B7280;">
+04269:                         Choose until when this package should stay paused. Leave it blank for permanent pause.
+04270:                     </p>
+04271: 
+04272:                     <input
+04273:                         id="pause-until-input"
+04274:                         type="date"
+04275:                         min="${today}"
+04276:                         style="
+04277:                             width: 100%;
+04278:                             padding: 12px 14px;
+04279:                             border: 1px solid #D1D5DB;
+04280:                             border-radius: 10px;
+04281:                             font-size: 14px;
+04282:                             margin-bottom: 18px;
+04283:                             box-sizing: border-box;
+04284:                         "
+04285:                     />
+04286: 
+04287:                     <div style="display: flex; justify-content: flex-end; gap: 10px;">
+04288:                         <button
+04289:                             id="pause-cancel-btn"
+04290:                             type="button"
+04291:                             style="
+04292:                                 padding: 10px 14px;
+04293:                                 border: 1px solid #D1D5DB;
+04294:                                 background: #fff;
+04295:                                 border-radius: 10px;
+04296:                                 font-weight: 600;
+04297:                                 cursor: pointer;
+04298:                             "
+04299:                         >
+04300:                             Cancel
+04301:                         </button>
+04302: 
+04303:                         <button
+04304:                             id="pause-permanent-btn"
+04305:                             type="button"
+04306:                             style="
+04307:                                 padding: 10px 14px;
+04308:                                 border: none;
+04309:                                 background: #F59E0B;
+04310:                                 color: #fff;
+04311:                                 border-radius: 10px;
+04312:                                 font-weight: 700;
+04313:                                 cursor: pointer;
+04314:                             "
+04315:                         >
+04316:                             Permanent Pause
+04317:                         </button>
+04318: 
+04319:                         <button
+04320:                             id="pause-save-btn"
+04321:                             type="button"
+04322:                             style="
+04323:                                 padding: 10px 14px;
+04324:                                 border: none;
+04325:                                 background: #2563EB;
+04326:                                 color: #fff;
+04327:                                 border-radius: 10px;
+04328:                                 font-weight: 700;
+04329:                                 cursor: pointer;
+04330:                             "
+04331:                         >
+04332:                             Save Pause
+04333:                         </button>
+04334:                     </div>
+04335:                 </div>
+04336:             </div>
+04337:         `;
+04338: 
+04339:         document.body.appendChild(modal);
+04340: 
+04341:         const input = document.getElementById('pause-until-input');
+04342:         const cancelBtn = document.getElementById('pause-cancel-btn');
+04343:         const permanentBtn = document.getElementById('pause-permanent-btn');
+04344:         const saveBtn = document.getElementById('pause-save-btn');
+04345: 
+04346:         const cleanup = () => {
+04347:             modal.remove();
+04348:         };
+04349: 
+04350:         cancelBtn.addEventListener('click', () => {
+04351:             cleanup();
+04352:             resolve(null);
+04353:         });
+04354: 
+04355:         permanentBtn.addEventListener('click', () => {
+04356:             cleanup();
+04357:             resolve('');
+04358:         });
+04359: 
+04360:         saveBtn.addEventListener('click', () => {
+04361:             const selectedDate = String(input?.value || '').trim();
+04362: 
+04363:             if (!selectedDate) {
+04364:                 alert('Please choose a date, or click Permanent Pause.');
+04365:                 return;
+04366:             }
+04367: 
+04368:             cleanup();
+04369:             resolve(selectedDate);
+04370:         });
+04371: 
+04372:         modal.addEventListener('click', (e) => {
+04373:             if (e.target === modal.firstElementChild) {
+04374:                 cleanup();
+04375:                 resolve(null);
+04376:             }
+04377:         });
+04378: 
+04379:         setTimeout(() => {
+04380:             if (input) input.showPicker?.();
+04381:             if (input) input.focus();
+04382:         }, 50);
+04383:     });
+04384: };
+04385: 
+04386: document.getElementById('btn-submit-timeoff')?.addEventListener('click', async () => {
+04387:   const reasonInput = document.getElementById('timeoff-reason');
+04388:   const reason = reasonInput?.value?.trim() || '';
+04389: 
+04390:   const startDate =
+04391:     typeof rangeStart !== 'undefined' && rangeStart
+04392:       ? rangeStart.toISOString().split('T')[0]
+04393:       : '';
+04394: 
+04395:   const endDate =
+04396:     typeof rangeEnd !== 'undefined' && rangeEnd
+04397:       ? rangeEnd.toISOString().split('T')[0]
+04398:       : '';
+04399: 
+04400:   if (!startDate || !endDate) {
+04401:     alert('Select start and end date first.');
+04402:     return;
+04403:   }
+04404: 
+04405:   if (!reason) {
+04406:     alert('Please enter a reason.');
+04407:     return;
+04408:   }
+04409: 
+04410:   try {
+04411:     const { data, error } = await portal.supabase.rpc('submit_my_time_off_request', {
+04412:       p_reason: reason,
+04413:       p_start_date: startDate,
+04414:       p_end_date: endDate,
+04415:       p_notes: ''
+04416:     });
+04417: 
+04418:     if (error) {
+04419:       console.error('Time off RPC error:', error);
+04420:       alert(`Failed to submit request: ${error.message || 'Unknown error'}`);
+04421:       return;
+04422:     }
+04423: 
+04424:     console.log('Time off RPC success:', data);
+04425: 
+04426:     const requestId = data;
+04427: 
+04428:     try {
+04429:       await window.portal?.createCommandCenterEvent?.({
+04430:         moduleKey: 'time_off',
+04431:         entityType: 'time_off_request',
+04432:         entityId: String(requestId),
+04433:         entityCode: String(requestId),
+04434:         entityLabel: window.portal?.currentUser?.name || window.portal?.currentUser?.email || 'Agent',
+04435:         eventType: 'submitted',
+04436:         summaryText: `${window.portal?.currentUser?.name || 'Agent'} submitted a time off request.`,
+04437:         fieldChanges: [],
+04438:         oldData: null,
+04439:         newData: {
+04440:           id: requestId,
