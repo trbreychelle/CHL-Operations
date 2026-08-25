@@ -1,0 +1,128 @@
+name: Update Management lead review client code
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/update-management-lead-client-code.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Show Client Code instead of Roofing Company for Management Access
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          js_path = Path('leads-review-modal.js')
+          source = js_path.read_text(encoding='utf-8')
+
+          old_field_keys = """    lead_id: ['lead_id', 'LEAD ID', 'ID'],
+    company_name: ['company_name', 'Company Name', 'roofing_company', 'Roofing Company', 'client_code', 'Client Code'],"""
+          new_field_keys = """    lead_id: ['lead_id', 'LEAD ID', 'ID'],
+    client_code: ['client_code', 'Client Code', 'CLIENT CODE', 'code_name', 'Code Name', 'CODE NAME'],
+    company_name: ['company_name', 'Company Name', 'roofing_company', 'Roofing Company', 'client_code', 'Client Code'],"""
+
+          if source.count(old_field_keys) != 1:
+              raise SystemExit(f'Expected one lead/company field-key block, found {source.count(old_field_keys)}.')
+          source = source.replace(old_field_keys, new_field_keys, 1)
+
+          old_helper = """  function getAdmin() {
+    return window.Admin || window.adminDashboard || null;
+  }
+
+  function getSupabaseClient() {"""
+          new_helper = """  function getAdmin() {
+    return window.Admin || window.adminDashboard || null;
+  }
+
+  function isManagementAccess() {
+    const role = String(window.portal?.currentUser?.role || '').trim().toLowerCase();
+    return role === 'management' || /management-dashboard\\.html$/i.test(window.location.pathname);
+  }
+
+  function getSupabaseClient() {"""
+
+          if source.count(old_helper) != 1:
+              raise SystemExit(f'Expected one getAdmin helper block, found {source.count(old_helper)}.')
+          source = source.replace(old_helper, new_helper, 1)
+
+          old_static = """    const staticFields = document.getElementById('chl-lead-review-static');
+    if (staticFields) {
+      staticFields.innerHTML = [
+        readOnlyField('Date Submitted', fieldValue(lead, 'date_submitted')),
+        readOnlyField('Lead ID', id),
+        readOnlyField('Roofing Company', fieldValue(lead, 'company_name')),
+        readOnlyField('Appointment Coordinator', fieldValue(lead, 'appointment_coordinator_name'))
+      ].join('');
+    }"""
+          new_static = """    const managementAccess = isManagementAccess();
+    const staticFields = document.getElementById('chl-lead-review-static');
+    if (staticFields) {
+      staticFields.innerHTML = [
+        readOnlyField('Date Submitted', fieldValue(lead, 'date_submitted')),
+        readOnlyField('Lead ID', id),
+        readOnlyField(
+          managementAccess ? 'Client Code' : 'Roofing Company',
+          managementAccess ? fieldValue(lead, 'client_code') : fieldValue(lead, 'company_name')
+        ),
+        readOnlyField('Appointment Coordinator', fieldValue(lead, 'appointment_coordinator_name'))
+      ].join('');
+    }"""
+
+          if source.count(old_static) != 1:
+              raise SystemExit(f'Expected one lead review static-field block, found {source.count(old_static)}.')
+          source = source.replace(old_static, new_static, 1)
+          js_path.write_text(source, encoding='utf-8')
+
+          old_version = 'leads-review-modal.js?v=20260825-3'
+          new_version = 'leads-review-modal.js?v=20260825-4'
+          for dashboard_name in ('admin-dashboard.html', 'management-dashboard.html'):
+              dashboard_path = Path(dashboard_name)
+              dashboard = dashboard_path.read_text(encoding='utf-8')
+              count = dashboard.count(old_version)
+              if count != 1:
+                  raise SystemExit(
+                      f'Expected one {old_version!r} include in {dashboard_name}; found {count}.'
+                  )
+              dashboard_path.write_text(
+                  dashboard.replace(old_version, new_version, 1),
+                  encoding='utf-8',
+              )
+          PY
+
+      - name: Validate Management-specific field behavior
+        run: |
+          node --check leads-review-modal.js
+          python - <<'PY'
+          from pathlib import Path
+
+          js = Path('leads-review-modal.js').read_text(encoding='utf-8')
+          assert "client_code: ['client_code', 'Client Code', 'CLIENT CODE', 'code_name', 'Code Name', 'CODE NAME']" in js
+          assert "function isManagementAccess()" in js
+          assert "managementAccess ? 'Client Code' : 'Roofing Company'" in js
+          assert "managementAccess ? fieldValue(lead, 'client_code') : fieldValue(lead, 'company_name')" in js
+
+          for name in ('admin-dashboard.html', 'management-dashboard.html'):
+              html = Path(name).read_text(encoding='utf-8')
+              assert html.count('leads-review-modal.js?v=20260825-4') == 1
+          PY
+
+      - name: Commit Management modal correction
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add leads-review-modal.js admin-dashboard.html management-dashboard.html
+          git commit -m "fix: show Client Code in Management lead review modal"
+          git push origin HEAD:main
