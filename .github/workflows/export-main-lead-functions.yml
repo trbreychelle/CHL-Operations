@@ -1,0 +1,72 @@
+name: Export shared lead functions
+
+on:
+  push:
+    branches:
+      - feat/leads-review-modal
+    paths:
+      - .github/workflows/export-main-lead-functions.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/leads-review-modal
+          fetch-depth: 1
+
+      - name: Extract lead functions from main.js
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('main.js')
+          lines = path.read_text(encoding='utf-8').splitlines()
+          terms = [
+              'handleLeadStatusChange', 'updateLeadStatus', 'updateLeadFeedback',
+              'deleteLead', 'leads_raw', 'feedback_highlight', 'rejection_reason',
+              'fetchAdminData', 'fetchManagementData', 'state.leads', 'adminState.leads'
+          ]
+          hits = []
+          ranges = []
+          for i, line in enumerate(lines, 1):
+              for term in terms:
+                  if term.lower() in line.lower():
+                      hits.append((i, term, line))
+                      ranges.append((max(1, i-110), min(len(lines), i+220)))
+          ranges.sort()
+          merged = []
+          for start, end in ranges:
+              if not merged or start > merged[-1][1] + 8:
+                  merged.append([start, end])
+              else:
+                  merged[-1][1] = max(merged[-1][1], end)
+
+          out = [f'# main.js shared lead contexts ({len(lines)} lines)', '', '# Hit index']
+          out.extend(f'{i:05d}: {term}: {line}' for i, term, line in hits)
+          for start, end in merged:
+              out.append(f'\n## Lines {start}-{end}')
+              out.extend(f'{i:05d}: {lines[i-1]}' for i in range(start, end+1))
+
+          Path('.inspection').mkdir(exist_ok=True)
+          Path('.inspection/main-lead-functions.txt').write_text('\n'.join(out), encoding='utf-8')
+          PY
+
+      - name: Commit excerpt
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .inspection/main-lead-functions.txt
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "chore: export shared lead functions"
+            git push origin HEAD:feat/leads-review-modal
+          fi
