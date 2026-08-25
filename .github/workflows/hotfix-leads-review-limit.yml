@@ -1,0 +1,78 @@
+name: Hotfix Leads review unordered limit
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/hotfix-leads-review-limit.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Remove unordered mutation limit and bust dashboard cache
+        shell: python
+        run: |
+          from pathlib import Path
+
+          js_path = Path("leads-review-modal.js")
+          source = js_path.read_text(encoding="utf-8")
+          old_query = """        .select('*')
+        .limit(1)
+        .maybeSingle();"""
+          new_query = """        .select('*')
+        .maybeSingle();"""
+
+          count = source.count(old_query)
+          if count != 1:
+              raise SystemExit(f"Expected exactly one unordered update limit block, found {count}.")
+
+          js_path.write_text(source.replace(old_query, new_query, 1), encoding="utf-8")
+
+          old_version = "leads-review-modal.js?v=20260825-1"
+          new_version = "leads-review-modal.js?v=20260825-2"
+          for dashboard_name in ("admin-dashboard.html", "management-dashboard.html"):
+              dashboard_path = Path(dashboard_name)
+              dashboard = dashboard_path.read_text(encoding="utf-8")
+              version_count = dashboard.count(old_version)
+              if version_count != 1:
+                  raise SystemExit(
+                      f"Expected exactly one {old_version!r} include in {dashboard_name}, found {version_count}."
+                  )
+              dashboard_path.write_text(
+                  dashboard.replace(old_version, new_version, 1),
+                  encoding="utf-8",
+              )
+
+      - name: Validate JavaScript and patch assertions
+        run: |
+          node --check leads-review-modal.js
+          python - <<'PY'
+          from pathlib import Path
+
+          js = Path("leads-review-modal.js").read_text(encoding="utf-8")
+          assert ".select('*')\n        .limit(1)\n        .maybeSingle();" not in js
+          assert ".select('*')\n        .maybeSingle();" in js
+
+          for name in ("admin-dashboard.html", "management-dashboard.html"):
+              html = Path(name).read_text(encoding="utf-8")
+              assert html.count("leads-review-modal.js?v=20260825-2") == 1
+          PY
+
+      - name: Commit hotfix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add leads-review-modal.js admin-dashboard.html management-dashboard.html
+          git commit -m "fix: remove unordered limit from lead review save"
+          git push origin HEAD:main
