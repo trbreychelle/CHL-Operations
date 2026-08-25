@@ -1,0 +1,482 @@
+# admin-dashboard.html lead implementation index (11554 lines)
+00033:     /* TIGHTEN LEADS TRACKER COLUMNS (BULLETPROOF VERSION) */
+00034:     #view-leads table {
+00039:     #view-leads th, #view-leads td {
+00049:     #view-leads td:hover {
+00212:           <a href="#leads" class="nav-item flex items-center px-6 py-3 text-sm" onclick="Admin.nav('leads', this)">
+00213:             <i class="fa-solid fa-list-check w-5 text-center"></i> Leads Tracker
+00264:                 <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Owed Leads</p>
+00373:                   <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsToday">Leads Today <span class="sort-icon" id="sort-leadsToday">↕</span></th>
+00374:                   <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsYesterday">Leads Yesterday <span class="sort-icon" id="sort-leadsYesterday">↕</span></th>
+00443:                 <div class="kpi-label">Total Leads</div>
+00768: <th class="p-4 text-center cursor-pointer select-none" onclick="Admin.setDailyHistorySort('total_leads_set')">
+00769:   Total Leads <span id="daily-history-sort-total_leads_set">↕</span>
+00771: <th class="p-4 text-center text-blue-600 cursor-pointer select-none" onclick="Admin.setDailyHistorySort('qualified_leads_set')">
+00772:   Qualified <span id="daily-history-sort-qualified_leads_set">↕</span>
+00774: <th class="p-4 text-center text-purple-600 cursor-pointer select-none" onclick="Admin.setDailyHistorySort('credited_leads_set')">
+00775:   Credited <span id="daily-history-sort-credited_leads_set">↕</span>
+00777: <th class="p-4 text-center text-red-500 cursor-pointer select-none" onclick="Admin.setDailyHistorySort('rejected_leads_set')">
+00778:   Rejected <span id="daily-history-sort-rejected_leads_set">↕</span>
+00919:                   <th class="p-4">Total Leads</th>
+01058:       <div id="view-leads" class="view-section">
+01059:         <h2 class="text-2xl font-bold text-gray-900 mb-4">Leads Master Record</h2>
+01067:                 id="leads-search"
+01075:               id="leads-search-btn"
+01083:            <select id="leads-filter-status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 bg-white min-w-[170px]">
+01094:                 <input id="leads-date-start" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
+01098:                 <input id="leads-date-end" type="date" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"/>
+01102:             <button id="leads-clear"
+01108:               <button id="leads-columns-toggle"
+01113:               <div id="leads-columns-popover"
+01116:                 <div id="leads-columns-box" class="max-h-[280px] overflow-y-auto space-y-2 pr-1"></div>
+01119:                   <button id="leads-columns-all"
+01121:                   <button id="leads-columns-min"
+01130:           Showing <span class="font-bold" id="leads-count">0</span> leads
+01134:           <div id="leads-page-info" class="text-gray-500 font-bold">
+01140:               id="leads-prev-page"
+01147:               id="leads-next-page"
+01158:               <thead id="leads-table-head" class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100 sticky top-0 z-20 shadow-sm"></thead>
+01159:               <tbody id="leads-table-body" class="divide-y divide-gray-50">
+01160:                 <tr><td class="p-6 text-center text-gray-400">Loading leads...</td></tr>
+01309:         Monitor all agents + drill into each agent’s leads.
+01521:           Click a weekly metric to view leads
+01545:         <tbody id="agent-leads-body" class="divide-y divide-gray-50">
+01548:               Click a metric number above to view leads
+01842:                   <th class="p-4 text-center text-blue-600">Qualified Leads</th>
+01928:                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Purchased Leads</label>
+01929:                 <input type="number" id="sale-leads" placeholder="e.g. 10" required class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-400">
+02012:           <h3 class="text-xl font-bold text-gray-900">Add Feedback</h3>
+02028:           Feedback
+02033:           placeholder="Enter feedback for this lead..."
+02037:   <input id="feedback-modal-highlight" type="checkbox" class="w-4 h-4">
+02038:   Highlight this feedback
+02173:             <th class="p-3">Feedback</th>
+02180:               Loading leads...
+02246:       _leadsIndexByCompany: null,
+02247:       _leadsIndexByCode: null,
+02250:       // Leads Master Record UI state
+02251:       _leadsCols: null,
+02252:       _leadsVisibleCols: null,
+02253:       _leadsFiltersBound: false,
+02254:       _leadsSort: { key: "date_submitted", dir: "desc" }, 
+02255:       _leadsPage: 1,
+02256:       _leadsLimit: 200,
+02257:       _leadsTotal: 0,
+02632: const leads = state.leads || [];
+02635:         // 1. Index leads by COMPANY NAME for Health Monitor math
+02636:         this._leadsIndexByCompany = new Map();
+02637:         leads.forEach(l => {
+02641:             const arr = this._leadsIndexByCompany.get(comp) || [];
+02643:             this._leadsIndexByCompany.set(comp, arr);
+02771:   const purchased = Number(row.purchased_leads || 0);
+02772: const qualified = Number(row.qualified_leads || 0);
+02773: const credited = Number(row.credited_leads || 0);
+02774: const rejected = Number(health.rejected_leads || 0);
+02775: const owed = Number(row.owed_leads || Math.max(purchased - qualified, 0));
+03242:   const leads = Array.isArray(state.leads) ? state.leads : [];
+03256:     leads.forEach(l => {
+03971:   Goal: ${w.goal} qualified leads
+04064:               <th class="p-3 text-center">Total Leads</th>
+04148: openHRLeadModal(title, subTitle, leads = []) {
+04159:   if (!Array.isArray(leads) || !leads.length) {
+04163:           No leads found for this filter.
+04171:   body.innerHTML = leads.map(l => {
+04183:         <td class="p-3">${this.getLeadField(l, ["date_submitted", "Date Submitted"], "—")}</td>
+04220:   const leads = Array.isArray(state.leads) ? state.leads : [];
+04227:   const filtered = leads.filter(l => {
+04251:     `${agentName} — ${String(statusType || "all").toUpperCase()} Leads`,
+04493:   const purchasedAmount = parseSalesNumber(pkg.purchased_leads);
+04502:   const refundLeadsDelivered = parseSalesNumber(pkg.refund_leads_delivered);
+04974:           { key: "date_submitted", label: "Date Submitted", keys: ["Date Submitted", "date_submitted"] },
+04975:           { key: "lead_id", label: "LEAD ID", keys: ["LEAD ID", "lead_id"] },
+04986:           { key: "feedback", label: "Feedback", keys: ["feedback", "Feedback", "rejection_reason", "Rejection Reason"] },
+04987:           { key: "feedback_highlight", label: "Highlight", keys: ["feedback_highlight"] },
+04994:           "date_submitted",
+04998:           "feedback",
+04999:           "feedback_highlight",
+05005:         const dStr = this.getLeadField(l, ["Date Submitted", "date_submitted", "DATE"], "");
+05010:       setupLeadFilters(leads) {
+05011:         const statusSel = document.getElementById("leads-filter-status");
+05024:         if (this._leadsCols) return;
+05026:         this._leadsCols = this.getLeadsColumns();
+05027:         this._leadsVisibleCols = this.getLeadsDefaultVisibleCols();
+05029:         const toggle = document.getElementById("leads-columns-toggle");
+05030:         const pop = document.getElementById("leads-columns-popover");
+05031:         const box = document.getElementById("leads-columns-box");
+05032:         const allBtn = document.getElementById("leads-columns-all");
+05033:         const minBtn = document.getElementById("leads-columns-min");
+05038:           box.innerHTML = this._leadsCols.map(col => {
+05039:             const checked = this._leadsVisibleCols.has(col.key);
+05052:               if (chk.checked) this._leadsVisibleCols.add(k);
+05053:               else this._leadsVisibleCols.delete(k);
+05062:         if (allBtn) allBtn.addEventListener("click", () => { this._leadsVisibleCols = new Set(this._leadsCols.map(c => c.key)); renderChecks(); this.applyLeadsFilters(); });
+05063:         if (minBtn) minBtn.addEventListener("click", () => { this._leadsVisibleCols = this.getLeadsDefaultVisibleCols(); renderChecks(); this.applyLeadsFilters(); });
+05073:         this._leadsPage = Math.max(1, Number(page) || 1);
+05075:         const limit = this._leadsLimit || 200;
+05076:         const from = (this._leadsPage - 1) * limit;
+05079:         const q = String(document.getElementById("leads-search")?.value || "").trim();
+05080:         const stVal = document.getElementById("leads-filter-status")?.value || "all";
+05081:         const sDate = document.getElementById("leads-date-start")?.value || "";
+05082:         const eDate = document.getElementById("leads-date-end")?.value || "";
+05102:         if (sDate) query = query.gte("date_submitted", sDate);
+05103:         if (eDate) query = query.lte("date_submitted", eDate);
+05110:             `lead_id.ilike.%${safeQ}%`,
+05127:           .order("date_submitted", { ascending: false })
+05131:           console.error("Leads page load failed:", JSON.stringify(error, null, 2));
+05132:           alert(error.message || error.details || "Failed to load leads page.");
+05136:         this._leadsTotal = count || 0;
+05138:         const countEl = document.getElementById("leads-count");
+05139:         if (countEl) countEl.textContent = this._leadsTotal;
+05146:         const limit = this._leadsLimit || 200;
+05147:         const page = this._leadsPage || 1;
+05148:         const total = this._leadsTotal || 0;
+05151:         const info = document.getElementById("leads-page-info");
+05152:         const prev = document.getElementById("leads-prev-page");
+05153:         const next = document.getElementById("leads-next-page");
+05166:         if (this._leadsFiltersBound) return;
+05168:           const searchInput = document.getElementById("leads-search");
+05169:           const searchBtn = document.getElementById("leads-search-btn");
+05190:             "leads-filter-status",
+05191:             "leads-filter-company",
+05192:             "leads-filter-ac",
+05193:             "leads-filter-homeowner",
+05194:             "leads-date-start",
+05195:             "leads-date-end"
+05206:         const clearBtn = document.getElementById("leads-clear");
+05209:             const s = document.getElementById("leads-search"); if (s) s.value = "";
+05210:             const a = document.getElementById("leads-filter-status"); if (a) a.value = "all";
+05211:             const b = document.getElementById("leads-filter-company"); if (b) b.value = "all";
+05212:             const c = document.getElementById("leads-filter-ac"); if (c) c.value = "all";
+05213:             const d = document.getElementById("leads-filter-homeowner"); if (d) d.value = "all";
+05214:             const ds = document.getElementById("leads-date-start"); if (ds) ds.value = "";
+05215:             const de = document.getElementById("leads-date-end"); if (de) de.value = "";
+05220:         const prevBtn = document.getElementById("leads-prev-page");
+05223:               this.applyLeadsFilters((this._leadsPage || 1) - 1);
+05227:           const nextBtn = document.getElementById("leads-next-page");
+05230:               this.applyLeadsFilters((this._leadsPage || 1) + 1);
+05234:         const leadsBody = document.getElementById("leads-table-body");
+05236: if (leadsBody && !leadsBody.dataset.feedbackBound) {
+05237:   leadsBody.dataset.feedbackBound = "true";
+05240:     const btn = e.target.closest("[data-feedback-edit='true']");
+05247:     const feedback = decodeURIComponent(btn.dataset.feedback || "");
+05248:     const highlighted = btn.dataset.highlighted === "true";
+05250:     this.editFeedback(leadId, feedback, highlighted);
+05253:         this._leadsFiltersBound = true;  
+05316:       buildLeadIndex(leads) {
+05320:         for (const l of (leads || [])) {
+05366:           "purchased_leads","Purchased Leads","PURCHASED LEADS","Purchased",
+05425:       getRangeFor(period, leads) {
+05489:           const dates = (leads || []).map(l => this.getLeadDateObj(l)).filter(d => d && !isNaN(d.getTime())).sort((a,b) => a - b);
+05601:         const leads = Array.isArray(state?.leads) ? state.leads : [];
+05603:         const { start, end, grain, label } = this.getRangeFor(period, leads);
+05644:         leads.forEach(l => {
+05722:     String(a.name || '').trim().toLowerCase() !== 'call hammer leads'
+05773:   .filter(name => String(name || '').trim().toLowerCase() !== 'call hammer leads')
+05890:               this.updateOverviewTopCardsFromAnalyticsCounts(qualified, pending, period, leads);
+05893:       updateOverviewTopCardsFromAnalyticsCounts(qualifiedCount, pendingCount, period, leads) {
+05899:   const { start, end } = this.getRangeFor(period, leads || []);
+05902:   (Array.isArray(leads) ? leads : []).forEach(l => {
+06097:       highlightPassbookChangedFields(codeName) {
+06180:   const feedback = String(document.getElementById("rejection-modal-text")?.value || "").trim();
+06181:   const highlighted = document.getElementById("feedback-modal-highlight")?.checked === true;
+06189:     await updateLeadStatus(leadId, nextStatus, feedback);
+06192:   await updateLeadFeedback(leadId, feedback, highlighted);
+06196:      editFeedback(leadId, currentFeedback = "", currentHighlight = false) {
+06198:   document.getElementById("rejection-modal-text").value = currentFeedback || "";
+06201:   const highlightEl = document.getElementById("feedback-modal-highlight");
+06202:   if (highlightEl) highlightEl.checked = !!currentHighlight;
+06208:   this.editFeedback(leadId, currentReason, false);
+06369: setTimeout(() => this.highlightPassbookChangedFields(codeName), 50);
+06398:           { label: "Leads Per Day Limit", key: "leads_per_day_limit" },
+06479:             renderLeads(leads) {
+06480:         const tbody = document.getElementById('leads-table-body');
+06481:         const thead = document.getElementById('leads-table-head');
+06485:         const visibleCols = this._leadsCols.filter(c => this._leadsVisibleCols.has(c.key));
+06489:         tbody.innerHTML = leads.map(l => {
+06490:           const leadId = this.getLeadField(l, ["LEAD ID", "lead_id", "ID"], "unknown");
+06499:              if (c.key === "feedback") {
+06500:   const feedback = this.getLeadField(l, ["feedback", "Feedback", "rejection_reason", "Rejection Reason"], "");
+06501:   const highlighted = l.feedback_highlight === true || String(l.feedback_highlight).toLowerCase() === "true";
+06504:   const safeFeedbackHtml = String(feedback || "")
+06513:     data-feedback-edit="true"
+06514:     data-lead-id="${encodeURIComponent(String(leadId))}"
+06515:     data-feedback="${encodeURIComponent(String(feedback || ""))}"
+06516:     data-highlighted="${highlighted ? "true" : "false"}"
+06517:     class="text-left w-full ${feedback ? 'text-gray-700' : 'text-gray-400 italic'} hover:underline"
+06518:     title="Edit feedback"
+06520:     ${highlighted ? '⭐ ' : ''}${feedback ? safeFeedbackHtml : "Add feedback"}
+06525: if (c.key === "feedback_highlight") {
+06526:   const highlighted = l.feedback_highlight === true || String(l.feedback_highlight).toLowerCase() === "true";
+06527:   return `<td class="p-4 text-center">${highlighted ? "⭐ Highlighted" : "—"}</td>`;
+06558:               <button onclick="deleteLead('${String(leadId).replace(/'/g, "\\'")}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Lead">
+06717:   const leads = state?.leads || [];
+06738:   return this.getRangeFor(this.teamPeriod, leads);
+06923: _computeAgentMetrics(name, leads, start, end) {
+06924:   const inRange = leads.filter(l => {
+06948:     leads: inRange
+06954:   const leads = Array.isArray(state?.leads) ? state.leads : [];
+07012:   ...this._computeAgentMetrics(r.name, leads, start, end)
+07103:   const leads = Array.isArray(state?.leads) ? state.leads : [];
+07110:   const filtered = leads.filter(l => {
+07145:   const leadsBody = document.getElementById("agent-leads-body");
+07163:           No leads found for this metric.
+07176:         <td class="p-3">${this.getLeadField(l, ["date_submitted", "Date Submitted"], "—")}</td>
+07321:         const leads = state?.leads || [];
+07328:         return this.getRangeFor(this.agentPeriod, leads);
+07359:   const leads = Array.isArray(state?.leads)
+07360:     ? state.leads
+07373:   const leadsBody = document.getElementById("agent-leads-body");
+07448:   const weekLeads = leads.filter(l => {
+07504:     leads: weekLeads,
+07576:         Click a metric number above to view leads
+07588:   const leadsBody = document.getElementById("agent-leads-body");
+07596:   const filtered = week.leads.filter(l => {
+07611:     labelEl.textContent = `${String(type).toUpperCase()} leads for ${startLabel} → ${endLabel}`;
+07618:           No leads found for this metric.
+07630:         <td class="p-3">${this.getLeadField(l, ["date_submitted", "Date Submitted"], "—")}</td>
+07825: const allLeads = Array.isArray(this.getState().leads) ? this.getState().leads : [];
+07877:       total_leads_set: matchedLeads.length,
+07878:       qualified_leads_set: qualified,
+07879:       credited_leads_set: credited,
+07880:       rejected_leads_set: rejected,
+07881:       pending_leads_set: pending
+07902:   "total_leads_set",
+07903:   "qualified_leads_set",
+07904:   "credited_leads_set",
+07905:   "rejected_leads_set"
+07937:   const dayLeadRows = Array.isArray(this.getState().leads)
+07938:     ? this.getState().leads.filter(l => {
+08407:           <td class="p-4 text-center font-bold text-gray-700">${row.total_leads_set ?? 0}</td>
+08408:           <td class="p-4 text-center font-black text-blue-600">${row.qualified_leads_set ?? 0}</td>
+08409:           <td class="p-4 text-center font-black text-purple-600">${row.credited_leads_set ?? 0}</td>
+08410:           <td class="p-4 text-center font-black text-red-500">${row.rejected_leads_set ?? 0}</td>
+09095:   // clear old temporary highlights
+09254:             const approvedLeads = Number(r.approved_leads || 0);
+09255: const rejectedLeads = Number(r.rejected_leads || 0);
+09256: const totalLeads = Number(r.total_leads || 0);
+09886:           let csv = "Agent Name,Week Start,Adjusted Hours,Approved Leads,Rejected Leads,Total Leads,Effective Rate,Manual Incentive,Base Pay,Final Pay,Status,Locked\n";
+10027:         ready_to_receive_leads: draft.ready_to_receive_leads ?? !!saved.ready_to_receive_leads,
+10067:     ["ob-filter-ready", "ready_to_receive_leads"]
+10241:         data-ob-code="${row.client_code}" data-ob-field="ready_to_receive_leads"
+10242:         ${row.ready_to_receive_leads ? "checked" : ""}>
+11356:   await refreshPassbookMentionHighlights();
+11388:   await refreshPassbookMentionHighlights();
+11400:   async function refreshPassbookMentionHighlights() {
+11510:         setTimeout(refreshPassbookMentionHighlights, 50);
+11521:     window.Admin.refreshPassbookMentionHighlights = refreshPassbookMentionHighlights;
+11523:     setTimeout(refreshPassbookMentionHighlights, 1200);
+11534:             refreshPassbookMentionHighlights();
+
+# Candidate function/method starts with lead references in the next 220 lines
+02433: METHOD setPassbookModalTab: setPassbookModalTab(tab) {
+02444: METHOD if: if (detailsBtn && historyBtn) {
+02455: METHOD renderPassbookAuditHeader: renderPassbookAuditHeader(codeName) {
+02503: METHOD renderPassbookHistory: renderPassbookHistory(codeName) {
+02509: METHOD if: if (!rows.length) {
+02547: METHOD loadPassbookModuleInbox: async loadPassbookModuleInbox() {
+02573: METHOD updatePassbookTabBadge: updatePassbookTabBadge() {
+02584: METHOD getPassbookChangeItemsForCode: getPassbookChangeItemsForCode(code) {
+02589: METHOD getPassbookChangedFieldsForCode: getPassbookChangedFieldsForCode(code) {
+02605: METHOD acknowledgePassbookChangesForCode: async acknowledgePassbookChangesForCode(code) {
+02608: METHOD if: if (!items.length) {
+02613: METHOD for: for (const item of items) {
+02615: METHOD if: if (eventId) {
+02624: METHOD refreshDashboard: refreshDashboard() {
+02689: METHOD if: if (!isTypingDaily) {
+02695: METHOD toMST: toMST(dateVal) {
+02705: METHOD parseDateSafe: parseDateSafe(value) {
+02711: METHOD normalizeClientHealthRows: normalizeClientHealthRows(allocationRows, rawClients = [], packages = []) {
+04285: METHOD if: if (!groups.length) {
+04427: METHOD renderSalesTab: renderSalesTab() {
+04448: METHOD parseSalesNumber: const parseSalesNumber = (value) => {
+04455: METHOD normalizeSalesCategory: const normalizeSalesCategory = (value) => {
+04468: METHOD isAutoCommissionCategory: const isAutoCommissionCategory = (category) => {
+04473: METHOD getSalesLeadRate: const getSalesLeadRate = (category, purchaseDateValue) => {
+04474: METHOD if: if (typeof window.getSalesLeadRateForDeal !== "function") {
+04480: METHOD matchesCategoryFilter: const matchesCategoryFilter = (rowCategory, filterValue) => {
+04491: METHOD calculateSalesFinancials: const calculateSalesFinancials = (pkg, packageStatus, dealStatus) => {
+04780: METHOD if: if (locSel) {
+04782: METHOD uniq: const uniq = (arr) => [...new Set(arr.filter(x => String(x||"").trim() !== ""))].sort();
+04788: METHOD if: if (!locSel.dataset.bound) {
+04795: METHOD applyClientHealthFilters: applyClientHealthFilters() {
+04811: METHOD if: if (activePkgFilter === "ONGOING") {
+04816: METHOD if: if (activePkgFilter === "PAUSE" || activePkgFilter === "COMPLETED" || activePkgFilter === "REFUNDED" || activePkgFilter === "ALL") {
+04824: METHOD if: if (pkgFilter !== "ALL") {
+04829: METHOD if: if (target === "ONGOING") {
+04838: METHOD if: if (checkedHealth.length > 0) {
+04844: METHOD if: if (q) {
+04855: METHOD if: if (key) {
+04857: METHOD if: if (key === "packageRatio") {
+04866: METHOD if: if (typeof A === "number" && typeof B === "number") {
+04880: METHOD renderClientHealthTable: renderClientHealthTable(rows) {
+04882: METHOD if: if (!rows.length) {
+04937: METHOD _setActiveButton: _setActiveButton(btnSelector, btnElement) {
+04942: METHOD if: if (btnElement) {
+04948: METHOD _setCustomActive: _setCustomActive(toggleId, isActive) {
+04955: METHOD pick: pick(obj, keys, fallback = "") {
+04958: METHOD for: for (const k of keys) {
+04968: METHOD getLeadField: getLeadField(l, keys, fallback="—") {
+04972: METHOD getLeadsColumns: getLeadsColumns() {
+04992: METHOD getLeadsDefaultVisibleCols: getLeadsDefaultVisibleCols() {
+05004: METHOD getLeadDateObj: getLeadDateObj(l) {
+05010: METHOD setupLeadFilters: setupLeadFilters(leads) {
+05012: METHOD if: if (statusSel) {
+05023: METHOD initLeadsColumnsUI: initLeadsColumnsUI() {
+05037: METHOD renderChecks: const renderChecks = () => {
+05067: METHOD applyLeadsFilters: async applyLeadsFilters(page = 1) {
+05068: METHOD if: if (!supaClient) {
+05089: METHOD if: if (stVal !== "all") {
+05090: METHOD if: if (stVal === "APPROVED") {
+05108: METHOD if: if (safeQ) {
+05130: METHOD if: if (error) {
+05145: METHOD updateLeadsPager: updateLeadsPager() {
+05155: METHOD if: if (info) {
+05165: METHOD bindLeadsMasterEvents: bindLeadsMasterEvents() {
+05172: METHOD if: if (searchBtn) {
+05179: METHOD if: if (searchInput) {
+05181: METHOD if: if (e.key === "Enter") {
+05207: METHOD if: if (clearBtn) {
+05221: METHOD if: if (prevBtn) {
+05228: METHOD if: if (nextBtn) {
+05236: METHOD if: if (leadsBody && !leadsBody.dataset.feedbackBound) {
+05256: METHOD normalizeCompanyName: normalizeCompanyName(name) {
+05265: METHOD normalizeCode: normalizeCode(code) {
+05269: METHOD getSoldByForClient: getSoldByForClient(code) {
+05277: METHOD setSoldByForClient: setSoldByForClient(code, value) {
+05286: METHOD normalizeClientStatus: normalizeClientStatus(v) {
+05295: METHOD normalizePackageStatus: normalizePackageStatus(v) {
+05304: METHOD statusDotClass: statusDotClass(clientStatus) {
+05311: METHOD extractRoofingCompany: extractRoofingCompany(c) { return this.pick(c, ["company_name", "roofing_company", "Company Name"], "—"); },
+05312: METHOD extractCityState: extractCityState(c) { return this.pick(c, ["area", "city_state", "Location"], "—"); },
+05313: METHOD extractClientName: extractClientName(c) { return this.pick(c, ["contact_person", "client_name", "Client Name"], "—"); },
+05314: METHOD extractCode: extractCode(c) { return this.pick(c, ["code_name", "client_code", "Client Code"], "N/A"); },
+05316: METHOD buildLeadIndex: buildLeadIndex(leads) {
+05330: METHOD push: const push = (map, key) => {
+05343: METHOD countQualifiedCreditedFrom: countQualifiedCreditedFrom(list, startDt) {
+05358: METHOD computeOwedRemaining: computeOwedRemaining(purchased, qualified) {
+05364: METHOD getPurchasedLeads: getPurchasedLeads(c) {
+05893: METHOD updateOverviewTopCardsFromAnalyticsCounts: updateOverviewTopCardsFromAnalyticsCounts(qualifiedCount, pendingCount, period, leads) {
+05914: METHOD if: if (pulseProfit) {
+05921: METHOD if: if (pulsePending) {
+05926: METHOD normalizePassbookSalesCategory: normalizePassbookSalesCategory(value) {
+05940: METHOD buildPassbookSalesCategoryByCode: buildPassbookSalesCategoryByCode() {
+05964: METHOD if: if (!existing || sortTime >= existing.sortTime) {
+05972: METHOD getPassbookSalesCategoryForCode: getPassbookSalesCategoryForCode(code) {
+05973: METHOD if: if (!this._passbookSalesCategoryByCode) {
+05981: METHOD matchesPassbookSalesCategoryFilter: matchesPassbookSalesCategoryFilter(code, filterValue) {
+05987: METHOD if: if (filter === "Sales Team") {
+05994: METHOD renderPassbookSalesCategoryTag: renderPassbookSalesCategoryTag(category) {
+06015: METHOD renderClientCards: renderClientCards(clients) {
+06021: METHOD escapeAttr: const escapeAttr = (value) => String(value ?? "")
+06084: METHOD openPassbookClient: openPassbookClient(codeName) {
+06089: METHOD _openPassbookModalShell: _openPassbookModalShell(codeName) {
+06097: METHOD highlightPassbookChangedFields: highlightPassbookChangedFields(codeName) {
+06141: METHOD closePassbookModal: closePassbookModal() {
+06145: METHOD openRejectionReasonModal: openRejectionReasonModal(leadId, nextStatus, existingReason = "") {
+06165: METHOD closeRejectionReasonModal: closeRejectionReasonModal() {
+06177: METHOD saveRejectionReasonModal: async saveRejectionReasonModal() {
+06183: METHOD if: if (!leadId) {
+06196: METHOD editFeedback: editFeedback(leadId, currentFeedback = "", currentHighlight = false) {
+06207: METHOD editRejectionReason: editRejectionReason(leadId, currentReason = "", currentStatus = "REJECTED") {
+06211: METHOD loadNotifications: async loadNotifications(force = false) {
+06226: METHOD toggleNotificationFlag: async toggleNotificationFlag(eventId, currentValue) {
+06232: METHOD toggleNotificationDone: async toggleNotificationDone(eventId, currentValue) {
+06238: METHOD cycleNotificationState: async cycleNotificationState(eventId, isFlagged, isDone) {
+06248: METHOD if: if (typeof data === 'string') {
+06261: METHOD if: if (isResolvedTimeOff) {
+06269: METHOD if: if (!isFlagged && !isDone) {
+06277: METHOD if: if (isFlagged && !isDone) {
+06294: METHOD if: if (isResolvedTimeOff) {
+06296: METHOD if: if (!isDone) {
+06302: METHOD if: if (!isFlagged && !isDone) {
+06312: METHOD openNotification: async openNotification(item) {
+06344: METHOD _fetchAndRenderPassbookClient: async _fetchAndRenderPassbookClient(codeName) {
+06359: METHOD if: if (!data || data.length === 0) {
+06377: METHOD _renderPassbookForm: _renderPassbookForm(raw) {
+06378: METHOD safeStr: const safeStr = (val) => String(val || "").replace(/"/g, "&quot;");
+06423: METHOD for: for (const f of fields) {
+06474: METHOD if: if (window.portal && typeof window.portal.bindPassbookUpdateButton === "function") {
+06479: METHOD renderLeads: renderLeads(leads) {
+06499: METHOD if: if (c.key === "feedback") {
+06525: METHOD if: if (c.key === "feedback_highlight") {
+07682: METHOD if: if (weekErr) {
+07693: METHOD if: if (!this.dailyStrategyWeekRows.length) {
+07706: METHOD if: if (!this.dailyStrategySelectedDate) {
+07748: METHOD if: if (assignErr) {
+07764: METHOD formatHistoryWeekLabel: const formatHistoryWeekLabel = (weekStart) => {
+07783: METHOD getCodeNumber: const getCodeNumber = (code) => {
+07795: METHOD if: if (strategyHistoryErr) {
+07805: METHOD if: if (!this.dailyStrategyHistoryWeekStart) {
+07809: METHOD if: if (historyWeekSelect) {
+07816: METHOD if: if (!historyWeekSelect.dataset.bound) {
+07891: METHOD if: if (sortKey === "client_code") {
+08321: METHOD if: if (!existing.lastSeen || currentTime >= existingTime) {
+08335: METHOD if: if (!rosterRows.length) {
+08398: METHOD if: if (!this.dailyStrategyHistoryRows.length) {
+08901: METHOD if: if (error) {
+08910: METHOD updateDailyAssignment: async updateDailyAssignment(assignmentId, field, value) {
+08911: METHOD if: if (!assignmentId || typeof supaClient === "undefined" || !supaClient) {
+08924: METHOD if: if (error) {
+08934: METHOD if: if (localRow) {
+08942: METHOD if: if (field !== "assigned_agents") {
+08947: METHOD removeDailyAssignment: async removeDailyAssignment(assignmentId) {
+08948: METHOD if: if (!assignmentId || typeof supaClient === "undefined" || !supaClient) {
+08958: METHOD if: if (childError) {
+08969: METHOD if: if (error) {
+08978: METHOD moveDailyAssignment: async moveDailyAssignment(assignmentId, targetLane) {
+08979: METHOD if: if (!assignmentId || !targetLane || typeof supaClient === "undefined" || !supaClient) {
+09003: METHOD if: if (error) {
+09013: METHOD switchPayrollTab: switchPayrollTab(tab) {
+09018: METHOD if: if (t === tab) {
+09029: METHOD calculateTieredBonus: calculateTieredBonus(qualified, credited) {
+09041: METHOD if: if (total >= 8) {
+09045: METHOD if: if (total >= 9) {
+09050: METHOD if: if (total >= 13) {
+09058: METHOD handleNotificationNavigation: handleNotificationNavigation(item) {
+09074: METHOD if: if (event.module_key === 'overview') {
+09091: METHOD applyNotificationFocus: applyNotificationFocus() {
+09101: METHOD if: if (focus.moduleKey === 'passbook_clients') {
+09108: METHOD if: if (card) {
+09120: METHOD if: if (focus.moduleKey === 'sales_pipeline') {
+09124: METHOD if: if (row) {
+09132: METHOD if: if (focus.moduleKey === 'onboarding') {
+09136: METHOD if: if (row) {
+09143: METHOD if: if (fieldEl) {
+09151: METHOD renderPayrollFinance: async renderPayrollFinance() {
+09165: METHOD if: if (!payrollRows.length) {
+09190: METHOD if: if (weekSelect) {
+09212: METHOD if: if (selectedWeekMeta?.week_start) {
+09831: METHOD addPayrollNote: async addPayrollNote() {
+09848: METHOD if: if (!selectedWeekRow?.week_start) {
+09853: METHOD if: if (typeof supaClient === "undefined" || !supaClient) {
+09868: METHOD if: if (error) {
+09878: METHOD bindExportCSV: bindExportCSV(weekLabel, processedAgents) {
+09899: METHOD bindPayrollUI: bindPayrollUI() {
+09904: METHOD if: if (sel) {
+09911: METHOD if: if (noteInput) {
+09922: METHOD if: if (toggle && pop) {
+09935: METHOD if: if (applyBtn) {
+09947: METHOD if: if (clearBtn) {
+09957: METHOD getOnboardingRows: getOnboardingRows() {
+09982: METHOD if: if (!current || nextTime >= currentTime) {
+10053: METHOD getFilteredOnboardingRows: getFilteredOnboardingRows() {
+10070: METHOD if: if (q) {
+10085: METHOD bindOnboardingFilters: bindOnboardingFilters() {
+10116: METHOD if: if (clearBtn) {
+10135: METHOD bindOnboardingDraftTracking: bindOnboardingDraftTracking() {
+10168: METHOD renderOnboardingTab: renderOnboardingTab() {
+11153: METHOD if: if (hasAll) {
+11186: METHOD if: if (!match) {
+11215: METHOD if: if (allBtn) {
+11241: METHOD if: if (!profiles.length) {
+11259: METHOD if: if (!matches.length) {
+11315: METHOD if: if (typeof supaClient === "undefined" || !supaClient) {
+11329: METHOD if: if (saveBtn) {
+11341: METHOD if: if (saveBtn) {
+11347: METHOD if: if (error) {
+11382: METHOD if: if (error) {
+11414: METHOD if: if (badge) {
+11457: METHOD if: if (tone === "red") {
+11493: METHOD if: if (originalOpen) {
+11507: METHOD if: if (originalRenderCards) {
+11527: METHOD if: if (typeof supaClient !== "undefined" && supaClient && orgId && !window.__passbookNotesRealtimeChannel) {
