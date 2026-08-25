@@ -1,0 +1,826 @@
+# management-dashboard.html lead mutation contexts
+
+# Hit index
+01834: rejection_reason:           { key: "feedback", label: "Feedback", keys: ["feedback", "Feedback", "rejection_reason", "Rejection Reason"] },
+02905: feedback_highlight:   highlightEl.checked = lead?.feedback_highlight === true;
+02942: updateLeadStatus:     await updateLeadStatus(leadId, "REJECTED", feedback);
+02943: updateLeadFeedback:     await updateLeadFeedback(leadId, feedback, highlighted);
+02945: updateLeadFeedback:     await updateLeadFeedback(leadId, feedback, highlighted);
+03289: rejection_reason:           const rejectionReason = this.getLeadField(l, ["feedback", "Feedback", "rejection_reason", "Rejection Reason"], "");
+03310: feedback_highlight:     data-highlighted="${l.feedback_highlight ? "true" : "false"}"
+03315: feedback_highlight:     ${l.feedback_highlight ? '<div class="text-yellow-500 text-xs font-black mt-1">⭐ Highlighted</div>' : ''}
+03334: handleLeadStatusChange:                     onchange="handleLeadStatusChange(this, '${safeLeadId}', '${safeReasonHtml}')"
+03348: deleteLead:               <button onclick="deleteLead('${String(leadId).replace(/'/g, "\\'")}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Lead">
+
+## Lines 1749-1984
+01749:               <td class="p-4">
+01750:                 ${
+01751:                   false
+01752:                     ? `
+01753:                       <select onchange="window.updateClientPackageStatus('${String(r._pkgId || "").replace(/'/g, "\\'")}', this.value)" class="px-2 py-1 rounded text-[10px] font-extrabold border outline-none cursor-pointer shadow-sm ${pkgColor}">
+01754:                         <option value="Active" ${r.packageStatus === 'ONGOING' ? 'selected' : ''}>ONGOING</option>
+01755:                         <option value="Pause" ${r.packageStatus === 'PAUSE' ? 'selected' : ''}>PAUSE</option>
+01756:                         <option value="Completed" ${r.packageStatus === 'COMPLETED' ? 'selected' : ''}>COMPLETED</option>
+01757:                         <option value="Refunded" ${r.packageStatus === 'REFUNDED' ? 'selected' : ''}>REFUNDED</option>
+01758:                       </select>
+01759:                     `
+01760:                     : `
+01761:                       <span class="px-2 py-1 rounded text-[10px] font-extrabold ${pkgColor}">
+01762:                         ${r.packageStatus}
+01763:                       </span>
+01764:                     `
+01765:                 }
+01766:               </td>
+01767:               <td class="p-4 text-gray-500">${r.purchaseDate}</td>
+01768:               <td class="p-4 text-gray-500">${r.lastLead}</td>
+01769:             </tr>
+01770:           `;
+01771:         }).join("");
+01772:       },
+01773: 
+01774:       _setActiveButton(btnSelector, btnElement) {
+01775:         document.querySelectorAll(btnSelector).forEach(b => {
+01776:           b.classList.remove("bg-white", "shadow", "text-gray-900");
+01777:           b.classList.add("text-gray-500");
+01778:         });
+01779:         if (btnElement) {
+01780:           btnElement.classList.add("bg-white", "shadow", "text-gray-900");
+01781:           btnElement.classList.remove("text-gray-500");
+01782:         }
+01783:       },
+01784: 
+01785:       _setCustomActive(toggleId, isActive) {
+01786:         const t = document.getElementById(toggleId);
+01787:         if (!t) return;
+01788:         t.classList.toggle("ring-2", isActive);
+01789:         t.classList.toggle("ring-yellow-400", isActive);
+01790:       },
+01791: 
+01792:       pick(obj, keys, fallback = "") {
+01793:         if (!obj) return fallback;
+01794:         const objKeys = Object.keys(obj);
+01795:         for (const k of keys) {
+01796:           const lowerK = String(k).toLowerCase();
+01797:           const found = objKeys.find(ok => String(ok).toLowerCase() === lowerK);
+01798:           if (found && obj[found] !== undefined && obj[found] !== null && String(obj[found]).trim() !== "") {
+01799:             return obj[found];
+01800:           }
+01801:         }
+01802:         return fallback;
+01803:       },
+01804: 
+01805:       getLeadField(l, keys, fallback="—") {
+01806:         return this.pick(l, keys, fallback);
+01807:       },
+01808: 
+01809:            getLeadsColumns() {
+01810:         return [
+01811:           { key: "date_submitted", label: "Date Submitted", keys: ["Date Submitted", "date_submitted"] },
+01812:           { key: "lead_id", label: "LEAD ID", keys: ["LEAD ID", "lead_id"] },
+01813:           {
+01814:   key: "client_code",
+01815:   label: "Client Code",
+01816:   keys: [
+01817:     "client_code",
+01818:     "Client Code",
+01819:     "CLIENT CODE",
+01820:     "code_name",
+01821:     "Code Name",
+01822:     "CODE NAME"
+01823:   ]
+01824: },
+01825:           { key: "appointment_coordinator", label: "Appointment Coordinator Name", keys: ["Appointment Coordinator Name", "appointment_coordinator_name"] },
+01826:           { key: "homeowner_name", label: "Homeowner Name(s)", keys: ["Homeowner Name(s)", "homeowner_names"] },
+01827:           { key: "homeowner_email", label: "Email of Homeowner", keys: ["Email of Homeowner", "email_of_homeowner", "email"] },
+01828:           { key: "homeowner_phone", label: "Homeowner Phone Number(s)", keys: ["Homeowner Phone Number(s)", "homeowner_phone_numbers", "phone"] },
+01829:           { key: "appointment_datetime", label: "Appointment Date /Time", keys: ["Appointment Date /Time", "appointment_date_time"] },
+01830:           { key: "address", label: "Address", keys: ["Address", "address"] },
+01831:           { key: "age_of_roof", label: "Age of Roof", keys: ["Age of Roof", "age_of_roof"] },
+01832:           { key: "insurance_company", label: "Insurance Company", keys: ["Insurance Company", "insurance_company"] },
+01833:           { key: "additional_notes", label: "Additional Notes", keys: ["Additional Notes", "additional_notes"] },
+01834:           { key: "feedback", label: "Feedback", keys: ["feedback", "Feedback", "rejection_reason", "Rejection Reason"] },
+01835:           { key: "status", label: "Status", keys: ["Status", "status"] },
+01836:         ];
+01837:       },
+01838: 
+01839:            getLeadsDefaultVisibleCols() {
+01840:   return new Set([
+01841:     "date_submitted",
+01842:     "homeowner_name",
+01843:     "appointment_coordinator",
+01844:     "client_code",
+01845:     "feedback",
+01846:     "status"
+01847:   ]);
+01848: },
+01849: 
+01850:       getLeadDateObj(l) {
+01851:         const dStr = this.getLeadField(l, ["Date Submitted", "date_submitted", "DATE"], "");
+01852:         const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+01853:         return (dt && !isNaN(dt.getTime())) ? dt : null;
+01854:       },
+01855: 
+01856:       setupLeadFilters(leads) {
+01857:         const statusSel = document.getElementById("leads-filter-status");
+01858:         if (statusSel) {
+01859:             statusSel.innerHTML = `
+01860:             <option value="all">All Status</option>
+01861:             <option value="APPROVED">APPROVED</option>
+01862:             <option value="CREDITED">CREDITED</option>
+01863:             <option value="PENDING REVIEW">PENDING REVIEW</option>
+01864:             <option value="REJECTED">REJECTED</option>
+01865:             `;
+01866:         }
+01867:       },
+01868: 
+01869:       initLeadsColumnsUI() {
+01870:         if (this._leadsCols) return;
+01871: 
+01872:         this._leadsCols = this.getLeadsColumns();
+01873:         this._leadsVisibleCols = this.getLeadsDefaultVisibleCols();
+01874: 
+01875:         const toggle = document.getElementById("leads-columns-toggle");
+01876:         const pop = document.getElementById("leads-columns-popover");
+01877:         const box = document.getElementById("leads-columns-box");
+01878:         const allBtn = document.getElementById("leads-columns-all");
+01879:         const minBtn = document.getElementById("leads-columns-min");
+01880: 
+01881:         if (!toggle || !pop || !box) return;
+01882: 
+01883:         const renderChecks = () => {
+01884:           box.innerHTML = this._leadsCols.map(col => {
+01885:             const checked = this._leadsVisibleCols.has(col.key);
+01886:             return `
+01887:               <label class="flex items-center gap-2 text-sm text-gray-700">
+01888:                 <input type="checkbox" data-colkey="${col.key}" ${checked ? "checked" : ""} />
+01889:                 <span>${col.label}</span>
+01890:               </label>
+01891:             `;
+01892:           }).join("");
+01893: 
+01894:           box.querySelectorAll('input[type="checkbox"][data-colkey]').forEach(chk => {
+01895:             chk.addEventListener("change", () => {
+01896:               const k = chk.getAttribute("data-colkey");
+01897:               if (!k) return;
+01898:               if (chk.checked) this._leadsVisibleCols.add(k);
+01899:               else this._leadsVisibleCols.delete(k);
+01900:               this.applyLeadsFilters();
+01901:             });
+01902:           });
+01903:         };
+01904: 
+01905:         toggle.addEventListener("click", (e) => { e.preventDefault(); pop.classList.toggle("hidden"); });
+01906:         document.addEventListener("click", (e) => { if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) pop.classList.add("hidden"); });
+01907: 
+01908:         if (allBtn) allBtn.addEventListener("click", () => { this._leadsVisibleCols = new Set(this._leadsCols.map(c => c.key)); renderChecks(); this.applyLeadsFilters(); });
+01909:         if (minBtn) minBtn.addEventListener("click", () => { this._leadsVisibleCols = this.getLeadsDefaultVisibleCols(); renderChecks(); this.applyLeadsFilters(); });
+01910: 
+01911:         renderChecks();
+01912:       },
+01913: 
+01914:       applyLeadsFilters(page = 1) {
+01915:         const state = this.getState();
+01916:         const leads = (state && Array.isArray(state.leads)) ? state.leads : [];
+01917: 
+01918:         const q = String(document.getElementById("leads-search")?.value || "").toLowerCase().trim();
+01919:         const stVal = document.getElementById("leads-filter-status")?.value || "all";
+01920:         const sDate = document.getElementById("leads-date-start")?.value || "";
+01921:         const eDate = document.getElementById("leads-date-end")?.value || "";
+01922: 
+01923:         const startDt = sDate ? new Date(sDate + "T00:00:00") : null;
+01924:         const endDt = eDate ? new Date(eDate + "T23:59:59") : null;
+01925: 
+01926:         let filtered = [...leads];
+01927: 
+01928:         if (stVal !== "all") {
+01929:           filtered = filtered.filter(l => {
+01930:             const s = String(this.getLeadField(l, ["status", "Status", "STATUS", "Lead_Status"], "")).toUpperCase();
+01931:             if (stVal === "APPROVED") return s.includes("APPROV") || s.includes("CONFIRM");
+01932:             if (stVal === "REJECTED") return s.includes("REJECT");
+01933:             if (stVal === "CREDITED") return s.includes("CREDIT");
+01934:             if (stVal === "PENDING REVIEW") return s.includes("PENDING");
+01935:             return s.includes(stVal);
+01936:           });
+01937:         }
+01938: 
+01939:         // BULLETPROOF SEARCH: Searches every single property of the lead
+01940:         if (q) {
+01941:           filtered = filtered.filter(l => {
+01942:             const searchableText = this.getLeadsColumns()
+01943:   .map(column => this.getLeadField(l, column.keys, ""))
+01944:   .join(" ")
+01945:   .toLowerCase();
+01946: 
+01947: return searchableText.includes(q);
+01948:           });
+01949:         }
+01950: 
+01951:         if (this._leadsSort?.key === "date_submitted") {
+01952:           const dir = this._leadsSort.dir === "asc" ? 1 : -1;
+01953:           filtered.sort((a, b) => {
+01954:             const da = this.getLeadDateObj(a);
+01955:             const db = this.getLeadDateObj(b);
+01956:             if (!da && !db) return 0;
+01957:             if (!da) return 1;
+01958:             if (!db) return -1;
+01959:             return (da.getTime() - db.getTime()) * dir;
+01960:           });
+01961:         }
+01962:         this._leadsPage = Math.max(1, Number(page) || 1);
+01963:         this._leadsTotal = filtered.length;
+01964:         
+01965:         const limit = this._leadsLimit || 200;
+01966:         const from = (this._leadsPage - 1) * limit;
+01967:         const to = from + limit;
+01968:         
+01969:         const pageRows = filtered.slice(from, to);
+01970:         
+01971:         const countEl = document.getElementById("leads-count");
+01972:         if (countEl) countEl.textContent = filtered.length;
+01973:         
+01974:         this.renderLeads(pageRows);
+01975:         this.updateLeadsPager();
+01976:       },
+01977: 
+01978:         updateLeadsPager() {
+01979:           const limit = this._leadsLimit || 200;
+01980:           const page = this._leadsPage || 1;
+01981:           const total = this._leadsTotal || 0;
+01982:           const totalPages = Math.max(1, Math.ceil(total / limit));
+01983:         
+01984:           const info = document.getElementById("leads-page-info");
+
+## Lines 2820-3095
+02820:     leads_per_day_limit: "Leads Per Day Limit",
+02821:     double_bookings: "Double Bookings",
+02822:     additional_notes: "Additional Notes / Requests"
+02823:   };
+02824: 
+02825:   const rows = this.passbookAuditRows || [];
+02826: 
+02827:   if (!rows.length) {
+02828:     wrap.innerHTML = `
+02829:       <div class="p-5 text-sm text-gray-400 italic bg-gray-50 rounded-2xl border border-gray-100">
+02830:         No visible Passbook detail changes for this client yet.
+02831:       </div>
+02832:     `;
+02833:     return;
+02834:   }
+02835: 
+02836:   const formatValue = value => {
+02837:     if (value === null || value === undefined || value === "") return "—";
+02838:     return this.escapeHtml(String(value));
+02839:   };
+02840: 
+02841:   wrap.innerHTML = rows.map(event => {
+02842:     const changes = event.field_changes || [];
+02843:     const timeText =
+02844:       window.portal?.formatMSTDateTimeShort?.(event.created_at) ||
+02845:       event.created_at ||
+02846:       "—";
+02847: 
+02848:     return `
+02849:       <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+02850:         <div class="flex items-start justify-between gap-3">
+02851:           <div>
+02852:             <div class="text-sm font-black text-gray-900">
+02853:               ${this.escapeHtml(event.actor_name || "Unknown")}
+02854:             </div>
+02855: 
+02856:             <div class="text-xs text-gray-500 mt-1">
+02857:               ${this.escapeHtml(event.actor_role || "user")} •
+02858:               ${this.escapeHtml(timeText)}
+02859:             </div>
+02860:           </div>
+02861: 
+02862:           <span class="px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-[10px] font-black">
+02863:             ${changes.length} field${changes.length === 1 ? "" : "s"}
+02864:           </span>
+02865:         </div>
+02866: 
+02867:         <div class="mt-3 space-y-2">
+02868:           ${changes.map(change => {
+02869:             const fieldKey = String(change.field || "").toLowerCase();
+02870: 
+02871:             return `
+02872:               <div class="rounded-xl bg-gray-50 border border-gray-100 p-3 text-xs">
+02873:                 <div class="font-black text-gray-700 uppercase">
+02874:                   ${labels[fieldKey] || this.escapeHtml(fieldKey)}
+02875:                 </div>
+02876: 
+02877:                 <div class="mt-1 whitespace-pre-wrap">
+02878:                   <span class="text-gray-400 line-through">${formatValue(change.old_value ?? change.oldValue)}</span>
+02879:                   <span class="mx-2 text-gray-400">→</span>
+02880:                   <span class="font-black text-emerald-700">${formatValue(change.new_value ?? change.newValue)}</span>
+02881:                 </div>
+02882:               </div>
+02883:             `;
+02884:           }).join("")}
+02885:         </div>
+02886:       </div>
+02887:     `;
+02888:   }).join("");
+02889: },
+02890: 
+02891:             openRejectionReasonModal(leadId, nextStatus, existingReason = "") {
+02892:         const modal = document.getElementById("rejection-reason-modal");
+02893:         const leadIdEl = document.getElementById("rejection-modal-lead-id");
+02894:         const statusEl = document.getElementById("rejection-modal-next-status");
+02895:         const textEl = document.getElementById("rejection-modal-text");
+02896:         const highlightEl = document.getElementById("rejection-modal-highlight");
+02897: 
+02898:         if (!modal || !leadIdEl || !statusEl || !textEl) return;
+02899: 
+02900:         leadIdEl.value = leadId || "";
+02901:         statusEl.value = nextStatus || "REJECTED";
+02902:         textEl.value = existingReason || "";
+02903:         if (highlightEl) {
+02904:   const lead = (this.getState().leads || []).find(l => String(l.lead_id) === String(leadId));
+02905:   highlightEl.checked = lead?.feedback_highlight === true;
+02906: }
+02907: 
+02908:         modal.classList.remove("hidden");
+02909: 
+02910:         setTimeout(() => {
+02911:           textEl.focus();
+02912:           textEl.setSelectionRange(textEl.value.length, textEl.value.length);
+02913:         }, 30);
+02914:       },
+02915: 
+02916:       closeRejectionReasonModal() {
+02917:         const modal = document.getElementById("rejection-reason-modal");
+02918:         const leadIdEl = document.getElementById("rejection-modal-lead-id");
+02919:         const statusEl = document.getElementById("rejection-modal-next-status");
+02920:         const textEl = document.getElementById("rejection-modal-text");
+02921:         const highlightEl = document.getElementById("rejection-modal-highlight");
+02922: 
+02923:         if (modal) modal.classList.add("hidden");
+02924:         if (leadIdEl) leadIdEl.value = "";
+02925:         if (statusEl) statusEl.value = "";
+02926:         if (textEl) textEl.value = "";
+02927:         if (highlightEl) highlightEl.checked = false;
+02928:       },
+02929: 
+02930:      async saveRejectionReasonModal() {
+02931:   const leadId = document.getElementById("rejection-modal-lead-id")?.value || "";
+02932:   const nextStatus = String(document.getElementById("rejection-modal-next-status")?.value || "").trim().toUpperCase();
+02933:   const feedback = String(document.getElementById("rejection-modal-text")?.value || "").trim();
+02934:   const highlighted = document.getElementById("rejection-modal-highlight")?.checked === true;
+02935: 
+02936:   if (!leadId) {
+02937:     alert("Missing lead ID.");
+02938:     return;
+02939:   }
+02940: 
+02941:   if (nextStatus.includes("REJECT")) {
+02942:     await updateLeadStatus(leadId, "REJECTED", feedback);
+02943:     await updateLeadFeedback(leadId, feedback, highlighted);
+02944:   } else {
+02945:     await updateLeadFeedback(leadId, feedback, highlighted);
+02946:   }
+02947: 
+02948:   this.closeRejectionReasonModal();
+02949: },
+02950: 
+02951:       editRejectionReason(leadId, currentReason = "", currentStatus = "REJECTED") {
+02952:         this.openRejectionReasonModal(leadId, currentStatus, currentReason);
+02953:       },
+02954: 
+02955:       async loadNotifications(force = false) {
+02956:   if (!window.portal) return;
+02957: 
+02958:   this.notificationsLoading = true;
+02959:   this.refreshNotificationsTab?.();
+02960: 
+02961:   const teamKey = window.portal.getCommandCenterTeamKey();
+02962:   const rows = await window.portal.fetchCommandCenterNotifications(teamKey, 100);
+02963: 
+02964:   this.notifications = Array.isArray(rows) ? rows : [];
+02965:   this.notificationsLoading = false;
+02966:   this.refreshNotificationsTab?.();
+02967:   await this.loadNotes?.();
+02968: },
+02969: 
+02970: async toggleNotificationFlag(eventId, currentValue) {
+02971:   const teamKey = window.portal.getCommandCenterTeamKey();
+02972:   await window.portal.setCommandCenterFlagged(eventId, teamKey, !currentValue);
+02973:   await this.loadNotifications(true);
+02974: },
+02975: 
+02976: async toggleNotificationDone(eventId, currentValue) {
+02977:   const teamKey = window.portal.getCommandCenterTeamKey();
+02978:   await window.portal.setCommandCenterDone(eventId, teamKey, !currentValue);
+02979:   await this.loadNotifications(true);
+02980: },
+02981: 
+02982:      async cycleNotificationState(eventId, isFlagged, isDone) {
+02983:   const teamKey = window.portal.getCommandCenterTeamKey();
+02984:   const existingItem = (this.notifications || []).find(item => {
+02985:     const ev = item?.command_center_events || {};
+02986:     return ev.id === eventId;
+02987:   });
+02988: 
+02989:   const event = existingItem?.command_center_events || {};
+02990:   let data = event.new_data || {};
+02991: 
+02992:   if (typeof data === 'string') {
+02993:     try { data = JSON.parse(data); } catch (e) { data = {}; }
+02994:   }
+02995: 
+02996:   const timeOffStatus = String(data.decision_status || data.status || '').toLowerCase();
+02997:   const isResolvedTimeOff =
+02998:     event.module_key === 'time_off' &&
+02999:     (timeOffStatus === 'approved' || timeOffStatus === 'declined');
+03000: 
+03001:   this.notifications = (this.notifications || []).map(item => {
+03002:     const ev = item?.command_center_events || {};
+03003:     if (ev.id !== eventId) return item;
+03004: 
+03005:     if (isResolvedTimeOff) {
+03006:       return {
+03007:         ...item,
+03008:         is_flagged: false,
+03009:         is_done: !isDone
+03010:       };
+03011:     }
+03012: 
+03013:     if (!isFlagged && !isDone) {
+03014:       return {
+03015:         ...item,
+03016:         is_flagged: true,
+03017:         is_done: false
+03018:       };
+03019:     }
+03020: 
+03021:     if (isFlagged && !isDone) {
+03022:       return {
+03023:         ...item,
+03024:         is_flagged: false,
+03025:         is_done: true
+03026:       };
+03027:     }
+03028: 
+03029:     return {
+03030:       ...item,
+03031:       is_flagged: false,
+03032:       is_done: false
+03033:     };
+03034:   });
+03035: 
+03036:   this.refreshNotificationsTab();
+03037: 
+03038:   if (isResolvedTimeOff) {
+03039:     await window.portal.setCommandCenterDone(eventId, teamKey, !isDone);
+03040:     if (!isDone) {
+03041:       await window.portal.markCommandCenterReviewed(eventId, teamKey);
+03042:     }
+03043:     return;
+03044:   }
+03045: 
+03046:   if (!isFlagged && !isDone) {
+03047:     await window.portal.setCommandCenterFlagged(eventId, teamKey, true);
+03048:   } else if (isFlagged && !isDone) {
+03049:     await window.portal.setCommandCenterFlagged(eventId, teamKey, false);
+03050:     await window.portal.setCommandCenterDone(eventId, teamKey, true);
+03051:   } else {
+03052:     await window.portal.setCommandCenterDone(eventId, teamKey, false);
+03053:   }
+03054: },
+03055:       
+03056: async openNotification(item) {
+03057:   if (!item || !item.command_center_events) return;
+03058: 
+03059:   const event = item.command_center_events;
+03060:   this.selectedNotificationId = event.id;
+03061: 
+03062:   const feed = document.getElementById('notifications-feed');
+03063:   const savedScrollTop = feed ? feed.scrollTop : 0;
+03064: 
+03065:   // optimistic local unread update so list stays stable
+03066:   this.notifications = (this.notifications || []).map(n => {
+03067:     const ev = n?.command_center_events || {};
+03068:     if (ev.id !== event.id) return n;
+03069:     return {
+03070:       ...n,
+03071:       is_unread: false
+03072:     };
+03073:   });
+03074: 
+03075:   this.refreshNotificationsTab();
+03076: 
+03077:   const teamKey = window.portal.getCommandCenterTeamKey();
+03078:   await window.portal.markCommandCenterReviewed(event.id, teamKey);
+03079: 
+03080:   this.handleNotificationNavigation?.(item);
+03081: 
+03082:   requestAnimationFrame(() => {
+03083:     const newFeed = document.getElementById('notifications-feed');
+03084:     if (newFeed) newFeed.scrollTop = savedScrollTop;
+03085:   });
+03086: },
+03087: 
+03088:       async _fetchAndRenderPassbookClient(codeName) {
+03089:         try {
+03090:           // 1. Fix the connection check
+03091:           if (typeof supaClient === 'undefined' || !supaClient) throw new Error("Database connection missing");
+03092:           
+03093:           // 2. Fetch safely using limit(1) instead of single()
+03094:           const { data, error } = await supaClient
+03095:             .from('clients')
+
+## Lines 3204-3498
+03204:             <div class="mb-3">
+03205:               <h4 class="font-black text-gray-900 flex items-center gap-2">
+03206:                 <i class="fa-solid fa-clock-rotate-left text-violet-500"></i> Client History
+03207:               </h4>
+03208:               <p class="text-xs text-gray-500 mt-1">Recent changes made to the permitted Passbook detail fields.</p>
+03209:             </div>
+03210:             <div id="passbook-history-body">
+03211:               <div class="p-5 text-sm text-gray-400 italic bg-gray-50 rounded-2xl border border-gray-100">Loading history...</div>
+03212:             </div>
+03213:           </div>
+03214: 
+03215:           <div id="passbook-notes-tab" class="hidden">
+03216:             <div class="bg-white border border-gray-100 rounded-2xl p-4">
+03217:               <div class="flex items-center justify-between gap-3 mb-3">
+03218:                 <div>
+03219:                   <h4 class="font-black text-gray-900 flex items-center gap-2">
+03220:                     <i class="fa-solid fa-note-sticky text-yellow-500"></i> Passbook Notes
+03221:                   </h4>
+03222:                   <p class="text-xs text-gray-500 mt-1">Use @all or @name to tag users. Red means direct tag, yellow means new general note, green means acknowledged.</p>
+03223:                 </div>
+03224:               </div>
+03225: 
+03226:               <div class="relative">
+03227:                 <textarea
+03228:                   id="passbook-note-draft"
+03229:                   rows="4"
+03230:                   class="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+03231:                   placeholder="Type @all to tag everyone, or @ then a name. Example: @all please review this client..."
+03232:                 ></textarea>
+03233: 
+03234:                 <div id="passbook-mention-suggestions" class="hidden absolute z-[200] left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-56 overflow-y-auto"></div>
+03235:               </div>
+03236: 
+03237:               <div id="passbook-mentioned-chips" class="mt-2 flex flex-wrap gap-2 text-[11px]"></div>
+03238: 
+03239:               <div class="flex justify-end mt-3">
+03240:                 <button
+03241:                   type="button"
+03242:                   onclick="Admin.savePassbookClientNote('${String(codeName).replace(/'/g, "\\'")}','${String(codeName).replace(/'/g, "\\'")}')"
+03243:                   class="px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-black hover:bg-yellow-500 hover:text-gray-900"
+03244:                 >
+03245:                   Save Note
+03246:                 </button>
+03247:               </div>
+03248: 
+03249:               <div id="passbook-notes-feed" class="mt-4 space-y-3">
+03250:                 <div class="p-3 rounded-xl bg-gray-50 text-sm text-gray-400 italic">Loading notes...</div>
+03251:               </div>
+03252:             </div>
+03253:           </div>
+03254:         `;
+03255: 
+03256:         document.getElementById("passbook-form-body").innerHTML = html;
+03257: 
+03258:         const textarea = document.getElementById("passbook-note-draft");
+03259:         if (textarea) {
+03260:           textarea.addEventListener("input", () => this.handlePassbookMentionInput(textarea));
+03261:           textarea.addEventListener("blur", () => {
+03262:             setTimeout(() => {
+03263:               const box = document.getElementById("passbook-mention-suggestions");
+03264:               if (box) box.classList.add("hidden");
+03265:             }, 150);
+03266:           });
+03267:         }
+03268: 
+03269:         this.loadOrgProfiles();
+03270:         this.renderPassbookHistory(codeName);
+03271:         this.renderPassbookNotes(codeName);
+03272:         this.setPassbookModalTab("details");
+03273:       },
+03274: 
+03275:             renderLeads(leads) {
+03276:         const tbody = document.getElementById('leads-table-body');
+03277:         const thead = document.getElementById('leads-table-head');
+03278:         if (!tbody || !thead) return;
+03279: 
+03280:         this.initLeadsColumnsUI();
+03281:         const visibleCols = this._leadsCols.filter(c => this._leadsVisibleCols.has(c.key));
+03282: 
+03283:         thead.innerHTML = `<tr>${visibleCols.map(c => `<th class="p-4">${c.label}</th>`).join("")}<th class="p-4 text-center">Actions</th></tr>`;
+03284: 
+03285:         tbody.innerHTML = leads.map(l => {
+03286:           const leadId = this.getLeadField(l, ["LEAD ID", "lead_id", "ID"], "unknown");
+03287:           const currentStatusRaw = this.getLeadField(l, ["status", "Status", "STATUS", "Lead_Status"], "");
+03288:           const safeVal = String(currentStatusRaw).toUpperCase();
+03289:           const rejectionReason = this.getLeadField(l, ["feedback", "Feedback", "rejection_reason", "Rejection Reason"], "");
+03290: 
+03291:           return `<tr class="hover:bg-gray-50 transition-colors">
+03292:             ${visibleCols.map(c => {
+03293:               const rawVal = this.getLeadField(l, c.keys);
+03294: 
+03295:               if (c.key === "feedback") {
+03296:                 const safeReason = String(rawVal || "");
+03297:                 const safeLeadId = String(leadId).replace(/'/g, "\\'");
+03298:                 const safeReasonHtml = safeReason
+03299:                   ? safeReason.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+03300:                   : "";
+03301:                 const safeStatusHtml = String(safeVal || "")
+03302:                   .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+03303: 
+03304:               return `<td class="p-4">
+03305:   <button
+03306:     type="button"
+03307:     data-feedback-edit="true"
+03308:     data-lead-id="${encodeURIComponent(String(leadId))}"
+03309:     data-feedback="${encodeURIComponent(String(safeReason || ""))}"
+03310:     data-highlighted="${l.feedback_highlight ? "true" : "false"}"
+03311:     class="text-left w-full ${safeReason ? 'text-gray-700' : 'text-gray-400 italic'} hover:underline"
+03312:     title="Edit feedback"
+03313:   >
+03314:     ${safeReason ? safeReasonHtml : "No feedback"}
+03315:     ${l.feedback_highlight ? '<div class="text-yellow-500 text-xs font-black mt-1">⭐ Highlighted</div>' : ''}
+03316:   </button>
+03317: </td>`;
+03318:               }
+03319: 
+03320:               if (c.key === "status") {
+03321:                 let bg = "bg-gray-100 text-gray-700";
+03322:                 if (safeVal.includes("APPROV") || safeVal.includes("CONFIRM")) bg = "bg-emerald-100 text-emerald-800 border-emerald-200";
+03323:                 if (safeVal.includes("REJECT")) bg = "bg-red-100 text-red-800 border-red-200";
+03324:                 if (safeVal.includes("CREDIT")) bg = "bg-purple-100 text-purple-800 border-purple-200";
+03325:                 if (safeVal.includes("PENDING")) bg = "bg-yellow-100 text-yellow-800 border-yellow-200";
+03326: 
+03327:                 const safeLeadId = String(leadId).replace(/'/g, "\\'");
+03328:                 const safeReasonHtml = String(rejectionReason || "")
+03329:                   .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+03330: 
+03331:                 return `<td class="p-4">
+03332:                   <select
+03333:                     data-previous-value="${safeVal}"
+03334:                     onchange="handleLeadStatusChange(this, '${safeLeadId}', '${safeReasonHtml}')"
+03335:                     class="px-2 py-1 rounded-full text-xs font-extrabold border outline-none cursor-pointer hover:shadow-md transition-all ${bg}">
+03336:                     <option value="PENDING REVIEW" ${safeVal.includes("PENDING") ? "selected" : ""}>PENDING REVIEW</option>
+03337:                     <option value="APPROVED" ${safeVal.includes("APPROV") || safeVal.includes("CONFIRM") ? "selected" : ""}>APPROVED</option>
+03338:                     <option value="REJECTED" ${safeVal.includes("REJECT") ? "selected" : ""}>REJECTED</option>
+03339:                     <option value="CREDITED" ${safeVal.includes("CREDIT") ? "selected" : ""}>CREDITED</option>
+03340:                   </select>
+03341:                 </td>`;
+03342:               }
+03343: 
+03344:               return `<td class="p-4">${rawVal || "—"}</td>`;
+03345:             }).join("")}
+03346: 
+03347:             <td class="p-4 text-center">
+03348:               <button onclick="deleteLead('${String(leadId).replace(/'/g, "\\'")}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Lead">
+03349:                 <i class="fa-solid fa-trash-can"></i>
+03350:               </button>
+03351:             </td>
+03352:           </tr>`;
+03353:         }).join("");
+03354:       },
+03355: 
+03356:               currentUser() {
+03357:         return window.portal?.currentUser || {};
+03358:       },
+03359: 
+03360:       currentOrgId() {
+03361:         return window.portal?.currentUser?.organization_id || null;
+03362:       },
+03363: 
+03364:       escapeHtml(value) {
+03365:         return String(value ?? "")
+03366:           .replace(/&/g, "&amp;")
+03367:           .replace(/</g, "&lt;")
+03368:           .replace(/>/g, "&gt;")
+03369:           .replace(/"/g, "&quot;")
+03370:           .replace(/'/g, "&#039;");
+03371:       },
+03372: 
+03373:       escapeJs(value) {
+03374:         return String(value ?? "")
+03375:           .replace(/\\/g, "\\\\")
+03376:           .replace(/'/g, "\\'")
+03377:           .replace(/"/g, '\\"')
+03378:           .replace(/\n/g, "\\n")
+03379:           .replace(/\r/g, "");
+03380:       },
+03381: 
+03382:       displayName(profile) {
+03383:         return String(profile?.display_name || profile?.full_name || profile?.email || "").trim();
+03384:       },
+03385: 
+03386:       findCurrentMentionQuery(textarea) {
+03387:         const value = textarea?.value || "";
+03388:         const pos = textarea?.selectionStart || 0;
+03389:         const before = value.slice(0, pos);
+03390:         const match = before.match(/@([a-zA-Z0-9._@+\-\s]*)$/);
+03391:         if (!match) return null;
+03392: 
+03393:         return {
+03394:           query: String(match[1] || "").toLowerCase().trim(),
+03395:           start: pos - match[0].length,
+03396:           end: pos
+03397:         };
+03398:       },
+03399: 
+03400:       async loadOrgProfiles() {
+03401:         if (window.passbookTaggableUsers?.length) return window.passbookTaggableUsers;
+03402:         if (typeof supaClient === "undefined" || !supaClient) return [];
+03403: 
+03404:         const { data, error } = await supaClient.rpc("passbook_taggable_users");
+03405: 
+03406:         if (error) {
+03407:           console.error("Failed to load Passbook taggable users:", error);
+03408:           window.passbookTaggableUsers = [];
+03409:           return [];
+03410:         }
+03411: 
+03412:         window.passbookTaggableUsers = Array.isArray(data) ? data : [];
+03413:         return window.passbookTaggableUsers;
+03414:       },
+03415: 
+03416:       async fetchNotesForClient(clientCode) {
+03417:         const orgId = this.currentOrgId();
+03418:         if (!orgId || typeof supaClient === "undefined" || !supaClient) return [];
+03419: 
+03420:         const { data: notes, error } = await supaClient
+03421:           .from("passbook_client_notes")
+03422:           .select("*")
+03423:           .eq("organization_id", orgId)
+03424:           .eq("client_code", clientCode)
+03425:           .order("created_at", { ascending: false })
+03426:           .limit(50);
+03427: 
+03428:         if (error) {
+03429:           console.error("Failed to load Passbook notes:", error);
+03430:           return [];
+03431:         }
+03432: 
+03433:         const noteIds = (notes || []).map(n => n.id).filter(Boolean);
+03434:         if (!noteIds.length) return notes || [];
+03435: 
+03436:         const { data: mentions, error: mentionError } = await supaClient
+03437:           .from("passbook_client_note_mentions")
+03438:           .select("*")
+03439:           .in("note_id", noteIds);
+03440: 
+03441:         if (mentionError) {
+03442:           console.error("Failed to load Passbook note mentions:", mentionError);
+03443:           return notes || [];
+03444:         }
+03445: 
+03446:         const byNote = new Map();
+03447:         (mentions || []).forEach(m => {
+03448:           const key = String(m.note_id);
+03449:           const arr = byNote.get(key) || [];
+03450:           arr.push(m);
+03451:           byNote.set(key, arr);
+03452:         });
+03453: 
+03454:         return (notes || []).map(note => ({
+03455:           ...note,
+03456:           mentions: byNote.get(String(note.id)) || []
+03457:         }));
+03458:       },
+03459: 
+03460:       async fetchMyUnreadMentions() {
+03461:         if (typeof supaClient === "undefined" || !supaClient) return [];
+03462:         const user = this.currentUser();
+03463:         const orgId = this.currentOrgId();
+03464:         if (!user?.id || !orgId) return [];
+03465: 
+03466:         const { data, error } = await supaClient
+03467:           .from("passbook_client_note_mentions")
+03468:           .select("*")
+03469:           .eq("organization_id", orgId)
+03470:           .eq("mentioned_profile_id", user.id)
+03471:           .eq("is_unread", true);
+03472: 
+03473:         if (error) {
+03474:           console.error("Failed to load my Passbook note mentions:", error);
+03475:           return [];
+03476:         }
+03477: 
+03478:         const rows = data || [];
+03479:         const noteIds = [...new Set(rows.map(r => r.note_id).filter(Boolean))];
+03480: 
+03481:         if (!noteIds.length) return rows;
+03482: 
+03483:         const { data: notes, error: notesError } = await supaClient
+03484:           .from("passbook_client_notes")
+03485:           .select("id, body, created_by_profile_id")
+03486:           .in("id", noteIds);
+03487: 
+03488:         if (notesError) {
+03489:           console.error("Failed to load unread Passbook note bodies:", notesError);
+03490:           return rows;
+03491:         }
+03492: 
+03493:         const noteById = new Map((notes || []).map(n => [String(n.id), n]));
+03494: 
+03495:         return rows.map(row => {
+03496:           const note = noteById.get(String(row.note_id)) || {};
+03497:           return {
+03498:             ...row,
