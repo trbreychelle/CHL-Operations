@@ -21,6 +21,7 @@
   const FIELD_KEYS = {
     date_submitted: ['date_submitted', 'Date Submitted', 'DATE'],
     lead_id: ['lead_id', 'LEAD ID', 'ID'],
+    client_code: ['client_code', 'Client Code', 'CLIENT CODE', 'code_name', 'Code Name', 'CODE NAME'],
     company_name: ['company_name', 'Company Name', 'roofing_company', 'Roofing Company', 'client_code', 'Client Code'],
     appointment_coordinator_name: ['appointment_coordinator_name', 'Appointment Coordinator Name', 'agent_name'],
     homeowner_names: ['homeowner_names', 'Homeowner Name(s)', 'homeowner_name'],
@@ -43,6 +44,11 @@
 
   function getAdmin() {
     return window.Admin || window.adminDashboard || null;
+  }
+
+  function isManagementAccess() {
+    const role = String(window.portal?.currentUser?.role || '').trim().toLowerCase();
+    return role === 'management' || /management-dashboard\.html$/i.test(window.location.pathname);
   }
 
   function getSupabaseClient() {
@@ -327,12 +333,16 @@
       badge.className = `inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black ${statusClasses(status)}`;
     }
 
+    const managementAccess = isManagementAccess();
     const staticFields = document.getElementById('chl-lead-review-static');
     if (staticFields) {
       staticFields.innerHTML = [
         readOnlyField('Date Submitted', fieldValue(lead, 'date_submitted')),
         readOnlyField('Lead ID', id),
-        readOnlyField('Roofing Company', fieldValue(lead, 'company_name')),
+        readOnlyField(
+          managementAccess ? 'Client Code' : 'Roofing Company',
+          managementAccess ? fieldValue(lead, 'client_code') : fieldValue(lead, 'company_name')
+        ),
         readOnlyField('Appointment Coordinator', fieldValue(lead, 'appointment_coordinator_name'))
       ].join('');
     }
