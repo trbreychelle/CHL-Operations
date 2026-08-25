@@ -453,7 +453,6 @@
         .update(updatePayload)
         .eq('lead_id', leadId)
         .select('*')
-        .limit(1)
         .maybeSingle();
 
       if (error) throw error;
