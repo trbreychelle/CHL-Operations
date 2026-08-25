@@ -57,7 +57,7 @@
       const match = sourceKeys.find(candidate => String(candidate).toLowerCase() === String(key).toLowerCase());
       if (!match) continue;
       const value = obj[match];
-      if (value !== undefined && value !== null) return value;
+      if (value !== undefined && value !== null && String(value).trim() !== '') return value;
     }
     return fallback;
   }
