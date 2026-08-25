@@ -1,0 +1,3579 @@
+# management-dashboard.html | focused lead-related excerpts
+
+## Lines 284-545 | credited@319, credited@396, credited@397, credited@398, credited@408, credited@439, credited@465
+00284: <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+00285: <input class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" id="health-search" placeholder="Search by client code or location..." type="text"/>
+00286: </div>
+00287: <div class="relative min-w-[170px]">
+00288: <button class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white flex justify-between items-center hover:bg-gray-50" id="health-status-btn">
+00289: <span class="font-bold text-gray-700" id="health-status-label">Health: 4 selected</span>
+00290: <i class="fa-solid fa-chevron-down text-gray-400 text-xs"></i>
+00291: </button>
+00292: <div class="hidden absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-xl z-50 p-3 space-y-2 max-h-64 overflow-y-auto" id="health-status-popover">
+00293: </div>
+00294: </div>
+00295: <select class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[190px] text-blue-700" id="health-filter-package">
+00296: <option selected="" value="ONGOING">Pkg: ONGOING</option>
+00297: <option value="PAUSE">Pkg: PAUSE</option>
+00298: <option value="COMPLETED">Pkg: COMPLETED</option>
+00299: <option value="REFUNDED">Pkg: REFUNDED</option>
+00300: <option value="ALL">All Packages</option>
+00301: </select>
+00302: <select class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[190px]" id="health-filter-location">
+00303: <option value="all">All Locations</option>
+00304: </select>
+00305: <button class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50" id="health-clear">
+00306:                 Clear
+00307:               </button>
+00308: </div>
+00309: </div>
+00310: <div class="client-health-scroll">
+00311: <table class="w-full text-left border-collapse">
+00312: <thead class="bg-white sticky top-0 z-10 shadow-sm">
+00313: <tr>
+00314: <th class="p-4 text-xs font-bold text-gray-400 uppercase w-10">Status</th>
+00315: <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="code">Code <span class="sort-icon" id="sort-code">↕</span></th>
+00316: <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable" data-sort="cityState">City/State <span class="sort-icon" id="sort-cityState">↕</span></th>
+00317: <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="packageRatio">Package (Owed) <span class="sort-icon" id="sort-packageRatio">↕</span></th>
+00318: <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Qualified</th>
+00319: <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center">Credited</th>
+00320: <th class="p-4 text-xs font-bold text-gray-400 uppercase text-center text-red-500">Cancel Rate</th>
+00321: <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsToday">Leads Today <span class="sort-icon" id="sort-leadsToday">↕</span></th>
+00322: <th class="p-4 text-xs font-bold text-gray-400 uppercase sortable text-center" data-sort="leadsYesterday">Leads Yesterday <span class="sort-icon" id="sort-leadsYesterday">↕</span></th>
+00323: <th class="p-4 text-xs font-bold text-gray-400 uppercase">Package Status</th>
+00324: <th class="p-4 text-xs font-bold text-gray-400 uppercase">Purchase Date</th>
+00325: <th class="p-4 text-xs font-bold text-gray-400 uppercase">Last Lead Received</th>
+00326: </tr>
+00327: </thead>
+00328: <tbody class="text-sm divide-y divide-gray-50" id="client-health-body">
+00329: <tr><td class="p-6 text-center text-gray-400 italic" colspan="15">Loading clients...</td></tr>
+00330: </tbody>
+00331: </table>
+00332: </div>
+00333: </div>
+00334: <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col mb-8 overflow-hidden">
+00335: <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-gray-50/50">
+00336: <h3 class="font-bold text-gray-900 flex items-center gap-2">
+00337: <i class="fa-solid fa-chart-column text-yellow-500"></i> Team Performance Analytics
+00338:             </h3>
+00339: <div class="flex items-center gap-2 flex-wrap">
+00340: <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
+00341: <button class="analytics-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900" onclick="Admin.setAnalyticsPeriod('today', this)">Today</button>
+00342: <button class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900" onclick="Admin.setAnalyticsPeriod('this-week', this)">This Week</button>
+00343: <button class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900" onclick="Admin.setAnalyticsPeriod('previous-week', this)">Previous Week</button>
+00344: <button class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900" onclick="Admin.setAnalyticsPeriod('4-weeks', this)">4 Weeks</button>
+00345: <button class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900" onclick="Admin.setAnalyticsPeriod('6-weeks', this)">6 Weeks</button>
+00346: <button class="analytics-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900" onclick="Admin.setAnalyticsPeriod('all-time', this)">All-Time</button>
+00347: </div>
+00348: <div class="relative">
+00349: <button class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2" id="custom-range-toggle">
+00350: <i class="fa-regular fa-calendar"></i> Custom
+00351:                 </button>
+00352: <div class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50" id="custom-range-popover">
+00353: <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">
+00354:                     Custom Timeframe
+00355:                   </div>
+00356: <div class="grid grid-cols-2 gap-2">
+00357: <div>
+00358: <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+00359: <input class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs" id="custom-start" type="date"/>
+00360: </div>
+00361: <div>
+00362: <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+00363: <input class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs" id="custom-end" type="date"/>
+00364: </div>
+00365: </div>
+00366: <div class="flex justify-end gap-2 mt-3">
+00367: <button class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50" id="custom-clear">
+00368:                       Clear
+00369:                     </button>
+00370: <button class="px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800" id="custom-apply">
+00371:                       Apply
+00372:                     </button>
+00373: </div>
+00374: </div>
+00375: </div>
+00376: </div>
+00377: </div>
+00378: <div class="p-5">
+00379: <div class="grid grid-cols-1 md:grid-cols-6 gap-3 mb-5">
+00380: <div class="kpi-tile">
+00381: <div class="kpi-label">Total Leads</div>
+00382: <div class="kpi-value" id="kpi-total">0</div>
+00383: <div class="kpi-sub" id="kpi-range">—</div>
+00384: </div>
+00385: <div class="kpi-tile">
+00386: <div class="kpi-label">QC Rejected</div>
+00387: <div class="kpi-value text-red-500" id="kpi-qc-rejected">0</div>
+00388: <div class="kpi-sub">Rejected</div>
+00389: </div>
+00390: <div class="kpi-tile">
+00391: <div class="kpi-label">Qualified</div>
+00392: <div class="kpi-value text-blue-500" id="kpi-qualified">0</div>
+00393: <div class="kpi-sub">Confirmed / Approved</div>
+00394: </div>
+00395: <div class="kpi-tile">
+00396: <div class="kpi-label">Credited</div>
+00397: <div class="kpi-value text-purple-500" id="kpi-credited">0</div>
+00398: <div class="kpi-sub">Credited only</div>
+00399: </div>
+00400: <div class="kpi-tile">
+00401: <div class="kpi-label">Pending</div>
+00402: <div class="kpi-value text-yellow-500" id="kpi-pending">0</div>
+00403: <div class="kpi-sub">Pending review</div>
+00404: </div>
+00405: <div class="kpi-tile">
+00406: <div class="kpi-label">Cancellation Rate</div>
+00407: <div class="kpi-value" id="kpi-cancel">0%</div>
+00408: <div class="kpi-sub">Credited / (Qualified + Credited)</div>
+00409: </div>
+00410: </div>
+00411: <div class="bg-white border border-gray-100 rounded-2xl p-4">
+00412: <div class="flex items-center justify-between mb-2">
+00413: <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Trend (stacked)</p>
+00414: <p class="text-xs text-gray-400" id="trend-grain">—</p>
+00415: </div>
+00416: <div class="w-full overflow-x-auto">
+00417: <div class="min-w-[720px]">
+00418: <canvas height="110" id="team-analytics-chart"></canvas>
+00419: </div>
+00420: </div>
+00421: </div>
+00422: </div>
+00423: <div class="border-t border-gray-100 p-5 bg-gray-50/40 space-y-6">
+00424: <div>
+00425: <div class="flex items-center justify-between mb-3">
+00426: <h4 class="font-bold text-gray-900 flex items-center gap-2">
+00427: <i class="fa-solid fa-trophy text-yellow-500"></i> Top 10 Agents
+00428:                 </h4>
+00429: <span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider" id="top10-label">—</span>
+00430: </div>
+00431: <div class="overflow-x-auto bg-white rounded-2xl border border-gray-100">
+00432: <table class="w-full text-left text-sm">
+00433: <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+00434: <tr>
+00435: <th class="p-4">Placement</th>
+00436: <th class="p-4 text-center">Total</th>
+00437: <th class="p-4 text-center text-red-500">QC Rejected</th>
+00438: <th class="p-4 text-center text-blue-500">Qualified</th>
+00439: <th class="p-4 text-center text-purple-500">Credited</th>
+00440: <th class="p-4 text-center text-yellow-500">Pending</th>
+00441: <th class="p-4 text-center">Cancellation Rate</th>
+00442: </tr>
+00443: </thead>
+00444: <tbody class="divide-y divide-gray-50" id="top10-body">
+00445: <tr><td class="p-6 text-center text-gray-400 italic" colspan="7">Calculating...</td></tr>
+00446: </tbody>
+00447: </table>
+00448: </div>
+00449: </div>
+00450: <div>
+00451: <div class="flex items-center justify-between mb-3">
+00452: <h4 class="font-bold text-gray-900 flex items-center gap-2">
+00453: <i class="fa-solid fa-arrow-down-wide-short text-red-500"></i> Bottom Agents
+00454:                 </h4>
+00455: <span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider" id="bottom5-label">—</span>
+00456: </div>
+00457: <div class="overflow-x-auto bg-white rounded-2xl border border-gray-100">
+00458: <table class="w-full text-left text-sm">
+00459: <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+00460: <tr>
+00461: <th class="p-4">Placement</th>
+00462: <th class="p-4 text-center">Total</th>
+00463: <th class="p-4 text-center text-red-500">QC Rejected</th>
+00464: <th class="p-4 text-center text-blue-500">Qualified</th>
+00465: <th class="p-4 text-center text-purple-500">Credited</th>
+00466: <th class="p-4 text-center text-yellow-500">Pending</th>
+00467: <th class="p-4 text-center">Cancellation Rate</th>
+00468: </tr>
+00469: </thead>
+00470: <tbody class="divide-y divide-gray-50" id="bottom5-body">
+00471: <tr><td class="p-6 text-center text-gray-400 italic" colspan="7">Calculating...</td></tr>
+00472: </tbody>
+00473: </table>
+00474: </div>
+00475: </div>
+00476: </div>
+00477: </div>
+00478: </div>
+00479:     
+00480: <div id="view-daily" class="view-section">
+00481:   <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+00482:     <div>
+00483:       <h2 class="text-2xl font-bold text-gray-900">
+00484:         Daily Strategy Board
+00485:       </h2>
+00486: 
+00487:       <p class="text-sm text-gray-500 mt-1">
+00488:         Weekly scheduling board powered by strategy assignments.
+00489:       </p>
+00490:     </div>
+00491:   </div>
+00492: 
+00493:   <!-- Strategy week, shifts, and dates -->
+00494:   <div class="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-3xl shadow-xl border border-slate-800 p-5 mb-6 text-white">
+00495:     <div class="flex items-center justify-between gap-3 mb-4">
+00496:       <h3 class="font-black text-white flex items-center gap-2">
+00497:         <i class="fa-solid fa-calendar-week text-yellow-300"></i>
+00498:         Strategy Week
+00499:       </h3>
+00500: 
+00501:       <div
+00502:         id="dailyStrategyWeekLabel"
+00503:         class="text-xs font-black text-blue-100"
+00504:       >
+00505:         Loading week...
+00506:       </div>
+00507:     </div>
+00508: 
+00509:     <div class="flex flex-wrap items-center gap-2 mb-4">
+00510:       <button
+00511:         id="daily-shift-morning"
+00512:         type="button"
+00513:         onclick="Admin.setDailyStrategyShift('morning')"
+00514:         class="px-4 py-2 rounded-2xl bg-yellow-400 text-gray-900 text-xs font-black shadow"
+00515:       >
+00516:         Morning Shift
+00517:       </button>
+00518: 
+00519:       <button
+00520:         id="daily-shift-afternoon"
+00521:         type="button"
+00522:         onclick="Admin.setDailyStrategyShift('afternoon')"
+00523:         class="px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black"
+00524:       >
+00525:         Afternoon Shift
+00526:       </button>
+00527: 
+00528:       <button
+00529:         id="daily-tab-history"
+00530:         type="button"
+00531:         onclick="Admin.setDailyStrategySubtab('history')"
+00532:         class="px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black"
+00533:       >
+00534:         History
+00535:       </button>
+00536:     </div>
+00537: 
+00538:     <div
+00539:       id="dailyStrategyTabs"
+00540:       class="flex flex-wrap gap-2"
+00541:     ></div>
+00542:   </div>
+00543: 
+00544:   <!-- Main strategy board -->
+00545:   <div id="dailyStrategyBoardView">
+
+## Lines 698-864 | credited@733, credited@735, credited@736, id="view-leads"@773, homeowner@779, credited@784
+00698:             <tr>
+00699:               <th class="p-4">
+00700:                 Date
+00701:               </th>
+00702: 
+00703:               <th class="p-4">
+00704:                 Day
+00705:               </th>
+00706: 
+00707:               <th
+00708:                 class="p-4 cursor-pointer select-none"
+00709:                 onclick="Admin.setDailyHistorySort('client_code')"
+00710:               >
+00711:                 Client Code
+00712:                 <span id="daily-history-sort-client_code">↕</span>
+00713:               </th>
+00714: 
+00715:               <th
+00716:                 class="p-4 text-center cursor-pointer select-none"
+00717:                 onclick="Admin.setDailyHistorySort('total_leads_set')"
+00718:               >
+00719:                 Total Leads
+00720:                 <span id="daily-history-sort-total_leads_set">↕</span>
+00721:               </th>
+00722: 
+00723:               <th
+00724:                 class="p-4 text-center text-blue-600 cursor-pointer select-none"
+00725:                 onclick="Admin.setDailyHistorySort('qualified_leads_set')"
+00726:               >
+00727:                 Qualified
+00728:                 <span id="daily-history-sort-qualified_leads_set">↕</span>
+00729:               </th>
+00730: 
+00731:               <th
+00732:                 class="p-4 text-center text-purple-600 cursor-pointer select-none"
+00733:                 onclick="Admin.setDailyHistorySort('credited_leads_set')"
+00734:               >
+00735:                 Credited
+00736:                 <span id="daily-history-sort-credited_leads_set">↕</span>
+00737:               </th>
+00738: 
+00739:               <th
+00740:                 class="p-4 text-center text-red-500 cursor-pointer select-none"
+00741:                 onclick="Admin.setDailyHistorySort('rejected_leads_set')"
+00742:               >
+00743:                 Rejected
+00744:                 <span id="daily-history-sort-rejected_leads_set">↕</span>
+00745:               </th>
+00746: 
+00747:               <th class="p-4">
+00748:                 Assigned Agents
+00749:               </th>
+00750:             </tr>
+00751:           </thead>
+00752: 
+00753:           <tbody
+00754:             id="dailyStrategyHistoryBody"
+00755:             class="divide-y divide-gray-50"
+00756:           >
+00757:             <tr>
+00758:               <td
+00759:                 colspan="8"
+00760:                 class="p-6 text-center text-gray-400 italic"
+00761:               >
+00762:                 Loading history...
+00763:               </td>
+00764:             </tr>
+00765:           </tbody>
+00766:         </table>
+00767:       </div>
+00768:     </div>
+00769:   </div>
+00770: </div>
+00771: 
+00772: 
+00773: <div class="view-section" id="view-leads">
+00774: <h2 class="text-2xl font-bold text-gray-900 mb-4">Leads Master Record</h2>
+00775: <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+00776: <div class="controls-wrap">
+00777: <div class="flex-1 relative" style="min-width: 260px;">
+00778: <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+00779: <input class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" id="leads-search" placeholder="Search homeowner, appointment coordinator, client code, status, lead ID, email, phone..." type="text"/>
+00780: </div>
+00781: <select class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 bg-white min-w-[170px]" id="leads-filter-status">
+00782: <option value="all">All Status</option>
+00783: <option value="APPROVED">APPROVED</option>
+00784: <option value="CREDITED">CREDITED</option>
+00785: <option value="PENDING REVIEW">PENDING REVIEW</option>
+00786: <option value="REJECTED">REJECTED</option>
+00787: </select>
+00788: <div class="flex items-center gap-2">
+00789: <div>
+00790: <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+00791: <input class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white" id="leads-date-start" type="date"/>
+00792: </div>
+00793: <div>
+00794: <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+00795: <input class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white" id="leads-date-end" type="date"/>
+00796: </div>
+00797: </div>
+00798: <button class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50" id="leads-clear">
+00799:               Clear
+00800:             </button>
+00801: <div class="relative">
+00802: <button class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800 flex items-center gap-2" id="leads-columns-toggle">
+00803: <i class="fa-solid fa-table-columns"></i> Columns
+00804:               </button>
+00805: <div class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50" id="leads-columns-popover">
+00806: <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">Visible Columns</div>
+00807: <div class="max-h-[280px] overflow-y-auto space-y-2 pr-1" id="leads-columns-box"></div>
+00808: <div class="flex justify-end gap-2 mt-3">
+00809: <button class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50" id="leads-columns-all">All</button>
+00810: <button class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50" id="leads-columns-min">Minimal</button>
+00811: </div>
+00812: </div>
+00813: </div>
+00814: </div>
+00815: <div class="mt-3 text-xs text-gray-500">
+00816:   Showing <span class="font-bold" id="leads-count">0</span> leads
+00817: </div>
+00818: 
+00819: <div class="mt-3 flex items-center justify-between gap-3 text-xs">
+00820:   <div id="leads-page-info" class="text-gray-500 font-bold">
+00821:     Page 1
+00822:   </div>
+00823: 
+00824:   <div class="flex gap-2">
+00825:     <button id="leads-prev-page" class="px-4 py-2 rounded-lg border border-gray-200 font-bold">
+00826:       Previous
+00827:     </button>
+00828: 
+00829:     <button id="leads-next-page" class="px-4 py-2 rounded-lg bg-gray-900 text-white font-bold">
+00830:       Next
+00831:     </button>
+00832:   </div>
+00833: </div>
+00834: </div>
+00835: <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+00836: <div class="table-scroll max-h-[65vh] overflow-y-auto relative pb-4">
+00837: <table class="table-min w-full text-left text-sm whitespace-nowrap">
+00838: <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100 sticky top-0 z-20 shadow-sm" id="leads-table-head"></thead>
+00839: <tbody class="divide-y divide-gray-50" id="leads-table-body">
+00840: <tr><td class="p-6 text-center text-gray-400">Loading leads...</td></tr>
+00841: </tbody>
+00842: </table>
+00843: </div>
+00844: </div>
+00845: </div>
+00846: <div class="view-section" id="view-clients">
+00847: <div class="flex justify-between items-center mb-6">
+00848: <h2 class="text-2xl font-bold text-gray-900">Passbook Clients</h2>
+00849: </div>
+00850: <div class="client-filter-container">
+00851: <label for="clientStatusFilter">Filter Clients: </label>
+00852: <select id="clientStatusFilter" onchange="fetchAdminClients(this.value)">
+00853: <option selected="" value="Active">Active</option> <option value="Pause">Pause</option>
+00854: <option value="Blacklisted">Blacklisted</option>
+00855: <option value="All">All</option>
+00856: </select>
+00857: </div>
+00858: <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+00859: <div class="flex flex-col lg:flex-row gap-3 lg:items-end">
+00860: <div class="flex-1 relative">
+00861: <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+00862: <input class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" id="passbook-search" placeholder="Search client code or city/state..." type="text"/>
+00863: </div>
+00864: <select class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[220px]" id="passbook-filter-location">
+
+## Lines 985-1579 | credited@1020, credited@1021, homeowner@1100, homeowner@1101, homeowner@1102, feedback@1128, feedback@1129, feedback@1139, feedback@1141, highlight@1145, highlight@1148, feedback@1149, highlight@1149, _leadsCols@1229, Leads Master Record UI state@1228, _leadsVisibleCols@1230, _leadsSort@1232, date_submitted@1232, highlight@1355, credited@1443, credited@1499
+00985: <select class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700" id="team-stage-filter">
+00986: <option value="all">All Stages</option>
+00987: <option selected="" value="active">Active</option>
+00988: <option value="onboarding">Onboarding</option>
+00989: <option value="offboarded">Offboarded</option>
+00990: </select>
+00991: <select class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold text-gray-700" id="team-warned-filter">
+00992: <option selected="" value="all">Warned: All</option>
+00993: <option value="warned">Warned Only</option>
+00994: <option value="not-warned">Not Warned</option>
+00995: </select>
+00996: </div>
+00997: </div>
+00998: <div class="mt-3 text-xs text-gray-500">
+00999:             Showing <span class="font-bold" id="team-count">0</span> agents
+01000:             <span class="ml-2 text-gray-400" id="team-range-label">—</span>
+01001: </div>
+01002: </div>
+01003: <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+01004: <div class="overflow-x-auto">
+01005: <table class="w-full text-left text-sm whitespace-nowrap">
+01006: <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+01007: <tr>
+01008: <th class="p-4 cursor-pointer select-none" onclick="Admin.setTeamSort('name')">
+01009:                     Agent <span class="text-[10px] ml-1 text-gray-300" id="team-sort-name">↕</span>
+01010: </th>
+01011: <th class="p-4 text-center cursor-pointer select-none" onclick="Admin.setTeamSort('total')">
+01012:                     Total <span class="text-[10px] ml-1 text-gray-300" id="team-sort-total">↕</span>
+01013: </th>
+01014: <th class="p-4 text-center text-red-500 cursor-pointer select-none" onclick="Admin.setTeamSort('rejected')">
+01015:                     QC Rejected <span class="text-[10px] ml-1 text-gray-300" id="team-sort-rejected">↕</span>
+01016: </th>
+01017: <th class="p-4 text-center text-blue-500 cursor-pointer select-none" onclick="Admin.setTeamSort('qualified')">
+01018:                     Qualified <span class="text-[10px] ml-1 text-gray-300" id="team-sort-qualified">↕</span>
+01019: </th>
+01020: <th class="p-4 text-center text-purple-500 cursor-pointer select-none" onclick="Admin.setTeamSort('credited')">
+01021:                     Credited <span class="text-[10px] ml-1 text-gray-300" id="team-sort-credited">↕</span>
+01022: </th>
+01023: <th class="p-4 text-center text-yellow-500 cursor-pointer select-none" onclick="Admin.setTeamSort('pending')">
+01024:                     Pending <span class="text-[10px] ml-1 text-gray-300" id="team-sort-pending">↕</span>
+01025: </th>
+01026: <th class="p-4 text-center cursor-pointer select-none" onclick="Admin.setTeamSort('cancelRate')">
+01027:                     Cancellation Rate <span class="text-[10px] ml-1 text-gray-300" id="team-sort-cancelRate">↕</span>
+01028: </th>
+01029: </tr>
+01030: </thead>
+01031: <tbody class="divide-y divide-gray-50" id="team-body">
+01032: <tr><td class="p-6 text-center text-gray-400 italic" colspan="7">Loading team performance...</td></tr>
+01033: </tbody>
+01034: </table>
+01035: </div>
+01036: </div>
+01037: <div class="hidden fixed inset-0 z-50" id="agent-modal">
+01038: <div class="absolute inset-0 bg-black/40" onclick="Admin.closeAgentModal()"></div>
+01039: <div class="relative mx-auto mt-10 w-[94%] max-w-6xl bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+01040: <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-gray-50/50">
+01041: <div>
+01042: <h3 class="font-extrabold text-gray-900" id="agent-modal-title">Agent Leads</h3>
+01043: <p class="text-xs text-gray-500 mt-1" id="agent-modal-sub">—</p>
+01044: </div>
+01045: <div class="flex items-center gap-2 flex-wrap">
+01046: <div class="flex bg-gray-200 p-1 rounded-lg flex-wrap gap-1">
+01047: <button class="agent-btn px-3 py-1 text-xs font-bold rounded-md bg-white shadow text-gray-900" onclick="Admin.setAgentPeriod('today', this)">Today</button>
+01048: <button class="agent-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900" onclick="Admin.setAgentPeriod('this-week', this)">This Week</button>
+01049: <button class="agent-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900" onclick="Admin.setAgentPeriod('previous-week', this)">Previous Week</button>
+01050: <button class="agent-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900" onclick="Admin.setAgentPeriod('4-weeks', this)">4 Weeks</button>
+01051: <button class="agent-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900" onclick="Admin.setAgentPeriod('6-weeks', this)">6 Weeks</button>
+01052: <button class="agent-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-gray-900" onclick="Admin.setAgentPeriod('all-time', this)">All-Time</button>
+01053: </div>
+01054: <div class="relative">
+01055: <button class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50 flex items-center gap-2" id="agent-custom-toggle">
+01056: <i class="fa-regular fa-calendar"></i> Custom
+01057:                   </button>
+01058: <div class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50" id="agent-custom-popover">
+01059: <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">
+01060:                       Custom Timeframe
+01061:                     </div>
+01062: <div class="grid grid-cols-2 gap-2">
+01063: <div>
+01064: <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+01065: <input class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs" id="agent-custom-start" type="date"/>
+01066: </div>
+01067: <div>
+01068: <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+01069: <input class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs" id="agent-custom-end" type="date"/>
+01070: </div>
+01071: </div>
+01072: <div class="flex justify-end gap-2 mt-3">
+01073: <button class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50" id="agent-custom-clear">
+01074:                         Clear
+01075:                       </button>
+01076: <button class="px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-extrabold hover:bg-gray-800" id="agent-custom-apply">
+01077:                         Apply
+01078:                       </button>
+01079: </div>
+01080: </div>
+01081: </div>
+01082: <button class="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50" onclick="Admin.closeAgentModal()">
+01083: <i class="fa-solid fa-xmark"></i>
+01084: </button>
+01085: </div>
+01086: </div>
+01087: <div class="p-4">
+01088: <div class="text-xs text-gray-500 mb-3">
+01089:                 Showing <span class="font-bold" id="agent-leads-count">0</span> leads
+01090:                 <span class="ml-2 text-gray-400" id="agent-range-label">—</span>
+01091: </div>
+01092: <div class="overflow-x-auto">
+01093: <table class="min-w-[1400px] w-full text-left text-sm whitespace-nowrap">
+01094: <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100">
+01095: <tr>
+01096: <th class="p-3">Date Submitted</th>
+01097: <th class="p-3">Lead ID</th>
+01098: <th class="p-3">Client Code</th>
+01099: <th class="p-3">Appointment Coordinator Name</th>
+01100: <th class="p-3">Homeowner Name(s)</th>
+01101: <th class="p-3">Email of Homeowner</th>
+01102: <th class="p-3">Homeowner Phone Number</th>
+01103: <th class="p-3">Appointment Date / Time</th>
+01104: <th class="p-3">Address</th>
+01105: <th class="p-3">Age of Roof</th>
+01106: <th class="p-3">Insurance Company</th>
+01107: <th class="p-3">Additional Notes</th>
+01108: <th class="p-3">Status</th>
+01109: </tr>
+01110: </thead>
+01111: <tbody class="divide-y divide-gray-50" id="agent-leads-body">
+01112: <tr><td class="p-6 text-center text-gray-400 italic" colspan="14">Loading leads...</td></tr>
+01113: </tbody>
+01114: </table>
+01115: </div>
+01116: </div>
+01117: </div>
+01118: </div>
+01119: </div>
+01120: 
+01121:  </div> 
+01122:     
+01123: <div class="hidden fixed inset-0 z-[120] flex items-center justify-center" id="rejection-reason-modal">
+01124: <div class="absolute inset-0 bg-black/40" onclick="Admin.closeRejectionReasonModal()"></div>
+01125: <div class="relative bg-white rounded-2xl shadow-xl w-[92%] max-w-lg p-6 border border-gray-100">
+01126: <div class="flex items-center justify-between mb-4">
+01127: <div>
+01128: <h3 class="text-xl font-bold text-gray-900">Add Feedback</h3>
+01129: <p class="text-sm text-gray-500 mt-1">This feedback will be saved and shared later with the agent dashboard.</p>
+01130: </div>
+01131: <button class="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50" onclick="Admin.closeRejectionReasonModal()" type="button">
+01132: <i class="fa-solid fa-xmark"></i>
+01133: </button>
+01134: </div>
+01135: <input id="rejection-modal-lead-id" type="hidden">
+01136: <input id="rejection-modal-next-status" type="hidden">
+01137: <div class="mb-4">
+01138: <label class="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-2">
+01139:           Feedback
+01140:         </label>
+01141: <textarea class="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-400" id="rejection-modal-text" placeholder="Enter feedback for this lead..." rows="5"></textarea>
+01142:     <div class="mb-4 flex items-center gap-2">
+01143:   <input
+01144:     type="checkbox"
+01145:     id="rejection-modal-highlight"
+01146:     class="w-4 h-4 rounded border-gray-300 text-yellow-500 focus:ring-yellow-400"
+01147:   >
+01148:   <label for="rejection-modal-highlight" class="text-sm font-semibold text-gray-700">
+01149:     Highlight this feedback
+01150:   </label>
+01151: </div>
+01152: </div>
+01153: <div class="flex items-center justify-end gap-2">
+01154: <button class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50" onclick="Admin.closeRejectionReasonModal()" type="button">
+01155:           Cancel
+01156:         </button>
+01157: <button class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800" onclick="Admin.saveRejectionReasonModal()" type="button">
+01158:           Save
+01159:         </button>
+01160: </div>
+01161: </input></input></div>
+01162: </div>
+01163: 
+01164:     <div id="admin-fire-note-modal" class="hidden fixed inset-0 z-[120] flex items-center justify-center">
+01165:   <div class="absolute inset-0 bg-black/40" onclick="Admin.closeAdminFireNoteModal()"></div>
+01166: 
+01167:   <div class="relative bg-white rounded-2xl shadow-xl w-[92%] max-w-lg p-6 border border-gray-100">
+01168:     <div class="flex items-start justify-between gap-4 mb-4">
+01169:       <div>
+01170:         <h3 class="text-xl font-black text-gray-900">🔥 Sales Note</h3>
+01171:         <p class="text-sm text-gray-500 mt-1" id="admin-fire-note-client"></p>
+01172:       </div>
+01173: 
+01174:       <button type="button" onclick="Admin.closeAdminFireNoteModal()" class="w-9 h-9 rounded-lg border border-gray-200">
+01175:         ✕
+01176:       </button>
+01177:     </div>
+01178: 
+01179:     <div id="admin-fire-note-content" class="text-sm text-gray-700 whitespace-pre-wrap"></div>
+01180:     <div id="admin-fire-note-meta" class="mt-3 text-xs text-gray-400 font-bold"></div>
+01181:   </div>
+01182: </div>
+01183: 
+01184: <div class="client-health-backdrop hidden" id="client-health-backdrop" onclick="Admin.toggleClientHealthExpanded(false)"></div>
+01185: <script>
+01186:     const AdminDashboard = {
+01187:       sortState: { key: null, dir: 'asc' },
+01188:         dailyStrategyWeekRows: [],
+01189: dailyStrategySelectedDate: null,
+01190: dailyStrategyAssignments: [],
+01191: dailyStrategySubtab: "shift",
+01192: dailyStrategyShift: "morning",
+01193: dailyStrategyHistoryRows: [],
+01194: dailyStrategyHistorySort: { key: "client_code", dir: "asc" },
+01195: dailyStrategyHistoryWeekStart: null,
+01196: _dailyStrategyRenderToken: null,
+01197:             clientHealthExpanded: false,
+01198:       _clientHealthExpandBound: false,
+01199: _firstLoadDone: false,
+01200: 
+01201:       // TEAM STATE
+01202:       teamPeriod: 'today',
+01203:       _teamCustomRange: { active: false, start: null, end: null },
+01204:       teamStageFilter: 'active',
+01205:       teamWarnedFilter: 'all',
+01206:       teamSortKey: 'default',
+01207:       teamSortDir: 'asc',
+01208:       _teamBound: false,
+01209: 
+01210:       // AGENT DRILLDOWN STATE
+01211:       _agentSelectedName: null,
+01212:       agentPeriod: 'today',
+01213:       _agentCustomRange: { active: false, start: null, end: null },
+01214:       _agentBound: false,
+01215: 
+01216:       clientHealthRaw: [],
+01217:       clientHealthView: [],
+01218: 
+01219:       _companyToCodeMap: null,
+01220:       _companyToPackageMap: null,
+01221:       _analyticsChart: null,
+01222: 
+01223:       // index
+01224:       _leadsIndexByCompany: null,
+01225:       _leadsIndexByCode: null,
+01226:       _customRange: { active: false, start: null, end: null },
+01227: 
+01228:       // Leads Master Record UI state
+01229:       _leadsCols: null,
+01230:       _leadsVisibleCols: null,
+01231:       _leadsFiltersBound: false,
+01232:       _leadsSort: { key: "date_submitted", dir: "desc" }, 
+01233:         _leadsPage: 1,
+01234:         _leadsLimit: 200,
+01235:         _leadsTotal: 0,
+01236: 
+01237:       // Passbook View state
+01238:            _passbookView: "cards",
+01239:       _passbookFiltersBound: false,
+01240:       passbookNoteMentionsByCode: new Map(),
+01241:         passbookAuditRows: [],
+01242: passbookAuditByCode: new Map(),
+01243:       _owedKpiBound: false,
+01244: 
+01245:       notifications: [],
+01246: notificationsLoading: false,
+01247: selectedNotificationId: null,
+01248: notificationsTab: 'open',
+01249: 
+01250:       notificationFocus: null,
+01251: notes: [],
+01252: notesLoading: false,
+01253: noteDraft: '',
+01254: 
+01255:       getState() { return window.portal?.adminState || {}; },
+01256:         openDailySalesNote(assignmentId) {
+01257:   const row = (this.dailyStrategyAssignments || []).find(
+01258:     r => String(r.id) === String(assignmentId)
+01259:   );
+01260: 
+01261:   if (!row) {
+01262:     alert("Sales note not found. Refresh the Daily Strategy tab.");
+01263:     return;
+01264:   }
+01265: 
+01266:   this.openAdminFireNoteModal(
+01267:     row.notes || "",
+01268:     row.client_code || "Client",
+01269:     row.created_by_name || "Sales"
+01270:   );
+01271: },
+01272: 
+01273: openAdminFireNoteModal(note, clientCode, author) {
+01274:   document.getElementById("admin-fire-note-client").innerText =
+01275:     clientCode || "Client";
+01276: 
+01277:   document.getElementById("admin-fire-note-content").innerText =
+01278:     note || "";
+01279: 
+01280:   document.getElementById("admin-fire-note-meta").innerText =
+01281:     `Added by ${author || "Sales"}`;
+01282: 
+01283:   document.getElementById("admin-fire-note-modal").classList.remove("hidden");
+01284: },
+01285: 
+01286: closeAdminFireNoteModal() {
+01287:   document.getElementById("admin-fire-note-modal").classList.add("hidden");
+01288: },
+01289: 
+01290: setDailyStrategyShift(shift) {
+01291:   this.dailyStrategyShift =
+01292:     shift === "afternoon" ? "afternoon" : "morning";
+01293: 
+01294:   this.dailyStrategySubtab = "shift";
+01295: 
+01296:   const morningBtn = document.getElementById("daily-shift-morning");
+01297:   const afternoonBtn = document.getElementById("daily-shift-afternoon");
+01298: 
+01299:   if (morningBtn && afternoonBtn) {
+01300:     morningBtn.className = this.dailyStrategyShift === "morning"
+01301:       ? "px-4 py-2 rounded-2xl bg-yellow-400 text-gray-900 text-xs font-black shadow"
+01302:       : "px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black";
+01303: 
+01304:     afternoonBtn.className = this.dailyStrategyShift === "afternoon"
+01305:       ? "px-4 py-2 rounded-2xl bg-yellow-400 text-gray-900 text-xs font-black shadow"
+01306:       : "px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-xs font-black";
+01307:   }
+01308: 
+01309:   this.setDailyStrategySubtab("shift");
+01310:   this.renderDailyTab();
+01311: },
+01312: 
+01313:       refreshDashboard() {
+01314:         const state = this.getState();
+01315: if (!state) return;
+01316: 
+01317: const rawClients = state.rawClients || [];
+01318: const allocationRows = Array.isArray(state.clientPackageAllocationView)
+01319:   ? state.clientPackageAllocationView
+01320:   : [];
+01321: const leads = state.leads || [];
+01322: const packages = state.packages || [];
+01323: 
+01324:         // 1. Index leads by COMPANY NAME for Health Monitor math
+01325:         this._leadsIndexByCompany = new Map();
+01326:         leads.forEach(l => {
+01327:             const rawComp = this.getLeadField(l, ["Company Name", "company_name", "roofing_company", "Client"]);
+01328:             const comp = this.normalizeCompanyName(rawComp);
+01329:             if (!comp) return;
+01330:             const arr = this._leadsIndexByCompany.get(comp) || [];
+01331:             arr.push(l);
+01332:             this._leadsIndexByCompany.set(comp, arr);
+01333:         });
+01334: 
+01335:         // 2. Trigger the table builds
+01336:         try {
+01337:           this.clientHealthRaw = this.normalizeClientHealthRows(
+01338:   allocationRows,
+01339:   rawClients,
+01340:   packages
+01341: );
+01342:           this.setupFilters(this.clientHealthRaw);
+01343:           this.applyClientHealthFilters();
+01344:         } catch(e) { console.error("CHM Error:", e); }
+01345: 
+01346:           try { this.bindClientHealthExpandUI(); } catch(e) {}
+01347: 
+01348:         // 3. Keep other dashboard modules alive
+01349:         try { this.initLeadsColumnsUI(); this.applyLeadsFilters(); } catch(e) {}
+01350:         try { this.bindLeadsMasterEvents(); } catch(e) {}
+01351:         
+01352:                try {
+01353:           this.bindPassbookUI(rawClients);
+01354:           this.applyPassbookFilters(rawClients);
+01355:           this.refreshPassbookMentionHighlights();
+01356:         } catch(e) {}
+01357:         try { this.bindOverviewAnalyticsUI(); } catch(e) {}
+01358:         try { this.updateAnalytics(this.analyticsPeriod); } catch(e) {}
+01359:         try { this.bindTeamUI(); this.renderTeam(); } catch(e) {}
+01360:         try { this.bindOwedLeadsKPI(); this.updateOwedLeadsKPI(); } catch(e) {}
+01361:         try { this.bindOverviewAnalyticsUI(); } catch(e) {} 
+01362:         try { this.renderDailyTab(); } catch(e) {}
+01363:       },
+01364:       
+01365:       toMST(dateVal) {
+01366:         if (!dateVal) return new Date();
+01367:         const d = new Date(dateVal);
+01368:         if (isNaN(d.getTime())) return new Date();
+01369:         if (window.portal && typeof window.portal.toMST === 'function') return window.portal.toMST(d);
+01370:         const mstOffset = -7 * 60; 
+01371:         const localOffset = d.getTimezoneOffset();
+01372:         return new Date(d.getTime() + (mstOffset + localOffset) * 60000);
+01373:       },
+01374: 
+01375:       parseDateSafe(value) {
+01376:         if (!value) return null;
+01377:         const dt = new Date(value);
+01378:         return isNaN(dt.getTime()) ? null : dt;
+01379:       },
+01380: 
+01381:       normalizeClientHealthRows(allocationRows, rawClients = [], packages = []) {
+01382:   const now = new Date();
+01383:   const mstFormatter = new Intl.DateTimeFormat('en-CA', {
+01384:     timeZone: 'America/Denver',
+01385:     year: 'numeric',
+01386:     month: '2-digit',
+01387:     day: '2-digit'
+01388:   });
+01389: 
+01390:   const rawClientMap = new Map(
+01391:     (rawClients || []).map(rc => [
+01392:       String(rc.client_code || rc.code_name || "").trim().toLowerCase(),
+01393:       rc
+01394:     ])
+01395:   );
+01396: 
+01397:         const healthRows = Array.isArray(this.getState().clientHealthView)
+01398:   ? this.getState().clientHealthView
+01399:   : [];
+01400: 
+01401: const healthMap = new Map(
+01402:   healthRows.map(h => [
+01403:     String(h.client_code || "").trim().toLowerCase(),
+01404:     h
+01405:   ])
+01406: );
+01407:         
+01408:         const packageMap = new Map(
+01409:   (packages || []).map(p => [String(p.id || "").trim(), p])
+01410: );
+01411: 
+01412:   return (allocationRows || []).map(row => {
+01413:     const code = String(row.client_code || "").trim();
+01414:     const health = healthMap.get(code.toLowerCase()) || {};
+01415:     const rawClient = rawClientMap.get(code.toLowerCase()) || {};
+01416:     const pkg = packageMap.get(String(row.package_id || row.id || "").trim()) || {};
+01417:     const dealStatus = String(pkg.deal_status || "").toUpperCase().trim();
+01418: 
+01419:     const company = String(
+01420:       rawClient.company_name ||
+01421:       rawClient.roofing_company ||
+01422:       row.company_name ||
+01423:       "—"
+01424:     ).trim();
+01425: 
+01426:     const clientName = String(
+01427:       rawClient.contact_person ||
+01428:       rawClient.client_name ||
+01429:       row.client_name ||
+01430:       "—"
+01431:     ).trim();
+01432: 
+01433:     const cityState = String(
+01434:       rawClient.area ||
+01435:       rawClient.city_state ||
+01436:       rawClient.location ||
+01437:       row.city_state ||
+01438:       "—"
+01439:     ).trim();
+01440: 
+01441:   const purchased = Number(row.purchased_leads || 0);
+01442: const qualified = Number(row.qualified_leads || 0);
+01443: const credited = Number(row.credited_leads || 0);
+01444: const rejected = Number(health.rejected_leads || 0);
+01445: const owed = Number(row.owed_leads || Math.max(purchased - qualified, 0));
+01446: 
+01447:    let packageStatus = String(row.package_status || "").toUpperCase().trim();
+01448: if (packageStatus === "ACTIVE") packageStatus = "ONGOING";
+01449: 
+01450: const rawPkgStatus = String(pkg.status || "").toUpperCase().trim();
+01451: 
+01452: /*
+01453:   Use backend allocation truth for ONGOING vs COMPLETED.
+01454:   Only allow raw package status to override for explicit admin controls:
+01455:   PAUSE and REFUNDED.
+01456: */
+01457: if (rawPkgStatus.startsWith("PAUS")) {
+01458:   packageStatus = "PAUSE";
+01459: } else if (rawPkgStatus.includes("REFUND")) {
+01460:   packageStatus = "REFUNDED";
+01461: }
+01462: 
+01463: 
+01464: // deal status still wins for refunded
+01465: if (dealStatus === "REFUNDED") packageStatus = "REFUNDED";
+01466: 
+01467:  const leadsToday = Number(health.leads_today || 0);
+01468: const leadsYesterday = Number(health.leads_yesterday || 0);
+01469: const healthStatus = String(health.health_status || "NOT STARTED").toUpperCase();
+01470: 
+01471:     const isRenewal = Number(row.package_seq || 1) > 1;
+01472: 
+01473:     return {
+01474:       _raw: row,
+01475:       rawClientId: rawClient.id || null,
+01476:       _pkgId: row.package_id || row.id || null,
+01477: 
+01478:       code,
+01479:       passbookStatus: String(rawClient.client_status || "INACTIVE").toUpperCase().trim(),
+01480:       healthStatus,
+01481: 
+01482:       roofingCompany: company + (
+01483:         isRenewal
+01484:           ? ' <span class="text-[9px] font-black text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded ml-2">RENEWAL</span>'
+01485:           : ''
+01486:       ),
+01487:       searchName: company + (isRenewal ? ' renewal' : ''),
+01488: 
+01489:       cityState,
+01490:       clientName,
+01491: 
+01492:       packageStatus,
+01493:       dealStatus,
+01494:       packageRatio: `${owed} / ${purchased}`,
+01495:       packageLabel: `${owed} / ${purchased}`,
+01496:       owedRemaining: owed,
+01497: 
+01498:       qualifiedCount: qualified,
+01499:       creditedCount: credited,
+01500: 
+01501:       purchaseDate: (() => {
+01502:   if (!row.purchase_date) return "—";
+01503:   const raw = String(row.purchase_date).trim();
+01504: 
+01505:   let d = null;
+01506:   if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
+01507:     d = new Date(raw.substring(0, 10) + "T00:00:00");
+01508:   } else {
+01509:     d = new Date(raw);
+01510:   }
+01511: 
+01512:   if (!d || isNaN(d.getTime())) return raw;
+01513: 
+01514:   const mst = window.portal?.toMST ? window.portal.toMST(d) : d;
+01515:   const mm = String(mst.getMonth() + 1).padStart(2, "0");
+01516:   const dd = String(mst.getDate()).padStart(2, "0");
+01517:   const yyyy = mst.getFullYear();
+01518: 
+01519:   return `${mm}-${dd}-${yyyy}`;
+01520: })(),
+01521:       leadsToday,
+01522:       leadsYesterday,
+01523:       lastLead: health.last_lead_received || "—",
+01524: 
+01525:       isServing: rawClient.is_serving === true || rawClient.is_serving === 'true',
+01526:       dailyAgents: rawClient.daily_agents || "",
+01527:       dailyGoal: Number(rawClient.daily_goal) || 0,
+01528:       salesRepCount: Number(rawClient.sales_rep_count || 0),
+01529:       leadsPerDayLimit: Number(rawClient.leads_per_day_limit || 0)
+01530:     };
+01531:   });
+01532: },
+01533: 
+01534:       setupFilters(rows) {
+01535:         const statusPop = document.getElementById("health-status-popover");
+01536:         const statusBtn = document.getElementById("health-status-btn");
+01537:         
+01538:         // BUG FIX 1: Wrap ALL event listeners in the First Load check so they never duplicate
+01539:         if (!this._firstLoadDone) {
+01540:             this._firstLoadDone = true;
+01541:             
+01542:             // Health Statuses Popover
+01543:             if (statusPop && statusBtn) {
+01544:                 const statuses = ["CRITICAL", "AT RISK", "HEALTHY", "NOT STARTED"];
+01545:                 statusPop.innerHTML = statuses.map(s => {
+01546:                     return `<label class="flex items-center text-sm cursor-pointer p-2 hover:bg-gray-50 rounded"><input type="checkbox" value="${s}" class="health-st-chk mr-2" checked> ${s}</label>`;
+01547:                 }).join("");
+01548: 
+01549:                 const updateLabel = () => {
+01550:                     const count = statusPop.querySelectorAll('.health-st-chk:checked').length;
+01551:                     document.getElementById("health-status-label").textContent = `Health: ${count} selected`;
+01552:                 };
+01553:                 updateLabel();
+01554: 
+01555:                 statusPop.querySelectorAll('.health-st-chk').forEach(chk => chk.addEventListener('change', () => { updateLabel(); this.applyClientHealthFilters(); }));
+01556:                 statusBtn.addEventListener("click", (e) => { e.preventDefault(); statusPop.classList.toggle("hidden"); });
+01557:             }
+01558: 
+01559:             // Package Filter
+01560:             document.getElementById("health-filter-package")?.addEventListener("change", () => this.applyClientHealthFilters());
+01561:             
+01562:             // BUG FIX 2: The Debouncer! (Waits 300ms after you stop typing to execute the search)
+01563:             const searchInput = document.getElementById("health-search");
+01564:             if (searchInput) {
+01565:                 searchInput.addEventListener("input", () => {
+01566:                     clearTimeout(this._healthSearchTimer);
+01567:                     this._healthSearchTimer = setTimeout(() => {
+01568:                         this.applyClientHealthFilters();
+01569:                     }, 300);
+01570:                 });
+01571:             }
+01572: 
+01573:             // Clear Button
+01574:             document.getElementById("health-clear")?.addEventListener("click", () => {
+01575:                 const s = document.getElementById("health-search");
+01576:                 if (s) s.value = "";
+01577:                 const pkgSel = document.getElementById("health-filter-package");
+01578:                 if (pkgSel) pkgSel.value = "ONGOING";
+01579:                 const locSel = document.getElementById("health-filter-location");
+
+## Lines 1689-2235 | credited@1724, credited@1725, credited@1745, date_submitted@1811, lead_id@1812, homeowner@1826, homeowner@1827, homeowner@1828, appointment_date@1829, feedback@1834, date_submitted@1841, homeowner@1842, feedback@1845, _leadsCols@1870, date_submitted@1851, _leadsCols@1872, credited@1862, _leadsCols@1884, _leadsVisibleCols@1873, _leadsVisibleCols@1885, _leadsCols@1908, _leadsVisibleCols@1898, _leadsVisibleCols@1899, _leadsVisibleCols@1908, +20 more
+01689:         : (b.owedRemaining - a.owedRemaining);
+01690:     }
+01691: 
+01692:     const A = a[key];
+01693:     const B = b[key];
+01694: 
+01695:     if (typeof A === "number" && typeof B === "number") {
+01696:       return dir === "asc" ? A - B : B - A;
+01697:     }
+01698: 
+01699:     return dir === "asc"
+01700:       ? String(A ?? "").localeCompare(String(B ?? ""))
+01701:       : String(B ?? "").localeCompare(String(A ?? ""));
+01702:   });
+01703: }
+01704: 
+01705:         this.clientHealthView = filtered;
+01706:         this.renderClientHealthTable(filtered);
+01707:       },
+01708: 
+01709:       renderClientHealthTable(rows) {
+01710:         const tbody = document.getElementById("client-health-body");
+01711:         if (!rows.length) {
+01712:           tbody.innerHTML = `<tr><td colspan="12" class="p-6 text-center text-gray-400 italic">No packages matching filters.</td></tr>`;
+01713:           return;
+01714:         }
+01715: 
+01716:         tbody.innerHTML = rows.map(r => {
+01717:           const hs = String(r.healthStatus || "").toUpperCase().trim();
+01718: 
+01719: let dotClass = "st-new";
+01720: if (hs === "CRITICAL") dotClass = "st-critical";
+01721: else if (hs === "AT RISK") dotClass = "st-risk";
+01722: else if (hs === "HEALTHY") dotClass = "st-healthy";
+01723:           
+01724:           const totalQC = r.qualifiedCount + r.creditedCount;
+01725:           const cancelRate = totalQC > 0 ? Math.round((r.creditedCount / totalQC) * 100) : 0;
+01726: 
+01727:           let pkgColor = "bg-gray-100 text-gray-700";
+01728:           if (r.packageStatus === 'ONGOING') pkgColor = "bg-blue-100 text-blue-800";
+01729:           if (r.packageStatus === 'COMPLETED') pkgColor = "bg-purple-100 text-purple-800";
+01730:           if (r.packageStatus === 'REFUNDED') pkgColor = "bg-orange-100 text-orange-800";
+01731:           if (r.packageStatus === 'PAUSE') pkgColor = "bg-yellow-100 text-yellow-800";
+01732: 
+01733:           return `
+01734:             <tr class="hover:bg-gray-50">
+01735:               <td class="p-4">
+01736:                 <div class="status-container">
+01737:                   <span class="status-dot ${dotClass}"></span>
+01738:                   <span class="tooltip-text"><b>${hs || "NOT STARTED"}</b></span>
+01739:                 </div>
+01740:               </td>
+01741:               <td class="p-4 text-gray-700 font-semibold">${r.code}</td>
+01742:               <td class="p-4 text-gray-600">${r.cityState}</td>
+01743:               <td class="p-4 text-center text-gray-900 font-bold">${r.packageLabel}</td>
+01744:               <td class="p-4 text-center text-blue-500 font-bold">${r.qualifiedCount}</td>
+01745:               <td class="p-4 text-center text-purple-500 font-bold">${r.creditedCount}</td>
+01746:               <td class="p-4 text-center text-red-500 font-bold">${cancelRate}%</td>
+01747:               <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsToday}</td>
+01748:               <td class="p-4 text-center text-gray-700 font-semibold">${r.leadsYesterday}</td>
+01749:               <td class="p-4">
+01750:                 ${
+01751:                   false
+01752:                     ? `
+01753:                       <select onchange="window.updateClientPackageStatus('${String(r._pkgId || "").replace(/'/g, "\\'")}', this.value)" class="px-2 py-1 rounded text-[10px] font-extrabold border outline-none cursor-pointer shadow-sm ${pkgColor}">
+01754:                         <option value="Active" ${r.packageStatus === 'ONGOING' ? 'selected' : ''}>ONGOING</option>
+01755:                         <option value="Pause" ${r.packageStatus === 'PAUSE' ? 'selected' : ''}>PAUSE</option>
+01756:                         <option value="Completed" ${r.packageStatus === 'COMPLETED' ? 'selected' : ''}>COMPLETED</option>
+01757:                         <option value="Refunded" ${r.packageStatus === 'REFUNDED' ? 'selected' : ''}>REFUNDED</option>
+01758:                       </select>
+01759:                     `
+01760:                     : `
+01761:                       <span class="px-2 py-1 rounded text-[10px] font-extrabold ${pkgColor}">
+01762:                         ${r.packageStatus}
+01763:                       </span>
+01764:                     `
+01765:                 }
+01766:               </td>
+01767:               <td class="p-4 text-gray-500">${r.purchaseDate}</td>
+01768:               <td class="p-4 text-gray-500">${r.lastLead}</td>
+01769:             </tr>
+01770:           `;
+01771:         }).join("");
+01772:       },
+01773: 
+01774:       _setActiveButton(btnSelector, btnElement) {
+01775:         document.querySelectorAll(btnSelector).forEach(b => {
+01776:           b.classList.remove("bg-white", "shadow", "text-gray-900");
+01777:           b.classList.add("text-gray-500");
+01778:         });
+01779:         if (btnElement) {
+01780:           btnElement.classList.add("bg-white", "shadow", "text-gray-900");
+01781:           btnElement.classList.remove("text-gray-500");
+01782:         }
+01783:       },
+01784: 
+01785:       _setCustomActive(toggleId, isActive) {
+01786:         const t = document.getElementById(toggleId);
+01787:         if (!t) return;
+01788:         t.classList.toggle("ring-2", isActive);
+01789:         t.classList.toggle("ring-yellow-400", isActive);
+01790:       },
+01791: 
+01792:       pick(obj, keys, fallback = "") {
+01793:         if (!obj) return fallback;
+01794:         const objKeys = Object.keys(obj);
+01795:         for (const k of keys) {
+01796:           const lowerK = String(k).toLowerCase();
+01797:           const found = objKeys.find(ok => String(ok).toLowerCase() === lowerK);
+01798:           if (found && obj[found] !== undefined && obj[found] !== null && String(obj[found]).trim() !== "") {
+01799:             return obj[found];
+01800:           }
+01801:         }
+01802:         return fallback;
+01803:       },
+01804: 
+01805:       getLeadField(l, keys, fallback="—") {
+01806:         return this.pick(l, keys, fallback);
+01807:       },
+01808: 
+01809:            getLeadsColumns() {
+01810:         return [
+01811:           { key: "date_submitted", label: "Date Submitted", keys: ["Date Submitted", "date_submitted"] },
+01812:           { key: "lead_id", label: "LEAD ID", keys: ["LEAD ID", "lead_id"] },
+01813:           {
+01814:   key: "client_code",
+01815:   label: "Client Code",
+01816:   keys: [
+01817:     "client_code",
+01818:     "Client Code",
+01819:     "CLIENT CODE",
+01820:     "code_name",
+01821:     "Code Name",
+01822:     "CODE NAME"
+01823:   ]
+01824: },
+01825:           { key: "appointment_coordinator", label: "Appointment Coordinator Name", keys: ["Appointment Coordinator Name", "appointment_coordinator_name"] },
+01826:           { key: "homeowner_name", label: "Homeowner Name(s)", keys: ["Homeowner Name(s)", "homeowner_names"] },
+01827:           { key: "homeowner_email", label: "Email of Homeowner", keys: ["Email of Homeowner", "email_of_homeowner", "email"] },
+01828:           { key: "homeowner_phone", label: "Homeowner Phone Number(s)", keys: ["Homeowner Phone Number(s)", "homeowner_phone_numbers", "phone"] },
+01829:           { key: "appointment_datetime", label: "Appointment Date /Time", keys: ["Appointment Date /Time", "appointment_date_time"] },
+01830:           { key: "address", label: "Address", keys: ["Address", "address"] },
+01831:           { key: "age_of_roof", label: "Age of Roof", keys: ["Age of Roof", "age_of_roof"] },
+01832:           { key: "insurance_company", label: "Insurance Company", keys: ["Insurance Company", "insurance_company"] },
+01833:           { key: "additional_notes", label: "Additional Notes", keys: ["Additional Notes", "additional_notes"] },
+01834:           { key: "feedback", label: "Feedback", keys: ["feedback", "Feedback", "rejection_reason", "Rejection Reason"] },
+01835:           { key: "status", label: "Status", keys: ["Status", "status"] },
+01836:         ];
+01837:       },
+01838: 
+01839:            getLeadsDefaultVisibleCols() {
+01840:   return new Set([
+01841:     "date_submitted",
+01842:     "homeowner_name",
+01843:     "appointment_coordinator",
+01844:     "client_code",
+01845:     "feedback",
+01846:     "status"
+01847:   ]);
+01848: },
+01849: 
+01850:       getLeadDateObj(l) {
+01851:         const dStr = this.getLeadField(l, ["Date Submitted", "date_submitted", "DATE"], "");
+01852:         const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+01853:         return (dt && !isNaN(dt.getTime())) ? dt : null;
+01854:       },
+01855: 
+01856:       setupLeadFilters(leads) {
+01857:         const statusSel = document.getElementById("leads-filter-status");
+01858:         if (statusSel) {
+01859:             statusSel.innerHTML = `
+01860:             <option value="all">All Status</option>
+01861:             <option value="APPROVED">APPROVED</option>
+01862:             <option value="CREDITED">CREDITED</option>
+01863:             <option value="PENDING REVIEW">PENDING REVIEW</option>
+01864:             <option value="REJECTED">REJECTED</option>
+01865:             `;
+01866:         }
+01867:       },
+01868: 
+01869:       initLeadsColumnsUI() {
+01870:         if (this._leadsCols) return;
+01871: 
+01872:         this._leadsCols = this.getLeadsColumns();
+01873:         this._leadsVisibleCols = this.getLeadsDefaultVisibleCols();
+01874: 
+01875:         const toggle = document.getElementById("leads-columns-toggle");
+01876:         const pop = document.getElementById("leads-columns-popover");
+01877:         const box = document.getElementById("leads-columns-box");
+01878:         const allBtn = document.getElementById("leads-columns-all");
+01879:         const minBtn = document.getElementById("leads-columns-min");
+01880: 
+01881:         if (!toggle || !pop || !box) return;
+01882: 
+01883:         const renderChecks = () => {
+01884:           box.innerHTML = this._leadsCols.map(col => {
+01885:             const checked = this._leadsVisibleCols.has(col.key);
+01886:             return `
+01887:               <label class="flex items-center gap-2 text-sm text-gray-700">
+01888:                 <input type="checkbox" data-colkey="${col.key}" ${checked ? "checked" : ""} />
+01889:                 <span>${col.label}</span>
+01890:               </label>
+01891:             `;
+01892:           }).join("");
+01893: 
+01894:           box.querySelectorAll('input[type="checkbox"][data-colkey]').forEach(chk => {
+01895:             chk.addEventListener("change", () => {
+01896:               const k = chk.getAttribute("data-colkey");
+01897:               if (!k) return;
+01898:               if (chk.checked) this._leadsVisibleCols.add(k);
+01899:               else this._leadsVisibleCols.delete(k);
+01900:               this.applyLeadsFilters();
+01901:             });
+01902:           });
+01903:         };
+01904: 
+01905:         toggle.addEventListener("click", (e) => { e.preventDefault(); pop.classList.toggle("hidden"); });
+01906:         document.addEventListener("click", (e) => { if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) pop.classList.add("hidden"); });
+01907: 
+01908:         if (allBtn) allBtn.addEventListener("click", () => { this._leadsVisibleCols = new Set(this._leadsCols.map(c => c.key)); renderChecks(); this.applyLeadsFilters(); });
+01909:         if (minBtn) minBtn.addEventListener("click", () => { this._leadsVisibleCols = this.getLeadsDefaultVisibleCols(); renderChecks(); this.applyLeadsFilters(); });
+01910: 
+01911:         renderChecks();
+01912:       },
+01913: 
+01914:       applyLeadsFilters(page = 1) {
+01915:         const state = this.getState();
+01916:         const leads = (state && Array.isArray(state.leads)) ? state.leads : [];
+01917: 
+01918:         const q = String(document.getElementById("leads-search")?.value || "").toLowerCase().trim();
+01919:         const stVal = document.getElementById("leads-filter-status")?.value || "all";
+01920:         const sDate = document.getElementById("leads-date-start")?.value || "";
+01921:         const eDate = document.getElementById("leads-date-end")?.value || "";
+01922: 
+01923:         const startDt = sDate ? new Date(sDate + "T00:00:00") : null;
+01924:         const endDt = eDate ? new Date(eDate + "T23:59:59") : null;
+01925: 
+01926:         let filtered = [...leads];
+01927: 
+01928:         if (stVal !== "all") {
+01929:           filtered = filtered.filter(l => {
+01930:             const s = String(this.getLeadField(l, ["status", "Status", "STATUS", "Lead_Status"], "")).toUpperCase();
+01931:             if (stVal === "APPROVED") return s.includes("APPROV") || s.includes("CONFIRM");
+01932:             if (stVal === "REJECTED") return s.includes("REJECT");
+01933:             if (stVal === "CREDITED") return s.includes("CREDIT");
+01934:             if (stVal === "PENDING REVIEW") return s.includes("PENDING");
+01935:             return s.includes(stVal);
+01936:           });
+01937:         }
+01938: 
+01939:         // BULLETPROOF SEARCH: Searches every single property of the lead
+01940:         if (q) {
+01941:           filtered = filtered.filter(l => {
+01942:             const searchableText = this.getLeadsColumns()
+01943:   .map(column => this.getLeadField(l, column.keys, ""))
+01944:   .join(" ")
+01945:   .toLowerCase();
+01946: 
+01947: return searchableText.includes(q);
+01948:           });
+01949:         }
+01950: 
+01951:         if (this._leadsSort?.key === "date_submitted") {
+01952:           const dir = this._leadsSort.dir === "asc" ? 1 : -1;
+01953:           filtered.sort((a, b) => {
+01954:             const da = this.getLeadDateObj(a);
+01955:             const db = this.getLeadDateObj(b);
+01956:             if (!da && !db) return 0;
+01957:             if (!da) return 1;
+01958:             if (!db) return -1;
+01959:             return (da.getTime() - db.getTime()) * dir;
+01960:           });
+01961:         }
+01962:         this._leadsPage = Math.max(1, Number(page) || 1);
+01963:         this._leadsTotal = filtered.length;
+01964:         
+01965:         const limit = this._leadsLimit || 200;
+01966:         const from = (this._leadsPage - 1) * limit;
+01967:         const to = from + limit;
+01968:         
+01969:         const pageRows = filtered.slice(from, to);
+01970:         
+01971:         const countEl = document.getElementById("leads-count");
+01972:         if (countEl) countEl.textContent = filtered.length;
+01973:         
+01974:         this.renderLeads(pageRows);
+01975:         this.updateLeadsPager();
+01976:       },
+01977: 
+01978:         updateLeadsPager() {
+01979:           const limit = this._leadsLimit || 200;
+01980:           const page = this._leadsPage || 1;
+01981:           const total = this._leadsTotal || 0;
+01982:           const totalPages = Math.max(1, Math.ceil(total / limit));
+01983:         
+01984:           const info = document.getElementById("leads-page-info");
+01985:           const prev = document.getElementById("leads-prev-page");
+01986:           const next = document.getElementById("leads-next-page");
+01987:         
+01988:           if (info) {
+01989:             const start = total === 0 ? 0 : ((page - 1) * limit) + 1;
+01990:             const end = Math.min(page * limit, total);
+01991:             info.textContent = `Page ${page} of ${totalPages} - Showing ${start}-${end} of ${total}`;
+01992:           }
+01993:         
+01994:           if (prev) prev.disabled = page <= 1;
+01995:           if (next) next.disabled = page >= totalPages;
+01996:         },
+01997: 
+01998:       bindLeadsMasterEvents() {
+01999:         if (this._leadsFiltersBound) return;
+02000:         this._leadsFiltersBound = true;
+02001: 
+02002:         const els = [
+02003:           "leads-search",
+02004:           "leads-filter-status",
+02005:           "leads-filter-company",
+02006:           "leads-filter-ac",
+02007:           "leads-filter-homeowner",
+02008:           "leads-date-start",
+02009:           "leads-date-end"
+02010:         ];
+02011: 
+02012:         els.forEach(id => {
+02013:           const el = document.getElementById(id);
+02014:           if (!el) return;
+02015:           const evt = (id === "leads-search") ? "input" : "change";
+02016:           el.addEventListener(evt, () => this.applyLeadsFilters(1));
+02017:         });
+02018: 
+02019:         const clearBtn = document.getElementById("leads-clear");
+02020:         if (clearBtn) {
+02021:           clearBtn.addEventListener("click", () => {
+02022:             const s = document.getElementById("leads-search"); if (s) s.value = "";
+02023:             const a = document.getElementById("leads-filter-status"); if (a) a.value = "all";
+02024:             const b = document.getElementById("leads-filter-company"); if (b) b.value = "all";
+02025:             const c = document.getElementById("leads-filter-ac"); if (c) c.value = "all";
+02026:             const d = document.getElementById("leads-filter-homeowner"); if (d) d.value = "all";
+02027:             const ds = document.getElementById("leads-date-start"); if (ds) ds.value = "";
+02028:             const de = document.getElementById("leads-date-end"); if (de) de.value = "";
+02029:             this.applyLeadsFilters(1);
+02030:           });
+02031:         }
+02032:           const leadsBody = document.getElementById("leads-table-body");
+02033: 
+02034: if (leadsBody && !leadsBody.dataset.feedbackBound) {
+02035:   leadsBody.dataset.feedbackBound = "true";
+02036: 
+02037:   leadsBody.addEventListener("click", (e) => {
+02038:     const btn = e.target.closest("[data-feedback-edit='true']");
+02039:     if (!btn) return;
+02040: 
+02041:     e.preventDefault();
+02042:     e.stopPropagation();
+02043: 
+02044:     const leadId = decodeURIComponent(btn.dataset.leadId || "");
+02045:     const feedback = decodeURIComponent(btn.dataset.feedback || "");
+02046:     const highlighted = btn.dataset.highlighted === "true";
+02047: 
+02048:     this.editRejectionReason(leadId, feedback, "EDIT");
+02049:     
+02050:     const highlightEl = document.getElementById("rejection-modal-highlight");
+02051:     if (highlightEl) {
+02052:       highlightEl.checked = highlighted;
+02053:     }
+02054:   });
+02055: }
+02056:       },
+02057: 
+02058:       normalizeCompanyName(name) {
+02059:         return String(name || "")
+02060:           .toLowerCase()
+02061:           .replace(/&/g, "and")
+02062:           .replace(/[^a-z0-9\s]/g, " ")
+02063:           .replace(/\s+/g, " ")
+02064:           .trim();
+02065:       },
+02066: 
+02067:       normalizeCode(code) {
+02068:         return String(code || "").toLowerCase().replace(/\s+/g, "").trim();
+02069:       },
+02070: 
+02071:       getSoldByForClient(code) {
+02072:         try {
+02073:           const raw = localStorage.getItem("ch_soldby_map");
+02074:           const obj = raw ? JSON.parse(raw) : {};
+02075:           return obj?.[code] || "";
+02076:         } catch (e) { return ""; }
+02077:       },
+02078: 
+02079:       setSoldByForClient(code, value) {
+02080:         try {
+02081:           const raw = localStorage.getItem("ch_soldby_map");
+02082:           const obj = raw ? JSON.parse(raw) : {};
+02083:           obj[code] = value;
+02084:           localStorage.setItem("ch_soldby_map", JSON.stringify(obj));
+02085:         } catch (e) {}
+02086:       },
+02087: 
+02088:       normalizeClientStatus(v) {
+02089:         const s = String(v || "").trim().toUpperCase();
+02090:         if (s.includes("CRITICAL")) return "CRITICAL";
+02091:         if (s.includes("YELLOW") || s.includes("RISK") || s.includes("AT RISK")) return "AT RISK";
+02092:         if (s.includes("GREEN") || s.includes("HEALTHY")) return "HEALTHY";
+02093:         if (s.includes("NOT STARTED") || s.includes("BLUE")) return "NOT STARTED";
+02094:         return s || "UNKNOWN";
+02095:       },
+02096: 
+02097:       normalizePackageStatus(v) {
+02098:         const s = String(v || "").trim().toUpperCase();
+02099:         if (s.startsWith("PAUS")) return "PAUSE";
+02100:         if (s.includes("REFUND")) return "REFUNDED";
+02101:         if (s.includes("COMPLET")) return "COMPLETED";
+02102:         if (s.includes("ACTIVE")) return "ACTIVE";
+02103:         return s || "—";
+02104:       },
+02105: 
+02106:       statusDotClass(clientStatus) {
+02107:         if (clientStatus === "CRITICAL") return "st-critical";
+02108:         if (clientStatus === "AT RISK") return "st-risk";
+02109:         if (clientStatus === "HEALTHY") return "st-healthy";
+02110:         return "st-new";
+02111:       },
+02112: 
+02113:       extractRoofingCompany(c) { return this.pick(c, ["company_name", "roofing_company", "Company Name"], "—"); },
+02114:       extractCityState(c) { return this.pick(c, ["area", "city_state", "Location"], "—"); },
+02115:       extractClientName(c) { return this.pick(c, ["contact_person", "client_name", "Client Name"], "—"); },
+02116:       extractCode(c) { return this.pick(c, ["code_name", "client_code", "Client Code"], "N/A"); },
+02117: 
+02118:       buildLeadIndex(leads) {
+02119:         const byCompany = new Map();
+02120:         const byCode = new Map();
+02121: 
+02122:         for (const l of (leads || [])) {
+02123:           const company = this.pick(l, ["Company Name","company_name","Client"], "");
+02124:           const companyKey = this.normalizeCompanyName(company);
+02125:           const leadCode = this.pick(l, ["Client Code","CLIENT CODE","Code Name","CODE NAME","Code","CODE"], "");
+02126:           const codeKey = this.normalizeCode(leadCode);
+02127:           const st = this.pick(l, ["Status","STATUS"], "");
+02128:           const dStr = this.pick(l, ["Date Submitted","DATE SUBMITTED","Date","DATE"], "");
+02129:           const dt = window.portal?.parseDateSafe ? window.portal.parseDateSafe(dStr) : new Date(dStr);
+02130:           if (!dt || isNaN(dt.getTime())) continue;
+02131: 
+02132:           const push = (map, key) => {
+02133:             if (!key) return;
+02134:             const arr = map.get(key) || [];
+02135:             arr.push({ dt, status: st });
+02136:             map.set(key, arr);
+02137:           };
+02138: 
+02139:           push(byCompany, companyKey);
+02140:           push(byCode, codeKey);
+02141:         }
+02142:         return { byCompany, byCode };
+02143:       },
+02144: 
+02145:       countQualifiedCreditedFrom(list, startDt) {
+02146:         const out = { qualified: 0, credited: 0 };
+02147:         const start = (startDt && !isNaN(startDt.getTime()))
+02148:           ? new Date(startDt.getFullYear(), startDt.getMonth(), startDt.getDate(), 0, 0, 0, 0)
+02149:           : null;
+02150: 
+02151:         for (const item of (list || [])) {
+02152:           if (!item?.dt || isNaN(item.dt.getTime())) continue;
+02153:           if (start && item.dt < start) continue;
+02154:           if (this.isQualified(item.status)) out.qualified += 1;
+02155:           else if (this.isCredited(item.status)) out.credited += 1;
+02156:         }
+02157:         return out;
+02158:       },
+02159: 
+02160:       computeOwedRemaining(purchased, qualified) {
+02161:         const p = Number(purchased) || 0;
+02162:         const q = Number(qualified) || 0;
+02163:         return Math.max(p - q, 0);
+02164:       },
+02165: 
+02166:       getPurchasedLeads(c) {
+02167:         return Number(this.pick(c, [
+02168:           "purchased_leads","Purchased Leads","PURCHASED LEADS","Purchased",
+02169:           "package_size","Package Size","PACKAGE SIZE"
+02170:         ], 0)) || 0;
+02171:       },
+02172: 
+02173:       toggleSort(key) {
+02174:         if (this.sortState.key === key) { this.sortState.dir = this.sortState.dir === "asc" ? "desc" : "asc"; } 
+02175:         else { this.sortState.key = key; this.sortState.dir = "asc"; }
+02176:         document.querySelectorAll(".sort-icon").forEach(i => i.textContent = "↕");
+02177:         const icon = document.getElementById(`sort-${key}`);
+02178:         if (icon) icon.textContent = this.sortState.dir === "asc" ? "↑" : "↓";
+02179:       },
+02180: 
+02181:       computeTotalOwedLeads(packageStatus = "all") {
+02182:   const rows = Array.isArray(this.clientHealthRaw) ? this.clientHealthRaw : [];
+02183:   let total = 0;
+02184: 
+02185:   for (const r of rows) {
+02186:     if (String(r.dealStatus || "").toUpperCase() === "NEGOTIATING") continue;
+02187:     if (packageStatus !== "all" && String(r.packageStatus || "").toUpperCase() !== packageStatus) continue;
+02188:     total += Number(r.owedRemaining) || 0;
+02189:   }
+02190: 
+02191:   return total;
+02192: },
+02193: 
+02194:       bindOwedLeadsKPI() {
+02195:         const sel = document.getElementById("owed-package-filter");
+02196:         if (!sel || this._owedKpiBound) return;
+02197:         this._owedKpiBound = true;
+02198:         sel.addEventListener("change", () => this.updateOwedLeadsKPI());
+02199:       },
+02200: 
+02201:       updateOwedLeadsKPI() {
+02202:         const sel = document.getElementById("owed-package-filter");
+02203:         const val = sel ? sel.value : "all";
+02204: 
+02205:         const total = this.computeTotalOwedLeads(val);
+02206:         const el = document.getElementById("pulse-owed");
+02207:         if (el) el.textContent = total;
+02208: 
+02209:         const sub = document.getElementById("pulse-owed-sub");
+02210:         if (sub) sub.textContent = (val === "all") ? "All package statuses" : `${val} packages`;
+02211:       },
+02212: 
+02213:       setAnalyticsPeriod(period, btnElement) {
+02214:         this.analyticsPeriod = period;
+02215:         if (period !== "custom") { this._customRange.active = false; }
+02216:         if (btnElement) {
+02217:           document.querySelectorAll('.analytics-btn').forEach(b => {
+02218:             b.classList.remove('bg-white', 'shadow', 'text-gray-900');
+02219:             b.classList.add('text-gray-500');
+02220:           });
+02221:           btnElement.classList.add('bg-white', 'shadow', 'text-gray-900');
+02222:           btnElement.classList.remove('text-gray-500');
+02223:         }
+02224:         this.updateAnalytics(period);
+02225:       },
+02226: 
+02227:       getRangeFor(period, leads) {
+02228:         const now = new Date();
+02229:         const startOfDay = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+02230:         const endOfDay   = (d) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
+02231: 
+02232:         const getPayrollWeekRangeLocal = (d) => {
+02233:           const x = new Date(d);
+02234:           const day = x.getDay(); 
+02235:           const diffToSat = (day - 6);
+
+## Lines 2252-2705 | credited@2287, credited@2330, credited@2355, credited@2359, credited@2375, credited@2437, credited@2438, credited@2439, credited@2440, credited@2454, credited@2455, credited@2516, credited@2517, credited@2543, credited@2544, credited@2555, credited@2574, credited@2580, credited@2582, credited@2587, credited@2593, credited@2595, credited@2625
+02252:         localPrevStart.setDate(localPrevStart.getDate() - 7);
+02253:         const localPrev = getPayrollWeekRangeLocal(localPrevStart);
+02254: 
+02255:         const prevWeekStart = (payrollPrev?.start && !isNaN(new Date(payrollPrev.start).getTime())) ? new Date(payrollPrev.start) : localPrev.start;
+02256:         const prevWeekEndFinal = (payrollPrev?.end && !isNaN(new Date(payrollPrev.end).getTime())) ? new Date(payrollPrev.end) : localPrev.end;
+02257: 
+02258:         if (period === "custom" && this._customRange.active) {
+02259:           return { start: startOfDay(new Date(this._customRange.start + "T00:00:00")), end: endOfDay(new Date(this._customRange.end + "T23:59:59")), grain: "day", label: "Custom Range" };
+02260:         }
+02261:         
+02262:         if (period === "all-time") {
+02263:           const dates = (leads || []).map(l => this.getLeadDateObj(l)).filter(d => d && !isNaN(d.getTime())).sort((a,b) => a - b);
+02264:           if (!dates.length) return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "All-Time" };
+02265:           const start = startOfDay(dates[0]);
+02266:           const end   = endOfDay(dates[dates.length - 1]);
+02267:           return { start, end, grain: "week", label: "All-Time" };
+02268:         }
+02269: 
+02270:         if (period === "today") return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "Today" };
+02271:         if (period === "this-week") return { start: startOfDay(thisWeekStart), end: endOfDay(thisWeekEnd), grain: "day", label: "This Week" };
+02272:         if (period === "previous-week") return { start: startOfDay(prevWeekStart), end: endOfDay(prevWeekEndFinal), grain: "day", label: "Previous Week" };
+02273: 
+02274:         if (period === "4-weeks") {
+02275:           const end = endOfDay(thisWeekEnd); const start = new Date(end); start.setDate(start.getDate() - 27); start.setHours(0,0,0,0);
+02276:           return { start, end, grain: "week", label: "Last 4 Weeks" };
+02277:         }
+02278:         if (period === "6-weeks") {
+02279:           const end = endOfDay(thisWeekEnd); const start = new Date(end); start.setDate(start.getDate() - 41); start.setHours(0,0,0,0);
+02280:           return { start, end, grain: "week", label: "Last 6 Weeks" };
+02281:         }
+02282:         return { start: startOfDay(now), end: endOfDay(now), grain: "day", label: "Today" };
+02283:       },
+02284: 
+02285:       isQualified(st) { const s = String(st || "").toLowerCase(); return s.includes("confirm") || s.includes("approve"); },
+02286:       isRejected(st) { const s = String(st || "").toLowerCase(); return s.includes("reject"); },
+02287:       isCredited(st) { const s = String(st || "").toLowerCase(); return s.includes("credit"); },
+02288:       isPendingReview(st) { const s = String(st || "").toLowerCase(); return s.includes("pending"); },
+02289: 
+02290:       statusBadge(status) {
+02291:         const s = String(status || "").toLowerCase();
+02292:         let cls = "bg-gray-100 text-gray-700 border-gray-200";
+02293:         if (s.includes("approved") || s.includes("confirmed")) cls = "bg-emerald-100 text-emerald-800 border-emerald-200";
+02294:         if (s.includes("rejected") || s.includes("credit"))    cls = "bg-red-100 text-red-800 border-red-200";
+02295:         return `<span class="px-2 py-1 rounded-full text-xs font-extrabold border ${cls}">${status || "—"}</span>`;
+02296:       },
+02297: 
+02298:       _fmtDateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; },
+02299:       _fmtWeekKey(d) {
+02300:         const x = new Date(d);
+02301:         const day = x.getDay(); 
+02302:         const diffToSat = (day - 6);
+02303:         x.setDate(x.getDate() - diffToSat);
+02304:         x.setHours(0,0,0,0);
+02305:         return this._fmtDateKey(x);
+02306:       },
+02307: 
+02308:       _buildBuckets(start, end, grain) {
+02309:         const buckets = []; let cursor = new Date(start); cursor.setHours(0,0,0,0);
+02310:         if (grain === "day") { while (cursor <= end) { buckets.push(this._fmtDateKey(cursor)); cursor.setDate(cursor.getDate() + 1); } return buckets; }
+02311:         if (grain === "week") { let wkCursor = new Date(this._fmtWeekKey(cursor) + "T00:00:00"); while (wkCursor <= end) { buckets.push(this._fmtDateKey(wkCursor)); wkCursor.setDate(wkCursor.getDate() + 7); } return buckets; }
+02312:         return buckets;
+02313:       },
+02314: 
+02315:       _bucketKeyFor(dt, grain) {
+02316:         if (grain === "day") return this._fmtDateKey(dt);
+02317:         if (grain === "week") return this._fmtDateKey(new Date(this._fmtWeekKey(dt) + "T00:00:00"));
+02318:         return this._fmtDateKey(dt);
+02319:       },
+02320: 
+02321:       _renderAnalyticsChart(labels, series) {
+02322:         const ctx = document.getElementById("team-analytics-chart");
+02323:         if (!ctx) return;
+02324:         if (this._analyticsChart) { this._analyticsChart.destroy(); }
+02325:         this._analyticsChart = new Chart(ctx, {
+02326:           type: "bar",
+02327:           data: { labels, datasets: [
+02328:             { label: "Qualified",   data: series.qualified, stack: "stack", backgroundColor: "#3B82F6" }, 
+02329:             { label: "QC Rejected", data: series.rejected,  stack: "stack", backgroundColor: "#EF4444" }, 
+02330:             { label: "Credited",    data: series.credited,  stack: "stack", backgroundColor: "#A855F7" }, 
+02331:             { label: "Pending",     data: series.pending,   stack: "stack", backgroundColor: "#FACC15" }, 
+02332:           ]},
+02333:           options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
+02334:         });
+02335:       },
+02336: 
+02337:             updateAnalytics(period) {
+02338:         const state = this.getState();
+02339:         const leads = Array.isArray(state?.leads) ? state.leads : [];
+02340:         const agents = Array.isArray(state?.agents) ? state.agents : [];
+02341:         const { start, end, grain, label } = this.getRangeFor(period, leads);
+02342: 
+02343:         const rangeEl = document.getElementById("kpi-range");
+02344:         if (rangeEl) rangeEl.textContent = `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
+02345: 
+02346:         const topLabel = document.getElementById("top10-label");
+02347:         if (topLabel) topLabel.textContent = label;
+02348: 
+02349:         const botLabel = document.getElementById("bottom5-label");
+02350:         if (botLabel) botLabel.textContent = label;
+02351: 
+02352:         const grainEl = document.getElementById("trend-grain");
+02353:         if (grainEl) grainEl.textContent = grain === "day" ? "Daily" : "Weekly";
+02354: 
+02355:         let total = 0, qualified = 0, rejected = 0, credited = 0, pending = 0;
+02356: 
+02357:         const buckets = this._buildBuckets(start, end, grain);
+02358:         const seriesMap = new Map();
+02359:         buckets.forEach(b => seriesMap.set(b, { qualified: 0, rejected: 0, credited: 0, pending: 0 }));
+02360: 
+02361:         const normalizeAgentName = (raw) => {
+02362:           const picked = String(raw || "").trim();
+02363:           if (!picked) return "";
+02364:           if (typeof this.getOfficialAgentName === "function") {
+02365:             return this.getOfficialAgentName(picked);
+02366:           }
+02367:           return picked;
+02368:         };
+02369: 
+02370:         const buildEmptyAgg = (name) => ({
+02371:           name,
+02372:           total: 0,
+02373:           qualified: 0,
+02374:           rejected: 0,
+02375:           credited: 0,
+02376:           pending: 0
+02377:         });
+02378: 
+02379:         const inRangeLeads = [];
+02380:         const leadAgentNames = new Set();
+02381: 
+02382:         leads.forEach(l => {
+02383:           const dt = this.getLeadDateObj(l);
+02384:           if (!dt || dt < start || dt > end) return;
+02385: 
+02386:           const rawAgent = this.pick(
+02387:             l,
+02388:             ["Appointment Coordinator Name", "appointment_coordinator_name", "agent_name", "Agent Name", "AGENT"],
+02389:             ""
+02390:           );
+02391: 
+02392:           const agent = normalizeAgentName(rawAgent);
+02393:           if (!agent) return;
+02394: 
+02395:           const st = this.pick(l, ["Status", "STATUS", "status", "Lead_Status"], "");
+02396:           inRangeLeads.push({ lead: l, dt, agent, status: st });
+02397:           leadAgentNames.add(agent);
+02398:         });
+02399: 
+02400:         const hasAnyLeadActivity = inRangeLeads.length > 0;
+02401: 
+02402:         // Current active roster only for current operational periods.
+02403:         // For historical periods, rely on actual timeframe lead activity so offboarded names can still show.
+02404:         const currentOperationalPeriods = new Set(["today", "this-week"]);
+02405:         const useCurrentActiveRosterForBottom = currentOperationalPeriods.has(period);
+02406: 
+02407:                         const activeRoster = new Set();
+02408:         agents.forEach(a => {
+02409:           if (!this.isSetterAnalyticsAgent(a)) return;
+02410: 
+02411:           const name = normalizeAgentName(
+02412:             this.pick(a, ["agent_name", "Employee Name", "Name", "Agent Name", "Full Name", "appointment_coordinator_name"], "")
+02413:           );
+02414: 
+02415:           if (name) activeRoster.add(name);
+02416:         });
+02417: 
+02418:         const agentAgg = new Map();
+02419: 
+02420:         inRangeLeads.forEach(({ dt, agent, status }) => {
+02421:           total++;
+02422: 
+02423:           const a = agentAgg.get(agent) || buildEmptyAgg(agent);
+02424:           a.total++;
+02425: 
+02426:           const bk = this._bucketKeyFor(dt, grain);
+02427:           const bRow = seriesMap.get(bk);
+02428: 
+02429:           if (this.isQualified(status)) {
+02430:             qualified++;
+02431:             a.qualified++;
+02432:             if (bRow) bRow.qualified++;
+02433:           } else if (this.isRejected(status)) {
+02434:             rejected++;
+02435:             a.rejected++;
+02436:             if (bRow) bRow.rejected++;
+02437:           } else if (this.isCredited(status)) {
+02438:             credited++;
+02439:             a.credited++;
+02440:             if (bRow) bRow.credited++;
+02441:           } else {
+02442:             pending++;
+02443:             a.pending++;
+02444:             if (bRow) bRow.pending++;
+02445:           }
+02446: 
+02447:           agentAgg.set(agent, a);
+02448:         });
+02449: 
+02450:         // Build Top list from agents with actual lead activity only
+02451:         const topPool = Array.from(agentAgg.values())
+02452:   .map(a => ({
+02453:     ...a,
+02454:     cancelRate: (a.qualified + a.credited) > 0
+02455:       ? Math.round((a.credited / (a.qualified + a.credited)) * 100)
+02456:       : 0
+02457:   }))
+02458:   .filter(a =>
+02459:     a.total > 0 &&
+02460:     String(a.name || '').trim().toLowerCase() !== 'call hammer leads'
+02461:   )
+02462:   .sort((a, b) =>
+02463:     (b.qualified - a.qualified) ||
+02464:     (b.total - a.total) ||
+02465:     (a.cancelRate - b.cancelRate) ||
+02466:     (a.rejected - b.rejected) ||
+02467:     a.name.localeCompare(b.name)
+02468:   );
+02469: 
+02470: const rankedTop = [];
+02471: let lastRank = 0;
+02472: let lastQualified = null;
+02473: let lastTotal = null;
+02474: let lastCancel = null;
+02475: let lastRejected = null;
+02476: 
+02477: topPool.forEach((a, index) => {
+02478:   const sameAsPrev =
+02479:     lastQualified === a.qualified &&
+02480:     lastTotal === a.total &&
+02481:     lastCancel === a.cancelRate &&
+02482:     lastRejected === a.rejected;
+02483: 
+02484:   const rankNo = sameAsPrev ? lastRank : index + 1;
+02485: 
+02486:   rankedTop.push({
+02487:     ...a,
+02488:     rankNo
+02489:   });
+02490: 
+02491:   lastRank = rankNo;
+02492:   lastQualified = a.qualified;
+02493:   lastTotal = a.total;
+02494:   lastCancel = a.cancelRate;
+02495:   lastRejected = a.rejected;
+02496: });
+02497: 
+02498: const top = rankedTop.filter(a => a.rankNo <= 10);
+02499: 
+02500:         // Build Bottom pool
+02501:         let bottomPoolNames = new Set();
+02502: 
+02503:         if (useCurrentActiveRosterForBottom) {
+02504:           activeRoster.forEach(name => bottomPoolNames.add(name));
+02505:           leadAgentNames.forEach(name => bottomPoolNames.add(name));
+02506:         } else {
+02507:           leadAgentNames.forEach(name => bottomPoolNames.add(name));
+02508:         }
+02509: 
+02510:         const bottomPool = Array.from(bottomPoolNames)
+02511:   .filter(name => String(name || '').trim().toLowerCase() !== 'call hammer leads')
+02512:   .map(name => {
+02513:     const base = agentAgg.get(name) || buildEmptyAgg(name);
+02514:     return {
+02515:       ...base,
+02516:       cancelRate: (base.qualified + base.credited) > 0
+02517:         ? Math.round((base.credited / (base.qualified + base.credited)) * 100)
+02518:         : 0
+02519:     };
+02520:   })
+02521:           
+02522:           .sort((a, b) =>
+02523:             (a.total - b.total) ||
+02524:             (a.qualified - b.qualified) ||
+02525:             (b.rejected - a.rejected) ||
+02526:             a.name.localeCompare(b.name)
+02527:           );
+02528: 
+02529:         let bottom = [];
+02530: if (hasAnyLeadActivity && bottomPool.length > 0) {
+02531:   if (bottomPool.length <= 5) {
+02532:     bottom = bottomPool.slice();
+02533:   } else {
+02534:     const firstFive = bottomPool.slice(0, 5);
+02535:     const cutoffTotal = firstFive[firstFive.length - 1].total;
+02536: 
+02537:     bottom = bottomPool.filter((a, idx) => {
+02538:       if (idx < 5) return true;
+02539:       return a.total === cutoffTotal;
+02540:     });
+02541:   }
+02542: }
+02543:         const cancelRate = (qualified + credited) > 0
+02544:           ? Math.round((credited / (qualified + credited)) * 100)
+02545:           : 0;
+02546: 
+02547:         const setText = (id, val) => {
+02548:           const el = document.getElementById(id);
+02549:           if (el) el.textContent = val;
+02550:         };
+02551: 
+02552:                 setText("kpi-total", total);
+02553:         setText("kpi-qc-rejected", rejected);
+02554:         setText("kpi-qualified", qualified);
+02555:         setText("kpi-credited", credited);
+02556:         setText("kpi-pending", pending);
+02557:         setText("kpi-cancel", `${cancelRate}%`);
+02558: 
+02559:               const getPlaceLabel = (rank) => {
+02560:   if (rank === 1) return '🥇 1st Place';
+02561:   if (rank === 2) return '🥈 2nd Place';
+02562:   if (rank === 3) return '🥉 3rd Place';
+02563:   if (rank === 4) return '4th Place';
+02564:   if (rank === 5) return '5th Place';
+02565:   if (rank === 6) return '6th Place';
+02566:   if (rank === 7) return '7th Place';
+02567:   if (rank === 8) return '8th Place';
+02568:   if (rank === 9) return '9th Place';
+02569:   if (rank === 10) return '10th Place';
+02570:   return `${rank}th Place`;
+02571: };
+02572: 
+02573:         const renderTopRow = (a) => {
+02574:   const d = a.qualified + a.credited;
+02575:   return `<tr>
+02576:     <td class="p-4 font-bold text-gray-900">${getPlaceLabel(a.rankNo)} — ${a.name}</td>
+02577:     <td class="p-4 text-center text-gray-600 font-semibold">${a.total}</td>
+02578:     <td class="p-4 text-center text-red-500 font-bold">${a.rejected}</td>
+02579:     <td class="p-4 text-center text-blue-500 font-bold">${a.qualified}</td>
+02580:     <td class="p-4 text-center text-purple-500 font-bold">${a.credited}</td>
+02581:     <td class="p-4 text-center text-yellow-600 font-bold">${a.pending}</td>
+02582:     <td class="p-4 text-center text-gray-600 font-semibold">${d > 0 ? Math.round((a.credited / d) * 100) : 0}%</td>
+02583:   </tr>`;
+02584: };
+02585: 
+02586: const renderBottomRow = (a) => {
+02587:   const d = a.qualified + a.credited;
+02588:   return `<tr>
+02589:     <td class="p-4 font-bold text-gray-900">${a.name}</td>
+02590:     <td class="p-4 text-center text-gray-600 font-semibold">${a.total}</td>
+02591:     <td class="p-4 text-center text-red-500 font-bold">${a.rejected}</td>
+02592:     <td class="p-4 text-center text-blue-500 font-bold">${a.qualified}</td>
+02593:     <td class="p-4 text-center text-purple-500 font-bold">${a.credited}</td>
+02594:     <td class="p-4 text-center text-yellow-600 font-bold">${a.pending}</td>
+02595:     <td class="p-4 text-center text-gray-600 font-semibold">${d > 0 ? Math.round((a.credited / d) * 100) : 0}%</td>
+02596:   </tr>`;
+02597: };
+02598: 
+02599:         const topBody = document.getElementById("top10-body");
+02600:         const bottomBody = document.getElementById("bottom5-body");
+02601: 
+02602:         if (topBody) {
+02603:           if (!hasAnyLeadActivity) {
+02604:             topBody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No lead activity yet for this timeframe.</td></tr>';
+02605:           } else if (!top.length) {
+02606:             topBody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No agents with lead activity.</td></tr>';
+02607:           } else {
+02608:             topBody.innerHTML = top.map(renderTopRow).join("");
+02609:           }
+02610:         }
+02611: 
+02612:         if (bottomBody) {
+02613:           if (!hasAnyLeadActivity) {
+02614:             bottomBody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No lead activity yet for this timeframe.</td></tr>';
+02615:           } else if (!bottom.length) {
+02616:             bottomBody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No bottom performers for this timeframe.</td></tr>';
+02617:           } else {
+02618:             bottomBody.innerHTML = bottom.map(renderBottomRow).join("");
+02619:           }
+02620:         }
+02621: 
+02622:         this._renderAnalyticsChart(buckets, {
+02623:           qualified: buckets.map(b => seriesMap.get(b).qualified),
+02624:           rejected: buckets.map(b => seriesMap.get(b).rejected),
+02625:           credited: buckets.map(b => seriesMap.get(b).credited),
+02626:           pending: buckets.map(b => seriesMap.get(b).pending),
+02627:         });
+02628:               this.updateOverviewTopCardsFromAnalyticsCounts(qualified, pending, period, leads);
+02629:       },
+02630: 
+02631:       updateOverviewTopCardsFromAnalyticsCounts(qualifiedCount, pendingCount, period, leads) {
+02632:   const pulseProfit = document.getElementById("pulse-profit");
+02633:   const pulsePending = document.getElementById("pulse-pending");
+02634: 
+02635:   let estValue = 0;
+02636: 
+02637:   const { start, end } = this.getRangeFor(period, leads || []);
+02638:   const cutoff = new Date("2026-03-09T00:00:00");
+02639: 
+02640:   (Array.isArray(leads) ? leads : []).forEach(l => {
+02641:     const dt = this.getLeadDateObj(l);
+02642:     if (!dt || dt < start || dt > end) return;
+02643: 
+02644:     const st = String(this.pick(l, ["Status", "STATUS", "status", "Lead_Status"], "")).toLowerCase();
+02645: 
+02646:     const isQualified = st.includes("confirm") || st.includes("approve");
+02647:     if (!isQualified) return;
+02648: 
+02649:     estValue += (dt >= cutoff ? 135 : 125);
+02650:   });
+02651: 
+02652:   if (pulseProfit) {
+02653:     pulseProfit.textContent = estValue.toLocaleString("en-US", {
+02654:       style: "currency",
+02655:       currency: "USD"
+02656:     });
+02657:   }
+02658: 
+02659:   if (pulsePending) {
+02660:     pulsePending.textContent = String(Number(pendingCount || 0));
+02661:   }
+02662: },
+02663: 
+02664:                   renderClientCards(clients) {
+02665:         const container = document.getElementById('client-cards-container');
+02666:         if (!container) return;
+02667: 
+02668:         container.innerHTML = (clients || []).map(client => {
+02669:           const canDeletePassbook = false;
+02670:           const code = this.extractCode(client);
+02671: 
+02672:           return `<div class="text-left bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition relative" data-passbook-code="${code}" data-passbook-client-code="${code}">
+02673: 
+02674:             <div onclick="Admin.openPassbookClient('${String(code).replace(/'/g, "\\'")}')" class="cursor-pointer">
+02675:                 <div class="flex items-center justify-between">
+02676:                     <h3 class="font-bold text-gray-900 text-lg">${code}</h3>
+02677:                 </div>
+02678:                 <p class="text-xs text-gray-500 mt-1">${this.extractCityState(client)}</p>
+02679:                 <p class="text-[10px] font-extrabold text-yellow-600 uppercase tracking-wider mt-3">Click to open</p>
+02680:             </div>
+02681: 
+02682:             <div class="mt-4 pt-3 border-t border-gray-100 flex justify-end items-center relative z-10">
+02683:                 <div class="flex items-center gap-2">
+02684:                   <span class="px-2 py-1 rounded-full text-[10px] font-extrabold border shadow-sm ${window.getClientStatusColor ? getClientStatusColor(client.client_status) : ''}">
+02685:                       ${String(client.client_status || 'Inactive').toUpperCase()}
+02686:                   </span>
+02687: 
+02688:                   ${canDeletePassbook ? `
+02689:                   <button onclick="deletePassbookClient('${client.id}', '${client.company_name}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Client">
+02690:                       <i class="fa-solid fa-trash-can"></i>
+02691:                   </button>
+02692:                   ` : ``}
+02693:                 </div>
+02694:             </div>
+02695:         </div>`;
+02696:         }).join('') || '<div class="p-6 text-center text-gray-400 italic bg-white rounded-2xl border border-gray-100 shadow-sm">No results</div>';
+02697: 
+02698:         this.paintCurrentCardsRed();
+02699:       },
+02700: 
+02701:       openPassbookClient(codeName) { 
+02702:         this._openPassbookModalShell(codeName); 
+02703:         this._fetchAndRenderPassbookClient(codeName); 
+02704:       },
+02705:       
+
+## Lines 2861-3025 | highlight@2896, highlight@2903, lead_id@2904, feedback@2905, highlight@2905, highlight@2921, highlight@2927, feedback@2933, highlight@2934, feedback@2942, feedback@2943, highlight@2943, feedback@2945, highlight@2945
+02861: 
+02862:           <span class="px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-[10px] font-black">
+02863:             ${changes.length} field${changes.length === 1 ? "" : "s"}
+02864:           </span>
+02865:         </div>
+02866: 
+02867:         <div class="mt-3 space-y-2">
+02868:           ${changes.map(change => {
+02869:             const fieldKey = String(change.field || "").toLowerCase();
+02870: 
+02871:             return `
+02872:               <div class="rounded-xl bg-gray-50 border border-gray-100 p-3 text-xs">
+02873:                 <div class="font-black text-gray-700 uppercase">
+02874:                   ${labels[fieldKey] || this.escapeHtml(fieldKey)}
+02875:                 </div>
+02876: 
+02877:                 <div class="mt-1 whitespace-pre-wrap">
+02878:                   <span class="text-gray-400 line-through">${formatValue(change.old_value ?? change.oldValue)}</span>
+02879:                   <span class="mx-2 text-gray-400">→</span>
+02880:                   <span class="font-black text-emerald-700">${formatValue(change.new_value ?? change.newValue)}</span>
+02881:                 </div>
+02882:               </div>
+02883:             `;
+02884:           }).join("")}
+02885:         </div>
+02886:       </div>
+02887:     `;
+02888:   }).join("");
+02889: },
+02890: 
+02891:             openRejectionReasonModal(leadId, nextStatus, existingReason = "") {
+02892:         const modal = document.getElementById("rejection-reason-modal");
+02893:         const leadIdEl = document.getElementById("rejection-modal-lead-id");
+02894:         const statusEl = document.getElementById("rejection-modal-next-status");
+02895:         const textEl = document.getElementById("rejection-modal-text");
+02896:         const highlightEl = document.getElementById("rejection-modal-highlight");
+02897: 
+02898:         if (!modal || !leadIdEl || !statusEl || !textEl) return;
+02899: 
+02900:         leadIdEl.value = leadId || "";
+02901:         statusEl.value = nextStatus || "REJECTED";
+02902:         textEl.value = existingReason || "";
+02903:         if (highlightEl) {
+02904:   const lead = (this.getState().leads || []).find(l => String(l.lead_id) === String(leadId));
+02905:   highlightEl.checked = lead?.feedback_highlight === true;
+02906: }
+02907: 
+02908:         modal.classList.remove("hidden");
+02909: 
+02910:         setTimeout(() => {
+02911:           textEl.focus();
+02912:           textEl.setSelectionRange(textEl.value.length, textEl.value.length);
+02913:         }, 30);
+02914:       },
+02915: 
+02916:       closeRejectionReasonModal() {
+02917:         const modal = document.getElementById("rejection-reason-modal");
+02918:         const leadIdEl = document.getElementById("rejection-modal-lead-id");
+02919:         const statusEl = document.getElementById("rejection-modal-next-status");
+02920:         const textEl = document.getElementById("rejection-modal-text");
+02921:         const highlightEl = document.getElementById("rejection-modal-highlight");
+02922: 
+02923:         if (modal) modal.classList.add("hidden");
+02924:         if (leadIdEl) leadIdEl.value = "";
+02925:         if (statusEl) statusEl.value = "";
+02926:         if (textEl) textEl.value = "";
+02927:         if (highlightEl) highlightEl.checked = false;
+02928:       },
+02929: 
+02930:      async saveRejectionReasonModal() {
+02931:   const leadId = document.getElementById("rejection-modal-lead-id")?.value || "";
+02932:   const nextStatus = String(document.getElementById("rejection-modal-next-status")?.value || "").trim().toUpperCase();
+02933:   const feedback = String(document.getElementById("rejection-modal-text")?.value || "").trim();
+02934:   const highlighted = document.getElementById("rejection-modal-highlight")?.checked === true;
+02935: 
+02936:   if (!leadId) {
+02937:     alert("Missing lead ID.");
+02938:     return;
+02939:   }
+02940: 
+02941:   if (nextStatus.includes("REJECT")) {
+02942:     await updateLeadStatus(leadId, "REJECTED", feedback);
+02943:     await updateLeadFeedback(leadId, feedback, highlighted);
+02944:   } else {
+02945:     await updateLeadFeedback(leadId, feedback, highlighted);
+02946:   }
+02947: 
+02948:   this.closeRejectionReasonModal();
+02949: },
+02950: 
+02951:       editRejectionReason(leadId, currentReason = "", currentStatus = "REJECTED") {
+02952:         this.openRejectionReasonModal(leadId, currentStatus, currentReason);
+02953:       },
+02954: 
+02955:       async loadNotifications(force = false) {
+02956:   if (!window.portal) return;
+02957: 
+02958:   this.notificationsLoading = true;
+02959:   this.refreshNotificationsTab?.();
+02960: 
+02961:   const teamKey = window.portal.getCommandCenterTeamKey();
+02962:   const rows = await window.portal.fetchCommandCenterNotifications(teamKey, 100);
+02963: 
+02964:   this.notifications = Array.isArray(rows) ? rows : [];
+02965:   this.notificationsLoading = false;
+02966:   this.refreshNotificationsTab?.();
+02967:   await this.loadNotes?.();
+02968: },
+02969: 
+02970: async toggleNotificationFlag(eventId, currentValue) {
+02971:   const teamKey = window.portal.getCommandCenterTeamKey();
+02972:   await window.portal.setCommandCenterFlagged(eventId, teamKey, !currentValue);
+02973:   await this.loadNotifications(true);
+02974: },
+02975: 
+02976: async toggleNotificationDone(eventId, currentValue) {
+02977:   const teamKey = window.portal.getCommandCenterTeamKey();
+02978:   await window.portal.setCommandCenterDone(eventId, teamKey, !currentValue);
+02979:   await this.loadNotifications(true);
+02980: },
+02981: 
+02982:      async cycleNotificationState(eventId, isFlagged, isDone) {
+02983:   const teamKey = window.portal.getCommandCenterTeamKey();
+02984:   const existingItem = (this.notifications || []).find(item => {
+02985:     const ev = item?.command_center_events || {};
+02986:     return ev.id === eventId;
+02987:   });
+02988: 
+02989:   const event = existingItem?.command_center_events || {};
+02990:   let data = event.new_data || {};
+02991: 
+02992:   if (typeof data === 'string') {
+02993:     try { data = JSON.parse(data); } catch (e) { data = {}; }
+02994:   }
+02995: 
+02996:   const timeOffStatus = String(data.decision_status || data.status || '').toLowerCase();
+02997:   const isResolvedTimeOff =
+02998:     event.module_key === 'time_off' &&
+02999:     (timeOffStatus === 'approved' || timeOffStatus === 'declined');
+03000: 
+03001:   this.notifications = (this.notifications || []).map(item => {
+03002:     const ev = item?.command_center_events || {};
+03003:     if (ev.id !== eventId) return item;
+03004: 
+03005:     if (isResolvedTimeOff) {
+03006:       return {
+03007:         ...item,
+03008:         is_flagged: false,
+03009:         is_done: !isDone
+03010:       };
+03011:     }
+03012: 
+03013:     if (!isFlagged && !isDone) {
+03014:       return {
+03015:         ...item,
+03016:         is_flagged: true,
+03017:         is_done: false
+03018:       };
+03019:     }
+03020: 
+03021:     if (isFlagged && !isDone) {
+03022:       return {
+03023:         ...item,
+03024:         is_flagged: false,
+03025:         is_done: true
+
+## Lines 3220-3528 | renderLeads@3275, _leadsCols@3281, _leadsVisibleCols@3281, lead_id@3286, feedback@3289, feedback@3295, feedback@3307, data-lead@3308, feedback@3309, feedback@3310, highlight@3310, feedback@3312, feedback@3314, feedback@3315, highlight@3315, deleteLead@3348, credited@3339
+03220:                     <i class="fa-solid fa-note-sticky text-yellow-500"></i> Passbook Notes
+03221:                   </h4>
+03222:                   <p class="text-xs text-gray-500 mt-1">Use @all or @name to tag users. Red means direct tag, yellow means new general note, green means acknowledged.</p>
+03223:                 </div>
+03224:               </div>
+03225: 
+03226:               <div class="relative">
+03227:                 <textarea
+03228:                   id="passbook-note-draft"
+03229:                   rows="4"
+03230:                   class="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+03231:                   placeholder="Type @all to tag everyone, or @ then a name. Example: @all please review this client..."
+03232:                 ></textarea>
+03233: 
+03234:                 <div id="passbook-mention-suggestions" class="hidden absolute z-[200] left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-56 overflow-y-auto"></div>
+03235:               </div>
+03236: 
+03237:               <div id="passbook-mentioned-chips" class="mt-2 flex flex-wrap gap-2 text-[11px]"></div>
+03238: 
+03239:               <div class="flex justify-end mt-3">
+03240:                 <button
+03241:                   type="button"
+03242:                   onclick="Admin.savePassbookClientNote('${String(codeName).replace(/'/g, "\\'")}','${String(codeName).replace(/'/g, "\\'")}')"
+03243:                   class="px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-black hover:bg-yellow-500 hover:text-gray-900"
+03244:                 >
+03245:                   Save Note
+03246:                 </button>
+03247:               </div>
+03248: 
+03249:               <div id="passbook-notes-feed" class="mt-4 space-y-3">
+03250:                 <div class="p-3 rounded-xl bg-gray-50 text-sm text-gray-400 italic">Loading notes...</div>
+03251:               </div>
+03252:             </div>
+03253:           </div>
+03254:         `;
+03255: 
+03256:         document.getElementById("passbook-form-body").innerHTML = html;
+03257: 
+03258:         const textarea = document.getElementById("passbook-note-draft");
+03259:         if (textarea) {
+03260:           textarea.addEventListener("input", () => this.handlePassbookMentionInput(textarea));
+03261:           textarea.addEventListener("blur", () => {
+03262:             setTimeout(() => {
+03263:               const box = document.getElementById("passbook-mention-suggestions");
+03264:               if (box) box.classList.add("hidden");
+03265:             }, 150);
+03266:           });
+03267:         }
+03268: 
+03269:         this.loadOrgProfiles();
+03270:         this.renderPassbookHistory(codeName);
+03271:         this.renderPassbookNotes(codeName);
+03272:         this.setPassbookModalTab("details");
+03273:       },
+03274: 
+03275:             renderLeads(leads) {
+03276:         const tbody = document.getElementById('leads-table-body');
+03277:         const thead = document.getElementById('leads-table-head');
+03278:         if (!tbody || !thead) return;
+03279: 
+03280:         this.initLeadsColumnsUI();
+03281:         const visibleCols = this._leadsCols.filter(c => this._leadsVisibleCols.has(c.key));
+03282: 
+03283:         thead.innerHTML = `<tr>${visibleCols.map(c => `<th class="p-4">${c.label}</th>`).join("")}<th class="p-4 text-center">Actions</th></tr>`;
+03284: 
+03285:         tbody.innerHTML = leads.map(l => {
+03286:           const leadId = this.getLeadField(l, ["LEAD ID", "lead_id", "ID"], "unknown");
+03287:           const currentStatusRaw = this.getLeadField(l, ["status", "Status", "STATUS", "Lead_Status"], "");
+03288:           const safeVal = String(currentStatusRaw).toUpperCase();
+03289:           const rejectionReason = this.getLeadField(l, ["feedback", "Feedback", "rejection_reason", "Rejection Reason"], "");
+03290: 
+03291:           return `<tr class="hover:bg-gray-50 transition-colors">
+03292:             ${visibleCols.map(c => {
+03293:               const rawVal = this.getLeadField(l, c.keys);
+03294: 
+03295:               if (c.key === "feedback") {
+03296:                 const safeReason = String(rawVal || "");
+03297:                 const safeLeadId = String(leadId).replace(/'/g, "\\'");
+03298:                 const safeReasonHtml = safeReason
+03299:                   ? safeReason.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+03300:                   : "";
+03301:                 const safeStatusHtml = String(safeVal || "")
+03302:                   .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+03303: 
+03304:               return `<td class="p-4">
+03305:   <button
+03306:     type="button"
+03307:     data-feedback-edit="true"
+03308:     data-lead-id="${encodeURIComponent(String(leadId))}"
+03309:     data-feedback="${encodeURIComponent(String(safeReason || ""))}"
+03310:     data-highlighted="${l.feedback_highlight ? "true" : "false"}"
+03311:     class="text-left w-full ${safeReason ? 'text-gray-700' : 'text-gray-400 italic'} hover:underline"
+03312:     title="Edit feedback"
+03313:   >
+03314:     ${safeReason ? safeReasonHtml : "No feedback"}
+03315:     ${l.feedback_highlight ? '<div class="text-yellow-500 text-xs font-black mt-1">⭐ Highlighted</div>' : ''}
+03316:   </button>
+03317: </td>`;
+03318:               }
+03319: 
+03320:               if (c.key === "status") {
+03321:                 let bg = "bg-gray-100 text-gray-700";
+03322:                 if (safeVal.includes("APPROV") || safeVal.includes("CONFIRM")) bg = "bg-emerald-100 text-emerald-800 border-emerald-200";
+03323:                 if (safeVal.includes("REJECT")) bg = "bg-red-100 text-red-800 border-red-200";
+03324:                 if (safeVal.includes("CREDIT")) bg = "bg-purple-100 text-purple-800 border-purple-200";
+03325:                 if (safeVal.includes("PENDING")) bg = "bg-yellow-100 text-yellow-800 border-yellow-200";
+03326: 
+03327:                 const safeLeadId = String(leadId).replace(/'/g, "\\'");
+03328:                 const safeReasonHtml = String(rejectionReason || "")
+03329:                   .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+03330: 
+03331:                 return `<td class="p-4">
+03332:                   <select
+03333:                     data-previous-value="${safeVal}"
+03334:                     onchange="handleLeadStatusChange(this, '${safeLeadId}', '${safeReasonHtml}')"
+03335:                     class="px-2 py-1 rounded-full text-xs font-extrabold border outline-none cursor-pointer hover:shadow-md transition-all ${bg}">
+03336:                     <option value="PENDING REVIEW" ${safeVal.includes("PENDING") ? "selected" : ""}>PENDING REVIEW</option>
+03337:                     <option value="APPROVED" ${safeVal.includes("APPROV") || safeVal.includes("CONFIRM") ? "selected" : ""}>APPROVED</option>
+03338:                     <option value="REJECTED" ${safeVal.includes("REJECT") ? "selected" : ""}>REJECTED</option>
+03339:                     <option value="CREDITED" ${safeVal.includes("CREDIT") ? "selected" : ""}>CREDITED</option>
+03340:                   </select>
+03341:                 </td>`;
+03342:               }
+03343: 
+03344:               return `<td class="p-4">${rawVal || "—"}</td>`;
+03345:             }).join("")}
+03346: 
+03347:             <td class="p-4 text-center">
+03348:               <button onclick="deleteLead('${String(leadId).replace(/'/g, "\\'")}')" class="text-gray-300 hover:text-red-600 transition-colors" title="Delete Lead">
+03349:                 <i class="fa-solid fa-trash-can"></i>
+03350:               </button>
+03351:             </td>
+03352:           </tr>`;
+03353:         }).join("");
+03354:       },
+03355: 
+03356:               currentUser() {
+03357:         return window.portal?.currentUser || {};
+03358:       },
+03359: 
+03360:       currentOrgId() {
+03361:         return window.portal?.currentUser?.organization_id || null;
+03362:       },
+03363: 
+03364:       escapeHtml(value) {
+03365:         return String(value ?? "")
+03366:           .replace(/&/g, "&amp;")
+03367:           .replace(/</g, "&lt;")
+03368:           .replace(/>/g, "&gt;")
+03369:           .replace(/"/g, "&quot;")
+03370:           .replace(/'/g, "&#039;");
+03371:       },
+03372: 
+03373:       escapeJs(value) {
+03374:         return String(value ?? "")
+03375:           .replace(/\\/g, "\\\\")
+03376:           .replace(/'/g, "\\'")
+03377:           .replace(/"/g, '\\"')
+03378:           .replace(/\n/g, "\\n")
+03379:           .replace(/\r/g, "");
+03380:       },
+03381: 
+03382:       displayName(profile) {
+03383:         return String(profile?.display_name || profile?.full_name || profile?.email || "").trim();
+03384:       },
+03385: 
+03386:       findCurrentMentionQuery(textarea) {
+03387:         const value = textarea?.value || "";
+03388:         const pos = textarea?.selectionStart || 0;
+03389:         const before = value.slice(0, pos);
+03390:         const match = before.match(/@([a-zA-Z0-9._@+\-\s]*)$/);
+03391:         if (!match) return null;
+03392: 
+03393:         return {
+03394:           query: String(match[1] || "").toLowerCase().trim(),
+03395:           start: pos - match[0].length,
+03396:           end: pos
+03397:         };
+03398:       },
+03399: 
+03400:       async loadOrgProfiles() {
+03401:         if (window.passbookTaggableUsers?.length) return window.passbookTaggableUsers;
+03402:         if (typeof supaClient === "undefined" || !supaClient) return [];
+03403: 
+03404:         const { data, error } = await supaClient.rpc("passbook_taggable_users");
+03405: 
+03406:         if (error) {
+03407:           console.error("Failed to load Passbook taggable users:", error);
+03408:           window.passbookTaggableUsers = [];
+03409:           return [];
+03410:         }
+03411: 
+03412:         window.passbookTaggableUsers = Array.isArray(data) ? data : [];
+03413:         return window.passbookTaggableUsers;
+03414:       },
+03415: 
+03416:       async fetchNotesForClient(clientCode) {
+03417:         const orgId = this.currentOrgId();
+03418:         if (!orgId || typeof supaClient === "undefined" || !supaClient) return [];
+03419: 
+03420:         const { data: notes, error } = await supaClient
+03421:           .from("passbook_client_notes")
+03422:           .select("*")
+03423:           .eq("organization_id", orgId)
+03424:           .eq("client_code", clientCode)
+03425:           .order("created_at", { ascending: false })
+03426:           .limit(50);
+03427: 
+03428:         if (error) {
+03429:           console.error("Failed to load Passbook notes:", error);
+03430:           return [];
+03431:         }
+03432: 
+03433:         const noteIds = (notes || []).map(n => n.id).filter(Boolean);
+03434:         if (!noteIds.length) return notes || [];
+03435: 
+03436:         const { data: mentions, error: mentionError } = await supaClient
+03437:           .from("passbook_client_note_mentions")
+03438:           .select("*")
+03439:           .in("note_id", noteIds);
+03440: 
+03441:         if (mentionError) {
+03442:           console.error("Failed to load Passbook note mentions:", mentionError);
+03443:           return notes || [];
+03444:         }
+03445: 
+03446:         const byNote = new Map();
+03447:         (mentions || []).forEach(m => {
+03448:           const key = String(m.note_id);
+03449:           const arr = byNote.get(key) || [];
+03450:           arr.push(m);
+03451:           byNote.set(key, arr);
+03452:         });
+03453: 
+03454:         return (notes || []).map(note => ({
+03455:           ...note,
+03456:           mentions: byNote.get(String(note.id)) || []
+03457:         }));
+03458:       },
+03459: 
+03460:       async fetchMyUnreadMentions() {
+03461:         if (typeof supaClient === "undefined" || !supaClient) return [];
+03462:         const user = this.currentUser();
+03463:         const orgId = this.currentOrgId();
+03464:         if (!user?.id || !orgId) return [];
+03465: 
+03466:         const { data, error } = await supaClient
+03467:           .from("passbook_client_note_mentions")
+03468:           .select("*")
+03469:           .eq("organization_id", orgId)
+03470:           .eq("mentioned_profile_id", user.id)
+03471:           .eq("is_unread", true);
+03472: 
+03473:         if (error) {
+03474:           console.error("Failed to load my Passbook note mentions:", error);
+03475:           return [];
+03476:         }
+03477: 
+03478:         const rows = data || [];
+03479:         const noteIds = [...new Set(rows.map(r => r.note_id).filter(Boolean))];
+03480: 
+03481:         if (!noteIds.length) return rows;
+03482: 
+03483:         const { data: notes, error: notesError } = await supaClient
+03484:           .from("passbook_client_notes")
+03485:           .select("id, body, created_by_profile_id")
+03486:           .in("id", noteIds);
+03487: 
+03488:         if (notesError) {
+03489:           console.error("Failed to load unread Passbook note bodies:", notesError);
+03490:           return rows;
+03491:         }
+03492: 
+03493:         const noteById = new Map((notes || []).map(n => [String(n.id), n]));
+03494: 
+03495:         return rows.map(row => {
+03496:           const note = noteById.get(String(row.note_id)) || {};
+03497:           return {
+03498:             ...row,
+03499:             note_body: note.body || "",
+03500:             note_created_by_profile_id: note.created_by_profile_id || null
+03501:           };
+03502:         });
+03503:       },
+03504: 
+03505:       isPassbookNoteDirectForCurrentUser(noteOrMention, user) {
+03506:         const body = String(noteOrMention?.body || noteOrMention?.note_body || "").toLowerCase();
+03507:         if (!body || !user) return false;
+03508: 
+03509:         if (/(^|[^a-z0-9_])@all([^a-z0-9_]|$)/i.test(body)) return true;
+03510: 
+03511:         const names = [
+03512:           user.display_name,
+03513:           user.full_name,
+03514:           user.name,
+03515:           user.email
+03516:         ]
+03517:           .map(v => String(v || "").trim().toLowerCase())
+03518:           .filter(Boolean);
+03519: 
+03520:         return names.some(name => body.includes(`@${name}`));
+03521:       },
+03522: 
+03523:       renderPassbookMentionChips(textarea) {
+03524:         const wrap = document.getElementById("passbook-mentioned-chips");
+03525:         if (!wrap || !textarea) return;
+03526: 
+03527:         const profiles = window.passbookTaggableUsers || [];
+03528:         const text = String(textarea.value || "").toLowerCase();
+
+## Lines 3735-3887 | highlight@3770, highlight@3804, highlight@3807
+03735:         }).join("");
+03736:       },
+03737: 
+03738:       async savePassbookClientNote(clientCode, clientName) {
+03739:         if (typeof supaClient === "undefined" || !supaClient) {
+03740:           alert("Database connection missing.");
+03741:           return;
+03742:         }
+03743: 
+03744:         const textarea = document.getElementById("passbook-note-draft");
+03745:         const noteBody = String(textarea?.value || "").trim();
+03746: 
+03747:         if (!noteBody) {
+03748:           alert("Please type a note first.");
+03749:           return;
+03750:         }
+03751: 
+03752:         const { data, error } = await supaClient.rpc("create_passbook_client_note", {
+03753:           p_client_code: clientCode,
+03754:           p_client_name: clientName,
+03755:           p_body: noteBody
+03756:         });
+03757: 
+03758:         if (error) {
+03759:           console.error("create_passbook_client_note failed:", error);
+03760:           return alert(error.message || "Failed to save note.");
+03761:         }
+03762: 
+03763:         const result = Array.isArray(data) ? data[0] : data;
+03764:         const taggedCount = Number(result?.tagged_count || 0);
+03765: 
+03766:         if (textarea) textarea.value = "";
+03767:         this.renderPassbookMentionChips(textarea);
+03768: 
+03769:         await this.renderPassbookNotes(clientCode);
+03770:         await this.refreshPassbookMentionHighlights();
+03771: 
+03772:         const isAll = /(^|[^a-z0-9_])@all([^a-z0-9_]|$)/i.test(noteBody);
+03773:         alert(
+03774:           isAll
+03775:             ? "Note saved and everyone was tagged."
+03776:             : taggedCount > 0
+03777:               ? "Note saved and tagged user notified."
+03778:               : "Note saved and shared as a yellow client-note alert."
+03779:         );
+03780:       },
+03781: 
+03782:       async acknowledgePassbookNoteMention(mentionId) {
+03783:         if (!mentionId || typeof supaClient === "undefined" || !supaClient) return;
+03784: 
+03785:         const user = this.currentUser();
+03786: 
+03787:         const { error } = await supaClient
+03788:           .from("passbook_client_note_mentions")
+03789:           .update({
+03790:             is_unread: false,
+03791:             acknowledged_at: new Date().toISOString(),
+03792:             acknowledged_by_profile_id: user?.id || null
+03793:           })
+03794:           .eq("id", mentionId);
+03795: 
+03796:         if (error) {
+03797:           console.error("Failed to acknowledge Passbook note:", error);
+03798:           alert(error.message || "Failed to acknowledge note.");
+03799:           return;
+03800:         }
+03801: 
+03802:         const code = document.getElementById("codeName")?.value;
+03803:         if (code) await this.renderPassbookNotes(code);
+03804:         await this.refreshPassbookMentionHighlights();
+03805:       },
+03806: 
+03807:       async refreshPassbookMentionHighlights() {
+03808:         const mentions = await this.fetchMyUnreadMentions();
+03809:         const byCode = new Map();
+03810: 
+03811:         mentions.forEach(item => {
+03812:           const key = String(item.client_code || "").trim().toLowerCase();
+03813:           if (!key) return;
+03814:           const arr = byCode.get(key) || [];
+03815:           arr.push(item);
+03816:           byCode.set(key, arr);
+03817:         });
+03818: 
+03819:         this.passbookNoteMentionsByCode = byCode;
+03820: 
+03821:         const badge = document.getElementById("passbook-tab-badge");
+03822:         if (badge) {
+03823:           const count = mentions.length;
+03824:           badge.textContent = count;
+03825:           badge.classList.toggle("hidden", count === 0);
+03826:         }
+03827: 
+03828:         this.paintCurrentCardsRed();
+03829:       },
+03830: 
+03831:       paintCurrentCardsRed() {
+03832:         const container = document.getElementById("client-cards-container");
+03833:         if (!container || !this.passbookNoteMentionsByCode) return;
+03834: 
+03835:         const alertCards = [];
+03836:         const user = this.currentUser();
+03837: 
+03838:         Array.from(container.children).forEach(card => {
+03839:           card.classList.remove(
+03840:             "bg-red-50", "border-red-300", "ring-2", "ring-red-200",
+03841:             "bg-yellow-50", "border-yellow-300", "ring-yellow-200",
+03842:             "bg-emerald-50", "border-emerald-300", "ring-emerald-200"
+03843:           );
+03844: 
+03845:           card.querySelectorAll(".passbook-note-red-badge, .passbook-note-yellow-badge, .passbook-note-green-badge").forEach(badge => badge.remove());
+03846:         });
+03847: 
+03848:         this.passbookNoteMentionsByCode.forEach((items, codeKey) => {
+03849:           Array.from(container.children).forEach(card => {
+03850:             const cardCode = String(card.dataset.passbookCode || card.dataset.passbookClientCode || "").toLowerCase().trim();
+03851:             const text = String(card.textContent || "").toLowerCase();
+03852: 
+03853:             if (cardCode !== codeKey && !text.includes(codeKey)) return;
+03854: 
+03855:             const hasDirect = (items || []).some(item => this.isPassbookNoteDirectForCurrentUser(item, user));
+03856:             const tone = hasDirect ? "red" : "yellow";
+03857: 
+03858:             card.classList.remove(
+03859:               "bg-white",
+03860:               "border-gray-100",
+03861:               "hover:border-gray-200",
+03862:               "bg-emerald-50",
+03863:               "border-emerald-300",
+03864:               "ring-emerald-200"
+03865:             );
+03866: 
+03867:             if (tone === "red") {
+03868:               card.classList.add("bg-red-50", "border-red-300", "ring-2", "ring-red-200");
+03869: 
+03870:               if (!card.querySelector(".passbook-note-red-badge")) {
+03871:                 card.insertAdjacentHTML(
+03872:                   "afterbegin",
+03873:                   `<div class="passbook-note-red-badge mb-3 inline-flex items-center gap-2 rounded-full bg-red-600 px-3 py-1 text-[10px] font-black text-white"><i class="fa-solid fa-at"></i> Tagged note</div>`
+03874:                 );
+03875:               }
+03876:             } else {
+03877:               card.classList.add("bg-yellow-50", "border-yellow-300", "ring-2", "ring-yellow-200");
+03878: 
+03879:               if (!card.querySelector(".passbook-note-yellow-badge")) {
+03880:                 card.insertAdjacentHTML(
+03881:                   "afterbegin",
+03882:                   `<div class="passbook-note-yellow-badge mb-3 inline-flex items-center gap-2 rounded-full bg-yellow-500 px-3 py-1 text-[10px] font-black text-white"><i class="fa-solid fa-note-sticky"></i> New client note</div>`
+03883:                 );
+03884:               }
+03885:             }
+03886: 
+03887:             if (!alertCards.includes(card)) {
+
+## Lines 4140-4338 | credited@4175, credited@4228, credited@4258
+04140:           // 1. Check for Exact Match
+04141:           let match = agents.find(a => String(a.agent_name || a.name || "").toLowerCase().trim() === typed);
+04142:           
+04143:           // 2. Check for Partial Match ("Jane Tobias" inside "Charo Jane Tobias")
+04144:           if (!match) {
+04145:               match = agents.find(a => {
+04146:                   const official = String(a.agent_name || a.name || "").toLowerCase().trim();
+04147:                   return official && (official.includes(typed) || typed.includes(official));
+04148:               });
+04149:           }
+04150: 
+04151:           if (match) return String(match.agent_name || match.name || "").trim();
+04152:           
+04153:           // Fallback if not found
+04154:           return typed.replace(/\b\w/g, char => char.toUpperCase());
+04155:       },
+04156: 
+04157:       _computeAgentMetrics(name, leads, start, end) {
+04158:         const inRange = leads.filter(l => {
+04159:           const rawA = this.pick(l, ["appointment_coordinator_name", "Appointment Coordinator Name", "agent_name", "Agent Name", "AGENT"], "");
+04160:           const a = this.getOfficialAgentName(rawA); // <-- USES SMART MATCHER
+04161:           const dt = this.getLeadDateObj(l);
+04162:           return dt && dt >= start && dt <= end && a.toLowerCase() === String(name).trim().toLowerCase();
+04163:         });
+04164: 
+04165:         let q = 0, c = 0, r = 0, p = 0;
+04166: 
+04167:         inRange.forEach(l => {
+04168:           const st = String(l.status || l.STATUS || l.Lead_Status || "").toLowerCase();
+04169:           if (st.includes('approv') || st.includes('confirm')) { q++; } 
+04170:           else if (st.includes('credit')) { c++; } 
+04171:           else if (st.includes('reject')) { r++; } 
+04172:           else { p++; }
+04173:         });
+04174: 
+04175:         return { total: inRange.length, qualified: q, credited: c, rejected: r, pending: p, cancelRate: (q + c > 0) ? Math.round((c / (q + c)) * 100) : 0, leads: inRange };
+04176:       },
+04177:       
+04178:       renderTeam() {
+04179:         const state = this.getState();
+04180:         const leads = Array.isArray(state?.leads) ? state.leads : [];
+04181:         const agents = Array.isArray(state?.agents) ? state.agents : [];
+04182: 
+04183:         const { start, end, label } = this.getTeamRangeFor();
+04184: 
+04185:         const q = String(document.getElementById("team-search")?.value || "").toLowerCase().trim();
+04186:         const stageFilter = document.getElementById("team-stage-filter")?.value || "active";
+04187:         const warnedFilter = document.getElementById("team-warned-filter")?.value || "all";
+04188: 
+04189:         // ONLY SHOW ACTIVE AGENTS (Exclude Admin, Offboarded, Resigned)
+04190:                 const uniqueAgentNames = new Set();
+04191:         agents.forEach(a => {
+04192:           if (!a) return;
+04193: 
+04194:           const stage = this.getAgentStage(a);
+04195:           if (stageFilter !== "all" && stage !== stageFilter) return;
+04196: 
+04197:           // Team tab should only show setter/tracker workforce
+04198:           if (!this.isSetterAnalyticsAgent(a) && stage === "active") return;
+04199: 
+04200:           const name = String(a.name || a.agent_name || "").trim();
+04201:           if (name) uniqueAgentNames.add(name);
+04202:         });
+04203: 
+04204:         let rows = Array.from(uniqueAgentNames).map(agentName => {
+04205:           const dbAgent = agents.find(a => a && String(a.name || a.agent_name || "").trim() === agentName) || {};
+04206:           const warned = this.isAgentWarned(dbAgent);
+04207: 
+04208:           return {
+04209:             name: agentName,
+04210:             stage: "active",
+04211:             warned,
+04212:             ...this._computeAgentMetrics(agentName, leads, start, end)
+04213:           };
+04214:         });
+04215: 
+04216:         if (warnedFilter === "warned") rows = rows.filter(r => r.warned);
+04217:         if (warnedFilter === "not-warned") rows = rows.filter(r => !r.warned);
+04218:         if (q) rows = rows.filter(r => String(r.name).toLowerCase().includes(q));
+04219: 
+04220:         const key = this.teamSortKey;
+04221:         const dir = this.teamSortDir === "asc" ? 1 : -1;
+04222: 
+04223:         const sorters = {
+04224:           name: (a,b) => a.name.localeCompare(b.name) * dir,
+04225:           total: (a,b) => (a.total - b.total) * dir,
+04226:           rejected: (a,b) => (a.rejected - b.rejected) * dir,
+04227:           qualified: (a,b) => (a.qualified - b.qualified) * dir,
+04228:           credited: (a,b) => (a.credited - b.credited) * dir,
+04229:           pending: (a,b) => (a.pending - b.pending) * dir,
+04230:           cancelRate: (a,b) => (a.cancelRate - b.cancelRate) * dir,
+04231:         };
+04232: 
+04233:         if (sorters[key]) rows.sort(sorters[key]);
+04234: 
+04235:         const countEl = document.getElementById("team-count");
+04236:         if (countEl) countEl.textContent = rows.length;
+04237: 
+04238:         const rangeEl = document.getElementById("team-range-label");
+04239:         if (rangeEl) rangeEl.textContent = `${label}: ${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
+04240: 
+04241:         const stageBadge = () => `<span class="text-[10px] font-extrabold uppercase text-emerald-600">ACTIVE</span>`;
+04242: 
+04243:         const tbody = document.getElementById("team-body");
+04244:         if (!rows.length) {
+04245:           tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No agents found matching criteria.</td></tr>`;
+04246:           return;
+04247:         }
+04248: 
+04249:         tbody.innerHTML = rows.map(r => `
+04250:           <tr class="hover:bg-gray-50">
+04251:             <td class="p-4 font-bold text-gray-900">
+04252:               <button class="hover:underline" onclick="Admin.openAgentModal('${String(r.name).replace(/'/g,"\\'")}')">${r.name}</button>
+04253:               <div class="mt-1">${stageBadge()} ${r.warned ? `<span class="ml-2 text-[10px] font-extrabold text-orange-600">WARNED</span>` : ""}</div>
+04254:             </td>
+04255:             <td class="p-4 text-center text-gray-700 font-semibold">${r.total}</td>
+04256:             <td class="p-4 text-center text-red-500 font-bold">${r.rejected}</td>
+04257:             <td class="p-4 text-center text-blue-500 font-bold">${r.qualified}</td>
+04258:             <td class="p-4 text-center text-purple-500 font-bold">${r.credited}</td>
+04259:             <td class="p-4 text-center text-yellow-600 font-bold">${r.pending}</td>
+04260:             <td class="p-4 text-center text-gray-700 font-semibold">${r.cancelRate}%</td>
+04261:           </tr>
+04262:         `).join("");
+04263:       },
+04264: 
+04265:       openAgentModal(name) {
+04266:         this._agentSelectedName = name;
+04267:         this.bindAgentUI();
+04268:         this.agentPeriod = this.teamPeriod || "today";
+04269:         this._agentCustomRange.active = false;
+04270:         this._setCustomActive("agent-custom-toggle", false);
+04271:         document.getElementById("agent-modal").classList.remove("hidden");
+04272:         this.renderAgentLeads();
+04273:       },
+04274: 
+04275:       bindAgentUI() {
+04276:         if (this._agentBound) return;
+04277:         this._agentBound = true;
+04278: 
+04279:         const toggle = document.getElementById("agent-custom-toggle");
+04280:         const pop = document.getElementById("agent-custom-popover");
+04281:         const apply = document.getElementById("agent-custom-apply");
+04282:         const clear = document.getElementById("agent-custom-clear");
+04283: 
+04284:         if (toggle && pop) {
+04285:           toggle.addEventListener("click", (e) => {
+04286:             e.preventDefault();
+04287:             pop.classList.toggle("hidden");
+04288:           });
+04289:           document.addEventListener("click", (e) => {
+04290:             if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
+04291:               pop.classList.add("hidden");
+04292:             }
+04293:           });
+04294:         }
+04295: 
+04296:         if (apply) {
+04297:           apply.addEventListener("click", () => {
+04298:             const s = document.getElementById("agent-custom-start")?.value;
+04299:             const e = document.getElementById("agent-custom-end")?.value;
+04300:             if (!s || !e) return;
+04301: 
+04302:             this._agentCustomRange.active = true;
+04303:             this._agentCustomRange.start = s;
+04304:             this._agentCustomRange.end = e;
+04305: 
+04306:             this.agentPeriod = "custom";
+04307:             this._setActiveButton(".agent-btn", null);
+04308:             this._setCustomActive("agent-custom-toggle", true);
+04309: 
+04310:             pop?.classList.add("hidden");
+04311:             this.renderAgentLeads();
+04312:           });
+04313:         }
+04314: 
+04315:         if (clear) {
+04316:           clear.addEventListener("click", () => {
+04317:             document.getElementById("agent-custom-start").value = "";
+04318:             document.getElementById("agent-custom-end").value = "";
+04319:             this._agentCustomRange.active = false;
+04320: 
+04321:             this.agentPeriod = "today";
+04322:             const todayBtn = document.querySelector(".agent-btn"); 
+04323:             this._setActiveButton(".agent-btn", todayBtn);
+04324:             this._setCustomActive("agent-custom-toggle", false);
+04325: 
+04326:             pop?.classList.add("hidden");
+04327:             this.renderAgentLeads();
+04328:           });
+04329:         }
+04330:       },
+04331: 
+04332:       getAgentRangeFor() {
+04333:         const state = this.getState();
+04334:         const leads = state?.leads || [];
+04335: 
+04336:         if (this.agentPeriod === "custom" && this._agentCustomRange.active) {
+04337:           const start = new Date(this._agentCustomRange.start + "T00:00:00");
+04338:           const end = new Date(this._agentCustomRange.end + "T23:59:59");
+
+## Lines 4353-4488 | date_submitted@4388, lead_id@4389, homeowner@4405, homeowner@4406, homeowner@4407, appointment_date@4408
+04353:         } else {
+04354:           this._setActiveButton(".agent-btn", null);
+04355:           this._setCustomActive("agent-custom-toggle", true);
+04356:         }
+04357: 
+04358:         this.renderAgentLeads();
+04359:       },
+04360: 
+04361:       renderAgentLeads() {
+04362:         const state = this.getState();
+04363:         const leads = state?.leads || [];
+04364:         const name = this._agentSelectedName || "Agent";
+04365: 
+04366:         const { start, end, label } = this.getAgentRangeFor();
+04367:         const m = this._computeAgentMetrics(name, leads, start, end);
+04368: 
+04369:         const titleEl = document.getElementById("agent-modal-title");
+04370:         if (titleEl) titleEl.textContent = `${name} — Leads`;
+04371: 
+04372:         const countEl = document.getElementById("agent-leads-count");
+04373:         if (countEl) countEl.textContent = m.leads.length;
+04374: 
+04375:         const rangeEl = document.getElementById("agent-range-label");
+04376:         if (rangeEl) rangeEl.textContent = `${label}: ${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
+04377: 
+04378:         const tbody = document.getElementById("agent-leads-body");
+04379:         if (!tbody) return;
+04380: 
+04381:         if (!m.leads.length) {
+04382:           tbody.innerHTML = `<tr><td colspan="14" class="p-6 text-center text-gray-400 italic">No leads in this period.</td></tr>`;
+04383:           return;
+04384:         }
+04385: 
+04386:        tbody.innerHTML = m.leads.map(l => `
+04387:           <tr>
+04388:             <td class="p-3">${this.getLeadField(l, ["date_submitted", "Date Submitted"])}</td>
+04389:             <td class="p-3">${this.getLeadField(l, ["lead_id", "LEAD ID"])}</td>
+04390:             <td class="p-3">${
+04391:   this.getLeadField(
+04392:     l,
+04393:     [
+04394:       "client_code",
+04395:       "Client Code",
+04396:       "CLIENT CODE",
+04397:       "code_name",
+04398:       "Code Name",
+04399:       "CODE NAME"
+04400:     ],
+04401:     "—"
+04402:   )
+04403: }</td>
+04404:             <td class="p-3">${this.getLeadField(l, ["appointment_coordinator_name", "Appointment Coordinator Name", "agent_name"])}</td>
+04405:             <td class="p-3">${this.getLeadField(l, ["homeowner_names", "Homeowner Name(s)"])}</td>
+04406:             <td class="p-3">${this.getLeadField(l, ["email_of_homeowner", "Email of Homeowner"])}</td>
+04407:             <td class="p-3">${this.getLeadField(l, ["homeowner_phone_numbers", "Homeowner Phone Number"])}</td>
+04408:             <td class="p-3">${this.getLeadField(l, ["appointment_date_time", "Appointment Date /Time"])}</td>
+04409:             <td class="p-3">${this.getLeadField(l, ["address", "Address"])}</td>
+04410:             <td class="p-3">${this.getLeadField(l, ["age_of_roof", "Age of Roof"])}</td>
+04411:             <td class="p-3">${this.getLeadField(l, ["insurance_company", "Insurance Company"])}</td>
+04412:             <td class="p-3">${this.getLeadField(l, ["additional_notes", "Additional Notes"])}</td>
+04413:             <td class="p-3">${this.statusBadge(this.getLeadField(l, ["status", "Status", "STATUS"]))}</td>
+04414:           </tr>
+04415:         `).join("");
+04416:       },
+04417: 
+04418:       // --- OVERVIEW CUSTOM CALENDAR FIX ---
+04419:       bindOverviewAnalyticsUI() {
+04420:         const toggle = document.getElementById("custom-range-toggle");
+04421:         const pop = document.getElementById("custom-range-popover");
+04422:         const apply = document.getElementById("custom-apply");
+04423:         const clear = document.getElementById("custom-clear");
+04424: 
+04425:         if (toggle && pop && !toggle.dataset.bound) {
+04426:           toggle.dataset.bound = "true";
+04427:           toggle.addEventListener("click", (e) => { e.preventDefault(); pop.classList.toggle("hidden"); });
+04428:           document.addEventListener("click", (e) => {
+04429:             if (!pop.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) pop.classList.add("hidden");
+04430:           });
+04431:           
+04432:           if (apply) apply.addEventListener("click", () => {
+04433:             const s = document.getElementById("custom-start")?.value;
+04434:             const e = document.getElementById("custom-end")?.value;
+04435:             if (!s || !e) return;
+04436:             this._customRange.active = true;
+04437:             this._customRange.start = s;
+04438:             this._customRange.end = e;
+04439:             this.setAnalyticsPeriod("custom", null);
+04440:             this._setCustomActive("custom-range-toggle", true);
+04441:             pop.classList.add("hidden");
+04442:           });
+04443: 
+04444:           if (clear) clear.addEventListener("click", () => {
+04445:             document.getElementById("custom-start").value = "";
+04446:             document.getElementById("custom-end").value = "";
+04447:             this._customRange.active = false;
+04448:             this.setAnalyticsPeriod("today", document.querySelector('.analytics-btn'));
+04449:             this._setCustomActive("custom-range-toggle", false);
+04450:             pop.classList.add("hidden");
+04451:           });
+04452:         }
+04453:       },
+04454: 
+04455:         async renderDailyTab() {
+04456:   const orgId = window.portal?.getCurrentOrganizationId?.();
+04457: 
+04458:   if (!orgId || !supaClient) return;
+04459: 
+04460:   const renderToken = `${Date.now()}-${Math.random()}`;
+04461:   this._dailyStrategyRenderToken = renderToken;
+04462: 
+04463:   const weekLabelEl = document.getElementById("dailyStrategyWeekLabel");
+04464:   const tabsEl = document.getElementById("dailyStrategyTabs");
+04465:   const boardEl = document.getElementById("dailyStrategyBoard");
+04466:   const clientPoolEl = document.getElementById("daily-client-pool");
+04467:   const clientPoolCountEl = document.getElementById("dailyClientPoolCount");
+04468:   const rosterEl = document.getElementById("daily-agent-status-list");
+04469:   const historyBodyEl = document.getElementById("dailyStrategyHistoryBody");
+04470:   const historyCountEl = document.getElementById("dailyHistoryCount");
+04471: 
+04472:   if (
+04473:     !weekLabelEl ||
+04474:     !tabsEl ||
+04475:     !boardEl ||
+04476:     !clientPoolEl ||
+04477:     !rosterEl ||
+04478:     !historyBodyEl
+04479:   ) {
+04480:     return;
+04481:   }
+04482: 
+04483:   try {
+04484:     const todayStr = new Intl.DateTimeFormat("en-CA", {
+04485:       timeZone: "America/Denver",
+04486:       year: "numeric",
+04487:       month: "2-digit",
+04488:       day: "2-digit"
+
+## Lines 4802-4981 | credited@4837, credited@4852, credited@4853, credited@4865, credited@4901
+04802:           const leadCode = String(
+04803:             this.getLeadField(
+04804:               lead,
+04805:               [
+04806:                 "client_code",
+04807:                 "Client Code",
+04808:                 "CLIENT CODE",
+04809:                 "CODE NAME",
+04810:                 "Code Name"
+04811:               ],
+04812:               ""
+04813:             )
+04814:           )
+04815:             .trim()
+04816:             .toLowerCase();
+04817: 
+04818:           const leadCompany = this.normalizeCompanyName(
+04819:             this.getLeadField(
+04820:               lead,
+04821:               [
+04822:                 "company_name",
+04823:                 "Company Name",
+04824:                 "roofing_company"
+04825:               ],
+04826:               ""
+04827:             )
+04828:           );
+04829: 
+04830:           return (
+04831:             (rowCode && leadCode === rowCode) ||
+04832:             (rowCompany && leadCompany === rowCompany)
+04833:           );
+04834:         });
+04835: 
+04836:         let qualified = 0;
+04837:         let credited = 0;
+04838:         let rejected = 0;
+04839:         let pending = 0;
+04840: 
+04841:         matchedLeads.forEach(lead => {
+04842:           const status = String(
+04843:             this.getLeadField(
+04844:               lead,
+04845:               ["status", "Status"],
+04846:               ""
+04847:             )
+04848:           ).toLowerCase();
+04849: 
+04850:           if (this.isQualified(status)) {
+04851:             qualified++;
+04852:           } else if (this.isCredited(status)) {
+04853:             credited++;
+04854:           } else if (this.isRejected(status)) {
+04855:             rejected++;
+04856:           } else {
+04857:             pending++;
+04858:           }
+04859:         });
+04860: 
+04861:         return {
+04862:           ...row,
+04863:           total_leads_set: matchedLeads.length,
+04864:           qualified_leads_set: qualified,
+04865:           credited_leads_set: credited,
+04866:           rejected_leads_set: rejected,
+04867:           pending_leads_set: pending
+04868:         };
+04869:       });
+04870: 
+04871:     const sortKey =
+04872:       this.dailyStrategyHistorySort?.key ||
+04873:       "client_code";
+04874: 
+04875:     const sortDirection =
+04876:       this.dailyStrategyHistorySort?.dir ||
+04877:       "asc";
+04878: 
+04879:     historyRows.sort((a, b) => {
+04880:       let difference = 0;
+04881: 
+04882:       if (sortKey === "client_code") {
+04883:         difference =
+04884:           getCodeNumber(a.client_code) -
+04885:           getCodeNumber(b.client_code);
+04886:       } else {
+04887:         difference =
+04888:           Number(a[sortKey] || 0) -
+04889:           Number(b[sortKey] || 0);
+04890:       }
+04891: 
+04892:       return sortDirection === "asc"
+04893:         ? difference
+04894:         : -difference;
+04895:     });
+04896: 
+04897:     [
+04898:       "client_code",
+04899:       "total_leads_set",
+04900:       "qualified_leads_set",
+04901:       "credited_leads_set",
+04902:       "rejected_leads_set"
+04903:     ].forEach(key => {
+04904:       const icon = document.getElementById(
+04905:         `daily-history-sort-${key}`
+04906:       );
+04907: 
+04908:       if (!icon) return;
+04909: 
+04910:       icon.textContent =
+04911:         key === sortKey
+04912:           ? sortDirection === "asc"
+04913:             ? "↑"
+04914:             : "↓"
+04915:           : "↕";
+04916:     });
+04917: 
+04918:     const clientHealthRows = Array.isArray(
+04919:       this.clientHealthRaw
+04920:     )
+04921:       ? this.clientHealthRaw
+04922:       : [];
+04923: 
+04924:     const clientByCode = new Map(
+04925:       rawClients.map(client => [
+04926:         String(
+04927:           client.client_code ||
+04928:           client.code_name ||
+04929:           ""
+04930:         )
+04931:           .trim()
+04932:           .toLowerCase(),
+04933:         client
+04934:       ])
+04935:     );
+04936: 
+04937:     const assignedCodes = new Set(
+04938:       this.dailyStrategyAssignments
+04939:         .map(row =>
+04940:           String(row.client_code || "")
+04941:             .trim()
+04942:             .toLowerCase()
+04943:         )
+04944:         .filter(Boolean)
+04945:     );
+04946: 
+04947:     const servingNow = this.dailyStrategyAssignments.filter(
+04948:       row => String(row.lane || "") === "serving_now"
+04949:     );
+04950: 
+04951:     const nextUp = this.dailyStrategyAssignments.filter(
+04952:       row => String(row.lane || "") === "next_up"
+04953:     );
+04954: 
+04955:     const renderLaneCards = (
+04956:       rows,
+04957:       emptyText,
+04958:       laneTone,
+04959:       laneKey
+04960:     ) => {
+04961:       if (!rows.length) {
+04962:         return `
+04963:           <div class="text-sm text-gray-400 italic">
+04964:             ${emptyText}
+04965:           </div>
+04966:         `;
+04967:       }
+04968: 
+04969:       const selectedDate =
+04970:         this.dailyStrategySelectedDate;
+04971: 
+04972:       const dayLeadRows = allLeads.filter(lead => {
+04973:         const leadDateObject =
+04974:           this.getLeadDateObj(lead);
+04975: 
+04976:         if (
+04977:           !leadDateObject ||
+04978:           isNaN(leadDateObject.getTime())
+04979:         ) {
+04980:           return false;
+04981:         }
+
+## Lines 5481-5669 | credited@5516, credited@5518, credited@5521, credited@5524, credited@5525, credited@5585, credited@5589
+05481: 
+05482:         return String(a.code || "").localeCompare(
+05483:           String(b.code || "")
+05484:         );
+05485:       });
+05486: 
+05487:     if (clientPoolCountEl) {
+05488:       clientPoolCountEl.textContent =
+05489:         `${activeClientPool.length} client${
+05490:           activeClientPool.length === 1 ? "" : "s"
+05491:         }`;
+05492:     }
+05493: 
+05494:     if (!activeClientPool.length) {
+05495:       clientPoolEl.innerHTML = `
+05496:         <div class="text-sm text-gray-400 italic">
+05497:           No available active clients for this strategy day.
+05498:         </div>
+05499:       `;
+05500:     } else {
+05501:       clientPoolEl.innerHTML = activeClientPool
+05502:         .map(client => {
+05503:           const health = String(
+05504:             client.healthStatus || "NOT STARTED"
+05505:           ).toUpperCase();
+05506: 
+05507:           const healthTone =
+05508:             health === "CRITICAL"
+05509:               ? "border-red-200 bg-red-50"
+05510:               : health === "AT RISK"
+05511:                 ? "border-amber-200 bg-amber-50"
+05512:                 : health === "HEALTHY"
+05513:                   ? "border-emerald-200 bg-emerald-50"
+05514:                   : "border-blue-200 bg-blue-50";
+05515: 
+05516:           const totalQualifiedAndCredited =
+05517:             Number(client.qualifiedCount || 0) +
+05518:             Number(client.creditedCount || 0);
+05519: 
+05520:           const cancellationRate =
+05521:             totalQualifiedAndCredited > 0
+05522:               ? Math.round(
+05523:                   (
+05524:                     Number(client.creditedCount || 0) /
+05525:                     totalQualifiedAndCredited
+05526:                   ) * 100
+05527:                 )
+05528:               : 0;
+05529: 
+05530:           const safeClientCode = String(
+05531:             client.code || ""
+05532:           ).replace(/'/g, "\\'");
+05533: 
+05534:           return `
+05535:             <div class="rounded-2xl border ${healthTone} shadow-sm p-4">
+05536:               <div class="flex items-start justify-between gap-3 mb-3">
+05537:                 <div>
+05538:                   <div class="text-base font-black text-gray-900">
+05539:                     ${client.code || "—"}
+05540:                   </div>
+05541: 
+05542:                   <div class="text-xs text-gray-500 mt-1">
+05543:                     ${client.cityState || "—"}
+05544:                   </div>
+05545:                 </div>
+05546: 
+05547:                 <div class="text-[10px] font-black px-2 py-1 rounded-full bg-white border border-gray-200 text-gray-700">
+05548:                   ${health}
+05549:                 </div>
+05550:               </div>
+05551: 
+05552:               <div class="grid grid-cols-2 gap-2 text-xs mb-3">
+05553:                 <div class="rounded-xl bg-white border border-gray-200 p-2">
+05554:                   <div class="text-gray-400 font-bold uppercase">
+05555:                     Package
+05556:                   </div>
+05557: 
+05558:                   <div class="text-gray-900 font-black mt-1">
+05559:                     ${client.packageLabel || "0 / 0"}
+05560:                   </div>
+05561:                 </div>
+05562: 
+05563:                 <div class="rounded-xl bg-white border border-gray-200 p-2">
+05564:                   <div class="text-gray-400 font-bold uppercase">
+05565:                     Cancel Rate
+05566:                   </div>
+05567: 
+05568:                   <div class="text-red-500 font-black mt-1">
+05569:                     ${cancellationRate}%
+05570:                   </div>
+05571:                 </div>
+05572: 
+05573:                 <div class="rounded-xl bg-white border border-gray-200 p-2">
+05574:                   <div class="text-gray-400 font-bold uppercase">
+05575:                     Qualified
+05576:                   </div>
+05577: 
+05578:                   <div class="text-blue-600 font-black mt-1">
+05579:                     ${client.qualifiedCount || 0}
+05580:                   </div>
+05581:                 </div>
+05582: 
+05583:                 <div class="rounded-xl bg-white border border-gray-200 p-2">
+05584:                   <div class="text-gray-400 font-bold uppercase">
+05585:                     Credited
+05586:                   </div>
+05587: 
+05588:                   <div class="text-purple-600 font-black mt-1">
+05589:                     ${client.creditedCount || 0}
+05590:                   </div>
+05591:                 </div>
+05592: 
+05593:                 <div class="rounded-xl bg-white border border-gray-200 p-2">
+05594:                   <div class="text-gray-400 font-bold uppercase">
+05595:                     Lead Limit
+05596:                   </div>
+05597: 
+05598:                   <div class="text-gray-900 font-black mt-1">
+05599:                     ${client.leadsPerDayLimit || 0}
+05600:                   </div>
+05601:                 </div>
+05602: 
+05603:                 <div class="rounded-xl bg-white border border-gray-200 p-2">
+05604:                   <div class="text-gray-400 font-bold uppercase">
+05605:                     Sales Reps
+05606:                   </div>
+05607: 
+05608:                   <div class="text-gray-900 font-black mt-1">
+05609:                     ${client.salesRepCount || 0}
+05610:                   </div>
+05611:                 </div>
+05612:               </div>
+05613: 
+05614:               <div class="text-xs text-gray-600 space-y-1 mb-4">
+05615:                 <div>
+05616:                   <span class="font-black text-gray-900">
+05617:                     Today:
+05618:                   </span>
+05619: 
+05620:                   ${client.leadsToday || 0}
+05621:                 </div>
+05622: 
+05623:                 <div>
+05624:                   <span class="font-black text-gray-900">
+05625:                     Yesterday:
+05626:                   </span>
+05627: 
+05628:                   ${client.leadsYesterday || 0}
+05629:                 </div>
+05630: 
+05631:                 <div>
+05632:                   <span class="font-black text-gray-900">
+05633:                     Last Lead:
+05634:                   </span>
+05635: 
+05636:                   ${client.lastLead || "—"}
+05637:                 </div>
+05638:               </div>
+05639: 
+05640:               <button
+05641:                 type="button"
+05642:                 onclick="Admin.dailyAdd('${safeClientCode}')"
+05643:                 class="w-full px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-black hover:bg-blue-700 transition"
+05644:               >
+05645:                 Add to Board
+05646:               </button>
+05647:             </div>
+05648:           `;
+05649:         })
+05650:         .join("");
+05651:     }
+05652: 
+05653:     const selectedDateOnly =
+05654:       this.dailyStrategySelectedDate;
+05655: 
+05656:     const allAgents = Array.isArray(state.agents)
+05657:       ? state.agents
+05658:       : [];
+05659: 
+05660:     const excludedRosterNames = new Set([
+05661:       "micaella barrot",
+05662:       "recca barrot"
+05663:     ]);
+05664: 
+05665:     const baseRoster = allAgents
+05666:       .filter(agent => {
+05667:         const name = String(
+05668:           agent.agent_name ||
+05669:           agent.name ||
+
+## Lines 5921-6036 | credited@5956
+05921:           <td colspan="8" class="p-6 text-center text-gray-400 italic">
+05922:             No history rows for this week.
+05923:           </td>
+05924:         </tr>
+05925:       `;
+05926:     } else {
+05927:       /*
+05928:        * Management History renders Client Code only.
+05929:        * The roofing-company column is intentionally omitted.
+05930:        */
+05931:       historyBodyEl.innerHTML =
+05932:         this.dailyStrategyHistoryRows
+05933:           .map(row => `
+05934:             <tr class="hover:bg-gray-50">
+05935:               <td class="p-4">
+05936:                 ${row.strategy_date || "—"}
+05937:               </td>
+05938: 
+05939:               <td class="p-4">
+05940:                 ${row.day_key || "—"}
+05941:               </td>
+05942: 
+05943:               <td class="p-4 font-bold text-gray-900">
+05944:                 ${row.client_code || "—"}
+05945:               </td>
+05946: 
+05947:               <td class="p-4 text-center font-bold text-gray-700">
+05948:                 ${row.total_leads_set ?? 0}
+05949:               </td>
+05950: 
+05951:               <td class="p-4 text-center font-black text-blue-600">
+05952:                 ${row.qualified_leads_set ?? 0}
+05953:               </td>
+05954: 
+05955:               <td class="p-4 text-center font-black text-purple-600">
+05956:                 ${row.credited_leads_set ?? 0}
+05957:               </td>
+05958: 
+05959:               <td class="p-4 text-center font-black text-red-500">
+05960:                 ${row.rejected_leads_set ?? 0}
+05961:               </td>
+05962: 
+05963:               <td class="p-4 text-gray-700">
+05964:                 ${row.assigned_agents || "—"}
+05965:               </td>
+05966:             </tr>
+05967:           `)
+05968:           .join("");
+05969:     }
+05970: 
+05971:     const dailySearchEl = document.getElementById(
+05972:       "daily-client-pool-search"
+05973:     );
+05974: 
+05975:     if (
+05976:       dailySearchEl &&
+05977:       !dailySearchEl.dataset.bound
+05978:     ) {
+05979:       dailySearchEl.dataset.bound = "true";
+05980: 
+05981:       dailySearchEl.addEventListener(
+05982:         "input",
+05983:         () => {
+05984:           clearTimeout(
+05985:             this._dailyPoolSearchTimer
+05986:           );
+05987: 
+05988:           this._dailyPoolSearchTimer = setTimeout(
+05989:             () => this.renderDailyTab(),
+05990:             180
+05991:           );
+05992:         }
+05993:       );
+05994:     }
+05995: 
+05996:     const dailyStatusEl = document.getElementById(
+05997:       "daily-client-pool-status"
+05998:     );
+05999: 
+06000:     if (
+06001:       dailyStatusEl &&
+06002:       !dailyStatusEl.dataset.bound
+06003:     ) {
+06004:       dailyStatusEl.dataset.bound = "true";
+06005: 
+06006:       dailyStatusEl.addEventListener(
+06007:         "change",
+06008:         () => this.renderDailyTab()
+06009:       );
+06010:     }
+06011: 
+06012:     this.setDailyStrategySubtab(
+06013:       this.dailyStrategySubtab || "shift"
+06014:     );
+06015:   } catch (error) {
+06016:     console.error(
+06017:       "renderDailyTab crashed:",
+06018:       error
+06019:     );
+06020: 
+06021:     boardEl.innerHTML = `
+06022:       <div class="bg-white rounded-2xl border border-red-100 shadow-sm p-5 text-sm text-red-600">
+06023:         Daily Strategy crashed while loading.
+06024:       </div>
+06025:     `;
+06026: 
+06027:     clientPoolEl.innerHTML = `
+06028:       <div class="text-sm text-red-500">
+06029:         Client pool failed to load.
+06030:       </div>
+06031:     `;
+06032: 
+06033:     rosterEl.innerHTML = `
+06034:       <div class="text-sm text-red-500">
+06035:         Roster failed to load.
+06036:       </div>
+
+## Lines 6825-6902 | highlight@6860, highlight@6862
+06825:       this.dailyStrategyHistorySort.dir === "asc"
+06826:         ? "desc"
+06827:         : "asc";
+06828:   } else {
+06829:     this.dailyStrategyHistorySort.key = key;
+06830:     this.dailyStrategyHistorySort.dir =
+06831:       key === "client_code" ? "asc" : "desc";
+06832:   }
+06833: 
+06834:   this.renderDailyTab();
+06835: },
+06836: 
+06837:       setView(viewId) {
+06838:   const linkEl = document.querySelector(`.nav-item[href="#${viewId}"]`);
+06839:   this.nav(viewId, linkEl);
+06840: },
+06841:       
+06842:             nav(viewId, linkEl) {
+06843:   document.querySelectorAll(".view-section").forEach(element => {
+06844:     element.classList.remove("active");
+06845:   });
+06846: 
+06847:   const target = document.getElementById(`view-${viewId}`);
+06848:   if (target) target.classList.add("active");
+06849: 
+06850:   document.querySelectorAll(".nav-item").forEach(element => {
+06851:     element.classList.remove("active");
+06852:   });
+06853: 
+06854:   if (linkEl) linkEl.classList.add("active");
+06855: 
+06856:   this.currentView = viewId;
+06857: 
+06858:   if (viewId === "clients") {
+06859:     try {
+06860:       this.refreshPassbookMentionHighlights();
+06861:     } catch (error) {
+06862:       console.error("Passbook note highlight error:", error);
+06863:     }
+06864:   }
+06865: 
+06866:     if (viewId === "daily") {
+06867:     try {
+06868:       this.renderDailyTab();
+06869:     } catch (error) {
+06870:       console.error("Daily Strategy reload error:", error);
+06871:     }
+06872:   }
+06873: }
+06874: };
+06875: 
+06876: AdminDashboard.setNotificationsTab = function(tab) {
+06877:   this.notificationsTab = tab || 'open';
+06878: 
+06879:   const tabs = ['open', 'done', 'all'];
+06880:   tabs.forEach(key => {
+06881:     const btn = document.getElementById(`notifications-tab-${key}`);
+06882:     if (!btn) return;
+06883: 
+06884:     if (key === this.notificationsTab) {
+06885:       btn.classList.remove('bg-white', 'border', 'border-gray-200', 'text-gray-600');
+06886:       btn.classList.add('bg-gray-900', 'text-white');
+06887:     } else {
+06888:       btn.classList.remove('bg-gray-900', 'text-white');
+06889:       btn.classList.add('bg-white', 'border', 'border-gray-200', 'text-gray-600');
+06890:     }
+06891:   });
+06892: 
+06893:   this.refreshNotificationsTab();
+06894: };
+06895: 
+06896:     window.adminDashboard = AdminDashboard;
+06897: window.Admin = AdminDashboard;
+06898:     
+06899:   </script>
+06900: <script src="main.js?v=20260819-management-privacy-1"></script>
+06901: </body>
+06902: </html>

@@ -1,0 +1,76 @@
+# management-dashboard.html | 6902 lines
+
+## Leads view lines 773-845
+00773: <div class="view-section" id="view-leads">
+00774: <h2 class="text-2xl font-bold text-gray-900 mb-4">Leads Master Record</h2>
+00775: <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+00776: <div class="controls-wrap">
+00777: <div class="flex-1 relative" style="min-width: 260px;">
+00778: <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+00779: <input class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" id="leads-search" placeholder="Search homeowner, appointment coordinator, client code, status, lead ID, email, phone..." type="text"/>
+00780: </div>
+00781: <select class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 bg-white min-w-[170px]" id="leads-filter-status">
+00782: <option value="all">All Status</option>
+00783: <option value="APPROVED">APPROVED</option>
+00784: <option value="CREDITED">CREDITED</option>
+00785: <option value="PENDING REVIEW">PENDING REVIEW</option>
+00786: <option value="REJECTED">REJECTED</option>
+00787: </select>
+00788: <div class="flex items-center gap-2">
+00789: <div>
+00790: <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start</label>
+00791: <input class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white" id="leads-date-start" type="date"/>
+00792: </div>
+00793: <div>
+00794: <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">End</label>
+00795: <input class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white" id="leads-date-end" type="date"/>
+00796: </div>
+00797: </div>
+00798: <button class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50" id="leads-clear">
+00799:               Clear
+00800:             </button>
+00801: <div class="relative">
+00802: <button class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-extrabold hover:bg-gray-800 flex items-center gap-2" id="leads-columns-toggle">
+00803: <i class="fa-solid fa-table-columns"></i> Columns
+00804:               </button>
+00805: <div class="hidden absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50" id="leads-columns-popover">
+00806: <div class="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-2">Visible Columns</div>
+00807: <div class="max-h-[280px] overflow-y-auto space-y-2 pr-1" id="leads-columns-box"></div>
+00808: <div class="flex justify-end gap-2 mt-3">
+00809: <button class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50" id="leads-columns-all">All</button>
+00810: <button class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-extrabold text-gray-700 hover:bg-gray-50" id="leads-columns-min">Minimal</button>
+00811: </div>
+00812: </div>
+00813: </div>
+00814: </div>
+00815: <div class="mt-3 text-xs text-gray-500">
+00816:   Showing <span class="font-bold" id="leads-count">0</span> leads
+00817: </div>
+00818: 
+00819: <div class="mt-3 flex items-center justify-between gap-3 text-xs">
+00820:   <div id="leads-page-info" class="text-gray-500 font-bold">
+00821:     Page 1
+00822:   </div>
+00823: 
+00824:   <div class="flex gap-2">
+00825:     <button id="leads-prev-page" class="px-4 py-2 rounded-lg border border-gray-200 font-bold">
+00826:       Previous
+00827:     </button>
+00828: 
+00829:     <button id="leads-next-page" class="px-4 py-2 rounded-lg bg-gray-900 text-white font-bold">
+00830:       Next
+00831:     </button>
+00832:   </div>
+00833: </div>
+00834: </div>
+00835: <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+00836: <div class="table-scroll max-h-[65vh] overflow-y-auto relative pb-4">
+00837: <table class="table-min w-full text-left text-sm whitespace-nowrap">
+00838: <thead class="bg-white text-xs font-bold text-gray-400 uppercase border-b border-gray-100 sticky top-0 z-20 shadow-sm" id="leads-table-head"></thead>
+00839: <tbody class="divide-y divide-gray-50" id="leads-table-body">
+00840: <tr><td class="p-6 text-center text-gray-400">Loading leads...</td></tr>
+00841: </tbody>
+00842: </table>
+00843: </div>
+00844: </div>
+00845: </div>
