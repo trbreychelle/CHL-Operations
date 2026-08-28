@@ -872,7 +872,7 @@
             <div class="grid grid-cols-2 gap-3 mb-3">
                 <div>
                   <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Total Commission ($)</label>
-                  <input type="number" id="sale-commission" step="0.01" placeholder="Auto-calculated" value="0" readonly class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-700 cursor-not-allowed focus:ring-2 focus:ring-yellow-400">
+                  <input type="number" id="sale-commission" step="0.01" placeholder="Calculated by Supabase" value="0" readonly class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-700 cursor-not-allowed focus:ring-2 focus:ring-yellow-400">
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Purchase Date</label>
@@ -2423,20 +2423,12 @@ async deleteQuickNote(noteId) {
             
             // Fixed the search bar to look for external_package_id instead of transaction_id
             if (q && !`${company} ${code} ${p.external_package_id || ''}`.toLowerCase().includes(q)) return;
-
-                        const rawAmt = p.amount ? String(p.amount).replace(/[^0-9.-]+/g,"") : "0";
-            const dealVal = parseFloat(rawAmt) || 0;
-            const purchasedAmount = Number(p.purchased_leads) || 0;
-
-            const salesFinancials = window.calculateAutoSalesCommission(
-  purchasedAmount,
-  dealVal,
-  p.sales_category || p.sold_by || "",
-  p.purchase_date
-);
-const ratePerLead = salesFinancials.rate;
-const totalLeadCost = salesFinancials.profit;
-const commVal = salesFinancials.commission;
+            const backendFinancials = window.readBackendSalesFinancials(p);
+            const dealVal = backendFinancials.salesValue;
+            const purchasedAmount = Number(p.purchased_leads_calc ?? p.purchased_leads) || 0;
+            const ratePerLead = backendFinancials.rate;
+            const totalLeadCost = backendFinancials.profit;
+            const commVal = backendFinancials.commission;
 
             totalSales += dealVal;
             totalCommissions += commVal;

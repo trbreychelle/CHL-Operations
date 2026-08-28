@@ -2793,17 +2793,9 @@ async renderSalesCommissionPaidButton(startKey, endKey) {
 
             const searchBlob = `${company} ${code} ${txn} ${poc} ${soldBy}`.toLowerCase();
             if (q && !searchBlob.includes(q)) return;
-
-            const rawAmt = p.amount ? String(p.amount).replace(/[^0-9.-]+/g, "") : "0";
-            const dealVal = parseFloat(rawAmt) || Number(p.deal_value || 0) || 0;
-
-          const salesFinancials = window.calculateAutoSalesCommission(
-  Number(p.purchased_leads) || 0,
-  dealVal,
-  soldBy,
-  p.purchase_date
-);
-const commVal = salesFinancials.commission;
+            const backendFinancials = window.readBackendSalesFinancials(p);
+            const dealVal = backendFinancials.salesValue;
+            const commVal = backendFinancials.commission;
 
             totalSales += dealVal;
             totalCommissions += commVal;
@@ -3645,7 +3637,8 @@ async saveOnboardingRow(clientCode) {
 
     document.getElementById('sale-leads').value = pkg.purchased_leads || "";
     document.getElementById('sale-value').value = String(pkg.amount || "").replace(/[^0-9.-]+/g, "");
-    document.getElementById('sale-commission').value = pkg.commission_per_lead || 0;
+    const backendFinancials = window.readBackendSalesFinancials(pkg);
+    document.getElementById('sale-commission').value = backendFinancials.commission.toFixed(2);
 
     if (pkg.purchase_date) {
     const rawDate = String(pkg.purchase_date).trim();
@@ -3760,20 +3753,11 @@ async saveOnboardingRow(clientCode) {
         const dealAmount = parseFloat(document.getElementById('sale-value').value) || 0;
         const purchaseDate = document.getElementById('sale-date').value;
         const salesCategory = document.getElementById('sale-category').value;
-        const commissionValue = window.calculateAutoSalesCommission(
-          purchasedLeads,
-          dealAmount,
-          salesCategory,
-          purchaseDate
-        ).commission;
-
-        document.getElementById('sale-commission').value = commissionValue.toFixed(2);
 
         const payload = {
     client_code: clientCode,
     purchased_leads: purchasedLeads,
     amount: dealAmount,
-    commission_per_lead: commissionValue,
     purchase_date: purchaseDate,
     external_package_id: document.getElementById('sale-transaction-id').value,
     status: "Active",

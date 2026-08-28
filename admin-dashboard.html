@@ -1937,7 +1937,7 @@ body.client-health-lock {
           <div class="grid grid-cols-2 gap-3 mb-3">
               <div>
                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Total Commission ($)</label>
-                <input type="number" id="sale-commission" step="0.01" placeholder="Auto-calculated" value="0" readonly class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-700 cursor-not-allowed focus:ring-2 focus:ring-yellow-400">
+                <input type="number" id="sale-commission" step="0.01" placeholder="Calculated by Supabase" value="0" readonly class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-700 cursor-not-allowed focus:ring-2 focus:ring-yellow-400">
               </div>
               <div>
                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Purchase Date</label>
@@ -4473,18 +4473,6 @@ const normalizeSalesCategory = (value) => {
   return raw;
 };
 
-const isAutoCommissionCategory = (category) => {
-  const cat = normalizeSalesCategory(category);
-  return ["CHL Team", "TRB", "Hammer", "Mikaela", "Sales Team"].includes(cat);
-};
-
-const getSalesLeadRate = (category, purchaseDateValue) => {
-  if (typeof window.getSalesLeadRateForDeal !== "function") {
-    throw new Error("Shared sales-rate policy is unavailable.");
-  }
-  return window.getSalesLeadRateForDeal(category, purchaseDateValue);
-};
-
 const matchesCategoryFilter = (rowCategory, filterValue) => {
   const filter = String(filterValue || "All").trim();
   const cat = normalizeSalesCategory(rowCategory);
@@ -4497,38 +4485,51 @@ const matchesCategoryFilter = (rowCategory, filterValue) => {
 };
 
 const calculateSalesFinancials = (pkg, packageStatus, dealStatus) => {
-  const dealVal = parseSalesNumber(pkg.deal_value ?? pkg.amount);
-  const purchasedAmount = parseSalesNumber(pkg.purchased_leads);
-  const category = normalizeSalesCategory(pkg.sales_category || pkg.sold_by || "");
-  const ratePerLead = getSalesLeadRate(category, pkg.purchase_date);
-  const autoCommission = isAutoCommissionCategory(category);
-  const leadCost = Math.min(purchasedAmount * ratePerLead, dealVal);
+  const dealVal = parseSalesNumber(
+    pkg.original_sales_value ??
+    pkg.original_sales_value_calc ??
+    pkg.amount
+  );
 
-  const originalProfit = autoCommission ? leadCost : dealVal;
-  const originalCommission = autoCommission ? Math.max(0, dealVal - leadCost) : 0;
+  const purchasedAmount = parseSalesNumber(
+    pkg.purchased_leads_calc ??
+    pkg.purchased_leads
+  );
 
-  const refundLeadsDelivered = parseSalesNumber(pkg.refund_leads_delivered);
-  const refundAmount = parseSalesNumber(pkg.refund_amount);
-  const isRefunded = packageStatus === "REFUNDED" || dealStatus === "REFUNDED";
+  const ratePerLead = parseSalesNumber(
+    pkg.rate_per_lead ??
+    pkg.rate_per_lead_calc
+  );
 
-  let keptRatio = 1;
-  let adjustedSales = dealVal;
+  const originalProfit = parseSalesNumber(
+    pkg.original_profit_value ??
+    pkg.original_company_profit_calc
+  );
 
-  if (isRefunded) {
-    if (purchasedAmount > 0 && refundLeadsDelivered > 0) {
-      keptRatio = Math.min(refundLeadsDelivered / purchasedAmount, 1);
-      adjustedSales = Math.min(refundLeadsDelivered * ratePerLead, dealVal);
-    } else if (dealVal > 0 && refundAmount > 0) {
-      adjustedSales = Math.max(0, dealVal - refundAmount);
-      keptRatio = Math.min(adjustedSales / dealVal, 1);
-    } else {
-      keptRatio = 0;
-      adjustedSales = 0;
-    }
-  }
+  const originalCommission = parseSalesNumber(
+    pkg.original_commission_value ??
+    pkg.original_commission_value_calc
+  );
 
-  const adjustedCommission = originalCommission * keptRatio;
-  const adjustedProfit = originalProfit * keptRatio;
+  const adjustedSales = parseSalesNumber(
+    pkg.sales_value ??
+    pkg.adjusted_sales_value ??
+    pkg.adjusted_sales_value_calc ??
+    dealVal
+  );
+
+  const adjustedCommission = parseSalesNumber(
+    pkg.sales_commission ??
+    pkg.adjusted_commission_value ??
+    originalCommission
+  );
+
+  const adjustedProfit = parseSalesNumber(
+    pkg.chl_profit ??
+    pkg.adjusted_profit_value ??
+    pkg.adjusted_profit_value_calc ??
+    originalProfit
+  );
 
   return {
     dealVal,
