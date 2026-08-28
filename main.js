@@ -1861,7 +1861,7 @@ async populateLeaderboardWeekSelect() {
   const { data, error } = await this.supabase
     .from('payroll_weekly_fact_v2')
     .select('week_start, week_end')
-    .order('week_start', { ascending: false }),
+    .order('week_start', { ascending: false });
 
   if (error) {
     console.error('Leaderboard week dropdown load failed:', error);
