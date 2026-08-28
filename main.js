@@ -2617,14 +2617,21 @@ consistencyBonusRes
   supaClient.from('profiles').select('*'),
   supaClient.from('agent_current_rate_view').select('*'),
 
-    //payroll 3 weeks only
-    supaClient
-      .from('payroll_weekly_fact_v2')
-      .select('*')
-      .eq('week_start', payrollCurrentWeekKey)
-      .order('week_start', { ascending: false }),
+// TEMP TEST — CURRENT PAYROLL WEEK ONLY
+supaClient
+  .from('payroll_weekly_fact_v2')
+  .select('*')
+  .eq('week_start', payrollCurrentWeekKey)
+  .order('week_start', { ascending: false }),
 
-  console.log('pwfRes error:', pwfRes.error);
+supaClient.from('payroll_workers').select('*'),
+supaClient.from('client_onboarding').select('*'),
+supaClient.from('hr_training_group_performance_v2').select('*'),
+supaClient.from('hr_training_group_summary_v2').select('*'),
+supaClient.from('payroll_consistency_bonus_status_view').select('*')
+]);
+
+console.log('pwfRes error:', pwfRes.error);
 console.log('pwwRes error:', pwwRes.error);
 console.log('pwfRes rows:', pwfRes.data?.length || 0);
 console.log('pwwRes rows:', pwwRes.data?.length || 0);
