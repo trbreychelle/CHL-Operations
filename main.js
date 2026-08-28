@@ -2618,18 +2618,11 @@ consistencyBonusRes
   supaClient.from('agent_current_rate_view').select('*'),
 
     //payroll 3 weeks only
-  supaClient
-  .from('payroll_weekly_fact_v2')
-  .select('*')
-  .gte('week_start', payrollFourWeekStartKey)
-  .lte('week_start', payrollCurrentWeekKey)
-  .order('week_start', { ascending: false }),
-  supaClient.from('payroll_workers').select('*'),
-  supaClient.from('client_onboarding').select('*'),
-  supaClient.from('hr_training_group_performance_v2').select('*'),
-  supaClient.from('hr_training_group_summary_v2').select('*'),
-supaClient.from('payroll_consistency_bonus_status_view').select('*')
-]);
+    supaClient
+      .from('payroll_weekly_fact_v2')
+      .select('*')
+      .eq('week_start', payrollCurrentWeekKey)
+      .order('week_start', { ascending: false }),
 
   console.log('pwfRes error:', pwfRes.error);
 console.log('pwwRes error:', pwwRes.error);
@@ -3152,20 +3145,18 @@ if (form) {
   }
 }
 
-window.portal = window.portal || new CallHammerPortal();
-
-// ==========================================
-// SUPABASE CLIENT INITIALIZATION
-// ==========================================
-const supabaseUrl = 'https://api.supabase.callhammerleads.com';
-const supabaseKey = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc3MTcwMjI2MCwiZXhwIjo0OTI3Mzc1ODYwLCJyb2xlIjoiYW5vbiJ9.XuWCdGs0XSSSlWhsF6gR4gHMp50C-v6xra9ABgSVRoU';
-const supaClient = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
-
-// ==========================================
-// PASSBOOK CONTROLS (ADMIN & SALES)
-// ==========================================
-async function fetchAdminClients(status = 'Active') {
-    if (!supaClient) return;
+      window.portal = window.portal || new CallHammerPortal();
+      
+      // ==========================================
+      // REUSE THE EXISTING SUPABASE CLIENT
+      // ==========================================
+      const supaClient = window.portal?.supabase || null;
+      
+      // ==========================================
+      // PASSBOOK CONTROLS (ADMIN & SALES)
+      // ==========================================
+      async function fetchAdminClients(status = 'Active') {
+          if (!supaClient) return;
     
     // Fetch ALL clients first to beat Supabase's strict case-sensitivity
     const { data: clients, error } = await supaClient.from('clients').select('*');
