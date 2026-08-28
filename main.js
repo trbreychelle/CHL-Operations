@@ -2555,6 +2555,36 @@ async fetchAdminData(forceRefresh = false) {
     supaHRTrainingGroups = [],
 supaPayrollConsistencyBonusStatus = [];
 
+// ==========================================
+// PAYROLL INITIAL LOAD RANGE
+// Current payroll week + previous 3 weeks
+// ==========================================
+const payrollCurrentWeekStart = this.getPayrollWeekStart(new Date());
+
+const payrollFourWeekStart = new Date(payrollCurrentWeekStart);
+payrollFourWeekStart.setDate(payrollFourWeekStart.getDate() - 21);
+
+const formatPayrollDateKey = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+
+  return `${y}-${m}-${d}`;
+};
+
+const payrollCurrentWeekKey =
+  formatPayrollDateKey(payrollCurrentWeekStart);
+
+const payrollFourWeekStartKey =
+  formatPayrollDateKey(payrollFourWeekStart);
+
+console.log(
+  'Loading initial payroll range:',
+  payrollFourWeekStartKey,
+  '→',
+  payrollCurrentWeekKey
+);
+
 if (supaClient) {
   const [
   lRes,
@@ -2586,7 +2616,14 @@ consistencyBonusRes
   supaClient.from('client_package_allocation_view').select('*'),
   supaClient.from('profiles').select('*'),
   supaClient.from('agent_current_rate_view').select('*'),
-  supaClient.from('payroll_weekly_fact_v2').select('*'),
+
+    //payroll 3 weeks only
+  supaClient
+  .from('payroll_weekly_fact_v2')
+  .select('*')
+  .gte('week_start', payrollFourWeekStartKey)
+  .lte('week_start', payrollCurrentWeekKey)
+  .order('week_start', { ascending: false }),
   supaClient.from('payroll_workers').select('*'),
   supaClient.from('client_onboarding').select('*'),
   supaClient.from('hr_training_group_performance_v2').select('*'),
@@ -2646,12 +2683,53 @@ this.adminState.timeEvents = supaTime;
 this.adminState.agents = supaAgents.length > 0 ? supaAgents : (dataRoot.agents || []);
 this.adminState.rawProfiles = supaProfiles || [];
 this.adminState.agentCurrentRates = supaAgentCurrentRates || [];
-this.adminState.payrollWeeklyFactView = supaPayrollWeeklyFactView || [];
+// Merge refreshed recent payroll with any historical weeks
+// that were lazy-loaded earlier.
+const existingPayrollRows = Array.isArray(this.adminState.payrollWeeklyFactView)
+  ? this.adminState.payrollWeeklyFactView
+  : [];
+
+const payrollRowKey = (row) => {
+  const week =
+    row.week_id ||
+    row.week_start ||
+    '';
+
+  const worker =
+    row.worker_id ||
+    row.agent_id ||
+    row.worker_email ||
+    row.agent_email ||
+    row.worker_name ||
+    row.agent_name ||
+    '';
+
+  return `${String(week)}|${String(worker)}`;
+};
+
+const payrollRowMap = new Map(
+  existingPayrollRows.map(row => [
+    payrollRowKey(row),
+    row
+  ])
+);
+
+// Fresh current 4 weeks overwrite cached copies
+(supaPayrollWeeklyFactView || []).forEach(row => {
+  payrollRowMap.set(
+    payrollRowKey(row),
+    row
+  );
+});
+
+this.adminState.payrollWeeklyFactView =
+  Array.from(payrollRowMap.values());
 this.adminState.payrollWorkers = supaPayrollWorkers || [];
 this.adminState.clientOnboarding = supaClientOnboarding || [];
 
 /* temporary backward compatibility */
-this.adminState.weeklyPayroll = supaPayrollWeeklyFactView || [];
+this.adminState.weeklyPayroll =
+  this.adminState.payrollWeeklyFactView;
 
 this.adminState.clientHealthView = supaClientHealth;
 this.adminState.agentPerformanceView = supaAgentPerformance;
