@@ -1,0 +1,160 @@
+name: One-time payroll dashboard repair
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  repair-payroll-dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch payroll loading logic
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # ------------------------------------------------------------
+          # 1) Load a real four-week payroll window in the shared loader.
+          # ------------------------------------------------------------
+          main_path = Path('main.js')
+          main_text = main_path.read_text(encoding='utf-8')
+
+          old_query = """// TEMP TEST — CURRENT PAYROLL WEEK ONLY
+          supaClient
+            .from('payroll_weekly_fact_v2')
+            .select('*')
+            .eq('week_start', payrollCurrentWeekKey)
+            .order('week_start', { ascending: false }),"""
+
+          new_query = """// Load current payroll week plus the previous 3 payroll weeks.
+          // A new week can legitimately have zero rows, so keeping recent completed
+          // weeks in memory prevents Payroll & Finance from booting with an empty set.
+          supaClient
+            .from('payroll_weekly_fact_v2')
+            .select('*')
+            .gte('week_start', payrollFourWeekStartKey)
+            .lte('week_start', payrollCurrentWeekKey)
+            .order('week_start', { ascending: false }),"""
+
+          if old_query not in main_text:
+              raise SystemExit('Expected current-week-only payroll query was not found in main.js')
+
+          main_text = main_text.replace(old_query, new_query, 1)
+          main_path.write_text(main_text, encoding='utf-8')
+
+          # ------------------------------------------------------------
+          # 2) Make Admin payroll resilient when the current week is empty.
+          # ------------------------------------------------------------
+          admin_path = Path('admin-dashboard.html')
+          admin_text = admin_path.read_text(encoding='utf-8')
+
+          old_render_head = """             async renderPayrollFinance() {
+          const state = this.getState();
+          const payrollRows = Array.isArray(state.payrollWeeklyFactView)
+            ? state.payrollWeeklyFactView
+            : [];"""
+
+          new_render_head = """             async renderPayrollFinance() {
+          const state = this.getState();
+          let payrollRows = Array.isArray(state.payrollWeeklyFactView)
+            ? state.payrollWeeklyFactView
+            : [];"""
+
+          if old_render_head not in admin_text:
+              raise SystemExit('Expected renderPayrollFinance header was not found in admin-dashboard.html')
+
+          admin_text = admin_text.replace(old_render_head, new_render_head, 1)
+
+          old_empty_guard = """          if (!payrollRows.length) {
+            document.getElementById(\"payroll-summary-body\").innerHTML ="""
+
+          new_empty_guard = """          // If the new/current payroll week has no rows yet, bootstrap the
+          // latest completed payroll week instead of leaving the UI on \"Loading Weeks...\".
+          if (!payrollRows.length && typeof this.loadPayrollWeekList === \"function\") {
+            try {
+              const bootstrapWeeks = await this.loadPayrollWeekList();
+              const todayKey = new Date().toISOString().slice(0, 10);
+              const bootstrapWeek =
+                bootstrapWeeks.find(w => String(w.week_end || \"\") < todayKey) ||
+                bootstrapWeeks.find(w => String(w.week_start || \"\") <= todayKey) ||
+                bootstrapWeeks[0];
+
+              if (bootstrapWeek?.week_id) {
+                this._payrollRequestedWeekId = String(bootstrapWeek.week_id);
+                await this.loadPayrollWeek(
+                  String(bootstrapWeek.week_id),
+                  bootstrapWeek.week_start || null
+                );
+
+                payrollRows = Array.isArray(state.payrollWeeklyFactView)
+                  ? state.payrollWeeklyFactView
+                  : [];
+              }
+            } catch (bootstrapError) {
+              console.error(\"Payroll bootstrap load failed:\", bootstrapError);
+            }
+          }
+
+          if (!payrollRows.length) {
+            document.getElementById(\"payroll-summary-body\").innerHTML ="""
+
+          if old_empty_guard not in admin_text:
+              raise SystemExit('Expected empty payroll guard was not found in admin-dashboard.html')
+
+          admin_text = admin_text.replace(old_empty_guard, new_empty_guard, 1)
+
+          old_default_week = """            if (uniqueWeeks.some(w => w.week_id === currentValue)) {
+              weekSelect.value = currentValue;
+            } else if (uniqueWeeks[0]) {
+              weekSelect.value = uniqueWeeks[0].week_id;
+            }"""
+
+          new_default_week = """            const latestLoadedWeekId = payrollRows
+              .filter(r => r.week_id && r.week_start)
+              .slice()
+              .sort((a, b) => String(b.week_start).localeCompare(String(a.week_start)))[0]?.week_id;
+
+            if (uniqueWeeks.some(w => w.week_id === currentValue)) {
+              weekSelect.value = currentValue;
+            } else if (
+              latestLoadedWeekId &&
+              uniqueWeeks.some(w => w.week_id === String(latestLoadedWeekId))
+            ) {
+              weekSelect.value = String(latestLoadedWeekId);
+            } else if (uniqueWeeks[0]) {
+              weekSelect.value = uniqueWeeks[0].week_id;
+            }"""
+
+          if old_default_week not in admin_text:
+              raise SystemExit('Expected payroll dropdown default block was not found in admin-dashboard.html')
+
+          admin_text = admin_text.replace(old_default_week, new_default_week, 1)
+          admin_path.write_text(admin_text, encoding='utf-8')
+
+          print('Payroll dashboard files patched successfully.')
+          PY
+
+      - name: Validate shared JavaScript syntax
+        run: node --check main.js
+
+      - name: Remove one-time repair workflow
+        run: rm .github/workflows/payroll-dashboard-fix.yml
+
+      - name: Commit payroll fix
+        shell: bash
+        run: |
+          git config user.name "CHL Payroll Repair"
+          git config user.email "actions@users.noreply.github.com"
+          git add main.js admin-dashboard.html .github/workflows/payroll-dashboard-fix.yml
+          git commit -m "Fix payroll week loading on dashboard"
+          git push origin main
