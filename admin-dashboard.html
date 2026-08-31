@@ -9159,7 +9159,7 @@
   
              async renderPayrollFinance() {
           const state = this.getState();
-          const payrollRows = Array.isArray(state.payrollWeeklyFactView)
+          let payrollRows = Array.isArray(state.payrollWeeklyFactView)
             ? state.payrollWeeklyFactView
             : [];
   
@@ -9171,7 +9171,34 @@
     ? state.payrollConsistencyBonusStatus
     : [];
   
-          if (!payrollRows.length) {
+          // If the new/current payroll week has no rows yet, bootstrap the
+// latest completed payroll week instead of leaving the UI on "Loading Weeks...".
+if (!payrollRows.length && typeof this.loadPayrollWeekList === "function") {
+  try {
+    const bootstrapWeeks = await this.loadPayrollWeekList();
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const bootstrapWeek =
+      bootstrapWeeks.find(w => String(w.week_end || "") < todayKey) ||
+      bootstrapWeeks.find(w => String(w.week_start || "") <= todayKey) ||
+      bootstrapWeeks[0];
+
+    if (bootstrapWeek?.week_id) {
+      this._payrollRequestedWeekId = String(bootstrapWeek.week_id);
+      await this.loadPayrollWeek(
+        String(bootstrapWeek.week_id),
+        bootstrapWeek.week_start || null
+      );
+
+      payrollRows = Array.isArray(state.payrollWeeklyFactView)
+        ? state.payrollWeeklyFactView
+        : [];
+    }
+  } catch (bootstrapError) {
+    console.error("Payroll bootstrap load failed:", bootstrapError);
+  }
+}
+
+if (!payrollRows.length) {
             document.getElementById("payroll-summary-body").innerHTML =
               `<tr><td colspan="7" class="p-8 text-center text-gray-400 italic">No payroll data found.</td></tr>`;
             document.getElementById("payroll-ledger-body").innerHTML =
@@ -9221,11 +9248,21 @@
               `)
               .join("");
           
-            if (uniqueWeeks.some(w => w.week_id === currentValue)) {
-              weekSelect.value = currentValue;
-            } else if (uniqueWeeks[0]) {
-              weekSelect.value = uniqueWeeks[0].week_id;
-            }
+            const latestLoadedWeekId = payrollRows
+    .filter(r => r.week_id && r.week_start)
+    .slice()
+    .sort((a, b) => String(b.week_start).localeCompare(String(a.week_start)))[0]?.week_id;
+
+  if (uniqueWeeks.some(w => w.week_id === currentValue)) {
+    weekSelect.value = currentValue;
+  } else if (
+    latestLoadedWeekId &&
+    uniqueWeeks.some(w => w.week_id === String(latestLoadedWeekId))
+  ) {
+    weekSelect.value = String(latestLoadedWeekId);
+  } else if (uniqueWeeks[0]) {
+    weekSelect.value = uniqueWeeks[0].week_id;
+  }
           
             this._payrollRequestedWeekId = null;
           }

@@ -2617,11 +2617,14 @@ consistencyBonusRes
   supaClient.from('profiles').select('*'),
   supaClient.from('agent_current_rate_view').select('*'),
 
-// TEMP TEST — CURRENT PAYROLL WEEK ONLY
+// Load current payroll week plus the previous 3 payroll weeks.
+// A new week can legitimately have zero rows, so keeping recent completed
+// weeks in memory prevents Payroll & Finance from booting with an empty set.
 supaClient
   .from('payroll_weekly_fact_v2')
   .select('*')
-  .eq('week_start', payrollCurrentWeekKey)
+  .gte('week_start', payrollFourWeekStartKey)
+  .lte('week_start', payrollCurrentWeekKey)
   .order('week_start', { ascending: false }),
 
 supaClient.from('payroll_workers').select('*'),
