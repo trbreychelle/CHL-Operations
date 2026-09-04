@@ -1,0 +1,399 @@
+from pathlib import Path
+
+path = Path('admin-dashboard.html')
+text = path.read_text(encoding='utf-8')
+
+if 'applyPayrollOptimisticPatch(weekId, workerId, patch = {})' in text:
+    print('Payroll instant-save helpers already present; nothing to patch.')
+else:
+    marker = '        async savePayrollLedgerStatus(weekId, workerId, fields = {}) {'
+    pos = text.find(marker)
+    if pos < 0:
+        raise SystemExit('savePayrollLedgerStatus marker not found')
+
+    helpers = r'''        getPayrollMutationRow(weekId, workerId) {
+          const state = this.getState();
+          const rows = Array.isArray(state?.payrollWeeklyFactView)
+            ? state.payrollWeeklyFactView
+            : [];
+
+          return rows.find(row =>
+            String(row.week_id) === String(weekId) &&
+            String(row.worker_id) === String(workerId)
+          ) || null;
+        },
+
+        payrollMutationValuesEqual(actual, expected) {
+          if (typeof expected === "boolean") return Boolean(actual) === expected;
+          if (typeof expected === "number") {
+            const a = Number(actual);
+            return Number.isFinite(a) && Math.abs(a - expected) < 0.005;
+          }
+          return String(actual ?? "") === String(expected ?? "");
+        },
+
+        applyPendingPayrollPatches(rows = []) {
+          if (!(this._payrollPendingPatches instanceof Map) || !this._payrollPendingPatches.size) {
+            return rows;
+          }
+
+          const now = Date.now();
+          const ttlMs = 20 * 60 * 1000;
+
+          for (const row of rows) {
+            const key = `${String(row.week_id || "")}|${String(row.worker_id || "")}`;
+            const pending = this._payrollPendingPatches.get(key);
+            if (!pending) continue;
+
+            if (!pending.updatedAt || now - pending.updatedAt > ttlMs) {
+              this._payrollPendingPatches.delete(key);
+              continue;
+            }
+
+            const fields = pending.fields || {};
+            const backendCaughtUp = Object.entries(fields).every(([field, expected]) =>
+              this.payrollMutationValuesEqual(row[field], expected)
+            );
+
+            if (backendCaughtUp) {
+              this._payrollPendingPatches.delete(key);
+              continue;
+            }
+
+            Object.assign(row, fields);
+          }
+
+          return rows;
+        },
+
+        applyPayrollOptimisticPatch(weekId, workerId, patch = {}) {
+          const row = this.getPayrollMutationRow(weekId, workerId);
+          if (!row) return;
+
+          Object.assign(row, patch);
+
+          if (!(this._payrollPendingPatches instanceof Map)) {
+            this._payrollPendingPatches = new Map();
+          }
+
+          const key = `${String(weekId)}|${String(workerId)}`;
+          const existing = this._payrollPendingPatches.get(key) || { fields: {} };
+
+          this._payrollPendingPatches.set(key, {
+            fields: { ...(existing.fields || {}), ...patch },
+            updatedAt: Date.now()
+          });
+
+          this._payrollRequestedWeekId = String(weekId);
+          this.renderPayrollFinance();
+        },
+
+        schedulePayrollReconcile() {
+          clearTimeout(this._payrollReconcileTimer);
+          this._payrollReconcileTimer = setTimeout(async () => {
+            try {
+              if (window.portal && typeof window.portal.fetchAdminData === "function") {
+                await window.portal.fetchAdminData(true);
+              }
+            } catch (error) {
+              console.warn("Background payroll reconciliation failed:", error);
+            }
+          }, 1200);
+        },
+
+'''
+    text = text[:pos] + helpers + text[pos:]
+
+    render_marker = '''          const payrollRows = Array.isArray(state.payrollWeeklyFactView)
+            ? state.payrollWeeklyFactView
+            : [];
+'''
+    render_replacement = '''          const payrollRows = Array.isArray(state.payrollWeeklyFactView)
+            ? state.payrollWeeklyFactView
+            : [];
+
+          this.applyPendingPayrollPatches(payrollRows);
+'''
+    render_pos = text.find('async renderPayrollFinance()')
+    if render_pos < 0:
+        raise SystemExit('renderPayrollFinance not found')
+    after_render = text[render_pos:]
+    if render_marker not in after_render:
+        raise SystemExit('Payroll rows declaration not found inside renderPayrollFinance')
+    after_render = after_render.replace(render_marker, render_replacement, 1)
+    text = text[:render_pos] + after_render
+
+    start = text.find('        async savePayrollLedgerStatus(weekId, workerId, fields = {}) {')
+    end = text.find('        getPayrollWeekRangeLabel(weekStartStr) {', start)
+    if start < 0 or end < 0:
+        raise SystemExit('Could not locate payroll mutation method block')
+
+    new_methods = r'''        async savePayrollLedgerStatus(weekId, workerId, fields = {}) {
+          if (typeof supaClient === "undefined" || !supaClient) {
+            alert("Database connection missing!");
+            return;
+          }
+
+          const payload = {
+            week_id: weekId,
+            worker_id: workerId,
+            ...fields,
+            updated_at: new Date().toISOString()
+          };
+
+          const { data: existing, error: fetchError } = await supaClient
+            .from("payroll_ledger")
+            .select("id")
+            .eq("week_id", weekId)
+            .eq("worker_id", workerId)
+            .maybeSingle();
+
+          if (fetchError) {
+            console.error("Fetch payroll ledger error:", fetchError);
+            alert("Failed to check payroll ledger row.");
+            return;
+          }
+
+          let writeError = null;
+
+          if (existing?.id) {
+            const res = await supaClient
+              .from("payroll_ledger")
+              .update(payload)
+              .eq("id", existing.id);
+            writeError = res.error;
+          } else {
+            const res = await supaClient
+              .from("payroll_ledger")
+              .insert([payload]);
+            writeError = res.error;
+          }
+
+          if (writeError) {
+            console.error("Save payroll ledger error:", writeError);
+            alert("Failed to save payroll status.");
+            return;
+          }
+
+          const uiPatch = {};
+          if (Object.prototype.hasOwnProperty.call(fields, "is_paid")) uiPatch.is_paid = !!fields.is_paid;
+          if (Object.prototype.hasOwnProperty.call(fields, "locked")) uiPatch.locked = !!fields.locked;
+          if (Object.prototype.hasOwnProperty.call(fields, "note")) uiPatch.note = fields.note || "";
+
+          this.applyPayrollOptimisticPatch(weekId, workerId, uiPatch);
+          this.schedulePayrollReconcile();
+        },
+
+        async saveManualSpiff(weekId, workerId, value) {
+          if (typeof supaClient === "undefined" || !supaClient) {
+            alert("Database connection missing!");
+            return;
+          }
+
+          const selectedRow = this.getPayrollMutationRow(weekId, workerId);
+          if (!selectedRow?.week_start) {
+            alert("Could not find payroll week start.");
+            return;
+          }
+
+          const numericValue = Number(value || 0);
+          if (!Number.isFinite(numericValue)) {
+            alert("Enter a valid manual incentive amount.");
+            return;
+          }
+
+          const weekStart = selectedRow.week_start;
+          const { data: existing, error: fetchError } = await supaClient
+            .from("payroll_weekly_overrides")
+            .select("id")
+            .eq("worker_id", workerId)
+            .eq("week_start", weekStart)
+            .maybeSingle();
+
+          if (fetchError) {
+            console.error("Fetch payroll weekly override error:", fetchError);
+            alert("Failed to check manual spiff row.");
+            return;
+          }
+
+          let writeError = null;
+          if (existing?.id) {
+            const res = await supaClient
+              .from("payroll_weekly_overrides")
+              .update({ manual_spiff: numericValue, updated_at: new Date().toISOString() })
+              .eq("id", existing.id);
+            writeError = res.error;
+          } else {
+            const res = await supaClient
+              .from("payroll_weekly_overrides")
+              .insert([{ worker_id: workerId, week_start: weekStart, manual_spiff: numericValue, updated_at: new Date().toISOString() }]);
+            writeError = res.error;
+          }
+
+          if (writeError) {
+            console.error("Save manual spiff error:", writeError);
+            alert("Failed to save manual spiff.");
+            return;
+          }
+
+          this.applyPayrollOptimisticPatch(weekId, workerId, { manual_incentive_delta: numericValue });
+          this.schedulePayrollReconcile();
+        },
+
+        async savePayrollAdjustment(weekId, workerId, hoursDelta, incentiveDelta) {
+          if (typeof supaClient === "undefined" || !supaClient) {
+            alert("Database connection missing!");
+            return;
+          }
+
+          const selectedRow = this.getPayrollMutationRow(weekId, workerId);
+          if (!selectedRow) {
+            alert("Could not find this payroll row.");
+            return;
+          }
+
+          const numericHours = Number(hoursDelta || 0);
+          const numericIncentive = Number(incentiveDelta || 0);
+          if (!Number.isFinite(numericHours) || !Number.isFinite(numericIncentive)) {
+            alert("Enter a valid payroll adjustment.");
+            return;
+          }
+
+          const { data: existingRows, error: fetchError } = await supaClient
+            .from("payroll_adjustments")
+            .select("id")
+            .eq("week_id", weekId)
+            .eq("agent_id", workerId)
+            .eq("notes", "Admin dashboard adjustment");
+
+          if (fetchError) {
+            console.error("Fetch payroll adjustment error:", fetchError);
+            alert("Failed to check payroll adjustment row.");
+            return;
+          }
+
+          let writeError = null;
+          if (Array.isArray(existingRows) && existingRows.length > 0) {
+            const res = await supaClient
+              .from("payroll_adjustments")
+              .update({ hours_delta: numericHours, incentive_delta: numericIncentive, notes: "Admin dashboard adjustment" })
+              .eq("id", existingRows[0].id);
+            writeError = res.error;
+          } else {
+            const res = await supaClient
+              .from("payroll_adjustments")
+              .insert([{ week_id: weekId, agent_id: workerId, hours_delta: numericHours, incentive_delta: numericIncentive, notes: "Admin dashboard adjustment" }]);
+            writeError = res.error;
+          }
+
+          if (writeError) {
+            console.error("Save payroll adjustment error:", writeError);
+            alert("Failed to save payroll adjustment.");
+            return;
+          }
+
+          const previousHoursDelta = Number(selectedRow.manual_hours_delta || 0);
+          const hoursDifference = numericHours - previousHoursDelta;
+          const effectiveRate = Number(selectedRow.effective_rate || 0);
+          const nextAdjustedHours = Number(selectedRow.adjusted_hours || 0) + hoursDifference;
+          const nextBasePay = Number(selectedRow.base_pay || 0) + (hoursDifference * effectiveRate);
+
+          this.applyPayrollOptimisticPatch(weekId, workerId, {
+            manual_hours_delta: numericHours,
+            manual_incentive_delta: numericIncentive,
+            adjusted_hours: nextAdjustedHours,
+            base_pay: nextBasePay
+          });
+          this.schedulePayrollReconcile();
+        },
+
+        async saveDailyHours(weekId, workerId, day, value) {
+          if (typeof supaClient === "undefined" || !supaClient) {
+            alert("Database connection missing!");
+            return;
+          }
+
+          const selectedRow = this.getPayrollMutationRow(weekId, workerId);
+          if (!selectedRow?.week_start) {
+            alert("Could not find payroll week start.");
+            return;
+          }
+
+          const columnMap = {
+            sat: "sat_hours_override",
+            sun: "sun_hours_override",
+            mon: "mon_hours_override",
+            tue: "tue_hours_override",
+            wed: "wed_hours_override",
+            thu: "thu_hours_override",
+            fri: "fri_hours_override"
+          };
+
+          const column = columnMap[day];
+          if (!column) {
+            alert("Invalid day selected.");
+            return;
+          }
+
+          const numericValue = Number(value || 0);
+          if (!Number.isFinite(numericValue) || numericValue < 0) {
+            alert("Enter a valid number of hours.");
+            return;
+          }
+
+          const weekStart = selectedRow.week_start;
+          const { data: existing, error: fetchError } = await supaClient
+            .from("payroll_weekly_overrides")
+            .select("id")
+            .eq("worker_id", workerId)
+            .eq("week_start", weekStart)
+            .maybeSingle();
+
+          if (fetchError) {
+            console.error("Fetch payroll weekly override error:", fetchError);
+            alert("Failed to check daily override row.");
+            return;
+          }
+
+          let writeError = null;
+          if (existing?.id) {
+            const res = await supaClient
+              .from("payroll_weekly_overrides")
+              .update({ [column]: numericValue, updated_at: new Date().toISOString() })
+              .eq("id", existing.id);
+            writeError = res.error;
+          } else {
+            const res = await supaClient
+              .from("payroll_weekly_overrides")
+              .insert([{ worker_id: workerId, week_start: weekStart, [column]: numericValue, updated_at: new Date().toISOString() }]);
+            writeError = res.error;
+          }
+
+          if (writeError) {
+            console.error("Save daily hours override error:", writeError);
+            alert("Failed to save daily hours.");
+            return;
+          }
+
+          const rowField = `hours_${day}`;
+          const previousDayHours = Number(selectedRow[rowField] || 0);
+          const hoursDifference = numericValue - previousDayHours;
+          const effectiveRate = Number(selectedRow.effective_rate || 0);
+          const nextTotalHours = Number(selectedRow.total_hours || 0) + hoursDifference;
+          const nextAdjustedHours = Number(selectedRow.adjusted_hours || 0) + hoursDifference;
+          const nextBasePay = Number(selectedRow.base_pay || 0) + (hoursDifference * effectiveRate);
+
+          this.applyPayrollOptimisticPatch(weekId, workerId, {
+            [rowField]: numericValue,
+            total_hours: nextTotalHours,
+            adjusted_hours: nextAdjustedHours,
+            base_pay: nextBasePay
+          });
+          this.schedulePayrollReconcile();
+        },
+
+'''
+
+    text = text[:start] + new_methods + text[end:]
+    path.write_text(text, encoding='utf-8')
+    print('Payroll instant-save behavior patched.')
