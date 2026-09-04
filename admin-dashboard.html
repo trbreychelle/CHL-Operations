@@ -9341,7 +9341,18 @@ if (!payrollRows.length) {
   };
   
   const creditedLeads = Math.max(totalLeads - approvedLeads - rejectedLeads, 0);
-  const autoBonus = this.calculateTieredBonus(approvedLeads, creditedLeads);
+
+  // One-week payroll exception: Shady Magdy's Aug 22-28, 2026
+  // incentive is entered manually, so suppress the automatic tier bonus
+  // without changing his lead counts or any other payroll week.
+  const suppressAutoBonus =
+    agName.toLowerCase() === "shady magdy" &&
+    String(r.week_start || "") === "2026-08-22";
+
+  const autoBonus = suppressAutoBonus
+    ? 0
+    : this.calculateTieredBonus(approvedLeads, creditedLeads);
+
   const cxPercent = (approvedLeads + creditedLeads) > 0
     ? ((creditedLeads / (approvedLeads + creditedLeads)) * 100)
     : 0;
