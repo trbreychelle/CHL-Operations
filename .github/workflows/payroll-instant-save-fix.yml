@@ -17,6 +17,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Adapt patch script to current payroll renderer
+        run: sed -i 's/const payrollRows/let payrollRows/g' .github/scripts/payroll_instant_fix.py
+
       - name: Patch payroll mutation UX
         run: python .github/scripts/payroll_instant_fix.py
 
