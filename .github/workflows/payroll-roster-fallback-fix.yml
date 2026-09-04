@@ -1,0 +1,70 @@
+name: One-time payroll roster fallback repair
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  patch-payroll-roster:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch payroll roster fallback and Shady exception
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('admin-dashboard.html')
+          text = path.read_text(encoding='utf-8')
+
+          old = '''          const selectedWeekMeta = uniqueWeeks.find(w => w.week_id === selectedWeekId);\n          const selectedRows = payrollRows.filter(r => String(r.week_id) === selectedWeekId);\n  \n          this._currentPayrollRows = selectedRows;\n'''
+
+          new = '''          const selectedWeekMeta = uniqueWeeks.find(w => w.week_id === selectedWeekId);\n          const selectedRows = payrollRows.filter(r => String(r.week_id) === selectedWeekId);\n\n          // The fact view can omit otherwise valid payroll workers when there are no\n          // materialized weekly rows yet. Merge the selected week with the underlying\n          // weekly base view first, then synthesize any remaining eligible roster rows.\n          if (selectedWeekMeta?.week_start) {\n            const weekStartKey = String(selectedWeekMeta.week_start);\n            const weekEndKey = String(selectedWeekMeta.week_end || \"\");\n\n            if (!(this._payrollBaseWeekCache instanceof Map)) {\n              this._payrollBaseWeekCache = new Map();\n            }\n\n            let baseRows = this._payrollBaseWeekCache.get(weekStartKey);\n            if (!baseRows && typeof supaClient !== \"undefined\" && supaClient) {\n              try {\n                const { data: baseData, error: baseError } = await supaClient\n                  .from(\"payroll_weekly_base_view\")\n                  .select(\"*\")\n                  .eq(\"week_start\", weekStartKey);\n\n                if (baseError) {\n                  console.warn(\"Payroll weekly base fallback failed:\", baseError);\n                  baseRows = [];\n                } else {\n                  baseRows = Array.isArray(baseData) ? baseData : [];\n                }\n\n                this._payrollBaseWeekCache.set(weekStartKey, baseRows);\n              } catch (baseFetchError) {\n                console.warn(\"Payroll weekly base fallback exception:\", baseFetchError);\n                baseRows = [];\n              }\n            }\n\n            const selectedWorkerIds = new Set(\n              selectedRows.map(row => String(row.worker_id || \"\").trim()).filter(Boolean)\n            );\n\n            (baseRows || []).forEach(baseRow => {\n              const workerId = String(baseRow.worker_id || \"\").trim();\n              if (!workerId || selectedWorkerIds.has(workerId)) return;\n\n              const mergedRow = {\n                ...baseRow,\n                week_id: selectedWeekId,\n                week_start: weekStartKey,\n                week_end: baseRow.week_end || weekEndKey\n              };\n\n              selectedRows.push(mergedRow);\n              payrollRows.push(mergedRow);\n              selectedWorkerIds.add(workerId);\n            });\n\n            const isWorkerEligibleForWeek = worker => {\n              if (!worker || worker.show_in_payroll === false) return false;\n              const workerId = String(worker.id || \"\").trim();\n              if (!workerId) return false;\n\n              const start = worker.employment_start_date\n                ? String(worker.employment_start_date)\n                : null;\n              const end = worker.employment_end_date\n                ? String(worker.employment_end_date)\n                : null;\n\n              if (start && start > weekStartKey) return false;\n              if (end && end < weekStartKey) return false;\n              return true;\n            };\n\n            workers.filter(isWorkerEligibleForWeek).forEach(worker => {\n              const workerId = String(worker.id || \"\").trim();\n              if (!workerId || selectedWorkerIds.has(workerId)) return;\n\n              const displayName = String(worker.display_name || worker.agent_name_key || \"Unknown\").trim();\n              const isDavidNathaniel = displayName.toLowerCase() === \"david nathaniel\";\n\n              const syntheticRow = {\n                week_id: selectedWeekId,\n                week_start: weekStartKey,\n                week_end: weekEndKey,\n                worker_id: workerId,\n                worker_email: worker.email || \"\",\n                display_name: displayName,\n                country: isDavidNathaniel ? \"UNITED STATES\" : (worker.country || \"UNASSIGNED\"),\n                effective_rate: Number(worker.default_rate || 0),\n                total_hours: 0,\n                adjusted_hours: 0,\n                manual_hours_delta: 0,\n                base_pay: 0,\n                approved_leads: 0,\n                rejected_leads: 0,\n                total_leads: 0,\n                manual_incentive_delta: 0,\n                hours_sat: 0,\n                hours_sun: 0,\n                hours_mon: 0,\n                hours_tue: 0,\n                hours_wed: 0,\n                hours_thu: 0,\n                hours_fri: 0,\n                is_paid: false,\n                locked: false,\n                note: \"\"\n              };\n\n              selectedRows.push(syntheticRow);\n              payrollRows.push(syntheticRow);\n              selectedWorkerIds.add(workerId);\n            });\n          }\n  \n          this._currentPayrollRows = selectedRows;\n'''
+
+          if old not in text:
+              raise SystemExit('Selected payroll rows block not found')
+          text = text.replace(old, new, 1)
+
+          old_country = '              const country = String(worker.country || r.country || "UNASSIGNED").toUpperCase();'
+          new_country = '''              const country = agName.toLowerCase() === "david nathaniel"\n                ? "UNITED STATES"\n                : String(worker.country || r.country || "UNASSIGNED").toUpperCase();'''
+          if old_country not in text:
+              raise SystemExit('Payroll country line not found')
+          text = text.replace(old_country, new_country, 1)
+
+          old_shady = '''  const suppressAutoBonus =\n    agName.toLowerCase() === "shady magdy" &&\n    String(r.week_start || "") === "2026-08-22";'''
+          new_shady = '''  const normalizedPayrollName = agName\n    .toLowerCase()\n    .replace(/[^a-z]/g, "");\n\n  const suppressAutoBonus =\n    normalizedPayrollName === "shadymagdy" &&\n    String(r.week_start || "").slice(0, 10) === "2026-08-22";'''
+          if old_shady not in text:
+              raise SystemExit('Shady bonus exception block not found')
+          text = text.replace(old_shady, new_shady, 1)
+
+          path.write_text(text, encoding='utf-8')
+          print('Payroll roster fallback and Shady exception patched.')
+          PY
+
+      - name: Verify patch markers
+        shell: bash
+        run: |
+          grep -q "payroll_weekly_base_view" admin-dashboard.html
+          grep -q "UNITED STATES" admin-dashboard.html
+          grep -q "normalizedPayrollName" admin-dashboard.html
+
+      - name: Remove one-time workflow
+        run: rm .github/workflows/payroll-roster-fallback-fix.yml
+
+      - name: Commit fix
+        shell: bash
+        run: |
+          git config user.name "CHL Payroll Repair"
+          git config user.email "actions@users.noreply.github.com"
+          git add admin-dashboard.html .github/workflows/payroll-roster-fallback-fix.yml
+          git commit -m "Ensure eligible payroll workers render every week"
+          git push origin main
