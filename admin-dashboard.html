@@ -9275,6 +9275,118 @@ if (!payrollRows.length) {
   
           const selectedWeekMeta = uniqueWeeks.find(w => w.week_id === selectedWeekId);
           const selectedRows = payrollRows.filter(r => String(r.week_id) === selectedWeekId);
+
+          // The fact view can omit otherwise valid payroll workers when there are no
+          // materialized weekly rows yet. Merge the selected week with the underlying
+          // weekly base view first, then synthesize any remaining eligible roster rows.
+          if (selectedWeekMeta?.week_start) {
+            const weekStartKey = String(selectedWeekMeta.week_start);
+            const weekEndKey = String(selectedWeekMeta.week_end || "");
+
+            if (!(this._payrollBaseWeekCache instanceof Map)) {
+              this._payrollBaseWeekCache = new Map();
+            }
+
+            let baseRows = this._payrollBaseWeekCache.get(weekStartKey);
+            if (!baseRows && typeof supaClient !== "undefined" && supaClient) {
+              try {
+                const { data: baseData, error: baseError } = await supaClient
+                  .from("payroll_weekly_base_view")
+                  .select("*")
+                  .eq("week_start", weekStartKey);
+
+                if (baseError) {
+                  console.warn("Payroll weekly base fallback failed:", baseError);
+                  baseRows = [];
+                } else {
+                  baseRows = Array.isArray(baseData) ? baseData : [];
+                }
+
+                this._payrollBaseWeekCache.set(weekStartKey, baseRows);
+              } catch (baseFetchError) {
+                console.warn("Payroll weekly base fallback exception:", baseFetchError);
+                baseRows = [];
+              }
+            }
+
+            const selectedWorkerIds = new Set(
+              selectedRows.map(row => String(row.worker_id || "").trim()).filter(Boolean)
+            );
+
+            (baseRows || []).forEach(baseRow => {
+              const workerId = String(baseRow.worker_id || "").trim();
+              if (!workerId || selectedWorkerIds.has(workerId)) return;
+
+              const mergedRow = {
+                ...baseRow,
+                week_id: selectedWeekId,
+                week_start: weekStartKey,
+                week_end: baseRow.week_end || weekEndKey
+              };
+
+              selectedRows.push(mergedRow);
+              payrollRows.push(mergedRow);
+              selectedWorkerIds.add(workerId);
+            });
+
+            const isWorkerEligibleForWeek = worker => {
+              if (!worker || worker.show_in_payroll === false) return false;
+              const workerId = String(worker.id || "").trim();
+              if (!workerId) return false;
+
+              const start = worker.employment_start_date
+                ? String(worker.employment_start_date)
+                : null;
+              const end = worker.employment_end_date
+                ? String(worker.employment_end_date)
+                : null;
+
+              if (start && start > weekStartKey) return false;
+              if (end && end < weekStartKey) return false;
+              return true;
+            };
+
+            workers.filter(isWorkerEligibleForWeek).forEach(worker => {
+              const workerId = String(worker.id || "").trim();
+              if (!workerId || selectedWorkerIds.has(workerId)) return;
+
+              const displayName = String(worker.display_name || worker.agent_name_key || "Unknown").trim();
+              const isDavidNathaniel = displayName.toLowerCase() === "david nathaniel";
+
+              const syntheticRow = {
+                week_id: selectedWeekId,
+                week_start: weekStartKey,
+                week_end: weekEndKey,
+                worker_id: workerId,
+                worker_email: worker.email || "",
+                display_name: displayName,
+                country: isDavidNathaniel ? "UNITED STATES" : (worker.country || "UNASSIGNED"),
+                effective_rate: Number(worker.default_rate || 0),
+                total_hours: 0,
+                adjusted_hours: 0,
+                manual_hours_delta: 0,
+                base_pay: 0,
+                approved_leads: 0,
+                rejected_leads: 0,
+                total_leads: 0,
+                manual_incentive_delta: 0,
+                hours_sat: 0,
+                hours_sun: 0,
+                hours_mon: 0,
+                hours_tue: 0,
+                hours_wed: 0,
+                hours_thu: 0,
+                hours_fri: 0,
+                is_paid: false,
+                locked: false,
+                note: ""
+              };
+
+              selectedRows.push(syntheticRow);
+              payrollRows.push(syntheticRow);
+              selectedWorkerIds.add(workerId);
+            });
+          }
   
           this._currentPayrollRows = selectedRows;
   
@@ -9314,7 +9426,9 @@ if (!payrollRows.length) {
               const worker = workerMap.get(workerId) || {};
   
               const agName = String(r.display_name || worker.display_name || "Unknown").trim();
-              const country = String(worker.country || r.country || "UNASSIGNED").toUpperCase();
+              const country = agName.toLowerCase() === "david nathaniel"
+                ? "UNITED STATES"
+                : String(worker.country || r.country || "UNASSIGNED").toUpperCase();
   
               const totalHours = Number(r.total_hours || 0);
               const manualHoursDelta = Number(r.manual_hours_delta || 0);
@@ -9345,9 +9459,13 @@ if (!payrollRows.length) {
   // One-week payroll exception: Shady Magdy's Aug 22-28, 2026
   // incentive is entered manually, so suppress the automatic tier bonus
   // without changing his lead counts or any other payroll week.
+  const normalizedPayrollName = agName
+    .toLowerCase()
+    .replace(/[^a-z]/g, "");
+
   const suppressAutoBonus =
-    agName.toLowerCase() === "shady magdy" &&
-    String(r.week_start || "") === "2026-08-22";
+    normalizedPayrollName === "shadymagdy" &&
+    String(r.week_start || "").slice(0, 10) === "2026-08-22";
 
   const autoBonus = suppressAutoBonus
     ? 0
