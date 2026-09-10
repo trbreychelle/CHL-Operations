@@ -9163,7 +9163,6 @@
             ? state.payrollWeeklyFactView
             : [];
 
-          this.applyPendingPayrollPatches(payrollRows);
   
           const workers = Array.isArray(state.payrollWorkers)
             ? state.payrollWorkers
@@ -9276,115 +9275,6 @@ if (!payrollRows.length) {
           const selectedWeekMeta = uniqueWeeks.find(w => w.week_id === selectedWeekId);
           const selectedRows = payrollRows.filter(r => String(r.week_id) === selectedWeekId);
 
-          // Targeted payroll roster inclusion beginning Aug 29, 2026.
-          // Only these three workers are added when the fact view has not yet
-          // materialized their row. Do not broaden this to the full worker roster.
-          if (selectedWeekMeta?.week_start && String(selectedWeekMeta.week_start).slice(0, 10) >= "2026-08-29") {
-            const normalizePayrollName = value => String(value || "")
-              .trim()
-              .toLowerCase()
-              .replace(/[^a-z]/g, "");
-
-            const targetedNames = new Set([
-              "davidnathaniel",
-              "micaellabarrot",
-              "reychellebarrot"
-            ]);
-
-            const weekStartKey = String(selectedWeekMeta.week_start).slice(0, 10);
-            const weekEndKey = String(selectedWeekMeta.week_end || "").slice(0, 10);
-            const selectedWorkerIds = new Set(
-              selectedRows.map(row => String(row.worker_id || "").trim()).filter(Boolean)
-            );
-
-            const targetedWorkers = workers.filter(worker => {
-              const nameKey = normalizePayrollName(worker.display_name || worker.agent_name_key);
-              if (!targetedNames.has(nameKey)) return false;
-              if (worker.show_in_payroll === false || worker.is_active === false) return false;
-
-              const start = worker.employment_start_date ? String(worker.employment_start_date).slice(0, 10) : null;
-              const end = worker.employment_end_date ? String(worker.employment_end_date).slice(0, 10) : null;
-              if (start && start > weekStartKey) return false;
-              if (end && end < weekStartKey) return false;
-              return true;
-            });
-
-            const missingIds = targetedWorkers
-              .map(worker => String(worker.id || "").trim())
-              .filter(workerId => workerId && !selectedWorkerIds.has(workerId));
-
-            if (missingIds.length && typeof supaClient !== "undefined" && supaClient) {
-              try {
-                const { data: targetBaseRows, error: targetBaseError } = await supaClient
-                  .from("payroll_weekly_base_view")
-                  .select("*")
-                  .eq("week_start", weekStartKey)
-                  .in("worker_id", missingIds);
-
-                if (targetBaseError) {
-                  console.warn("Targeted payroll base lookup failed:", targetBaseError);
-                } else {
-                  (targetBaseRows || []).forEach(baseRow => {
-                    const workerId = String(baseRow.worker_id || "").trim();
-                    if (!workerId || selectedWorkerIds.has(workerId)) return;
-                    const worker = targetedWorkers.find(w => String(w.id || "") === workerId) || {};
-                    const displayName = String(baseRow.display_name || worker.display_name || worker.agent_name_key || "Unknown").trim();
-                    const isDavid = normalizePayrollName(displayName) === "davidnathaniel";
-                    const mergedRow = {
-                      ...baseRow,
-                      week_id: selectedWeekId,
-                      week_start: weekStartKey,
-                      week_end: baseRow.week_end || weekEndKey,
-                      display_name: displayName,
-                      country: isDavid ? "UNITED STATES" : (worker.country || baseRow.country || "UNASSIGNED")
-                    };
-                    selectedRows.push(mergedRow);
-                    payrollRows.push(mergedRow);
-                    selectedWorkerIds.add(workerId);
-                  });
-                }
-              } catch (targetBaseException) {
-                console.warn("Targeted payroll base lookup exception:", targetBaseException);
-              }
-            }
-
-            // If the weekly base view also has not materialized a row yet, create
-            // a zero-hour row for only the three explicitly targeted workers.
-            targetedWorkers.forEach(worker => {
-              const workerId = String(worker.id || "").trim();
-              if (!workerId || selectedWorkerIds.has(workerId)) return;
-              const displayName = String(worker.display_name || worker.agent_name_key || "Unknown").trim();
-              const isDavid = normalizePayrollName(displayName) === "davidnathaniel";
-              const syntheticRow = {
-                week_id: selectedWeekId,
-                week_start: weekStartKey,
-                week_end: weekEndKey,
-                worker_id: workerId,
-                worker_email: worker.email || "",
-                display_name: displayName,
-                country: isDavid ? "UNITED STATES" : (worker.country || "UNASSIGNED"),
-                effective_rate: Number(worker.default_rate || 0),
-                total_hours: 0,
-                adjusted_hours: 0,
-                manual_hours_delta: 0,
-                base_pay: 0,
-                approved_leads: 0,
-                rejected_leads: 0,
-                total_leads: 0,
-                manual_incentive_delta: 0,
-                is_paid: false,
-                locked: false,
-                note: "",
-                approved_by: "",
-                hours_sat: 0, hours_sun: 0, hours_mon: 0, hours_tue: 0,
-                hours_wed: 0, hours_thu: 0, hours_fri: 0
-              };
-              selectedRows.push(syntheticRow);
-              payrollRows.push(syntheticRow);
-              selectedWorkerIds.add(workerId);
-            });
-          }
-  
           this._currentPayrollRows = selectedRows;
   
           if (selectedWeekMeta?.week_start) {
@@ -9451,30 +9341,19 @@ if (!payrollRows.length) {
   
   const creditedLeads = Math.max(totalLeads - approvedLeads - rejectedLeads, 0);
 
-  // One-week payroll exceptions.
-  const normalizedPayrollName = agName.toLowerCase().replace(/[^a-z]/g, "");
-  const payrollWeekKey = String(r.week_start || "").slice(0, 10);
-
-  // Shady Magdy: Aug 22-28 bonus is entered manually.
-  const suppressShadyAutoBonus =
-    normalizedPayrollName === "shadymagdy" &&
-    payrollWeekKey === "2026-08-22";
-
-  // Aug 29-Sep 4 only: exactly 6 qualified appointments should not
-  // receive the normal $50 automatic tier bonus. Lead counts remain intact.
-  const suppressSixQualifiedBonus =
-    payrollWeekKey === "2026-08-29" &&
-    approvedLeads === 6;
-
-  const autoBonus = (suppressShadyAutoBonus || suppressSixQualifiedBonus)
-    ? 0
-    : this.calculateTieredBonus(approvedLeads, creditedLeads);
+  // Payroll amounts come from the backend. The browser does not apply
+  // roster exceptions or bonus policy. final_pay is the source of truth.
+  const finalPay = Number(r.final_pay || 0);
+  const backendAutoBonusRaw =
+    r.auto_bonus ?? r.automatic_bonus ?? r.tier_bonus ?? r.bonus_amount;
+  const autoBonus = backendAutoBonusRaw == null
+    ? Math.max(finalPay - basePay - manualIncentiveDelta, 0)
+    : Number(backendAutoBonusRaw || 0);
 
   const cxPercent = (approvedLeads + creditedLeads) > 0
     ? ((creditedLeads / (approvedLeads + creditedLeads)) * 100)
     : 0;
   
-  const finalPay = basePay + autoBonus + manualIncentiveDelta;
   
               grandTotalPayout += finalPay;
   
@@ -9699,82 +9578,34 @@ if (!payrollRows.length) {
           ) || null;
         },
 
-        payrollMutationValuesEqual(actual, expected) {
-          if (typeof expected === "boolean") return Boolean(actual) === expected;
-          if (typeof expected === "number") {
-            const a = Number(actual);
-            return Number.isFinite(a) && Math.abs(a - expected) < 0.005;
-          }
-          return String(actual ?? "") === String(expected ?? "");
-        },
+        async refreshPayrollWeekFromBackend(weekId) {
+          if (typeof supaClient === "undefined" || !supaClient || !weekId) return false;
 
-        applyPendingPayrollPatches(rows = []) {
-          if (!(this._payrollPendingPatches instanceof Map) || !this._payrollPendingPatches.size) {
-            return rows;
-          }
+          const { data, error } = await supaClient
+            .from("payroll_weekly_fact_v2")
+            .select("*")
+            .eq("week_id", weekId);
 
-          const now = Date.now();
-          const ttlMs = 20 * 60 * 1000;
-
-          for (const row of rows) {
-            const key = `${String(row.week_id || "")}|${String(row.worker_id || "")}`;
-            const pending = this._payrollPendingPatches.get(key);
-            if (!pending) continue;
-
-            if (!pending.updatedAt || now - pending.updatedAt > ttlMs) {
-              this._payrollPendingPatches.delete(key);
-              continue;
-            }
-
-            const fields = pending.fields || {};
-            const backendCaughtUp = Object.entries(fields).every(([field, expected]) =>
-              this.payrollMutationValuesEqual(row[field], expected)
-            );
-
-            if (backendCaughtUp) {
-              this._payrollPendingPatches.delete(key);
-              continue;
-            }
-
-            Object.assign(row, fields);
+          if (error) {
+            console.error("Payroll backend refresh failed:", error);
+            alert("Saved, but failed to reload payroll from the backend.");
+            return false;
           }
 
-          return rows;
-        },
+          const state = this.getState();
+          const existingRows = Array.isArray(state.payrollWeeklyFactView)
+            ? state.payrollWeeklyFactView
+            : [];
 
-        applyPayrollOptimisticPatch(weekId, workerId, patch = {}) {
-          const row = this.getPayrollMutationRow(weekId, workerId);
-          if (!row) return;
+          state.payrollWeeklyFactView = [
+            ...existingRows.filter(row => String(row.week_id) !== String(weekId)),
+            ...(Array.isArray(data) ? data : [])
+          ];
 
-          Object.assign(row, patch);
-
-          if (!(this._payrollPendingPatches instanceof Map)) {
-            this._payrollPendingPatches = new Map();
-          }
-
-          const key = `${String(weekId)}|${String(workerId)}`;
-          const existing = this._payrollPendingPatches.get(key) || { fields: {} };
-
-          this._payrollPendingPatches.set(key, {
-            fields: { ...(existing.fields || {}), ...patch },
-            updatedAt: Date.now()
-          });
-
+          this._payrollLoadedWeeks.add(String(weekId));
           this._payrollRequestedWeekId = String(weekId);
-          this.renderPayrollFinance();
-        },
-
-        schedulePayrollReconcile() {
-          clearTimeout(this._payrollReconcileTimer);
-          this._payrollReconcileTimer = setTimeout(async () => {
-            try {
-              if (window.portal && typeof window.portal.fetchAdminData === "function") {
-                await window.portal.fetchAdminData(true);
-              }
-            } catch (error) {
-              console.warn("Background payroll reconciliation failed:", error);
-            }
-          }, 1200);
+          await this.renderPayrollFinance();
+          return true;
         },
 
         async savePayrollLedgerStatus(weekId, workerId, fields = {}) {
@@ -9824,13 +9655,7 @@ if (!payrollRows.length) {
             return;
           }
 
-          const uiPatch = {};
-          if (Object.prototype.hasOwnProperty.call(fields, "is_paid")) uiPatch.is_paid = !!fields.is_paid;
-          if (Object.prototype.hasOwnProperty.call(fields, "locked")) uiPatch.locked = !!fields.locked;
-          if (Object.prototype.hasOwnProperty.call(fields, "note")) uiPatch.note = fields.note || "";
-
-          this.applyPayrollOptimisticPatch(weekId, workerId, uiPatch);
-          this.schedulePayrollReconcile();
+          await this.refreshPayrollWeekFromBackend(weekId);
         },
 
         async saveManualSpiff(weekId, workerId, value) {
@@ -9885,8 +9710,7 @@ if (!payrollRows.length) {
             return;
           }
 
-          this.applyPayrollOptimisticPatch(weekId, workerId, { manual_incentive_delta: numericValue });
-          this.schedulePayrollReconcile();
+          await this.refreshPayrollWeekFromBackend(weekId);
         },
 
         async savePayrollAdjustment(weekId, workerId, hoursDelta, incentiveDelta) {
@@ -9941,19 +9765,7 @@ if (!payrollRows.length) {
             return;
           }
 
-          const previousHoursDelta = Number(selectedRow.manual_hours_delta || 0);
-          const hoursDifference = numericHours - previousHoursDelta;
-          const effectiveRate = Number(selectedRow.effective_rate || 0);
-          const nextAdjustedHours = Number(selectedRow.adjusted_hours || 0) + hoursDifference;
-          const nextBasePay = Number(selectedRow.base_pay || 0) + (hoursDifference * effectiveRate);
-
-          this.applyPayrollOptimisticPatch(weekId, workerId, {
-            manual_hours_delta: numericHours,
-            manual_incentive_delta: numericIncentive,
-            adjusted_hours: nextAdjustedHours,
-            base_pay: nextBasePay
-          });
-          this.schedulePayrollReconcile();
+          await this.refreshPayrollWeekFromBackend(weekId);
         },
 
         async saveDailyHours(weekId, workerId, day, value) {
@@ -10024,21 +9836,7 @@ if (!payrollRows.length) {
             return;
           }
 
-          const rowField = `hours_${day}`;
-          const previousDayHours = Number(selectedRow[rowField] || 0);
-          const hoursDifference = numericValue - previousDayHours;
-          const effectiveRate = Number(selectedRow.effective_rate || 0);
-          const nextTotalHours = Number(selectedRow.total_hours || 0) + hoursDifference;
-          const nextAdjustedHours = Number(selectedRow.adjusted_hours || 0) + hoursDifference;
-          const nextBasePay = Number(selectedRow.base_pay || 0) + (hoursDifference * effectiveRate);
-
-          this.applyPayrollOptimisticPatch(weekId, workerId, {
-            [rowField]: numericValue,
-            total_hours: nextTotalHours,
-            adjusted_hours: nextAdjustedHours,
-            base_pay: nextBasePay
-          });
-          this.schedulePayrollReconcile();
+          await this.refreshPayrollWeekFromBackend(weekId);
         },
 
         getPayrollWeekRangeLabel(weekStartStr) {
