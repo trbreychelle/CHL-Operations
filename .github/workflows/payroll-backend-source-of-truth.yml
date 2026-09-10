@@ -1,0 +1,124 @@
+name: Payroll backend source of truth
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  patch-payroll:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Move payroll truth to backend reads
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('admin-dashboard.html')
+          text = path.read_text(encoding='utf-8')
+
+          # 1) Remove local pending-patch application from renderer.
+          text = text.replace('''\n          this.applyPendingPayrollPatches(payrollRows);\n''', '\n', 1)
+
+          # 2) Remove targeted/synthetic worker injection.
+          roster_start = text.find('          // Targeted payroll roster inclusion beginning Aug 29, 2026.')
+          roster_end_marker = '          this._currentPayrollRows = selectedRows;'
+          if roster_start >= 0:
+              roster_end = text.find(roster_end_marker, roster_start)
+              if roster_end < 0:
+                  raise SystemExit('Could not find end of targeted payroll roster block')
+              text = text[:roster_start] + text[roster_end:]
+
+          # 3) Replace client-side bonus policy and payout math with backend values.
+          bonus_start = text.find('  // One-week payroll exceptions.')
+          if bonus_start < 0:
+              bonus_start = text.find('  // One-week payroll exception: Shady Magdy')
+          bonus_end_marker = '  const cxPercent = (approvedLeads + creditedLeads) > 0'
+          if bonus_start < 0:
+              raise SystemExit('Could not find payroll bonus exception block')
+          bonus_end = text.find(bonus_end_marker, bonus_start)
+          if bonus_end < 0:
+              raise SystemExit('Could not find end of payroll bonus block')
+
+          backend_bonus = '''  // Payroll amounts come from the backend. The browser does not apply\n  // roster exceptions or bonus policy. final_pay is the source of truth.\n  const finalPay = Number(r.final_pay || 0);\n  const backendAutoBonusRaw =\n    r.auto_bonus ?? r.automatic_bonus ?? r.tier_bonus ?? r.bonus_amount;\n  const autoBonus = backendAutoBonusRaw == null\n    ? Math.max(finalPay - basePay - manualIncentiveDelta, 0)\n    : Number(backendAutoBonusRaw || 0);\n\n'''
+          text = text[:bonus_start] + backend_bonus + text[bonus_end:]
+
+          # Remove later client-side finalPay declaration if still present.
+          text = text.replace('''\n  const finalPay = basePay + autoBonus + manualIncentiveDelta;\n''', '\n', 1)
+
+          # 4) Replace optimistic-patch helpers with direct backend week refresh.
+          helper_start = text.find('        payrollMutationValuesEqual(actual, expected) {')
+          save_start = text.find('        async savePayrollLedgerStatus(weekId, workerId, fields = {}) {', helper_start)
+          if helper_start < 0 or save_start < 0:
+              raise SystemExit('Could not find payroll optimistic helper block')
+
+          refresh_helper = '''        async refreshPayrollWeekFromBackend(weekId) {\n          if (typeof supaClient === "undefined" || !supaClient || !weekId) return false;\n\n          const { data, error } = await supaClient\n            .from("payroll_weekly_fact_v2")\n            .select("*")\n            .eq("week_id", weekId);\n\n          if (error) {\n            console.error("Payroll backend refresh failed:", error);\n            alert("Saved, but failed to reload payroll from the backend.");\n            return false;\n          }\n\n          const state = this.getState();\n          const existingRows = Array.isArray(state.payrollWeeklyFactView)\n            ? state.payrollWeeklyFactView\n            : [];\n\n          state.payrollWeeklyFactView = [\n            ...existingRows.filter(row => String(row.week_id) !== String(weekId)),\n            ...(Array.isArray(data) ? data : [])\n          ];\n\n          this._payrollLoadedWeeks.add(String(weekId));\n          this._payrollRequestedWeekId = String(weekId);\n          await this.renderPayrollFinance();\n          return true;\n        },\n\n'''
+          text = text[:helper_start] + refresh_helper + text[save_start:]
+
+          # 5) Ledger: after successful backend write, re-query backend week.
+          old_ledger_tail = '''          const uiPatch = {};\n          if (Object.prototype.hasOwnProperty.call(fields, "is_paid")) uiPatch.is_paid = !!fields.is_paid;\n          if (Object.prototype.hasOwnProperty.call(fields, "locked")) uiPatch.locked = !!fields.locked;\n          if (Object.prototype.hasOwnProperty.call(fields, "note")) uiPatch.note = fields.note || "";\n\n          this.applyPayrollOptimisticPatch(weekId, workerId, uiPatch);\n          this.schedulePayrollReconcile();'''
+          if old_ledger_tail not in text:
+              raise SystemExit('Could not find ledger optimistic tail')
+          text = text.replace(old_ledger_tail, '          await this.refreshPayrollWeekFromBackend(weekId);', 1)
+
+          # 6) Manual spiff: backend refresh only.
+          old_spiff_tail = '''          this.applyPayrollOptimisticPatch(weekId, workerId, { manual_incentive_delta: numericValue });\n          this.schedulePayrollReconcile();'''
+          if old_spiff_tail not in text:
+              raise SystemExit('Could not find spiff optimistic tail')
+          text = text.replace(old_spiff_tail, '          await this.refreshPayrollWeekFromBackend(weekId);', 1)
+
+          # 7) Manual hours adjustment: remove client-side math and refresh backend.
+          adjust_start = text.find('          const previousHoursDelta = Number(selectedRow.manual_hours_delta || 0);')
+          adjust_end_marker = '          this.schedulePayrollReconcile();'
+          if adjust_start < 0:
+              raise SystemExit('Could not find payroll adjustment local math')
+          adjust_end = text.find(adjust_end_marker, adjust_start)
+          if adjust_end < 0:
+              raise SystemExit('Could not find payroll adjustment local math end')
+          adjust_end += len(adjust_end_marker)
+          text = text[:adjust_start] + '          await this.refreshPayrollWeekFromBackend(weekId);' + text[adjust_end:]
+
+          # 8) Daily hours: remove client-side math and refresh backend.
+          daily_start = text.find('          const rowField = `hours_${day}`;')
+          if daily_start < 0:
+              raise SystemExit('Could not find daily-hours local math')
+          daily_end = text.find(adjust_end_marker, daily_start)
+          if daily_end < 0:
+              raise SystemExit('Could not find daily-hours local math end')
+          daily_end += len(adjust_end_marker)
+          text = text[:daily_start] + '          await this.refreshPayrollWeekFromBackend(weekId);' + text[daily_end:]
+
+          path.write_text(text, encoding='utf-8')
+          print('Payroll frontend now treats backend as source of truth.')
+          PY
+
+      - name: Verify backend-only payroll behavior
+        shell: bash
+        run: |
+          ! grep -q 'Targeted payroll roster inclusion' admin-dashboard.html
+          ! grep -q 'suppressSixQualifiedBonus' admin-dashboard.html
+          ! grep -q 'suppressShadyAutoBonus' admin-dashboard.html
+          ! grep -q 'applyPayrollOptimisticPatch' admin-dashboard.html
+          grep -q 'refreshPayrollWeekFromBackend' admin-dashboard.html
+          grep -q 'const finalPay = Number(r.final_pay || 0)' admin-dashboard.html
+
+      - name: Remove one-time workflow
+        run: rm .github/workflows/payroll-backend-source-of-truth.yml
+
+      - name: Commit source-of-truth cleanup
+        shell: bash
+        run: |
+          git config user.name "CHL Payroll Repair"
+          git config user.email "actions@users.noreply.github.com"
+          git add admin-dashboard.html .github/workflows/payroll-backend-source-of-truth.yml
+          git commit -m "Make payroll backend the source of truth"
+          git push origin main
