@@ -9312,8 +9312,8 @@ if (!payrollRows.length) {
               const workerId = String(r.worker_id || "").trim();
               const worker = workerMap.get(workerId) || {};
   
-              const agName = String(r.display_name || worker.display_name || "Unknown").trim();
-              const country = String(worker.country || r.country || "UNASSIGNED").toUpperCase();
+              const agName = String(r.display_name || "Unknown").trim();
+              const country = String(r.country || "UNASSIGNED").toUpperCase();
   
               const totalHours = Number(r.total_hours || 0);
               const manualHoursDelta = Number(r.manual_hours_delta || 0);
@@ -9339,16 +9339,11 @@ if (!payrollRows.length) {
     fri: Number(r.hours_fri || 0)
   };
   
-  const creditedLeads = Math.max(totalLeads - approvedLeads - rejectedLeads, 0);
+  const creditedLeads = Number(r.credited_leads || 0);
 
-  // Payroll amounts come from the backend. The browser does not apply
-  // roster exceptions or bonus policy. final_pay is the source of truth.
+  // Payroll amounts come directly from the backend view.
   const finalPay = Number(r.final_pay || 0);
-  const backendAutoBonusRaw =
-    r.auto_bonus ?? r.automatic_bonus ?? r.tier_bonus ?? r.bonus_amount;
-  const autoBonus = backendAutoBonusRaw == null
-    ? Math.max(finalPay - basePay - manualIncentiveDelta, 0)
-    : Number(backendAutoBonusRaw || 0);
+  const autoBonus = Number(r.auto_incentive_delta || 0);
 
   const cxPercent = (approvedLeads + creditedLeads) > 0
     ? ((creditedLeads / (approvedLeads + creditedLeads)) * 100)
