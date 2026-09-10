@@ -1,0 +1,57 @@
+name: Payroll backend columns cleanup
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Make payroll display read backend columns directly
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('admin-dashboard.html')
+          s = p.read_text(encoding='utf-8')
+
+          s = s.replace(
+              'const agName = String(r.display_name || worker.display_name || "Unknown").trim();\n              const country = String(worker.country || r.country || "UNASSIGNED").toUpperCase();',
+              'const agName = String(r.display_name || "Unknown").trim();\n              const country = String(r.country || "UNASSIGNED").toUpperCase();'
+          )
+
+          old = '''  const creditedLeads = Math.max(totalLeads - approvedLeads - rejectedLeads, 0);\n\n  // Payroll amounts come from the backend. The browser does not apply\n  // roster exceptions or bonus policy. final_pay is the source of truth.\n  const finalPay = Number(r.final_pay || 0);\n  const backendAutoBonusRaw =\n    r.auto_bonus ?? r.automatic_bonus ?? r.tier_bonus ?? r.bonus_amount;\n  const autoBonus = backendAutoBonusRaw == null\n    ? Math.max(finalPay - basePay - manualIncentiveDelta, 0)\n    : Number(backendAutoBonusRaw || 0);'''
+
+          new = '''  const creditedLeads = Number(r.credited_leads || 0);\n\n  // Payroll amounts come directly from the backend view.\n  const finalPay = Number(r.final_pay || 0);\n  const autoBonus = Number(r.auto_incentive_delta || 0);'''
+
+          if old not in s:
+              raise SystemExit('Expected backend payroll amount block not found')
+          s = s.replace(old, new, 1)
+
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Verify
+        shell: bash
+        run: |
+          grep -q 'const autoBonus = Number(r.auto_incentive_delta || 0);' admin-dashboard.html
+          grep -q 'const creditedLeads = Number(r.credited_leads || 0);' admin-dashboard.html
+          ! grep -q 'backendAutoBonusRaw' admin-dashboard.html
+
+      - name: Remove workflow and commit
+        shell: bash
+        run: |
+          rm .github/workflows/payroll-backend-columns-fix.yml
+          git config user.name "CHL Payroll Repair"
+          git config user.email "actions@users.noreply.github.com"
+          git add admin-dashboard.html .github/workflows/payroll-backend-columns-fix.yml
+          git commit -m "Read payroll amounts directly from backend columns"
+          git push origin main
