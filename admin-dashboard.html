@@ -9275,6 +9275,115 @@ if (!payrollRows.length) {
   
           const selectedWeekMeta = uniqueWeeks.find(w => w.week_id === selectedWeekId);
           const selectedRows = payrollRows.filter(r => String(r.week_id) === selectedWeekId);
+
+          // Targeted payroll roster inclusion beginning Aug 29, 2026.
+          // Only these three workers are added when the fact view has not yet
+          // materialized their row. Do not broaden this to the full worker roster.
+          if (selectedWeekMeta?.week_start && String(selectedWeekMeta.week_start).slice(0, 10) >= "2026-08-29") {
+            const normalizePayrollName = value => String(value || "")
+              .trim()
+              .toLowerCase()
+              .replace(/[^a-z]/g, "");
+
+            const targetedNames = new Set([
+              "davidnathaniel",
+              "micaellabarrot",
+              "reychellebarrot"
+            ]);
+
+            const weekStartKey = String(selectedWeekMeta.week_start).slice(0, 10);
+            const weekEndKey = String(selectedWeekMeta.week_end || "").slice(0, 10);
+            const selectedWorkerIds = new Set(
+              selectedRows.map(row => String(row.worker_id || "").trim()).filter(Boolean)
+            );
+
+            const targetedWorkers = workers.filter(worker => {
+              const nameKey = normalizePayrollName(worker.display_name || worker.agent_name_key);
+              if (!targetedNames.has(nameKey)) return false;
+              if (worker.show_in_payroll === false || worker.is_active === false) return false;
+
+              const start = worker.employment_start_date ? String(worker.employment_start_date).slice(0, 10) : null;
+              const end = worker.employment_end_date ? String(worker.employment_end_date).slice(0, 10) : null;
+              if (start && start > weekStartKey) return false;
+              if (end && end < weekStartKey) return false;
+              return true;
+            });
+
+            const missingIds = targetedWorkers
+              .map(worker => String(worker.id || "").trim())
+              .filter(workerId => workerId && !selectedWorkerIds.has(workerId));
+
+            if (missingIds.length && typeof supaClient !== "undefined" && supaClient) {
+              try {
+                const { data: targetBaseRows, error: targetBaseError } = await supaClient
+                  .from("payroll_weekly_base_view")
+                  .select("*")
+                  .eq("week_start", weekStartKey)
+                  .in("worker_id", missingIds);
+
+                if (targetBaseError) {
+                  console.warn("Targeted payroll base lookup failed:", targetBaseError);
+                } else {
+                  (targetBaseRows || []).forEach(baseRow => {
+                    const workerId = String(baseRow.worker_id || "").trim();
+                    if (!workerId || selectedWorkerIds.has(workerId)) return;
+                    const worker = targetedWorkers.find(w => String(w.id || "") === workerId) || {};
+                    const displayName = String(baseRow.display_name || worker.display_name || worker.agent_name_key || "Unknown").trim();
+                    const isDavid = normalizePayrollName(displayName) === "davidnathaniel";
+                    const mergedRow = {
+                      ...baseRow,
+                      week_id: selectedWeekId,
+                      week_start: weekStartKey,
+                      week_end: baseRow.week_end || weekEndKey,
+                      display_name: displayName,
+                      country: isDavid ? "UNITED STATES" : (worker.country || baseRow.country || "UNASSIGNED")
+                    };
+                    selectedRows.push(mergedRow);
+                    payrollRows.push(mergedRow);
+                    selectedWorkerIds.add(workerId);
+                  });
+                }
+              } catch (targetBaseException) {
+                console.warn("Targeted payroll base lookup exception:", targetBaseException);
+              }
+            }
+
+            // If the weekly base view also has not materialized a row yet, create
+            // a zero-hour row for only the three explicitly targeted workers.
+            targetedWorkers.forEach(worker => {
+              const workerId = String(worker.id || "").trim();
+              if (!workerId || selectedWorkerIds.has(workerId)) return;
+              const displayName = String(worker.display_name || worker.agent_name_key || "Unknown").trim();
+              const isDavid = normalizePayrollName(displayName) === "davidnathaniel";
+              const syntheticRow = {
+                week_id: selectedWeekId,
+                week_start: weekStartKey,
+                week_end: weekEndKey,
+                worker_id: workerId,
+                worker_email: worker.email || "",
+                display_name: displayName,
+                country: isDavid ? "UNITED STATES" : (worker.country || "UNASSIGNED"),
+                effective_rate: Number(worker.default_rate || 0),
+                total_hours: 0,
+                adjusted_hours: 0,
+                manual_hours_delta: 0,
+                base_pay: 0,
+                approved_leads: 0,
+                rejected_leads: 0,
+                total_leads: 0,
+                manual_incentive_delta: 0,
+                is_paid: false,
+                locked: false,
+                note: "",
+                approved_by: "",
+                hours_sat: 0, hours_sun: 0, hours_mon: 0, hours_tue: 0,
+                hours_wed: 0, hours_thu: 0, hours_fri: 0
+              };
+              selectedRows.push(syntheticRow);
+              payrollRows.push(syntheticRow);
+              selectedWorkerIds.add(workerId);
+            });
+          }
   
           this._currentPayrollRows = selectedRows;
   
@@ -9342,14 +9451,22 @@ if (!payrollRows.length) {
   
   const creditedLeads = Math.max(totalLeads - approvedLeads - rejectedLeads, 0);
 
-  // One-week payroll exception: Shady Magdy's Aug 22-28, 2026
-  // incentive is entered manually, so suppress the automatic tier bonus
-  // without changing his lead counts or any other payroll week.
-  const suppressAutoBonus =
-    agName.toLowerCase() === "shady magdy" &&
-    String(r.week_start || "") === "2026-08-22";
+  // One-week payroll exceptions.
+  const normalizedPayrollName = agName.toLowerCase().replace(/[^a-z]/g, "");
+  const payrollWeekKey = String(r.week_start || "").slice(0, 10);
 
-  const autoBonus = suppressAutoBonus
+  // Shady Magdy: Aug 22-28 bonus is entered manually.
+  const suppressShadyAutoBonus =
+    normalizedPayrollName === "shadymagdy" &&
+    payrollWeekKey === "2026-08-22";
+
+  // Aug 29-Sep 4 only: exactly 6 qualified appointments should not
+  // receive the normal $50 automatic tier bonus. Lead counts remain intact.
+  const suppressSixQualifiedBonus =
+    payrollWeekKey === "2026-08-29" &&
+    approvedLeads === 6;
+
+  const autoBonus = (suppressShadyAutoBonus || suppressSixQualifiedBonus)
     ? 0
     : this.calculateTieredBonus(approvedLeads, creditedLeads);
 
