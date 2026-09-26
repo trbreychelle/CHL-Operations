@@ -813,6 +813,24 @@ this._ccRealtimeChannel = supaClient
   // ------------------------
   // Init / Routing
   // ------------------------
+  isProtectedDashboardPath(pathRaw = window.location.pathname || '') {
+    const path = String(pathRaw || '').toLowerCase();
+    const fileName = path.split('/').pop();
+
+    return [
+      'admin-dashboard.html',
+      'agent-dashboard.html',
+      'management-dashboard.html',
+      'recruitment-dashboard.html',
+      'salesdashboard.html',
+      'salesrep-dashboard.html'
+    ].includes(fileName);
+  }
+
+  revealProtectedPage() {
+    document.documentElement.classList.remove('auth-pending');
+  }
+
   async init() {
     await this.checkExistingSession();
 
@@ -821,156 +839,201 @@ this._ccRealtimeChannel = supaClient
       path.endsWith('index.html') ||
       path === '/' ||
       path === '' ||
-      path.endsWith('/index') ||
-      path.endsWith('/index.html');
+      path.endsWith('/index');
 
+    const isProtectedPage = this.isProtectedDashboardPath(path);
+
+    // Protected dashboards must never render for an unauthenticated visitor.
+    if (isProtectedPage && !this.currentUser) {
+      window.location.replace('index.html');
+      return;
+    }
+
+    // Logged-in users should not remain on the login page.
     if (onIndex && this.currentUser) {
-      window.location.href = this.routeByRole(this.currentUser.role, this.currentUser);
+      window.location.replace(this.routeByRole(this.currentUser.role, this.currentUser));
       return;
     }
 
     if (onIndex) {
-  this.bindIndexLoginForm();
-}
+      this.bindIndexLoginForm();
+      return;
+    }
 
-this.updateDashboardIdentity();
-this.enforceRoleRouting();
-this.bindEvents();
-this.bindPassbookUpdateButton();
+    // Enforce the correct dashboard for the authenticated user's role before
+    // revealing any protected content or starting any dashboard data loads.
+    if (isProtectedPage && this.enforceRoleRouting()) {
+      return;
+    }
+
+    if (isProtectedPage) {
+      this.revealProtectedPage();
+    }
+
+    this.updateDashboardIdentity();
+    this.bindEvents();
+    this.bindPassbookUpdateButton();
 
     if (path.includes('passbook') || document.querySelector('[data-page="passbook-clients"]')) {
       setTimeout(() => this.loadPassbookClientsList(true), 300);
     }
 
-   const pathName = (window.location.pathname || '').toLowerCase();
-const isAgentPage = pathName.includes('agent-dashboard');
-const isAdminPage = pathName.includes('admin-dashboard');
-const isSalesPage = pathName.includes('salesdashboard');
-const isSalesRepPage = pathName.includes('salesrep-dashboard');
-const isManagementPage = pathName.includes('management-dashboard');
+    const pathName = (window.location.pathname || '').toLowerCase();
+    const isAgentPage = pathName.includes('agent-dashboard');
+    const isAdminPage = pathName.includes('admin-dashboard');
+    const isSalesPage = pathName.includes('salesdashboard');
+    const isSalesRepPage = pathName.includes('salesrep-dashboard');
+    const isManagementPage = pathName.includes('management-dashboard');
     const isRecruitmentPage = pathName.includes('recruitment-dashboard');
-const isCommandCenter =
-  isAdminPage ||
-  isSalesPage ||
-  isSalesRepPage ||
-  isManagementPage ||
-  isRecruitmentPage;
-const isOldAgentDash = isAgentPage;
+    const isCommandCenter =
+      isAdminPage ||
+      isSalesPage ||
+      isSalesRepPage ||
+      isManagementPage ||
+      isRecruitmentPage;
+    const isOldAgentDash = isAgentPage;
 
-    // Load Agent Dashboard
-   if (this.currentUser && isOldAgentDash && !isCommandCenter) {
-  console.log("🔥 AGENT DASHBOARD ONLY");
+    // Load Agent Dashboard only after authentication succeeds.
+    if (this.currentUser && isOldAgentDash && !isCommandCenter) {
+      console.log("🔥 AGENT DASHBOARD ONLY");
 
-  const isAgentDOM = document.getElementById('stat-appointments');
+      const isAgentDOM = document.getElementById('stat-appointments');
 
-  if (!isAgentDOM) {
-    console.log("⛔ Not agent DOM, skipping agent load");
-    return;
+      if (!isAgentDOM) {
+        console.log("⛔ Not agent DOM, skipping agent load");
+        return;
+      }
+
+      setTimeout(async () => {
+        await this.fetchAllData();
+        await this.loadAgentLeadsWithFilters();
+        this.startMSTClock();
+        await this.loadTimeOffHistory();
+      }, 300);
+    }
+
+    // Load command-center data only for an authenticated user.
+    if (isCommandCenter && this.currentUser) {
+      console.log("🟢 ADMIN DASHBOARD LOADING SAFE MODE");
+
+      if (!isRecruitmentPage) {
+        document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+      }
+
+      setTimeout(() => {
+        this.fetchAdminData(false);
+        this.setupCommandCenterRealtime();
+        // this.loadPayrollData(false);
+      }, 300);
+
+      this.startAdminAutoRefresh();
+    }
   }
 
-  setTimeout(async () => {
-  await this.fetchAllData();
-  await this.loadAgentLeadsWithFilters();
-  this.startMSTClock();
-  await this.loadTimeOffHistory();
-}, 300);
-}
-   // Load Admin OR Sales Dashboard
-if (isCommandCenter) {
-  console.log("🟢 ADMIN DASHBOARD LOADING SAFE MODE");
-  if (!isRecruitmentPage) {
-  document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
-}
+  enforceRoleRouting() {
+    if (!this.currentUser) return false;
 
-  setTimeout(() => {
-    this.fetchAdminData(false);
-    this.setupCommandCenterRealtime();
-    // this.loadPayrollData(false);
-  }, 300);
+    const path = (window.location.pathname || '').toLowerCase();
+    if (!this.isProtectedDashboardPath(path)) return false;
 
-  this.startAdminAutoRefresh();
-}
+    const role = String(this.currentUser.role || 'agent').toLowerCase();
+
+    const onAdmin = path.includes('admin-dashboard');
+    const onAgent = path.includes('agent-dashboard');
+    const onSales = path.includes('salesdashboard');
+    const onSalesRep = path.includes('salesrep-dashboard');
+    const onRecruitment = path.includes('recruitment-dashboard');
+    const onManagement = path.includes('management-dashboard');
+
+    let target = null;
+
+    if (role === 'admin') {
+      if (!onAdmin) target = 'admin-dashboard.html';
+    } else if (role === 'management') {
+      if (!onManagement) target = 'management-dashboard.html';
+    } else if (role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') {
+      if (!onSales) target = 'salesdashboard.html';
+    } else if (role === 'sales_rep') {
+      if (!onSalesRep) target = 'salesrep-dashboard.html';
+    } else if (role === 'recruitment') {
+      if (!onRecruitment) target = 'recruitment-dashboard.html';
+    } else {
+      const canAccessRecruitment = this.currentUser?.can_access_recruitment_dashboard === true;
+      const allowedAgentPage = onAgent || (canAccessRecruitment && onRecruitment);
+
+      if (!allowedAgentPage) {
+        target = 'agent-dashboard.html';
+      }
+    }
+
+    if (target) {
+      window.location.replace(target);
+      return true;
+    }
+
+    return false;
   }
 
-   enforceRoleRouting() {
-  if (!this.currentUser) return;
-
-  const path = (window.location.pathname || '').toLowerCase();
-  const role = (this.currentUser.role || 'agent').toLowerCase();
-
-  if (!path.includes('dashboard') && !path.includes('admin') && !path.includes('management') && !path.includes('salesrep')) return;
-
-  const onAdmin = path.includes('admin-dashboard');
-  const onAgent = path.includes('agent-dashboard');
-  const onSales = path.includes('salesdashboard');
-  const onSalesRep = path.includes('salesrep-dashboard');
-  const onRecruitment = path.includes('recruitment-dashboard');
-  const onManagement = path.includes('management-dashboard');
-
-      if (role === 'admin' && !onAdmin) window.location.href = 'admin-dashboard.html';
-    else if (role === 'management' && !onManagement) window.location.href = 'management-dashboard.html';
-    else if ((role === 'sales' || role === 'team_leader' || role === 'team leader' || role === 'tl') && !onSales) window.location.href = 'salesdashboard.html';
-    else if (role === 'sales_rep' && !path.includes('salesrep-dashboard')) window.location.href = 'salesrep-dashboard.html';
-    else if (role === 'recruitment' && !onRecruitment) {
-  window.location.href = 'recruitment-dashboard.html';
-}
-    
-  else if (
-  role === 'agent' &&
-  this.currentUser?.can_access_recruitment_dashboard !== true &&
-  !onAgent
-) {
-  window.location.href = 'agent-dashboard.html';
-}
-}
-  
   // ------------------------
   // Session / Events (safe)
   // ------------------------
   async checkExistingSession() {
-  try {
-    if (!this.supabase) return;
+    try {
+      if (!this.supabase) {
+        this.clearSession();
+        return false;
+      }
 
-    const { data, error } = await this.supabase.auth.getSession();
+      // getUser() validates the current auth token with Supabase instead of
+      // trusting only a locally cached session object.
+      const { data: userData, error: userError } = await this.supabase.auth.getUser();
+      const authUser = userData?.user;
 
-    if (error || !data?.session) {
+      if (userError || !authUser) {
+        this.clearSession();
+        return false;
+      }
+
+      const { data: profile, error: profileError } = await this.supabase
+        .from('profiles')
+        .select('id, auth_user_id, organization_id, email, full_name, display_name, role, is_active, can_access_recruitment_dashboard')
+        .eq('auth_user_id', authUser.id)
+        .single();
+
+      if (profileError || !profile || !profile.is_active) {
+        try {
+          await this.supabase.auth.signOut();
+        } catch (signOutError) {
+          console.warn('Failed to sign out invalid session:', signOutError);
+        }
+
+        this.clearSession();
+        return false;
+      }
+
+      const user = {
+        id: profile.id,
+        auth_user_id: profile.auth_user_id,
+        organization_id: profile.organization_id,
+        email: profile.email,
+        name: profile.display_name || profile.full_name || profile.email,
+        full_name: profile.full_name,
+        display_name: profile.display_name,
+        role: profile.role,
+        can_access_recruitment_dashboard: profile.can_access_recruitment_dashboard === true
+      };
+
+      this.saveSession(user);
+      return true;
+    } catch (e) {
+      console.warn('Session validation failed:', e);
       this.clearSession();
-      return;
+      return false;
     }
-
-    const authUser = data.session.user;
-
-    const { data: profile, error: profileError } = await this.supabase
-      .from('profiles')
-      .select('id, auth_user_id, organization_id, email, full_name, display_name, role, is_active, can_access_recruitment_dashboard')
-      .eq('auth_user_id', authUser.id)
-      .single();
-
-    if (profileError || !profile || !profile.is_active) {
-      this.clearSession();
-      return;
-    }
-
-    const user = {
-  id: profile.id,
-  auth_user_id: profile.auth_user_id,
-  organization_id: profile.organization_id,
-  email: profile.email,
-  name: profile.display_name || profile.full_name || profile.email,
-  full_name: profile.full_name,
-  display_name: profile.display_name,
-  role: profile.role,
-  can_access_recruitment_dashboard: profile.can_access_recruitment_dashboard === true
-};
-    this.saveSession(user);
-
-  } catch (e) {
-    console.warn('Session validation failed:', e);
-    this.clearSession();
   }
-}
 
- bindEvents() {
+
+  bindEvents() {
   const pathName = (window.location.pathname || '').toLowerCase();
   const isAgentPage = pathName.includes('agent-dashboard');
 
