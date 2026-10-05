@@ -89,6 +89,7 @@ bookGhlAppointment: 'https://automate.callhammerleads.com/webhook/book-ghl-appoi
    routeByRole(roleRaw, user = null) {
   const role = String(roleRaw || '').toLowerCase();
 
+  if (role === 'agency') return 'agency-access.html';
   if (role === 'recruitment') return 'recruitment-dashboard.html';
   if (role === 'admin') return 'admin-dashboard.html';
   if (role === 'management') return 'management-dashboard.html';
@@ -97,6 +98,38 @@ bookGhlAppointment: 'https://automate.callhammerleads.com/webhook/book-ghl-appoi
 
   return 'agent-dashboard.html';
 }
+
+  async loadPortalProfile(authUser) {
+    // authUser has already been validated by signInWithPassword/getUser.
+    // The decoded claim selects a transport, NOT authorization: each RPC must
+    // validate auth.uid(), active membership, and the server-issued database role.
+    const { data, error } = await this.supabase.auth.getSession();
+    if (error || !authUser || data?.session?.user?.id !== authUser.id) {
+      return { data: null, error: new Error('Please sign in again.') };
+    }
+    let tokenRole;
+    try {
+      const segment = data.session.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      tokenRole = JSON.parse(atob(segment.padEnd(Math.ceil(segment.length / 4) * 4, '='))).role;
+    } catch (_) {
+      return { data: null, error: new Error('Invalid login session.') };
+    }
+    if (tokenRole === 'chl_agency') {
+      const result = await this.supabase.rpc('get_my_agency_session').single();
+      if (result.error) return result;
+      if (result.data?.auth_user_id !== authUser.id || result.data?.role !== 'agency') {
+        return { data: null, error: new Error('Agency Access is not activated.') };
+      }
+      return result;
+    }
+    const result = await this.supabase.from('profiles')
+      .select('id, auth_user_id, organization_id, email, full_name, display_name, role, is_active, can_access_recruitment_dashboard')
+      .eq('auth_user_id', authUser.id).single();
+    if (String(result.data?.role || '').toLowerCase() === 'agency') {
+      return { data: null, error: new Error('Agency Access requires its restricted login configuration.') };
+    }
+    return result;
+  }
 
   async loginWithCredentials(email, password) {
   const cleanEmail = String(email || '').trim().toLowerCase();
@@ -125,11 +158,7 @@ bookGhlAppointment: 'https://automate.callhammerleads.com/webhook/book-ghl-appoi
       throw new Error('Supabase login failed: user missing.');
     }
 
-    const { data: profile, error: profileError } = await this.supabase
-      .from('profiles')
-      .select('id, auth_user_id, organization_id, email, full_name, display_name, role, is_active, can_access_recruitment_dashboard')
-      .eq('auth_user_id', authUser.id)
-      .single();
+    const { data: profile, error: profileError } = await this.loadPortalProfile(authUser);
 
     if (profileError) {
       throw new Error(profileError.message || 'Failed to load profile.');
@@ -820,6 +849,7 @@ this._ccRealtimeChannel = supaClient
     return [
       'admin-dashboard.html',
       'agent-dashboard.html',
+      'agency-access.html',
       'management-dashboard.html',
       'recruitment-dashboard.html',
       'salesdashboard.html',
@@ -863,6 +893,19 @@ this._ccRealtimeChannel = supaClient
     // Enforce the correct dashboard for the authenticated user's role before
     // revealing any protected content or starting any dashboard data loads.
     if (isProtectedPage && this.enforceRoleRouting()) {
+      return;
+    }
+
+    // Agency Access has its own narrow RPC surface. Never initialize the
+    // employee/command-center data loaders, even when a forged hash is present.
+    if (path.endsWith('/agency-access.html')) {
+      if (!window.CHLAgencyAccess || this.currentUser?.role !== 'agency') {
+        this.clearSession();
+        window.location.replace('index.html');
+        return;
+      }
+      await window.CHLAgencyAccess.start(this);
+      this.revealProtectedPage();
       return;
     }
 
@@ -940,6 +983,7 @@ this._ccRealtimeChannel = supaClient
 
     const onAdmin = path.includes('admin-dashboard');
     const onAgent = path.includes('agent-dashboard');
+    const onAgency = path.endsWith('/agency-access.html');
     const onSales = path.includes('salesdashboard');
     const onSalesRep = path.includes('salesrep-dashboard');
     const onRecruitment = path.includes('recruitment-dashboard');
@@ -947,7 +991,9 @@ this._ccRealtimeChannel = supaClient
 
     let target = null;
 
-    if (role === 'admin') {
+    if (role === 'agency') {
+      if (!onAgency) target = 'agency-access.html';
+    } else if (role === 'admin') {
       if (!onAdmin) target = 'admin-dashboard.html';
     } else if (role === 'management') {
       if (!onManagement) target = 'management-dashboard.html';
@@ -994,11 +1040,7 @@ this._ccRealtimeChannel = supaClient
         return false;
       }
 
-      const { data: profile, error: profileError } = await this.supabase
-        .from('profiles')
-        .select('id, auth_user_id, organization_id, email, full_name, display_name, role, is_active, can_access_recruitment_dashboard')
-        .eq('auth_user_id', authUser.id)
-        .single();
+      const { data: profile, error: profileError } = await this.loadPortalProfile(authUser);
 
       if (profileError || !profile || !profile.is_active) {
         try {
