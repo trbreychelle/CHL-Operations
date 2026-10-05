@@ -1,0 +1,30 @@
+name: Agency Access checks
+on:
+  push:
+    branches: [feature/agency-access-20261005]
+  pull_request:
+    paths: ['agency-access.*', 'main.js', 'tests/agency-access*', 'tools/apply-agency-routing.py']
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate JavaScript
+        run: |
+          node --check main.js
+          if [ -f agency-access.js ]; then node --check agency-access.js; fi
+          if [ -f tests/agency-access.test.cjs ]; then node --test tests/agency-access.test.cjs; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agency-access-source
+          retention-days: 3
+          path: |
+            main.js
+            agent-dashboard.html
+            index.html
+            agency-access.html
+            agency-access.js
+            tools/apply-agency-routing.py
+            tests/agency-access.test.cjs
