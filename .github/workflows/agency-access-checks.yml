@@ -1,9 +1,9 @@
 name: Agency Access checks
 on:
   push:
-    branches: [feature/agency-access-20261005]
+    branches: [main, feature/agency-access-20261005]
   pull_request:
-    paths: ['agency-access.*', 'main.js', 'tests/agency-access*', 'AGENCY_ACCESS.md', '.github/workflows/agency-access-checks.yml']
+    paths: ['agency-access.*', 'agency-login.html', 'main.js', 'tests/agency-*.test.cjs', 'AGENCY_ACCESS.md', '.github/workflows/agency-access-checks.yml']
 permissions:
   contents: read
 jobs:
@@ -13,11 +13,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Validate source and agency routing
+      - name: Validate source, sign-in, and agency routing
         run: |
           node --check main.js
           node --check agency-access.js
-          node --test tests/agency-access.test.cjs
+          node --test tests/agency-*.test.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: agency-access-source
@@ -26,6 +26,7 @@ jobs:
             main.js
             agency-access.html
             agency-access.js
+            agency-login.html
             tools/apply-agency-routing.py
-            tests/agency-access.test.cjs
+            tests/agency-*.test.cjs
             AGENCY_ACCESS.md
