@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en" class="auth-pending">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Agency Access - Call Hammer Leads</title>
+  <style>
+    *{box-sizing:border-box}html.auth-pending body{visibility:hidden!important}
+    body{margin:0;font:14px/1.5 Inter,system-ui,-apple-system,sans-serif;color:#1f2937;background:#f9fafb}
+    button,input,select{font:inherit}button,a,input,select{outline-offset:4px}button{cursor:pointer}button:disabled,select:disabled{cursor:not-allowed;opacity:.55}
+    [hidden]{display:none!important}header{height:76px;background:white;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;padding:0 28px;gap:16px}
+    .brand,.identity{display:flex;align-items:center;gap:12px}.mark{background:#fbbf24;color:#111827;font-weight:800;border-radius:10px;padding:10px}.brand strong{font-size:20px}.muted{color:#6b7280}.small{font-size:12px}
+    .identity{text-align:right}.identity strong{display:block}button{background:white;border:1px solid #d1d5db;border-radius:9px;padding:9px 14px;color:#374151}button:hover{background:#f3f4f6}
+    .layout{display:flex;min-height:calc(100vh - 76px)}aside{background:linear-gradient(180deg,#374151,#111827);width:248px;flex:none;padding:28px 18px;color:#d1d5db}
+    .nav-item{display:block;text-decoration:none;color:inherit;border-left:4px solid transparent;border-radius:9px;padding:13px 14px;margin-bottom:10px;font-weight:600}.nav-item:hover,.nav-item[aria-current=page]{background:#fbbf2426;border-left-color:#fbbf24;color:#fbbf24}
+    aside p{padding:0 18px}.main{min-width:0;width:100%;max-width:1440px;padding:36px 40px}h1{font-size:29px;margin:0 0 6px;letter-spacing:-.6px}p{margin:0 0 16px}.heading{margin-bottom:26px}.card{background:white;border:1px solid #e5e7eb;border-radius:16px;padding:28px;box-shadow:0 1px 3px #11182705}
+    label{display:block;font-size:12px;font-weight:600;color:#4b5563;margin-bottom:6px}input,select{background:white;color:#1f2937;border:1px solid #d1d5db;border-radius:9px;padding:10px 12px;width:100%}
+    .client-field{max-width:440px;margin-bottom:22px}iframe{display:block;width:100%;height:780px;border:1px solid #e5e7eb;border-radius:12px;background:white}.filters{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 1fr auto;gap:12px;align-items:end;margin-bottom:22px}
+    .message{padding:13px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;margin-bottom:22px}.table-wrap{overflow:auto;border:1px solid #e5e7eb;border-radius:12px}table{border-collapse:collapse;width:100%;text-align:left}th{background:#f9fafb;font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:#6b7280;padding:15px 20px}td{padding:17px 20px;border-top:1px solid #f3f4f6;vertical-align:top;overflow-wrap:anywhere}td:last-child{min-width:200px}.badge{display:inline-block;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;white-space:nowrap;background:#f3f4f6;color:#374151}.badge.approved{background:#dcfce7;color:#166534}.badge.rejected{background:#fee2e2;color:#991b1b}.badge.credited{background:#e0e7ff;color:#3730a3}.badge.pending{background:#fef3c7;color:#92400e}.empty{text-align:center;color:#6b7280;padding:40px}.table-footer{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-top:18px}.table-footer button{margin-left:6px}
+    @media(max-width:1100px){.filters{grid-template-columns:repeat(3,minmax(0,1fr))}.main{padding:28px}aside{width:210px}}@media(max-width:700px){header{height:auto;min-height:76px;padding:15px;flex-wrap:wrap}.brand strong{font-size:18px}.identity{margin-left:auto}.identity>div{display:none}.layout{display:block}aside{width:100%;padding:10px 14px}aside nav{display:flex;gap:10px}aside p{display:none}.nav-item{flex:1;text-align:center;margin:0}.main{padding:22px 15px}.filters{grid-template-columns:1fr 1fr}.card{padding:18px}h1{font-size:26px}iframe{height:820px}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="mark" aria-hidden="true">CH</span><div><strong>Agency Access</strong><div class="small muted">Call Hammer Leads</div></div></div>
+    <div class="identity"><div><strong id="agency-name">Agency Access</strong><span class="small muted" id="agency-user-name"></span></div><button id="agency-logout" type="button">Sign out</button></div>
+  </header>
+  <div class="layout">
+    <aside>
+      <nav aria-label="Agency portal">
+        <a href="#submitlead" class="nav-item" aria-current="page">Submit Lead</a>
+        <a href="#leads" class="nav-item">Lead Tracker</a>
+      </nav>
+      <p class="small muted" style="color:#9ca3af;margin-top:28px">External agency portal</p>
+    </aside>
+    <main class="main">
+      <div id="agency-message" class="message" role="status" aria-live="polite" hidden></div>
+      <section id="view-submitlead" aria-labelledby="submit-heading">
+        <div class="heading"><h1 id="submit-heading">Submit Lead</h1><p class="muted">Choose a client, then complete the booking inside the client’s calendar.</p></div>
+        <div class="card">
+          <div class="client-field"><label for="submit-client">Client</label><select id="submit-client" disabled><option value="">Loading client calendars…</option></select></div>
+          <div id="client-calendar-wrapper" hidden>
+            <strong id="selected-calendar-label"></strong>
+            <p class="small muted">This booking is linked to your signed-in agency. Complete the form within two hours; reopen the calendar to start a new booking.</p>
+            <iframe id="client-calendar-frame" title="Selected client’s lead booking calendar" referrerpolicy="no-referrer" sandbox="allow-forms allow-scripts allow-same-origin allow-popups" src="about:blank"></iframe>
+          </div>
+          <p id="calendar-placeholder" class="muted">Select a client to see the full booking calendar and lead form.</p>
+        </div>
+      </section>
+      <section id="view-leads" aria-labelledby="tracker-heading" hidden>
+        <div class="heading"><h1 id="tracker-heading">Lead Tracker</h1><p class="muted">Track the statuses of leads submitted by your agency.</p></div>
+        <div class="card">
+          <form id="agency-filters" class="filters">
+            <div><label for="leads-search">Homeowner</label><input id="leads-search" type="search" placeholder="Search homeowner…" maxlength="150"></div>
+            <div><label for="status-filter">Status</label><select id="status-filter"><option value="all">All Statuses</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="credited">Credited</option><option value="pending review">Pending Review</option></select></div>
+            <div><label for="leads-timeframe">Timeframe</label><select id="leads-timeframe"><option value="today">Today</option><option value="this-week" selected>Current Week</option><option value="previous-week">Previous Week</option><option value="30-days">Last 30 Days</option><option value="4-weeks">Last 4 Weeks</option><option value="6-weeks">Last 6 Weeks</option><option value="all-time">All Time</option></select></div>
+            <div><label for="leads-start">Start date (MST)</label><input id="leads-start" type="date"></div>
+            <div><label for="leads-end">End date (MST)</label><input id="leads-end" type="date"></div>
+            <button id="clear-leads-filters" type="button">Clear</button>
+          </form>
+          <div class="table-wrap"><table><thead><tr><th scope="col">Date Submitted</th><th scope="col">Homeowner Name</th><th scope="col">Status</th><th scope="col">Feedback</th></tr></thead><tbody id="leads-table-body"><tr><td colspan="4" class="empty">Loading your agency’s leads…</td></tr></tbody></table></div>
+          <div class="table-footer"><span id="leads-count-display" class="muted" aria-live="polite"></span><div><button id="refresh-agency-leads" type="button">Refresh</button><button id="agency-prev" type="button" disabled>Previous</button><button id="agency-next" type="button" disabled>Next</button></div></div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="agency-access.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

@@ -2,29 +2,40 @@ name: Agency Access checks
 on:
   push:
     branches: [feature/agency-access-20261005]
-  pull_request:
-    paths: ['agency-access.*', 'main.js', 'tests/agency-access*', 'tools/apply-agency-routing.py']
 permissions:
   contents: read
 jobs:
-  validate:
+  integrate-reviewed-routing:
+    if: github.ref == 'refs/heads/feature/agency-access-20261005' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Validate JavaScript
+      - name: Apply reviewed routing patch on the feature branch only
+        run: python3 tools/apply-agency-routing.py
+      - name: Verify exact output and run tests before commit
         run: |
+          test "$(git hash-object main.js)" = 0611011a020d3df70352de96c396722815bee443
           node --check main.js
-          if [ -f agency-access.js ]; then node --check agency-access.js; fi
-          if [ -f tests/agency-access.test.cjs ]; then node --test tests/agency-access.test.cjs; fi
+          node --check agency-access.js
+          node --test tests/agency-access.test.cjs
+      - name: Commit only main.js to the isolated feature branch
+        run: |
+          if git diff --quiet -- main.js; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- main.js
+          git commit -m 'Integrate verified Agency Access routing without staff data loaders'
+          git push origin HEAD:refs/heads/feature/agency-access-20261005
       - uses: actions/upload-artifact@v4
         with:
           name: agency-access-source
           retention-days: 3
           path: |
             main.js
-            agent-dashboard.html
-            index.html
             agency-access.html
             agency-access.js
             tools/apply-agency-routing.py
             tests/agency-access.test.cjs
+            AGENCY_ACCESS.md
