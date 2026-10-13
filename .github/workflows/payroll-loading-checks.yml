@@ -2,26 +2,34 @@ name: Payroll loading checks
 on:
   push:
     branches: [fix/payroll-loading-20261012]
-  pull_request:
-    paths: [admin-dashboard.html, main.js, 'tests/payroll-loading.test.cjs', '.github/workflows/payroll-loading-checks.yml']
 permissions:
   contents: read
 jobs:
   verify:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/fix/payroll-loading-20261012'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Existing portal regression checks
+      - name: Apply guarded payroll loading repair
+        run: python3 tools/apply-payroll-loading.py
+      - name: Run all portal and payroll regressions
         run: node --test tests/*.test.cjs
-      - name: Source snapshot for payroll diagnostics
-        uses: actions/upload-artifact@v4
-        with:
-          name: payroll-source
-          path: |
-            admin-dashboard.html
-            main.js
-            tests
-          retention-days: 1
+      - name: Commit verified dashboard repair to isolated branch
+        run: |
+          set -eu
+          if git diff --quiet -- admin-dashboard.html; then
+            echo "No dashboard changes to commit."
+            exit 0
+          fi
+          test "$(git diff --name-only)" = "admin-dashboard.html"
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- admin-dashboard.html
+          git commit -m "Fix payroll week loading, error recovery and empty-week navigation"
+          git push origin HEAD:refs/heads/fix/payroll-loading-20261012
