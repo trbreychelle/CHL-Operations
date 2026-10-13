@@ -1,0 +1,27 @@
+name: Payroll loading checks
+on:
+  push:
+    branches: [fix/payroll-loading-20261012]
+  pull_request:
+    paths: [admin-dashboard.html, main.js, 'tests/payroll-loading.test.cjs', '.github/workflows/payroll-loading-checks.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Existing portal regression checks
+        run: node --test tests/*.test.cjs
+      - name: Source snapshot for payroll diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: payroll-source
+          path: |
+            admin-dashboard.html
+            main.js
+            tests
+          retention-days: 1
