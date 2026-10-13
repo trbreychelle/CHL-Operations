@@ -1,0 +1,58 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><title>CHL authorized payroll repair</title><style>body{font:15px/1.5 system-ui;max-width:1050px;margin:30px auto;padding:20px}textarea{width:100%;height:280px;font:12px/1.4 monospace}button{padding:12px 18px;margin:15px 0 35px;font:inherit}</style></head><body><h1>Authorized old-Supabase payroll repair</h1><p>This guarded operation replaces only two payroll matching view definitions. All payroll-history results are compared in one repeatable-read transaction. Any difference or permission change aborts the operation. No payroll, time, lead, worker, or approval records are edited.</p><form method="post" action="https://supabase.callhammerleads.com/api/platform/pg-meta/default/query"><h2>1. Apply verified optimization</h2><textarea name="query" readonly>BEGIN ISOLATION LEVEL REPEATABLE READ;
+SET LOCAL statement_timeout='55s';
+SET LOCAL lock_timeout='3s';
+DO $repair$
+DECLARE original_time text; original_leads text; original_fact text; tail_at int; new_time text; new_leads text; before_acl jsonb; after_acl jsonb; old_count bigint; new_count bigint; mismatch bigint; week_count bigint; p json; started timestamptz:=clock_timestamp(); info jsonb;
+BEGIN
+ original_time:=pg_get_viewdef('public.payroll_time_events_view'::regclass,true);
+ original_leads:=pg_get_viewdef('public.payroll_leads_weekly'::regclass,true);
+ original_fact:=pg_get_viewdef('public.payroll_weekly_fact_v2'::regclass,true);
+ IF md5(original_time)!='e1630bbebe92e604a8e240a993e946d1' OR md5(original_leads)!='b26c8bd2c59f9a4af094a748b76998dd' OR md5(original_fact)!='697f896bd049382ffafaab0f7adcde7b' THEN RAISE EXCEPTION 'Payroll definitions changed since validation. Aborting without changes.'; END IF;
+ IF EXISTS(SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname='normalize_agent_name' AND p.provolatile!='i') THEN RAISE EXCEPTION 'Name normalizer changed. Aborting.'; END IF;
+ SELECT jsonb_object_agg(c.relname,jsonb_build_object('owner',c.relowner,'acl',c.relacl::text,'options',c.reloptions)) INTO before_acl FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relname IN ('payroll_weekly_fact_v2','payroll_time_events_view','payroll_leads_weekly');
+ CREATE TEMP TABLE chl_payroll_before ON COMMIT DROP AS SELECT * FROM public.payroll_weekly_fact_v2;
+ SELECT count(*),count(DISTINCT week_id) INTO old_count,week_count FROM pg_temp.chl_payroll_before;
+ tail_at:=strpos(original_time,'ordered_events AS (');
+ IF tail_at=0 THEN RAISE EXCEPTION 'Unexpected time view; no changes'; END IF;
+ new_time:=$time$WITH matched_events AS (
+ SELECT te.id AS source_event_id,pw.id AS worker_id,pw.display_name,pw.email AS worker_email,te.occurred_at::timestamptz AS occurred_at_ts,te.action
+ FROM public.time_events te JOIN public.payroll_workers pw ON lower(trim(te.agent_email))=lower(trim(pw.email))
+ WHERE coalesce(pw.show_in_payroll,true)=true AND coalesce(pw.is_active,true)=true
+ UNION
+ SELECT te.id AS source_event_id,pw.id AS worker_id,pw.display_name,pw.email AS worker_email,te.occurred_at::timestamptz AS occurred_at_ts,te.action
+ FROM public.time_events te JOIN public.payroll_worker_aliases pwa ON lower(trim(te.agent_name))=lower(trim(pwa.alias_key)) JOIN public.payroll_workers pw ON pw.id=pwa.worker_id
+ WHERE coalesce(pw.show_in_payroll,true)=true AND coalesce(pw.is_active,true)=true
+), $time$||substring(original_time FROM tail_at);
+ tail_at:=strpos(original_leads,' SELECT matched_leads.week_id');
+ IF tail_at=0 THEN RAISE EXCEPTION 'Unexpected leads view; no changes'; END IF;
+ new_leads:=$leads$WITH worker_names AS MATERIALIZED (
+ SELECT pw.id AS worker_id,public.normalize_agent_name(pw.display_name) AS agent_key FROM public.payroll_workers pw WHERE coalesce(pw.show_in_payroll,true)=true AND coalesce(pw.is_active,true)=true
+ UNION
+ SELECT pw.id AS worker_id,public.normalize_agent_name(pwa.alias_key) AS agent_key FROM public.payroll_workers pw JOIN public.payroll_worker_aliases pwa ON pwa.worker_id=pw.id WHERE coalesce(pw.show_in_payroll,true)=true AND coalesce(pw.is_active,true)=true
+), matched_leads AS (
+ SELECT w.id AS week_id,wn.worker_id,lr.status FROM public.payroll_weeks w JOIN public.leads_raw lr ON lr.date_submitted>=w.week_start AND lr.date_submitted<=w.week_end JOIN worker_names wn ON wn.agent_key=public.normalize_agent_name(lr.appointment_coordinator_name)
+) $leads$||substring(original_leads FROM tail_at);
+ EXECUTE 'CREATE OR REPLACE VIEW public.payroll_time_events_view AS '||new_time;
+ EXECUTE 'CREATE OR REPLACE VIEW public.payroll_leads_weekly AS '||new_leads;
+ WITH current_rows AS MATERIALIZED (SELECT * FROM public.payroll_weekly_fact_v2),diff AS ((SELECT * FROM pg_temp.chl_payroll_before EXCEPT ALL SELECT * FROM current_rows) UNION ALL (SELECT * FROM current_rows EXCEPT ALL SELECT * FROM pg_temp.chl_payroll_before)) SELECT (SELECT count(*) FROM current_rows),(SELECT count(*) FROM diff) INTO new_count,mismatch;
+ IF mismatch!=0 OR old_count!=new_count THEN RAISE EXCEPTION 'Payroll validation failed: % differences, % old vs % new. Transaction rolled back.',mismatch,old_count,new_count; END IF;
+ SELECT jsonb_object_agg(c.relname,jsonb_build_object('owner',c.relowner,'acl',c.relacl::text,'options',c.reloptions)) INTO after_acl FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relname IN ('payroll_weekly_fact_v2','payroll_time_events_view','payroll_leads_weekly');
+ IF before_acl IS DISTINCT FROM after_acl THEN RAISE EXCEPTION 'View permissions changed; rolling back.'; END IF;
+ IF md5(pg_get_viewdef('public.payroll_weekly_fact_v2'::regclass,true))!=md5(original_fact) THEN RAISE EXCEPTION 'Payroll formula view changed; rolling back.'; END IF;
+ EXECUTE 'EXPLAIN (ANALYZE, TIMING OFF, FORMAT JSON) SELECT * FROM public.payroll_weekly_fact_v2 WHERE week_id=''56485693-b922-47f7-a602-1a1e262ae42c''::uuid' INTO p;
+ info:=jsonb_build_object('status','validated_for_commit','old_rows',old_count,'new_rows',new_count,'weeks_compared',week_count,'mismatches',mismatch,'permissions_unchanged',before_acl=after_acl,'payroll_formula_unchanged',true,'selected_week_rows',p->0->'Plan'->'Actual Rows','selected_week_execution_ms',p->0->'Execution Time','maintenance_elapsed_ms',1000*extract(epoch from clock_timestamp()-started),'new_time_hash',md5(pg_get_viewdef('public.payroll_time_events_view'::regclass,true)),'new_leads_hash',md5(pg_get_viewdef('public.payroll_leads_weekly'::regclass,true)),'rollback_time_definition',original_time,'rollback_leads_definition',original_leads);
+ PERFORM set_config('chl.payroll_repair',info::text,true);
+END $repair$;
+SELECT current_setting('chl.payroll_repair',true)::jsonb AS repair_report;
+COMMIT;</textarea><br><button type="submit">Apply guarded payroll repair</button></form><form method="post" action="https://supabase.callhammerleads.com/api/platform/pg-meta/default/query"><h2>2. Verify persisted live definitions and staff-role read</h2><textarea name="query" readonly>BEGIN READ ONLY;
+SET LOCAL statement_timeout='10s';
+SELECT jsonb_build_object('time_hash',md5(pg_get_viewdef('public.payroll_time_events_view'::regclass,true)),'leads_hash',md5(pg_get_viewdef('public.payroll_leads_weekly'::regclass,true)),'fact_hash',md5(pg_get_viewdef('public.payroll_weekly_fact_v2'::regclass,true)),'staff_select_grant',has_table_privilege('authenticated','public.payroll_weekly_fact_v2','SELECT')) AS persisted_definitions;
+SET LOCAL ROLE authenticated;
+DO $verify$
+DECLARE p json;
+BEGIN
+ EXECUTE 'EXPLAIN (ANALYZE, TIMING OFF, FORMAT JSON) SELECT * FROM public.payroll_weekly_fact_v2 WHERE week_id=''56485693-b922-47f7-a602-1a1e262ae42c''::uuid' INTO p;
+ PERFORM set_config('chl.payroll_live',jsonb_build_object('role',current_user,'selected_week_rows',p->0->'Plan'->'Actual Rows','execution_ms',p->0->'Execution Time','planning_ms',p->0->'Planning Time')::text,true);
+END $verify$;
+SELECT current_setting('chl.payroll_live',true)::jsonb AS live_role_report;
+COMMIT;</textarea><br><button type="submit">Verify live payroll after commit</button></form></body></html>
