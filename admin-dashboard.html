@@ -1807,6 +1807,10 @@
             </div>
           </div>
   
+          <div id="payroll-load-status" hidden role="status" aria-live="polite" class="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+            <span id="payroll-load-message"></span>
+            <button id="payroll-retry" type="button" hidden class="ml-3 rounded-lg border border-blue-300 bg-white px-3 py-2 font-bold disabled:opacity-50">Retry payroll</button>
+          </div>
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
             
             <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col overflow-hidden">
@@ -9163,126 +9167,188 @@
     }
   },
   
-             async renderPayrollFinance() {
+        // Payroll reads are bounded and never turn request failures into a $0 payroll.
+        async payrollRead(query, label) {
+          const controller = new AbortController();
+          let timer;
+          try {
+            const request = typeof query.abortSignal === "function"
+              ? query.abortSignal(controller.signal) : query;
+            const result = await Promise.race([
+              Promise.resolve(request),
+              new Promise((_, reject) => {
+                timer = setTimeout(() => {
+                  reject(Object.assign(new Error(`${label} timed out. Please retry.`), { code: "TIMEOUT" }));
+                  controller.abort();
+                }, this._payrollTimeoutMs || 20000);
+              })
+            ]);
+            if (result?.error) throw result.error;
+            if (!Array.isArray(result?.data)) throw new Error(`${label} returned an invalid response.`);
+            return result.data;
+          } finally {
+            clearTimeout(timer);
+          }
+        },
+
+        setPayrollLoadMessage(message, retry = false) {
+          const box = document.getElementById("payroll-load-status");
+          const text = document.getElementById("payroll-load-message");
+          const button = document.getElementById("payroll-retry");
+          if (box) box.hidden = !message;
+          if (text) text.textContent = message || "";
+          if (button) button.hidden = !retry;
+        },
+
+        clearPayrollDisplay(message, total = "—") {
+          this._currentPayrollRows = [];
+          this._chartData = { labels: [], payouts: [], revenue: [] };
+          for (const chart of Object.values(this._payrollCharts || {})) {
+            if (chart?.data) {
+              chart.data.labels = [];
+              (chart.data.datasets || []).forEach(dataset => { dataset.data = []; });
+              chart.update?.();
+            }
+          }
+          for (const [id, span] of [["payroll-summary-body", 7], ["payroll-ledger-body", 16]]) {
+            const body = document.getElementById(id);
+            if (!body) continue;
+            const row = document.createElement("tr");
+            const cell = document.createElement("td");
+            cell.colSpan = span;
+            cell.className = "p-8 text-center text-gray-500";
+            cell.textContent = message;
+            row.appendChild(cell);
+            body.replaceChildren(row);
+          }
+          const totalEl = document.getElementById("ceo-total-payout");
+          if (totalEl) totalEl.textContent = total;
+          const alerts = document.getElementById("payroll-notifications");
+          if (alerts) alerts.textContent = message;
+          const notes = document.getElementById("payroll-notes-container");
+          if (notes) notes.textContent = "";
+          const exportBtn = document.getElementById("payroll-export");
+          if (exportBtn) exportBtn.disabled = true;
+        },
+
+        async retryPayrollLoad() {
+          this._payrollWeekList = [];
+          this._payrollWeekListAt = 0;
+          const id = String(document.getElementById("payroll-week-select")?.value || "");
+          this._payrollLoadedWeeks.delete(id);
+          // A retry re-reads the selected week even when a cached copy exists.
+          this._payrollForceWeekId = id;
+          return this.renderPayrollFinance();
+        },
+
+        renderPayrollFinance() {
+          this._payrollRenderQueued = true;
+          if (this._payrollRenderPromise) return this._payrollRenderPromise;
+          this._payrollRenderPromise = (async () => {
+            do {
+              this._payrollRenderQueued = false;
+              const select = document.getElementById("payroll-week-select");
+              const retry = document.getElementById("payroll-retry");
+              if (select) select.disabled = true;
+              if (retry) retry.disabled = true;
+              try {
+                this.bindPayrollUI();
+                await this.renderPayrollFinanceContent();
+              } catch (error) {
+                console.error("Payroll & Finance load failed:", error);
+                this.getState().payrollFetchError = error;
+                this.clearPayrollDisplay("Payroll is unavailable. Use Retry payroll to try again.");
+                const code = String(error?.code || "");
+                const message = code === "42501" || code === "PGRST301" || code === "PGRST302"
+                  ? "Payroll access could not be verified. Sign in again, then retry."
+                  : code === "TIMEOUT"
+                    ? "The payroll request timed out. Your payroll records have not been changed. Retry payroll."
+                    : "Payroll could not be loaded. Retry payroll; if this continues, check your connection or sign in again.";
+                this.setPayrollLoadMessage(message + (code ? ` (${code})` : ""), true);
+                // Never leave the original loading placeholder after a failed request.
+                if (select && (!select.value || select.value === "latest")) {
+                  const option = document.createElement("option");
+                  option.value = "";
+                  option.textContent = "Unable to load weeks";
+                  select.replaceChildren(option);
+                }
+              } finally {
+                if (select) select.disabled = !select.value || select.value === "latest";
+                if (retry) retry.disabled = false;
+              }
+            } while (this._payrollRenderQueued);
+          })().finally(() => { this._payrollRenderPromise = null; });
+          return this._payrollRenderPromise;
+        },
+
+        async renderPayrollFinanceContent() {
           const state = this.getState();
-          let payrollRows = Array.isArray(state.payrollWeeklyFactView)
-            ? state.payrollWeeklyFactView
-            : [];
-
-  
-          const workers = Array.isArray(state.payrollWorkers)
-            ? state.payrollWorkers
-            : [];
-  
-               const consistencyBonusRows = Array.isArray(state.payrollConsistencyBonusStatus)
-    ? state.payrollConsistencyBonusStatus
-    : [];
-  
-          // If the new/current payroll week has no rows yet, bootstrap the
-// latest completed payroll week instead of leaving the UI on "Loading Weeks...".
-if (!payrollRows.length && typeof this.loadPayrollWeekList === "function") {
-  try {
-    const bootstrapWeeks = await this.loadPayrollWeekList();
-    const todayKey = new Date().toISOString().slice(0, 10);
-    const bootstrapWeek =
-      bootstrapWeeks.find(w => String(w.week_end || "") < todayKey) ||
-      bootstrapWeeks.find(w => String(w.week_start || "") <= todayKey) ||
-      bootstrapWeeks[0];
-
-    if (bootstrapWeek?.week_id) {
-      this._payrollRequestedWeekId = String(bootstrapWeek.week_id);
-      await this.loadPayrollWeek(
-        String(bootstrapWeek.week_id),
-        bootstrapWeek.week_start || null
-      );
-
-      payrollRows = Array.isArray(state.payrollWeeklyFactView)
-        ? state.payrollWeeklyFactView
-        : [];
-    }
-  } catch (bootstrapError) {
-    console.error("Payroll bootstrap load failed:", bootstrapError);
-  }
-}
-
-if (!payrollRows.length) {
-            document.getElementById("payroll-summary-body").innerHTML =
-              `<tr><td colspan="7" class="p-8 text-center text-gray-400 italic">No payroll data found.</td></tr>`;
-            document.getElementById("payroll-ledger-body").innerHTML =
-              `<tr><td colspan="16" class="p-8 text-center text-gray-400 italic">No payroll data found.</td></tr>`;
-            document.getElementById("ceo-total-payout").textContent = "$0.00";
-            document.getElementById("payroll-notifications").innerHTML =
-              `<div class="p-4 bg-gray-50 rounded-xl text-sm text-gray-400 italic text-center h-full flex items-center justify-center">No payroll data found.</div>`;
+          const weekSelect = document.getElementById("payroll-week-select");
+          if (!weekSelect) return;
+          const requested = String(this._payrollRequestedWeekId || weekSelect.value || "");
+          this.clearPayrollDisplay("Loading payroll…");
+          this.setPayrollLoadMessage("Loading payroll weeks…");
+          let payrollRows = Array.isArray(state.payrollWeeklyFactView) ? state.payrollWeeklyFactView : [];
+          let uniqueWeeks;
+          let weekListError = null;
+          try {
+            uniqueWeeks = await this.loadPayrollWeekList();
+          } catch (error) {
+            weekListError = error;
+            uniqueWeeks = [];
+          }
+          // Existing authorized rows can still supply period metadata if the list fails.
+          if (!uniqueWeeks.length) {
+            uniqueWeeks = [...new Map(payrollRows.filter(r => r.week_id && r.week_start).map(r => [String(r.week_id), {
+              week_id: String(r.week_id), week_start: String(r.week_start), week_end: String(r.week_end || "")
+            }])).values()].sort((a, b) => b.week_start.localeCompare(a.week_start));
+          }
+          if (!uniqueWeeks.length) {
+            if (weekListError) throw weekListError;
+            const option = document.createElement("option");
+            option.value = "";
+            option.textContent = "No payroll weeks available";
+            weekSelect.replaceChildren(option);
+            this.clearPayrollDisplay("No payroll weeks are available for this account.");
+            this.setPayrollLoadMessage("No payroll weeks are available for this account. Retry after payroll is updated.", true);
             return;
           }
-  
-          const weekSelect = document.getElementById("payroll-week-select");
-               
-          //Start
-          let uniqueWeeks = await this.loadPayrollWeekList();
-          
-          // Fallback in case payroll_weeks isn't available
-          if (!uniqueWeeks.length) {
-            uniqueWeeks = [
-              ...new Map(
-                payrollRows
-                  .filter(r => r.week_id && r.week_start)
-                  .map(r => [String(r.week_id), {
-                    week_id: String(r.week_id),
-                    week_start: String(r.week_start),
-                    week_end: String(r.week_end || "")
-                  }])
-              ).values()
-            ].sort((a, b) =>
-              String(b.week_start).localeCompare(String(a.week_start))
-            );
-          }
-          //start week select
-          if (weekSelect) {
-            const currentValue =
-              this._payrollRequestedWeekId ||
-              weekSelect.value;
-          
-            weekSelect.innerHTML = uniqueWeeks
-              .map(w => `
-                <option
-                  value="${w.week_id}"
-                  data-week-start="${w.week_start}"
-                  data-week-end="${w.week_end}"
-                >
-                  ${this.getPayrollWeekRangeLabel(w.week_start)}
-                </option>
-              `)
-              .join("");
-          
-            const latestLoadedWeekId = payrollRows
-    .filter(r => r.week_id && r.week_start)
-    .slice()
-    .sort((a, b) => String(b.week_start).localeCompare(String(a.week_start)))[0]?.week_id;
-
-  if (uniqueWeeks.some(w => w.week_id === currentValue)) {
-    weekSelect.value = currentValue;
-  } else if (
-    latestLoadedWeekId &&
-    uniqueWeeks.some(w => w.week_id === String(latestLoadedWeekId))
-  ) {
-    weekSelect.value = String(latestLoadedWeekId);
-  } else if (uniqueWeeks[0]) {
-    weekSelect.value = uniqueWeeks[0].week_id;
-  }
-          
-            this._payrollRequestedWeekId = null;
-          }
-  
-          let selectedWeekId = weekSelect ? weekSelect.value : (uniqueWeeks[0]?.week_id || "");
-          if (!selectedWeekId && uniqueWeeks[0]) selectedWeekId = uniqueWeeks[0].week_id;
-          if (!selectedWeekId) return;
-  
-          const selectedWeekMeta = uniqueWeeks.find(w => w.week_id === selectedWeekId);
+          const loadedLatest = payrollRows.filter(r => r.week_id && r.week_start)
+            .slice().sort((a, b) => String(b.week_start).localeCompare(String(a.week_start)))[0];
+          const now = new Date();
+          const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+          const selectedWeekMeta = uniqueWeeks.find(w => w.week_id === requested)
+            || uniqueWeeks.find(w => w.week_id === String(loadedLatest?.week_id || ""))
+            || uniqueWeeks.find(w => w.week_end && w.week_end < today)
+            || uniqueWeeks.find(w => w.week_start <= today)
+            || uniqueWeeks[0];
+          const selectedWeekId = selectedWeekMeta.week_id;
+          // Populate the selector BEFORE fetching rows, including empty payroll weeks.
+          weekSelect.replaceChildren(...uniqueWeeks.map(w => {
+            const option = document.createElement("option");
+            option.value = w.week_id;
+            option.dataset.weekStart = w.week_start;
+            option.dataset.weekEnd = w.week_end;
+            option.textContent = this.getPayrollWeekRangeLabel(w.week_start);
+            return option;
+          }));
+          weekSelect.value = selectedWeekId;
+          this._payrollRequestedWeekId = null;
+          this.setPayrollLoadMessage("Loading the selected payroll week…");
+          const force = this._payrollForceWeekId === selectedWeekId;
+          this._payrollForceWeekId = null;
+          const success = await this.loadPayrollWeek(selectedWeekId, selectedWeekMeta.week_start, force);
+          if (!success) throw this._payrollWeekErrors?.get(selectedWeekId) || new Error("Unable to load this payroll week.");
+          payrollRows = Array.isArray(state.payrollWeeklyFactView) ? state.payrollWeeklyFactView : [];
           const selectedRows = payrollRows.filter(r => String(r.week_id) === selectedWeekId);
-
+          const workers = Array.isArray(state.payrollWorkers) ? state.payrollWorkers : [];
+          const consistencyBonusRows = Array.isArray(state.payrollConsistencyBonusStatus) ? state.payrollConsistencyBonusStatus : [];
           this._currentPayrollRows = selectedRows;
-  
+          this.setPayrollLoadMessage(weekListError
+            ? "The full week list is unavailable. Showing previously loaded periods; retry to refresh the list."
+            : selectedRows.length ? "" : "No payroll rows were returned for this week. Choose another week or retry.",
+            !!weekListError || !selectedRows.length);
+
           if (selectedWeekMeta?.week_start) {
             this.loadPayrollNotes(selectedWeekMeta.week_start);
             document.getElementById("payroll-ledger-period").textContent =
@@ -9419,6 +9485,7 @@ if (!payrollRows.length) {
             });
   
           this.bindExportCSV(selectedWeekMeta?.week_start || selectedWeekId, processedAgents);
+          document.getElementById("payroll-export").disabled = !processedAgents.length;
   
           let currentCountry = "";
           processedAgents.forEach(data => {
@@ -9966,171 +10033,87 @@ if (!payrollRows.length) {
           });
         },
 
-        // Payroll week dropdown list
+        // Cache period metadata briefly and share concurrent requests.
         async loadPayrollWeekList() {
-          if (!supaClient) return [];
-        
-          if (
-            Array.isArray(this._payrollWeekList) &&
-            this._payrollWeekList.length
-          ) {
+          if (this._payrollWeekList.length && Date.now() - (this._payrollWeekListAt || 0) < 60000) {
             return this._payrollWeekList;
           }
-        
-          const { data, error } = await supaClient
-            .from("payroll_weeks")
-            .select("id, week_start, week_end")
-            .order("week_start", { ascending: false });
-        
-          if (error) {
-            console.error("Payroll week list load failed:", error);
-            return [];
+          if (this._payrollWeekListPromise) return this._payrollWeekListPromise;
+          this._payrollWeekListPromise = (async () => {
+            const client = window.portal?.supabase;
+            if (!client) throw new Error("Database connection missing.");
+            const rows = await this.payrollRead(client.from("payroll_weeks")
+              .select("id, week_start, week_end").order("week_start", { ascending: false }), "Payroll weeks");
+            this._payrollWeekList = rows.filter(r => r.id && r.week_start).map(r => ({
+              week_id: String(r.id), week_start: String(r.week_start), week_end: String(r.week_end || "")
+            }));
+            this._payrollWeekListAt = Date.now();
+            return this._payrollWeekList;
+          })();
+          try {
+            return await this._payrollWeekListPromise;
+          } finally {
+            this._payrollWeekListPromise = null;
           }
-        
-          this._payrollWeekList = (data || []).map(row => ({
-            week_id: String(row.id),
-            week_start: String(row.week_start),
-            week_end: String(row.week_end || "")
-          }));
-        
-          return this._payrollWeekList;
         },
-  
-        //Function one Payroll Week
-        async loadPayrollWeek(weekId, weekStart = null) {
-        if (!weekId || !supaClient) return false;
-      
-        const state = this.getState();
-      
-        if (!Array.isArray(state.payrollWeeklyFactView)) {
-          state.payrollWeeklyFactView = [];
-        }
-      
-        // Already in memory = don't fetch again
-        const alreadyLoaded = state.payrollWeeklyFactView.some(
-          r => String(r.week_id) === String(weekId)
-        );
-      
-        if (alreadyLoaded) {
-          this._payrollLoadedWeeks.add(String(weekId));
-          return true;
-        }
-      
-        // Prevent duplicate simultaneous requests
-        if (this._payrollLoadingWeeks.has(String(weekId))) {
-          return false;
-        }
-      
-        this._payrollLoadingWeeks.add(String(weekId));
-      
-        try {
-          console.log("Loading payroll week:", weekId, weekStart || "");
-        //start fix
-        let query = supaClient
-          .from("payroll_weekly_fact_v2")
-          .select("*")
-          .eq("week_id", weekId);
-        
-        const { data, error } = await query;
-      
-          if (error) {
-            console.error("Payroll week load failed:", error);
-            return false;
+
+        async loadPayrollWeek(weekId, weekStart = null, force = false) {
+          const id = String(weekId || "");
+          if (!id) return false;
+          this._payrollWeekRequests ||= new Map();
+          this._payrollWeekErrors ||= new Map();
+          if (this._payrollWeekRequests.has(id)) return this._payrollWeekRequests.get(id);
+          const state = this.getState();
+          const rows = Array.isArray(state.payrollWeeklyFactView) ? state.payrollWeeklyFactView : [];
+          if (!force && !this._payrollWeekErrors.has(id) &&
+              (this._payrollLoadedWeeks.has(id) || rows.some(r => String(r.week_id) === id))) {
+            this._payrollLoadedWeeks.add(id);
+            return true;
           }
-      
-          const newRows = Array.isArray(data) ? data : [];
-      
-          // Merge without duplicating worker/week rows
-          const existing = state.payrollWeeklyFactView || [];
-      
-          const rowKey = row =>
-            `${String(row.week_id || "")}|${String(row.worker_id || row.agent_id || "")}`;
-      
-          const rowMap = new Map(
-            existing.map(row => [rowKey(row), row])
-          );
-      
-          newRows.forEach(row => {
-            rowMap.set(rowKey(row), row);
-          });
-      
-          state.payrollWeeklyFactView = Array.from(rowMap.values());
-      
-          this._payrollLoadedWeeks.add(String(weekId));
-      
-          console.log(
-            `Payroll week ${weekId} loaded:`,
-            newRows.length,
-            "rows"
-          );
-      
-          return true;
-      
-        } catch (err) {
-          console.error("Unexpected payroll week load error:", err);
-          return false;
-      
-        } finally {
-          this._payrollLoadingWeeks.delete(String(weekId));
-        }
-      },
-  
+          const request = (async () => {
+            this._payrollLoadingWeeks.add(id);
+            try {
+              const client = window.portal?.supabase;
+              if (!client) throw new Error("Database connection missing.");
+              const newRows = await this.payrollRead(client.from("payroll_weekly_fact_v2")
+                .select("*").eq("week_id", id), "Payroll week");
+              // Replace ONLY this week after a successful read; preserve all history on errors.
+              const existing = Array.isArray(state.payrollWeeklyFactView) ? state.payrollWeeklyFactView : [];
+              state.payrollWeeklyFactView = existing.filter(r => String(r.week_id) !== id).concat(newRows);
+              this._payrollLoadedWeeks.add(id); // Empty successes are cached too.
+              this._payrollWeekErrors.delete(id);
+              state.payrollFetchError = null;
+              return true;
+            } catch (error) {
+              console.error("Payroll week load failed:", error);
+              this._payrollWeekErrors.set(id, error);
+              state.payrollFetchError = error;
+              return false;
+            } finally {
+              this._payrollLoadingWeeks.delete(id);
+            }
+          })();
+          this._payrollWeekRequests.set(id, request);
+          try {
+            return await request;
+          } finally {
+            this._payrollWeekRequests.delete(id);
+          }
+        },
+
         bindPayrollUI() {
           if (this._payrollBound) return;
           this._payrollBound = true;
   
-          //Payroll Dropdown event
           const sel = document.getElementById("payroll-week-select");
-          
           if (sel) {
-            sel.addEventListener("change", async () => {
-              const selectedWeekId = String(sel.value || "");
-              if (!selectedWeekId) return;
-          
-              const option = sel.options[sel.selectedIndex];
-              const weekStart = option?.dataset?.weekStart || null;
-          
-              const state = this.getState();
-          
-              const alreadyLoaded =
-                Array.isArray(state.payrollWeeklyFactView) &&
-                state.payrollWeeklyFactView.some(
-                  r => String(r.week_id) === selectedWeekId
-                );
-          
-              if (!alreadyLoaded) {
-                sel.disabled = true;
-          
-                const originalText = option?.textContent || "Loading payroll...";
-          
-                if (option) {
-                  option.textContent = `${originalText} — Loading...`;
-                }
-          
-                const success = await this.loadPayrollWeek(
-                  selectedWeekId,
-                  weekStart
-                );
-          
-                if (option) {
-                  option.textContent = originalText;
-                }
-          
-                sel.disabled = false;
-          
-                if (!success) {
-                  alert("Unable to load this payroll week.");
-                  return;
-                }
-          
-                // Keep selected week after the render rebuilds dropdown
-                this._payrollRequestedWeekId = selectedWeekId;
-              }
-          
+            sel.addEventListener("change", () => {
+              this._payrollRequestedWeekId = String(sel.value || "");
               this.renderPayrollFinance();
             });
           }
-  
+          document.getElementById("payroll-retry")?.addEventListener("click", () => this.retryPayrollLoad());
+
           const noteInput = document.getElementById("payroll-new-note");
           if (noteInput) {
             noteInput.addEventListener("keypress", (e) => {
@@ -11003,7 +10986,7 @@ if (!payrollRows.length) {
       
     </script>
   
-    <script src="main.js?v=20260601-1"></script>
+    <script src="main.js?v=20261012-payroll-loading"></script>
      <script>
   (function installPassbookClientNotesPatch() {
     const PATCH_FLAG = "__passbookNotesPatchInstalled";
