@@ -696,6 +696,7 @@
   
     <select
       id="daily-client-pool-status"
+      aria-label="Package status filter"
       class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold bg-white min-w-[180px] text-blue-700"
     >
       <option value="ONGOING" selected>ONGOING</option>
@@ -2727,6 +2728,57 @@
           return isNaN(dt.getTime()) ? null : dt;
         },
   
+  // DAILY CLIENT POOL COMPATIBILITY START
+  resolvePassbookClientStatus(rawClient = {}) {
+    const normalize = value => String(value || "").trim().toUpperCase();
+    const current = normalize(rawClient.client_status);
+    const canonical = ["ACTIVE", "INACTIVE", "BLACKLISTED"];
+
+    // The editable client status always wins, including explicit exclusions.
+    if (canonical.includes(current)) return current;
+
+    // Older imports put PACKAGE statuses here. Use the legacy CLIENT status
+    // only for those known old values; never infer activation from a package.
+    const legacyPackageValues = ["", "ONGOING", "PAUSE", "PAUSED", "COMPLETED", "REFUNDED"];
+    if (!legacyPackageValues.includes(current)) return "INACTIVE";
+    const legacy = normalize(rawClient.status);
+    return canonical.includes(legacy) ? legacy : "INACTIVE";
+  },
+
+  getDailyClientPoolRows(rows, packageFilter = "ONGOING", search = "", assignedCodes = new Set()) {
+    const normalize = value => String(value || "").trim().toUpperCase();
+    const normalizePackage = value => {
+      const status = normalize(value);
+      if (status === "ACTIVE") return "ONGOING";
+      if (status === "PAUSED") return "PAUSE";
+      return status;
+    };
+    const filter = normalizePackage(packageFilter) || "ONGOING";
+    const query = String(search || "").trim().toLowerCase();
+    const assigned = new Set(Array.from(assignedCodes, code => String(code || "").trim().toLowerCase()));
+
+    return (Array.isArray(rows) ? rows : []).filter(row => {
+      const status = normalizePackage(row.packageStatus);
+      const code = String(row.code || "").trim().toLowerCase();
+      if (normalize(row.passbookStatus) !== "ACTIVE") return false;
+      // ALL means all available packages, not completed/refunded history.
+      if (!["ONGOING", "PAUSE"].includes(status)) return false;
+      if (normalize(row.dealStatus) === "REFUNDED") return false;
+      if (filter !== "ALL" && status !== filter) return false;
+      if (!code || assigned.has(code)) return false;
+      const company = String(row.searchName || row.roofingCompany || "").replace(/<[^>]*>/g, "");
+      const text = `${row.code || ""} ${row.clientName || ""} ${company}`.toLowerCase();
+      return !query || text.includes(query);
+    });
+  },
+
+  showAllDailyClientPoolStatuses() {
+    const select = document.getElementById("daily-client-pool-status");
+    if (select) select.value = "ALL";
+    return this.renderDailyTab();
+  },
+  // DAILY CLIENT POOL COMPATIBILITY END
+
         normalizeClientHealthRows(allocationRows, rawClients = [], packages = []) {
     const now = new Date();
     const mstFormatter = new Intl.DateTimeFormat('en-CA', {
@@ -2825,7 +2877,7 @@
         _pkgId: row.package_id || row.id || null,
   
         code,
-        passbookStatus: String(rawClient.client_status || "INACTIVE").toUpperCase().trim(),
+        passbookStatus: this.resolvePassbookClientStatus(rawClient),
         healthStatus,
   
         roofingCompany: company + (
@@ -8171,23 +8223,9 @@
       const clientPoolSearch = String(document.getElementById("daily-client-pool-search")?.value || "").toLowerCase().trim();
   const clientPoolStatus = String(document.getElementById("daily-client-pool-status")?.value || "ONGOING").toUpperCase();
   
-  const activeClientPool = clientHealthRows
-    .filter(r => {
-      const pkgStatus = String(r.packageStatus || "").toUpperCase();
-      const passbookStatus = String(r.passbookStatus || "").toUpperCase();
-      const code = String(r.code || "").trim().toLowerCase();
-  
-      if (passbookStatus !== "ACTIVE") return false;
-      if (clientPoolStatus !== "ALL" && pkgStatus !== clientPoolStatus) return false;
-      if (assignedCodes.has(code)) return false;
-  
-      if (clientPoolSearch) {
-        const blob = `${r.code || ""} ${r.clientName || ""} ${String(r.searchName || r.roofingCompany || "").replace(/<[^>]*>/g, "")}`.toLowerCase();
-        if (!blob.includes(clientPoolSearch)) return false;
-      }
-  
-      return true;
-    })
+  const activeClientPool = this.getDailyClientPoolRows(
+    clientHealthRows, clientPoolStatus, clientPoolSearch, assignedCodes
+  )
         .sort((a, b) => {
           const aCritical = String(a.healthStatus || "").toUpperCase() === "CRITICAL" ? 0 : 1;
           const bCritical = String(b.healthStatus || "").toUpperCase() === "CRITICAL" ? 0 : 1;
@@ -8198,7 +8236,16 @@
       clientPoolCountEl.textContent = `${activeClientPool.length} client${activeClientPool.length === 1 ? "" : "s"}`;
   
       if (!activeClientPool.length) {
-        clientPoolEl.innerHTML = `<div class="text-sm text-gray-400 italic">No available active clients for this strategy day.</div>`;
+        clientPoolEl.innerHTML = `
+          <div class="text-sm text-gray-500 md:col-span-2 xl:col-span-3">
+            <p>No available clients match this search and package filter for the selected day and shift.</p>
+            ${clientPoolStatus !== "ALL" ? `
+              <button type="button" onclick="Admin.showAllDailyClientPoolStatuses()"
+                class="mt-3 px-3 py-2 rounded-lg border border-blue-200 text-blue-700 font-bold hover:bg-blue-50">
+                Show all available package statuses
+              </button>
+            ` : ""}
+          </div>`;
       } else {
         clientPoolEl.innerHTML = activeClientPool.map(client => {
           const health = String(client.healthStatus || "NOT STARTED").toUpperCase();
