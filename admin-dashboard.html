@@ -7449,6 +7449,16 @@
     const leadsBody = document.getElementById("agent-leads-body");
   
     if (!weeklyBody || !leadsBody) return;
+
+    // Reset before every render, including missing/invalid agent-date cases.
+    // A previous agent's lead rows must never survive in this modal.
+    this._agentWeeklyRows = [];
+    weeklyBody.innerHTML = "";
+    weeklyBody.closest(".bg-white.rounded-2xl")?.classList.remove("hidden");
+    document.getElementById("agent-drilldown-section")?.classList.add("hidden");
+    const drilldownLabel = document.getElementById("agent-drilldown-label");
+    if (drilldownLabel) drilldownLabel.textContent = "";
+    leadsBody.innerHTML = `<tr><td colspan="12" class="p-6 text-center text-gray-400 italic">Click a metric number above to view leads</td></tr>`;
   
     const normalizeAgent = (raw) => {
       return String(raw || "")
@@ -7493,25 +7503,41 @@
       return;
     }
   
-    const activeStart = new Date(activeStartRaw + "T00:00:00");
+    // Date-only values are local calendar dates; timestamps already have a time.
+    const activeStartText = String(activeStartRaw).trim();
+    const activeStart = /^\d{4}-\d{2}-\d{2}$/.test(activeStartText)
+      ? new Date(activeStartText + "T00:00:00")
+      : new Date(activeStartText);
+    if (isNaN(activeStart.getTime())) {
+      weeklyBody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-red-500 italic">Invalid active start date. Please check the agent record in HR &amp; Agents.</td></tr>`;
+      return;
+    }
+    activeStart.setHours(0, 0, 0, 0);
   
   const today = new Date();
   today.setHours(23, 59, 59, 999);
+
+  if (activeStart > today) {
+    weeklyBody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-500 italic">This agent has not started yet. Weekly performance begins on ${activeStart.toLocaleDateString()}.</td></tr>`;
+    return;
+  }
   
-  const getSaturdayOnOrAfter = (date) => {
+  // Include the Saturday-Friday week containing the active start date.
+  // Rounding forward skips Sunday-Friday starters' first working week.
+  const getSaturdayOnOrBefore = (date) => {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
   
     const day = d.getDay(); // Sunday=0, Saturday=6
-    const daysUntilSaturday = (6 - day + 7) % 7;
+    const daysSinceSaturday = (day + 1) % 7;
   
-    d.setDate(d.getDate() + daysUntilSaturday);
+    d.setDate(d.getDate() - daysSinceSaturday);
     return d;
   };
   
   const weeks = [];
   
-  let cursor = getSaturdayOnOrAfter(activeStart);
+  let cursor = getSaturdayOnOrBefore(activeStart);
   
   while (cursor <= today) {
     const weekStart = new Date(cursor);
