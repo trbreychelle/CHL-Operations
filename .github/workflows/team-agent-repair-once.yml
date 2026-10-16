@@ -28,7 +28,7 @@ jobs:
             echo 'Expected the unpatched Team handlers to fail regression tests.'
             exit 1
           fi
-          cat "$RUNNER_TEMP/team-before.log"
+          grep -E '^(not ok|ok|# tests|# pass|# fail)' "$RUNNER_TEMP/team-before.log"
       - name: Patch only Team agent argument and label escaping
         run: |
           python3 - <<'PY'
@@ -71,6 +71,9 @@ jobs:
           new_test.parent.mkdir(exist_ok=True)
           test_source = old_test.read_text()
           test_source = test_source.replace("path.join(__dirname, '..', 'admin-dashboard.html')", "path.join(__dirname, '..', '..', 'admin-dashboard.html')")
+          # HTML parsers normalize literal CRLF text to LF; click arguments
+          # must still preserve the original CRLF exactly (asserted separately).
+          test_source = test_source.replace('buttons[0].textContent.trim(), name,', r"buttons[0].textContent.trim(), name.replace(/\r\n?/g, '\n'),")
           new_test.write_text(test_source)
           old_test.unlink()
           PY
