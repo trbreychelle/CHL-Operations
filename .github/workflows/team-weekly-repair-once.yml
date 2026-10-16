@@ -1,0 +1,96 @@
+name: Apply Team weekly performance repair
+on:
+  push:
+    branches: [fix/team-weekly-first-week-20261016]
+    paths: ['.github/workflows/team-weekly-repair-once.yml']
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated DOM test dependencies
+        run: npm install --prefix "$RUNNER_TEMP/team-agent-test-deps" --ignore-scripts --no-audit --no-fund acorn@8.14.1 jsdom@24.1.3
+      - name: Reproduce empty Week 1 through actual name and modal code
+        env:
+          NODE_PATH: ${{ runner.temp }}/team-agent-test-deps/node_modules
+        run: |
+          if node --test --test-name-pattern='Monday starter' tests/browser/team-weekly-performance.test.cjs > "$RUNNER_TEMP/team-weekly-before.log" 2>&1; then
+            cat "$RUNNER_TEMP/team-weekly-before.log"
+            echo 'The original first-week regression unexpectedly passed.'
+            exit 1
+          fi
+          cat "$RUNNER_TEMP/team-weekly-before.log"
+          grep -Fq 'First partial workweek must not disappear' "$RUNNER_TEMP/team-weekly-before.log"
+      - name: Include first partial week, validate dates, and reset stale modal state
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('admin-dashboard.html')
+          text = p.read_bytes().decode('utf-8')
+          start = text.index('       renderAgentLeads() {')
+          end = text.index('        openAgentLeadDrilldown(', start)
+          body = text[start:end]
+          def replace_once(old, new):
+              global body
+              assert body.count(old) == 1, ('Expected one exact match', old[:100], body.count(old))
+              body = body.replace(old, new, 1)
+          replace_once('    if (!weeklyBody || !leadsBody) return;', '''    if (!weeklyBody || !leadsBody) return;
+
+              // Reset before every render, including missing/invalid agent-date cases.
+              // A previous agent's lead rows must never survive in this modal.
+              this._agentWeeklyRows = [];
+              weeklyBody.innerHTML = "";
+              weeklyBody.closest(".bg-white.rounded-2xl")?.classList.remove("hidden");
+              document.getElementById("agent-drilldown-section")?.classList.add("hidden");
+              const drilldownLabel = document.getElementById("agent-drilldown-label");
+              if (drilldownLabel) drilldownLabel.textContent = "";
+              leadsBody.innerHTML = `<tr><td colspan="12" class="p-6 text-center text-gray-400 italic">Click a metric number above to view leads</td></tr>`;'''.replace('\n          ', '\n'))
+          replace_once('    const activeStart = new Date(activeStartRaw + "T00:00:00");', '''    // Date-only values are local calendar dates; timestamps already have a time.
+              const activeStartText = String(activeStartRaw).trim();
+              const activeStart = /^\\d{4}-\\d{2}-\\d{2}$/.test(activeStartText)
+                ? new Date(activeStartText + "T00:00:00")
+                : new Date(activeStartText);
+              if (isNaN(activeStart.getTime())) {
+                weeklyBody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-red-500 italic">Invalid active start date. Please check the agent record in HR &amp; Agents.</td></tr>`;
+                return;
+              }
+              activeStart.setHours(0, 0, 0, 0);'''.replace('\n          ', '\n'))
+          replace_once('  today.setHours(23, 59, 59, 999);', '''  today.setHours(23, 59, 59, 999);
+
+            if (activeStart > today) {
+              weeklyBody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-500 italic">This agent has not started yet. Weekly performance begins on ${activeStart.toLocaleDateString()}.</td></tr>`;
+              return;
+            }'''.replace('\n          ', '\n'))
+          replace_once('  const getSaturdayOnOrAfter = (date) => {', '''  // Include the Saturday-Friday week containing the active start date.
+            // Rounding forward skips Sunday-Friday starters' first working week.
+            const getSaturdayOnOrBefore = (date) => {'''.replace('\n          ', '\n'))
+          replace_once('    const daysUntilSaturday = (6 - day + 7) % 7;', '    const daysSinceSaturday = (day + 1) % 7;')
+          replace_once('    d.setDate(d.getDate() + daysUntilSaturday);', '    d.setDate(d.getDate() - daysSinceSaturday);')
+          replace_once('  let cursor = getSaturdayOnOrAfter(activeStart);', '  let cursor = getSaturdayOnOrBefore(activeStart);')
+          text = text[:start] + body + text[end:]
+          p.write_bytes(text.encode('utf-8'))
+          PY
+      - name: Test actual Team-to-week-to-lead path and existing regressions
+        env:
+          NODE_PATH: ${{ runner.temp }}/team-agent-test-deps/node_modules
+        run: |
+          TZ=UTC node --test tests/browser/*.test.cjs
+          TZ=America/New_York node --test tests/browser/team-weekly-performance.test.cjs
+          TZ=Asia/Manila node --test tests/browser/team-weekly-performance.test.cjs
+          node --test tests/*.test.cjs
+          git diff --check
+          git diff -- admin-dashboard.html
+      - name: Commit only the tested dashboard change to the isolated branch
+        run: |
+          test "$GITHUB_REF" = 'refs/heads/fix/team-weekly-first-week-20261016'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- admin-dashboard.html
+          git commit -m 'fix: include first partial week in Team performance and clear stale modal state'
+          git push origin HEAD:refs/heads/fix/team-weekly-first-week-20261016
