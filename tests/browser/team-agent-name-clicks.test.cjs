@@ -9,7 +9,7 @@ const test = require('node:test');
 const acorn = require('acorn');
 const { JSDOM } = require('jsdom');
 
-const htmlPath = process.env.TEAM_DASHBOARD_HTML || path.join(__dirname, '..', 'admin-dashboard.html');
+const htmlPath = process.env.TEAM_DASHBOARD_HTML || path.join(__dirname, '..', '..', 'admin-dashboard.html');
 const html = fs.readFileSync(htmlPath, 'utf8');
 const sourceDom = new JSDOM(html);
 const rowSources = [];
@@ -89,7 +89,7 @@ for (const [name, email] of cases) {
           /Admin\.open(?:AgentModal|TeamLeadDrilldown)\(/.test(button.getAttribute('onclick'))
         );
         assert.equal(buttons.length, 5, 'Name plus total/rejected/qualified/credited controls remain present');
-        assert.equal(buttons[0].textContent.trim(), name, 'Display name remains unchanged plain text');
+        assert.equal(buttons[0].textContent.trim(), name.replace(/\r\n?/g, '\n'), 'Display name remains unchanged plain text');
         assert.deepEqual(buttons.slice(1).map(button => button.textContent.trim()), ['12', '1', '11', '0']);
         assert.equal(tbody.querySelector('img,svg,script'), null, 'Agent names cannot create markup');
         buttons.forEach(button => button.click());

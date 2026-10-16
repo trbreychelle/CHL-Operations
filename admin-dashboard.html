@@ -7119,17 +7119,22 @@
         ? `<span class="ml-2 text-[10px] font-black text-orange-700 bg-orange-50 border border-orange-100 px-2 py-1 rounded-full">WARNED</span>`
         : "";
   
-      const safeName = String(r.name).replace(/'/g,"\\'");
-      const safeEmail = String(r.email || "").replace(/'/g,"\\'");
+      // Keep agent values as JSON strings, then escape the HTML attribute context.
+      // Quotes in nicknames must not terminate a button onclick attribute.
+      const escapeAgentHtml = value => String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[char]);
+      const safeName = escapeAgentHtml(JSON.stringify(String(r.name ?? "")));
+      const safeEmail = escapeAgentHtml(JSON.stringify(String(r.email ?? "")));
   
       return `
         <tr class="hover:bg-gray-50">
           <td class="p-4 font-bold text-gray-900">
           <button
     class="font-bold hover:text-blue-600 hover:underline"
-    onclick="Admin.openAgentModal('${safeName}', '${safeEmail}')"
+    onclick="Admin.openAgentModal(${safeName}, ${safeEmail})"
   >
-    ${r.name}
+    ${escapeAgentHtml(r.name)}
   </button>
   
             <div class="mt-2 flex items-center gap-1 flex-wrap">
@@ -7148,19 +7153,19 @@
           </td>
   
           <td class="p-4 text-center text-gray-700 font-semibold">
-           <button class="hover:underline" onclick="Admin.openTeamLeadDrilldown('${safeName}', '${safeEmail}', 'total')">${r.total}</button>
+           <button class="hover:underline" onclick="Admin.openTeamLeadDrilldown(${safeName}, ${safeEmail}, 'total')">${r.total}</button>
           </td>
   
           <td class="p-4 text-center text-red-500 font-bold">
-           <button class="hover:underline" onclick="Admin.openTeamLeadDrilldown('${safeName}', '${safeEmail}', 'rejected')">${r.rejected}</button>
+           <button class="hover:underline" onclick="Admin.openTeamLeadDrilldown(${safeName}, ${safeEmail}, 'rejected')">${r.rejected}</button>
           </td>
   
           <td class="p-4 text-center text-blue-500 font-bold">
-           <button class="hover:underline" onclick="Admin.openTeamLeadDrilldown('${safeName}', '${safeEmail}', 'qualified')">${r.qualified}</button>
+           <button class="hover:underline" onclick="Admin.openTeamLeadDrilldown(${safeName}, ${safeEmail}, 'qualified')">${r.qualified}</button>
           </td>
   
           <td class="p-4 text-center text-purple-500 font-bold">
-           <button class="hover:underline" onclick="Admin.openTeamLeadDrilldown('${safeName}', '${safeEmail}', 'credited')">${r.credited}</button>
+           <button class="hover:underline" onclick="Admin.openTeamLeadDrilldown(${safeName}, ${safeEmail}, 'credited')">${r.credited}</button>
           </td>
   
           <td class="p-4 text-center text-gray-700 font-semibold">${r.cancelRate}%</td>
