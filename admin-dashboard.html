@@ -7488,41 +7488,63 @@
       return;
     }
   
-    const activeStartRaw =
-      selectedAgent.active_start_date ||
-      selectedAgent.start_date;
-  
-    if (!activeStartRaw) {
-      weeklyBody.innerHTML = `
-        <tr>
-          <td colspan="7" class="p-6 text-center text-red-500 italic">
-            Missing active_start_date.
-          </td>
-        </tr>
-      `;
-      return;
-    }
-  
-    // Date-only values are local calendar dates; timestamps already have a time.
-    const activeStartText = String(activeStartRaw).trim();
-    const activeStart = /^\d{4}-\d{2}-\d{2}$/.test(activeStartText)
-      ? new Date(activeStartText + "T00:00:00")
-      : new Date(activeStartText);
-    if (isNaN(activeStart.getTime())) {
-      weeklyBody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-red-500 italic">Invalid active start date. Please check the agent record in HR &amp; Agents.</td></tr>`;
-      return;
-    }
-    activeStart.setHours(0, 0, 0, 0);
-  
-  const today = new Date();
-  today.setHours(23, 59, 59, 999);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
 
-  if (activeStart > today) {
-    weeklyBody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-500 italic">This agent has not started yet. Weekly performance begins on ${activeStart.toLocaleDateString()}.</td></tr>`;
-    return;
-  }
-  
-  // Include the Saturday-Friday week containing the active start date.
+    // Weekly performance is lead history, not an HR activation cutoff.
+    // Include earlier working/training weeks without changing either HR date.
+    const parseStartDate = (raw) => {
+      const value = String(raw ?? "").trim();
+      if (!value) return null;
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
+        ? new Date(value + "T00:00:00")
+        : new Date(value);
+      if (isNaN(date.getTime())) return null;
+      date.setHours(0, 0, 0, 0);
+      return date;
+    };
+    const startDates = [selectedAgent.start_date, selectedAgent.active_start_date]
+      .map(parseStartDate).filter(Boolean);
+    let historyStart = startDates.reduce((earliest, date) =>
+      !earliest || date < earliest ? date : earliest, null);
+
+    // Use Team's existing official-name resolution, plus the email fallback
+    // already supported by the weekly modal, for both the range and counts.
+    const agentLeadEntries = leads.flatMap(lead => {
+      const rawAgent = this.pick(lead, [
+        "appointment_coordinator_name", "Appointment Coordinator Name",
+        "agent_name", "Agent Name", "AGENT"
+      ], "");
+      const leadAgent = normalizeAgent(this.getOfficialAgentName(rawAgent));
+      const leadEmail = normalizeAgent(this.getLeadField(lead, [
+        "agent_email", "Agent Email", "appointment_coordinator_email"
+      ], ""));
+      if (leadAgent !== agentKey && (!selectedEmail || leadEmail !== selectedEmail)) return [];
+      const date = this.getLeadDateObj(lead);
+      return date && !isNaN(date.getTime()) ? [{ lead, date }] : [];
+    });
+    for (const { date } of agentLeadEntries) {
+      // Invalid/future submissions cannot invent an earlier working week.
+      if (date <= today && (!historyStart || date < historyStart)) {
+        historyStart = new Date(date);
+      }
+    }
+
+    if (!historyStart) {
+      const hasDate = [selectedAgent.start_date, selectedAgent.active_start_date]
+        .some(value => String(value ?? "").trim());
+      weeklyBody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-red-500 italic">${hasDate
+        ? "Invalid active start date. Please check the agent record in HR &amp; Agents."
+        : "Missing active_start_date. No dated lead history is available."}</td></tr>`;
+      return;
+    }
+    historyStart.setHours(0, 0, 0, 0);
+    if (historyStart > today) {
+      weeklyBody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-500 italic">This agent has not started yet. Weekly performance begins on ${historyStart.toLocaleDateString()}.</td></tr>`;
+      return;
+    }
+
+  // Include the Saturday-Friday week containing the earliest known activity.
   // Rounding forward skips Sunday-Friday starters' first working week.
   const getSaturdayOnOrBefore = (date) => {
     const d = new Date(date);
@@ -7537,7 +7559,7 @@
   
   const weeks = [];
   
-  let cursor = getSaturdayOnOrBefore(activeStart);
+  let cursor = getSaturdayOnOrBefore(historyStart);
   
   while (cursor <= today) {
     const weekStart = new Date(cursor);
@@ -7547,33 +7569,9 @@
     weekEnd.setDate(weekEnd.getDate() + 6);
     weekEnd.setHours(23, 59, 59, 999);
   
-    const weekLeads = leads.filter(l => {
-      const rawAgent =
-        l.appointment_coordinator_name ||
-        l["Appointment Coordinator Name"] ||
-        l.agent_name ||
-        "";
-  
-      const leadAgent = normalizeAgent(rawAgent);
-  
-      const leadEmail = String(
-        l.agent_email ||
-        l["Agent Email"] ||
-        ""
-      ).trim().toLowerCase();
-  
-      if (
-        leadAgent !== agentKey &&
-        (!selectedEmail || leadEmail !== selectedEmail)
-      ) {
-        return false;
-      }
-  
-      const dt = this.getLeadDateObj(l);
-      if (!dt || isNaN(dt.getTime())) return false;
-  
-      return dt >= weekStart && dt <= weekEnd;
-    });
+    const weekLeads = agentLeadEntries
+      .filter(({ date }) => date >= weekStart && date <= weekEnd)
+      .map(({ lead }) => lead);
   
     let total = 0;
     let qualified = 0;

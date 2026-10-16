@@ -41,7 +41,7 @@ jobs:
               "https://dashboard.callhammerleads.com/admin-dashboard.html?team-weekly-check=$GITHUB_SHA-$attempt" \
               --output "$live_html" && \
               grep -Fq 'const safeName = escapeAgentHtml(JSON.stringify(String(r.name ?? "")));' "$live_html" && \
-              grep -Fq 'let cursor = getSaturdayOnOrBefore(activeStart);' "$live_html"; then
+              grep -Fq 'let cursor = getSaturdayOnOrBefore(historyStart);' "$live_html"; then
               TEAM_DASHBOARD_HTML="$live_html" node --test tests/browser/*.test.cjs
               echo 'Verified name -> weekly rows -> lead details against the deployed dashboard code with synthetic records.'
               exit 0
