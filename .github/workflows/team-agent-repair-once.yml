@@ -1,0 +1,91 @@
+name: Apply Team agent click repair
+on:
+  push:
+    branches: [fix/team-agent-quoted-names-20261016]
+    paths: [.github/workflows/team-agent-repair-once.yml]
+permissions:
+  contents: write
+concurrency:
+  group: team-agent-quoted-name-repair
+  cancel-in-progress: false
+jobs:
+  repair:
+    if: github.ref == 'refs/heads/fix/team-agent-quoted-names-20261016'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated DOM test dependencies
+        run: npm install --prefix "$RUNNER_TEMP/team-agent-test-deps" --ignore-scripts --no-audit --no-fund acorn@8.14.1 jsdom@24.1.3
+      - name: Reproduce the original failure
+        env:
+          NODE_PATH: ${{ runner.temp }}/team-agent-test-deps/node_modules
+        run: |
+          if node --test tests/team-agent-name-clicks.test.cjs > "$RUNNER_TEMP/team-before.log" 2>&1; then
+            cat "$RUNNER_TEMP/team-before.log"
+            echo 'Expected the unpatched Team handlers to fail regression tests.'
+            exit 1
+          fi
+          cat "$RUNNER_TEMP/team-before.log"
+      - name: Patch only Team agent argument and label escaping
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('admin-dashboard.html')
+          text = p.read_bytes().decode('utf-8')
+          pattern = r'(?m)^(?P<indent>[ \t]*)const safeName = String\(r\.name\)\.replace\([^\n]+\);\n[ \t]*const safeEmail = String\(r\.email \|\| ""\)\.replace\([^\n]+\);'
+          matches = list(re.finditer(pattern, text))
+          assert len(matches) == 1, 'Expected exactly one original Team argument-escaping block'
+          m = matches[0]
+          lines = [
+            '// Keep agent values as JSON strings, then escape the HTML attribute context.',
+            '// Quotes in nicknames must not terminate a button onclick attribute.',
+            'const escapeAgentHtml = value => String(value ?? "").replace(/[&<>"\']/g, char => ({',
+            '  "&": "&amp;", "<": "&lt;", ">": "&gt;", \'"\': "&quot;", "\'": "&#39;"',
+            '})[char]);',
+            'const safeName = escapeAgentHtml(JSON.stringify(String(r.name ?? "")));',
+            'const safeEmail = escapeAgentHtml(JSON.stringify(String(r.email ?? "")));'
+          ]
+          replacement = '\n'.join(m['indent'] + line for line in lines)
+          text = text[:m.start()] + replacement + text[m.end():]
+          replacements = [
+            ("Admin.openAgentModal('${safeName}', '${safeEmail}')", 'Admin.openAgentModal(${safeName}, ${safeEmail})', 1),
+            ("Admin.openTeamLeadDrilldown('${safeName}', '${safeEmail}',", 'Admin.openTeamLeadDrilldown(${safeName}, ${safeEmail},', 4)
+          ]
+          for old, new, count in replacements:
+            assert text.count(old) == count, (old, text.count(old))
+            text = text.replace(old, new)
+          start = text.index('onclick="Admin.openAgentModal(${safeName}, ${safeEmail})"')
+          end = text.index('</button>', start)
+          button = text[start:end]
+          assert button.count('${r.name}') == 1, 'Expected the Team name label exactly once'
+          text = text[:start] + button.replace('${r.name}', '${escapeAgentHtml(r.name)}') + text[end:]
+          p.write_bytes(text.encode('utf-8'))
+          # DOM dependencies belong to a separate CI job, not the existing
+          # dependency-free tests/*.test.cjs suite.
+          old_test = Path('tests/team-agent-name-clicks.test.cjs')
+          new_test = Path('tests/browser/team-agent-name-clicks.test.cjs')
+          new_test.parent.mkdir(exist_ok=True)
+          test_source = old_test.read_text()
+          test_source = test_source.replace("path.join(__dirname, '..', 'admin-dashboard.html')", "path.join(__dirname, '..', '..', 'admin-dashboard.html')")
+          new_test.write_text(test_source)
+          old_test.unlink()
+          PY
+      - name: Test actual rendered Team buttons and all existing regressions
+        env:
+          NODE_PATH: ${{ runner.temp }}/team-agent-test-deps/node_modules
+        run: |
+          node --test tests/browser/team-agent-name-clicks.test.cjs
+          node --test tests/*.test.cjs
+          git diff --check
+          git diff -- admin-dashboard.html
+      - name: Commit only the tested repair to the isolated branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add admin-dashboard.html tests/team-agent-name-clicks.test.cjs tests/browser/team-agent-name-clicks.test.cjs
+          git commit -m 'fix: preserve quoted agent names in Team lead drilldown buttons'
+          git push origin "HEAD:$GITHUB_REF_NAME"
