@@ -252,3 +252,138 @@ test('Saturday-Friday calendar boundaries remain stable across daylight saving c
     assert.deepEqual(f.weeks().map(w => w.total), [1, 1]);
   } finally { f.close(); }
 });
+
+// Earlier working/training weeks are part of lead history even when HR
+// activation happened later. These are synthetic records, not live data.
+function recordedHistoryLeads() {
+  return [
+    ...Array.from({ length: 6 }, (_, i) => lead(`earlier-${i + 1}`,
+      i < 4 ? 'Confirmed' : 'Rejected', '2026-10-09T12:00:00')),
+    ...Array.from({ length: 12 }, (_, i) => lead(`later-${i + 1}`,
+      i < 11 ? 'Confirmed' : 'Rejected', '2026-10-16T12:00:00'))
+  ];
+}
+function assertRecordedHistory(f) {
+  const weeks = f.weeks();
+  assert.equal(weeks.length, 2, 'Recorded history must include October 3-9, not just the activation week');
+  assert.deepEqual(weeks.map(w => w.weekNumber), [2, 1]);
+  assert.deepEqual(weeks.map(w => localDate(w.start)), ['2026-10-10', '2026-10-03']);
+  assert.deepEqual(weeks.map(w => localDate(w.end)), ['2026-10-16', '2026-10-09']);
+  assert.deepEqual(weeks.map(w => [w.total, w.rejected, w.qualified, w.credited]), [[12, 1, 11, 0], [6, 2, 4, 0]]);
+  assert.equal(weeks.reduce((sum, w) => sum + w.total, 0), 18);
+  const earlier = f.metric('total', 1);
+  assert.equal(earlier.length, 6);
+  assert.ok(earlier.every(row => row.textContent.includes('Synthetic earlier-')));
+  assert.equal(f.metric('rejected', 1).length, 2);
+  assert.equal(f.metric('qualified', 1).length, 4);
+  assert.equal(f.metric('credited', 1).length, 0);
+  const later = f.metric('total', 0);
+  assert.equal(later.length, 12);
+  assert.ok(later.every(row => row.textContent.includes('Synthetic later-')));
+  assert.equal(f.metric('rejected', 0).length, 1);
+  assert.equal(f.metric('qualified', 0).length, 11);
+  assert.equal(f.metric('credited', 0).length, 0);
+}
+
+for (const dates of [
+  { start_date: '2026-10-05', active_start_date: '2026-10-12' },
+  { start_date: null, active_start_date: '2026-10-12' },
+  { start_date: '2026-10-12', active_start_date: '2026-10-12' },
+  { start_date: null, active_start_date: null },
+  { start_date: null, active_start_date: 'not-a-date' },
+  { start_date: null, active_start_date: '2026-10-19' }
+]) {
+  test(`Recorded history: both weeks survive later or unusable HR dates ${JSON.stringify(dates)}`, () => {
+    const f = fixture({ agents: [agent(dates)], leads: recordedHistoryLeads(),
+      selectedWeek: '2026-10-03|2026-10-09' });
+    try {
+      f.clickName();
+      // Match the actual Team table for each period, not just modal totals.
+      assert.deepEqual([...f.document.querySelectorAll('#team-body tr:first-child td')]
+        .slice(1, 5).map(td => Number(td.textContent.trim())), [6, 2, 4, 0]);
+      assertRecordedHistory(f);
+      f.Admin.closeAgentModal();
+      f.Admin._teamSelectedWeek = '2026-10-10|2026-10-16';
+      f.clickName();
+      assert.deepEqual([...f.document.querySelectorAll('#team-body tr:first-child td')]
+        .slice(1, 5).map(td => Number(td.textContent.trim())), [12, 1, 11, 0]);
+      assertRecordedHistory(f);
+    } finally { f.close(); }
+  });
+}
+
+test('Recorded history: an earlier start date preserves a zero-lead first week', () => {
+  const f = fixture({ agents: [agent({ start_date: '2026-10-05' })], leads: [lead('current')] });
+  try {
+    f.clickName();
+    assert.deepEqual(f.weeks().map(w => w.weekNumber), [2, 1]);
+    assert.deepEqual(f.weeks().map(w => w.total), [1, 0]);
+    assert.equal(localDate(f.weeks()[1].start), '2026-10-03');
+    assert.equal(f.metric('total', 1).length, 0);
+  } finally { f.close(); }
+});
+
+test('Recorded history: other agents and invalid or future lead dates cannot move the beginning', () => {
+  const f = fixture({ leads: [lead('current'),
+    lead('other-history', 'Confirmed', '2026-09-01T12:00:00', {
+      appointment_coordinator_name: 'Another Agent', agent_email: 'another@example.test'
+    }),
+    lead('invalid-date', 'Confirmed', 'not-a-date'),
+    lead('future-date', 'Confirmed', '2026-11-20T12:00:00')
+  ] });
+  try {
+    f.clickName();
+    assert.equal(f.weeks().length, 1);
+    assert.equal(f.weeks()[0].total, 1);
+    assert.equal(localDate(f.weeks()[0].start), '2026-10-10');
+    assert.equal(f.metric('total').length, 1);
+  } finally { f.close(); }
+});
+
+test('Recorded history: the same official-name resolver as Team includes historical nicknames', () => {
+  const leads = recordedHistoryLeads().map(l => l.id.startsWith('earlier-')
+    ? { ...l, appointment_coordinator_name: 'Jimmy', agent_email: '' } : l);
+  const f = fixture({ leads, selectedWeek: '2026-10-03|2026-10-09' });
+  try {
+    f.clickName();
+    assert.equal(Number(f.document.querySelector('#team-body tr td:nth-child(2)').textContent.trim()), 6);
+    assertRecordedHistory(f);
+  } finally { f.close(); }
+});
+
+for (const field of ['appointment_coordinator_name', 'Appointment Coordinator Name', 'agent_name', 'Agent Name', 'AGENT']) {
+  test(`Recorded history: historical lead name field ${field} is consistent with Team`, () => {
+    const earlier = lead('earlier-field', 'Confirmed', '2026-10-09T12:00:00', {
+      appointment_coordinator_name: '', agent_email: '', [field]: NAME
+    });
+    const f = fixture({ leads: [earlier, lead('current')] });
+    try {
+      f.clickName();
+      assert.deepEqual(f.weeks().map(w => w.total), [1, 1]);
+      assert.match(f.metric('total', 1)[0].textContent, /Synthetic earlier-field/);
+    } finally { f.close(); }
+  });
+}
+
+test('Recorded history: matching email retains old-name records and calendar gaps', () => {
+  const f = fixture({ leads: [
+    lead('old-name', 'Confirmed', '2026-09-25T12:00:00', {
+      appointment_coordinator_name: 'Former display name', agent_email: EMAIL.toUpperCase()
+    }), lead('current')
+  ] });
+  try {
+    f.clickName();
+    assert.deepEqual(f.weeks().map(w => localDate(w.start)), ['2026-10-10', '2026-10-03', '2026-09-26', '2026-09-19']);
+    assert.deepEqual(f.weeks().map(w => w.total), [1, 0, 0, 1]);
+    assert.match(f.metric('total', 3)[0].textContent, /Synthetic old-name/);
+  } finally { f.close(); }
+});
+
+test('Recorded history: an earlier valid activation date is not lost to a later start_date', () => {
+  const f = fixture({ agents: [agent({ start_date: '2026-10-12', active_start_date: '2026-10-05' })], leads: [lead('current')] });
+  try {
+    f.clickName();
+    assert.deepEqual(f.weeks().map(w => w.total), [1, 0]);
+    assert.equal(localDate(f.weeks()[1].start), '2026-10-03');
+  } finally { f.close(); }
+});
